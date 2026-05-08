@@ -66,4 +66,13 @@ final class AppModel {
         storage.clear()
         phase = .setup
     }
+
+    /// Re-runs bookmark resolution from an error state — used by "Try Again".
+    /// Returns the app to `.setup` first so resolveStoredBookmark's guard passes.
+    func retryResolution() async {
+        currentAccessURL?.stopAccessingSecurityScopedResource()
+        currentAccessURL = nil
+        phase = .setup
+        await resolveStoredBookmark()
+    }
 }
