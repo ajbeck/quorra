@@ -5,17 +5,36 @@ struct SetupView: View {
     @Environment(AppModel.self) private var appModel
     @State private var pendingFolder: URL?
 
+    /// Preview-only seed for the non-standard-folder warning state.
+    init(previewPendingFolder: URL? = nil) {
+        _pendingFolder = State(initialValue: previewPendingFolder)
+    }
+
+    private var isWarningShown: Bool { pendingFolder != nil }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 22) {
             header
+
+            if let pending = pendingFolder {
+                nonStandardWarning(for: pending)
+            }
+
             pathField
+                .opacity(isWarningShown ? 0.5 : 1)
+                .disabled(isWarningShown)
+
             Spacer(minLength: 0)
+
             buttonRow
+                .opacity(isWarningShown ? 0.5 : 1)
+                .disabled(isWarningShown)
         }
         .padding(.horizontal, 40)
         .padding(.top, 44)
         .padding(.bottom, 24)
         .frame(minWidth: 560, minHeight: 460)
+        .animation(.easeInOut(duration: 0.18), value: isWarningShown)
     }
 
     // MARK: - Header
@@ -90,6 +109,70 @@ struct SetupView: View {
         Text(text).font(.system(size: 11, design: .monospaced))
     }
 
+    // MARK: - Non-standard folder warning
+
+    private func nonStandardWarning(for folder: URL) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 18))
+                .foregroundStyle(Theme.warn)
+                .padding(.top, 1)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Heads up — that's not the standard location")
+                    .font(.system(size: 13, weight: .semibold))
+
+                (Text("You picked ")
+                 + monoInline(folder.path(percentEncoded: false))
+                 + Text(". AWS SDKs read ")
+                 + monoInline("~/.aws")
+                 + Text(" unless ")
+                 + monoInline("AWS_CONFIG_FILE")
+                 + Text(" points elsewhere."))
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: 8) {
+                    Button("Continue with this folder") {
+                        Task { await confirmPendingFolder() }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+
+                    Button("Choose Another…") {
+                        Task {
+                            pendingFolder = nil
+                            await runPicker()
+                        }
+                    }
+                    .controlSize(.small)
+
+                    Button("Cancel") {
+                        pendingFolder = nil
+                    }
+                    .buttonStyle(.borderless)
+                    .controlSize(.small)
+                }
+                .padding(.top, 2)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .background(warningBackground)
+    }
+
+    private var warningBackground: some View {
+        RoundedRectangle(cornerRadius: 10)
+            .fill(Theme.warn.opacity(0.12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(Theme.warn.opacity(0.4), lineWidth: 0.5)
+            )
+    }
+
     // MARK: - Button row
 
     private var buttonRow: some View {
@@ -117,8 +200,6 @@ struct SetupView: View {
     // MARK: - Actions
 
     private func continueWithDefault() async {
-        // Sandbox requires user confirmation via NSOpenPanel, so "Continue" still
-        // opens the picker — but pre-filled at ~/.aws so the user simply confirms.
         await runPicker()
     }
 
@@ -135,9 +216,19 @@ struct SetupView: View {
             pendingFolder = picked
         }
     }
+
+    private func confirmPendingFolder() async {
+        guard let folder = pendingFolder else { return }
+        await appModel.completeSetup(selectedFolder: folder)
+    }
 }
 
-#Preview("Setup") {
+#Preview("Setup – idle") {
     SetupView()
+        .environment(AppModel(initialPhase: .setup))
+}
+
+#Preview("Setup – non-standard warning") {
+    SetupView(previewPendingFolder: URL(filePath: "/Users/jordan/work/aws-config"))
         .environment(AppModel(initialPhase: .setup))
 }
