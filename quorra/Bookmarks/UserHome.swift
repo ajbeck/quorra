@@ -1,20 +1,22 @@
+import Darwin
 import Foundation
 
 /// Resolves paths relative to the user's real home directory, independent of
-/// App Sandbox. Inside a sandboxed process, `FileManager.homeDirectoryForCurrentUser`
-/// and `URL.homeDirectory` both point to `~/Library/Containers/<bundle-id>/Data/`,
-/// which is not what we want when we need to reason about paths the user picked
-/// through `NSOpenPanel` (which returns real filesystem URLs).
+/// App Sandbox. Inside a sandboxed process, `FileManager.homeDirectoryForCurrentUser`,
+/// `URL.homeDirectory`, `NSHomeDirectory()`, and `NSHomeDirectoryForUser(NSUserName())`
+/// all return `~/Library/Containers/<bundle-id>/Data/`.
 ///
-/// `NSHomeDirectoryForUser(_:)` with the current username bypasses the sandbox
-/// mapping because it resolves via the system's user database rather than the
-/// sandbox-aware home-directory APIs.
+/// `getpwuid(getuid())` reads the user record from the system database (via
+/// `/etc/passwd`), bypassing the Foundation home-directory APIs that App Sandbox
+/// rewrites. This is what we need when we have to reason about paths the user
+/// picked through `NSOpenPanel` (which returns real filesystem URLs).
 enum UserHome {
     static var url: URL {
-        if let path = NSHomeDirectoryForUser(NSUserName()) {
-            return URL(filePath: path, directoryHint: .isDirectory)
+        guard let passwd = getpwuid(getuid())?.pointee else {
+            return FileManager.default.homeDirectoryForCurrentUser
         }
-        return FileManager.default.homeDirectoryForCurrentUser
+        let path = String(cString: passwd.pw_dir)
+        return URL(filePath: path, directoryHint: .isDirectory)
     }
 
     static var awsFolder: URL {
