@@ -71,16 +71,12 @@ struct SetupView: View {
     private func pickFolder() async {
         guard let picked = await FolderPicker.pickAWSFolder() else { return }
 
-        if picked.standardizedFileURL == Self.defaultAWSFolder.standardizedFileURL {
+        if picked.standardizedFileURL == UserHome.awsFolder.standardizedFileURL {
             await appModel.completeSetup(selectedFolder: picked)
         } else {
             pendingFolder = picked
             showingNonStandardWarning = true
         }
-    }
-
-    private static var defaultAWSFolder: URL {
-        FileManager.default.homeDirectoryForCurrentUser.appending(path: ".aws")
     }
 }
 
