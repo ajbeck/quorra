@@ -10,8 +10,7 @@ enum FolderPicker {
         panel.allowsMultipleSelection = false
         panel.canCreateDirectories = true
         panel.showsHiddenFiles = true
-        panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser
-            .appending(path: ".aws")
+        panel.directoryURL = UserHome.awsFolder
         panel.prompt = "Choose"
         panel.title = "Choose your AWS folder"
         panel.message = "The default location is ~/.aws. Create a new folder if one doesn't exist."
