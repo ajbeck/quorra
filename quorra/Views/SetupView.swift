@@ -82,11 +82,7 @@ struct SetupView: View {
 
             Divider()
 
-            (Text("Quorra will read ")
-             + monoInline("config")
-             + Text(" and ")
-             + monoInline("credentials")
-             + Text(", and store new secrets in the macOS Keychain."))
+            Text("Quorra will read `config` and `credentials`, and store new secrets in the macOS Keychain.")
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -105,10 +101,6 @@ struct SetupView: View {
             )
     }
 
-    private func monoInline(_ text: String) -> Text {
-        Text(text).font(.system(size: 11, design: .monospaced))
-    }
-
     // MARK: - Non-standard folder warning
 
     private func nonStandardWarning(for folder: URL) -> some View {
@@ -122,13 +114,7 @@ struct SetupView: View {
                 Text("Heads up — that's not the standard location")
                     .font(.system(size: 13, weight: .semibold))
 
-                (Text("You picked ")
-                 + monoInline(folder.path(percentEncoded: false))
-                 + Text(". AWS SDKs read ")
-                 + monoInline("~/.aws")
-                 + Text(" unless ")
-                 + monoInline("AWS_CONFIG_FILE")
-                 + Text(" points elsewhere."))
+                Text("You picked `\(folder.path(percentEncoded: false))`. AWS SDKs read `~/.aws` unless `AWS_CONFIG_FILE` points elsewhere.")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .lineSpacing(2)
