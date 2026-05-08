@@ -1,17 +1,13 @@
-//
-//  quorraApp.swift
-//  quorra
-//
-//  Created by AJ Beck on 07/05/2026.
-//
-
 import SwiftUI
 
 @main
 struct quorraApp: App {
+    @State private var appModel = AppModel()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootView()
+                .environment(appModel)
         }
     }
 }
