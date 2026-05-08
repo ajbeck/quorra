@@ -1,0 +1,21 @@
+# macOS
+.DS_Store
+
+# Xcode per-user state
+xcuserdata/
+*.xcuserstate
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# Claude Code / agent tooling
+.agents/
+.pi/
+.claude/settings.local.json
+.claude/skills/
+
+# Build output
+build/
+DerivedData/
