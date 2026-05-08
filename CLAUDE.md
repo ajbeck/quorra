@@ -56,7 +56,7 @@ On first launch the app has no security-scoped bookmark yet, so it shows `SetupV
 - **What the user picks:** the `~/.aws` folder (a single folder, not individual files). Sandbox access extends to everything inside, including files created later (important for `~/.aws/sso/cache/*.json` which are generated at runtime).
 - **Picker:** `NSOpenPanel` directly (not SwiftUI's `fileImporter`) so we can set `showsHiddenFiles = true`. Pre-fills `directoryURL = ~/.aws`. Presented via `withCheckedContinuation` around `panel.begin { ... }` — non-blocking, `async`-compatible.
 - **Non-standard folder handling:** accept any folder the user picks. If it's not `~/.aws`, show a non-blocking warning about `AWS_CONFIG_FILE` before persisting the bookmark.
-- **Bookmark storage:** `UserDefaults.standard` under key `com.quorra.awsFolderBookmark`. Pure helper type `BookmarkStorage` owns the save/load/resolve plumbing (stateless, no SwiftUI dependency).
+- **Bookmark storage:** `UserDefaults.standard` under key `dev.ajbeck.quorra.awsFolderBookmark`. Pure helper type `BookmarkStorage` owns the save/load/resolve plumbing (stateless, no SwiftUI dependency).
 - **Security-scope lifetime:** resolve + `startAccessingSecurityScopedResource()` once at launch, hold for app lifetime. Matches "this app is authorised to read the user's AWS folder" semantically.
 
 ## App Architecture (current)
@@ -115,7 +115,7 @@ Implications:
 
 - Any mutation of AWS config/credentials files, Keychain items, or SSO tokens may happen from either binary. Both must treat the filesystem and Keychain as shared mutable state and use file locks (`flock`/`fcntl`) for concurrent safety.
 - When the CLI needs user interaction (e.g. SSO login, MFA prompt) the CLI drives it itself — it does not hand off to the running app. This keeps the CLI independently usable even when the app is not running.
-- Both targets must be code-signed with the same Team ID and declare a shared `keychain-access-groups` entitlement (e.g. `$(TeamIdentifierPrefix)com.quorra.shared`).
+- Both targets must be code-signed with the same Team ID and declare a shared `keychain-access-groups` entitlement (e.g. `$(TeamIdentifierPrefix)dev.ajbeck.quorra.shared`).
 
 ## Local IMDS Server
 
@@ -238,7 +238,7 @@ The EC2 Instance Metadata Service normally lives at `http://169.254.169.254` on 
 Sensitive values (`aws_access_key_id`, `aws_secret_access_key`, `aws_session_token`) are stored in the macOS Keychain, not in `~/.aws/credentials` in plaintext. The credentials file may contain only non-sensitive metadata, or be managed entirely by Quorra.
 
 - Use `Security` framework: `SecItemAdd`, `SecItemCopyMatching`, `SecItemUpdate`, `SecItemDelete`
-- Keychain item `service` attribute: use a stable identifier like `com.quorra.aws.credentials`
+- Keychain item `service` attribute: use a stable identifier like `dev.ajbeck.quorra.aws-credentials`
 - Keychain item `account` attribute: profile name
 - Access group / accessibility: `kSecAttrAccessibleWhenUnlocked` minimum
 
