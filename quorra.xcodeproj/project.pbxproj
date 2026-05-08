@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 100;
 	objects = {
 
 /* Begin PBXContainerItemProxy section */
@@ -37,17 +37,13 @@
 /* Begin PBXFrameworksBuildPhase section */
 		1B0E8B8B2FADF3FC002DC711 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		1B5F7C8A2FACE2A100833D01 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
@@ -90,8 +86,6 @@
 				1B0E8B8F2FADF3FC002DC711 /* quorraTests */,
 			);
 			name = quorraTests;
-			packageProductDependencies = (
-			);
 			productName = quorraTests;
 			productReference = 1B0E8B8E2FADF3FC002DC711 /* quorraTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -106,14 +100,10 @@
 			);
 			buildRules = (
 			);
-			dependencies = (
-			);
 			fileSystemSynchronizedGroups = (
 				1B5F7C8F2FACE2A100833D01 /* quorra */,
 			);
 			name = quorra;
-			packageProductDependencies = (
-			);
 			productName = quorra;
 			productReference = 1B5F7C8D2FACE2A100833D01 /* quorra.app */;
 			productType = "com.apple.product-type.application";
@@ -147,7 +137,7 @@
 			);
 			mainGroup = 1B5F7C842FACE2A100833D01;
 			minimizedProjectReferenceProxies = 1;
-			preferredProjectObjectVersion = 77;
+			preferredProjectObjectVersion = 100;
 			productRefGroup = 1B5F7C8E2FACE2A100833D01 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -161,34 +151,26 @@
 /* Begin PBXResourcesBuildPhase section */
 		1B0E8B8C2FADF3FC002DC711 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		1B5F7C8B2FACE2A100833D01 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		1B0E8B8A2FADF3FC002DC711 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		1B5F7C892FACE2A100833D01 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
@@ -201,7 +183,7 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		1B0E8B942FADF3FC002DC711 /* Debug */ = {
+		1B0E8B942FADF3FC002DC711 /* Debug configuration for PBXNativeTarget "quorraTests" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -220,7 +202,7 @@
 			};
 			name = Debug;
 		};
-		1B0E8B952FADF3FC002DC711 /* Release */ = {
+		1B0E8B952FADF3FC002DC711 /* Release configuration for PBXNativeTarget "quorraTests" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -239,7 +221,7 @@
 			};
 			name = Release;
 		};
-		1B5F7C962FACE2A200833D01 /* Debug */ = {
+		1B5F7C962FACE2A200833D01 /* Debug configuration for PBXProject "quorra" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -302,7 +284,7 @@
 			};
 			name = Debug;
 		};
-		1B5F7C972FACE2A200833D01 /* Release */ = {
+		1B5F7C972FACE2A200833D01 /* Release configuration for PBXProject "quorra" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -357,7 +339,7 @@
 			};
 			name = Release;
 		};
-		1B5F7C992FACE2A200833D01 /* Debug */ = {
+		1B5F7C992FACE2A200833D01 /* Debug configuration for PBXNativeTarget "quorra" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -387,7 +369,7 @@
 			};
 			name = Debug;
 		};
-		1B5F7C9A2FACE2A200833D01 /* Release */ = {
+		1B5F7C9A2FACE2A200833D01 /* Release configuration for PBXNativeTarget "quorra" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -423,28 +405,25 @@
 		1B0E8B962FADF3FC002DC711 /* Build configuration list for PBXNativeTarget "quorraTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				1B0E8B942FADF3FC002DC711 /* Debug */,
-				1B0E8B952FADF3FC002DC711 /* Release */,
+				1B0E8B942FADF3FC002DC711 /* Debug configuration for PBXNativeTarget "quorraTests" */,
+				1B0E8B952FADF3FC002DC711 /* Release configuration for PBXNativeTarget "quorraTests" */,
 			);
-			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 		1B5F7C882FACE2A100833D01 /* Build configuration list for PBXProject "quorra" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				1B5F7C962FACE2A200833D01 /* Debug */,
-				1B5F7C972FACE2A200833D01 /* Release */,
+				1B5F7C962FACE2A200833D01 /* Debug configuration for PBXProject "quorra" */,
+				1B5F7C972FACE2A200833D01 /* Release configuration for PBXProject "quorra" */,
 			);
-			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 		1B5F7C982FACE2A200833D01 /* Build configuration list for PBXNativeTarget "quorra" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				1B5F7C992FACE2A200833D01 /* Debug */,
-				1B5F7C9A2FACE2A200833D01 /* Release */,
+				1B5F7C992FACE2A200833D01 /* Debug configuration for PBXNativeTarget "quorra" */,
+				1B5F7C9A2FACE2A200833D01 /* Release configuration for PBXNativeTarget "quorra" */,
 			);
-			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
