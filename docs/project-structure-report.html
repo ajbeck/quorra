@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Quorra — Project Structure Report</title>
+<style>
+  :root {
+    --ink:        #1a1714;
+    --ink-soft:   #2c2620;
+    --paper:      #f4ede0;
+    --paper-2:    #ebe1cf;
+    --rule:       #2c2620;
+    --muted:      #6b5f50;
+    --accent:     #c2410c;          /* burnt saffron */
+    --accent-hi:  #ea580c;
+    --good:       #4a6b2a;
+    --warn:       #8a4a0c;
+    --code-bg:    #1a1714;
+    --code-fg:    #f4ede0;
+    --code-muted: #8a7d6a;
+    --code-acc:   #f59e0b;
+    --code-key:   #fdba74;
+    --code-str:   #a8b87a;
+
+    --serif:      "Iowan Old Style", "Palatino", "Palatino Linotype", "Hoefler Text", "Garamond", "Georgia", serif;
+    --sans:       "Optima", "Avenir Next", "Avenir", "Helvetica Neue", system-ui, sans-serif;
+    --mono:       "JetBrains Mono", "SF Mono", "Menlo", "Monaco", "Consolas", monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 17px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    background-image:
+      radial-gradient(circle at 20% 0%,  rgba(194, 65, 12, 0.04) 0%, transparent 35%),
+      radial-gradient(circle at 80% 100%, rgba(26, 23, 20, 0.05) 0%, transparent 40%);
+  }
+
+  /* subtle grain */
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    pointer-events: none;
+    opacity: 0.18;
+    mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.10  0 0 0 0 0.09  0 0 0 0 0.08  0 0 0 0.5 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    z-index: 1;
+  }
+
+  .page {
+    position: relative;
+    z-index: 2;
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 64px 56px 120px;
+  }
+
+  /* ───────── Masthead ───────── */
+  .masthead {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 24px;
+    align-items: end;
+    border-bottom: 2px solid var(--rule);
+    padding-bottom: 18px;
+    margin-bottom: 28px;
+  }
+  .masthead .lockup { display: flex; align-items: baseline; gap: 18px; }
+  .masthead .mark {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .masthead .mark .dot { color: var(--accent); }
+  .masthead h1 {
+    font-family: var(--serif);
+    font-style: italic;
+    font-weight: 400;
+    font-size: clamp(40px, 6.5vw, 76px);
+    line-height: 0.95;
+    letter-spacing: -0.01em;
+    margin: 8px 0 0;
+  }
+  .masthead .meta {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: right;
+    line-height: 1.7;
+  }
+  .masthead .meta strong { color: var(--ink); font-weight: 600; }
+
+  .deck {
+    font-family: var(--serif);
+    font-size: 22px;
+    line-height: 1.4;
+    color: var(--ink-soft);
+    max-width: 64ch;
+    margin: 22px 0 0;
+    font-style: italic;
+  }
+  .deck::first-letter {
+    font-size: 3.6em;
+    line-height: 0.85;
+    float: left;
+    padding: 6px 8px 0 0;
+    font-style: normal;
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  /* ───────── Section frame ───────── */
+  section { margin-top: 72px; }
+
+  .section-head {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    gap: 24px;
+    align-items: baseline;
+    border-top: 1px solid var(--rule);
+    padding-top: 18px;
+    margin-bottom: 28px;
+  }
+  .section-head .num {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+    text-transform: uppercase;
+    padding-top: 10px;
+  }
+  .section-head h2 {
+    font-family: var(--serif);
+    font-weight: 400;
+    font-style: italic;
+    font-size: clamp(30px, 4vw, 44px);
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+  .section-head .kicker {
+    grid-column: 2;
+    font-family: var(--sans);
+    font-size: 14px;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin-top: 6px;
+    text-transform: uppercase;
+  }
+
+  .section-body {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    gap: 24px;
+  }
+  .section-body > .body-col { grid-column: 2; }
+
+  p { margin: 0 0 16px; max-width: 70ch; }
+  p + p { text-indent: 1.4em; }
+
+  h3 {
+    font-family: var(--sans);
+    font-size: 14px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink);
+    margin: 28px 0 12px;
+    font-weight: 600;
+  }
+
+  a { color: var(--accent); text-decoration: none; border-bottom: 1px solid rgba(194,65,12,0.35); transition: border-color .2s, color .2s; }
+  a:hover { color: var(--accent-hi); border-bottom-color: var(--accent-hi); }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.86em;
+    background: rgba(26, 23, 20, 0.07);
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+  strong { font-weight: 600; }
+  em { font-style: italic; }
+
+  /* ───────── TL;DR card ───────── */
+  .tldr {
+    margin: 36px 0 0;
+    background: var(--ink);
+    color: var(--paper);
+    border-radius: 2px;
+    padding: 36px 44px 42px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 30px 60px -30px rgba(26,23,20,0.5);
+  }
+  .tldr::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 4px;
+    background: linear-gradient(90deg, var(--accent) 0%, var(--accent) 38%, transparent 38%);
+  }
+  .tldr .label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--code-acc);
+    margin-bottom: 14px;
+  }
+  .tldr h2 {
+    font-family: var(--serif);
+    font-style: italic;
+    font-weight: 400;
+    font-size: 36px;
+    line-height: 1.05;
+    margin: 0 0 22px;
+    color: var(--paper);
+  }
+  .tldr ol {
+    list-style: none;
+    counter-reset: tldr;
+    padding: 0; margin: 0;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px 36px;
+  }
+  .tldr ol li {
+    counter-increment: tldr;
+    padding-left: 38px;
+    position: relative;
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--paper-2);
+  }
+  .tldr ol li::before {
+    content: counter(tldr, decimal-leading-zero);
+    position: absolute;
+    left: 0; top: 1px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--code-acc);
+    letter-spacing: 0.08em;
+  }
+  .tldr ol li strong { color: var(--paper); font-weight: 600; }
+
+  /* ───────── State callout ───────── */
+  .state {
+    border-left: 3px solid var(--accent);
+    padding: 4px 0 4px 22px;
+    margin: 0 0 24px;
+  }
+  .state .label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+  .state.warn { border-left-color: var(--warn); }
+  .state.warn .label { color: var(--warn); }
+
+  /* ───────── Comparison panels ───────── */
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    margin: 24px 0;
+    border: 1px solid var(--rule);
+    background: var(--paper-2);
+  }
+  .compare .pane {
+    padding: 28px 28px 32px;
+    position: relative;
+  }
+  .compare .pane + .pane { border-left: 1px solid var(--rule); }
+  .compare .pane h4 {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 26px;
+    font-weight: 400;
+    margin: 0 0 4px;
+  }
+  .compare .pane .swatch {
+    display: inline-block;
+    width: 12px; height: 12px;
+    border-radius: 2px;
+    margin-right: 8px;
+    transform: translateY(1px);
+  }
+  .compare .pane.folder .swatch { background: #2563eb; box-shadow: 0 0 0 1px rgba(0,0,0,0.15) inset; }
+  .compare .pane.group  .swatch { background: #eab308; box-shadow: 0 0 0 1px rgba(0,0,0,0.15) inset; }
+  .compare .pane .sub {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+  .compare .pane ul {
+    margin: 0; padding: 0; list-style: none;
+  }
+  .compare .pane ul li {
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+    padding: 10px 0 10px 24px;
+    border-top: 1px dotted rgba(44,38,32,0.3);
+    position: relative;
+  }
+  .compare .pane ul li:first-child { border-top: none; }
+  .compare .pane ul li::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 18px;
+    width: 12px; height: 1px;
+    background: var(--ink);
+  }
+  .compare .pane.folder ul li.pro::before,
+  .compare .pane.group  ul li.pro::before { background: var(--good); height: 2px; top: 17px; }
+  .compare .pane.folder ul li.con::before,
+  .compare .pane.group  ul li.con::before { background: var(--accent); }
+  .compare .pane.folder ul li.pro,
+  .compare .pane.group  ul li.pro { color: var(--ink); }
+  .compare .pane.folder ul li.con,
+  .compare .pane.group  ul li.con { color: var(--ink-soft); }
+  .compare .verdict {
+    margin-top: 18px;
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 15px;
+    color: var(--muted);
+  }
+
+  /* ───────── Code / tree ───────── */
+  pre.tree {
+    background: var(--code-bg);
+    color: var(--code-fg);
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.65;
+    padding: 28px 32px;
+    border-radius: 3px;
+    overflow-x: auto;
+    margin: 22px 0;
+    position: relative;
+    box-shadow: 0 24px 50px -28px rgba(26,23,20,0.5);
+  }
+  pre.tree::before {
+    content: attr(data-label);
+    position: absolute;
+    top: 10px;
+    right: 16px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    color: var(--code-muted);
+    text-transform: uppercase;
+  }
+  .tree .dir   { color: var(--code-key); }
+  .tree .file  { color: var(--code-fg); }
+  .tree .pkg   { color: var(--code-acc); font-weight: 600; }
+  .tree .target{ color: #93c5fd; }
+  .tree .note  { color: var(--code-muted); font-style: italic; }
+  .tree .new   { color: var(--good); }
+  .tree .new   { color: #a3e635; }
+  .tree .meta  { color: var(--code-muted); }
+
+  /* ───────── Targets diagram ───────── */
+  .targets {
+    margin: 28px 0;
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 16px;
+  }
+  .target {
+    background: var(--paper-2);
+    border: 1px solid var(--rule);
+    padding: 18px 20px 20px;
+    position: relative;
+  }
+  .target .kind {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+  .target h4 {
+    font-family: var(--serif);
+    font-size: 22px;
+    font-weight: 400;
+    font-style: italic;
+    margin: 0 0 8px;
+  }
+  .target p {
+    font-family: var(--sans);
+    font-size: 13px;
+    line-height: 1.5;
+    margin: 0;
+    color: var(--ink-soft);
+  }
+  .target .deps {
+    margin-top: 10px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .target .deps span { color: var(--accent); }
+
+  .t-app   { grid-column: span 5; }
+  .t-cli   { grid-column: span 4; }
+  .t-pkg-1 { grid-column: span 3; }
+  .t-test1 { grid-column: span 4; }
+  .t-test2 { grid-column: span 4; }
+  .t-pkg-2 { grid-column: span 4; }
+
+  .target.app  { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .target.app h4 { color: var(--paper); }
+  .target.app p { color: var(--paper-2); }
+  .target.app .kind { color: var(--code-acc); }
+  .target.app .deps { color: var(--code-muted); }
+
+  .target.pkg { background: #fef3c7; border-color: var(--ink); }
+
+  /* ───────── Pull quote ───────── */
+  blockquote {
+    margin: 32px 0;
+    padding: 0 0 0 28px;
+    border-left: 3px solid var(--accent);
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 22px;
+    line-height: 1.4;
+    color: var(--ink-soft);
+    max-width: 60ch;
+  }
+  blockquote cite {
+    display: block;
+    margin-top: 10px;
+    font-style: normal;
+    font-size: 12px;
+    font-family: var(--mono);
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  /* ───────── Decision matrix ───────── */
+  table.matrix {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 22px 0;
+    font-family: var(--sans);
+    font-size: 14px;
+  }
+  table.matrix th, table.matrix td {
+    padding: 12px 14px;
+    text-align: left;
+    border-bottom: 1px solid rgba(44,38,32,0.2);
+    vertical-align: top;
+  }
+  table.matrix th {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--muted);
+    border-bottom: 2px solid var(--rule);
+    font-weight: 600;
+  }
+  table.matrix td .pick {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 2px;
+  }
+  table.matrix td .pick.yes { background: var(--good); color: var(--paper); }
+  table.matrix td .pick.no  { background: rgba(194,65,12,0.12); color: var(--accent); }
+  table.matrix td .pick.maybe { background: rgba(138,74,12,0.15); color: var(--warn); }
+
+  /* ───────── Citations ───────── */
+  .citations {
+    margin-top: 36px;
+    padding-top: 18px;
+    border-top: 1px solid var(--rule);
+  }
+  .citations h3 { margin-top: 0; }
+  .cite-list {
+    list-style: none; padding: 0; margin: 0;
+    columns: 2;
+    column-gap: 36px;
+    font-family: var(--sans);
+    font-size: 13px;
+  }
+  .cite-list li {
+    break-inside: avoid;
+    margin-bottom: 14px;
+    padding-left: 26px;
+    text-indent: -26px;
+    line-height: 1.5;
+  }
+  .cite-list li .num {
+    font-family: var(--mono);
+    color: var(--accent);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    margin-right: 8px;
+  }
+  .cite-list li a { font-size: 12px; color: var(--muted); border-bottom: none; }
+  .cite-list li a:hover { color: var(--accent); }
+  .cite-list li .title { color: var(--ink); }
+
+  /* ───────── Q&A ───────── */
+  .questions {
+    background: var(--paper-2);
+    padding: 28px 32px 32px;
+    border-left: 3px solid var(--ink);
+    margin-top: 24px;
+  }
+  .questions ol {
+    margin: 16px 0 0;
+    padding-left: 22px;
+  }
+  .questions ol li {
+    font-family: var(--serif);
+    font-size: 17px;
+    margin-bottom: 14px;
+    color: var(--ink-soft);
+  }
+
+  /* ───────── Footer ───────── */
+  footer.colophon {
+    margin-top: 96px;
+    padding-top: 24px;
+    border-top: 2px solid var(--rule);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  footer.colophon .accent { color: var(--accent); }
+
+  /* ───────── Small screens ───────── */
+  @media (max-width: 880px) {
+    .page { padding: 36px 24px 80px; }
+    .masthead { grid-template-columns: 1fr; }
+    .masthead .meta { text-align: left; }
+    .section-head, .section-body { grid-template-columns: 1fr; }
+    .section-body > .body-col { grid-column: 1; }
+    .section-head .kicker { grid-column: 1; }
+    .compare { grid-template-columns: 1fr; }
+    .compare .pane + .pane { border-left: none; border-top: 1px solid var(--rule); }
+    .tldr ol { grid-template-columns: 1fr; }
+    .targets { grid-template-columns: 1fr; }
+    .target { grid-column: span 1 !important; }
+    .cite-list { columns: 1; }
+  }
+</style>
+</head>
+<body>
+<main class="page">
+
+  <!-- ═════════════════ MASTHEAD ═════════════════ -->
+  <header class="masthead">
+    <div>
+      <div class="lockup">
+        <span class="mark"><span class="dot">●</span>&nbsp;Quorra&nbsp;·&nbsp;Architecture Memo&nbsp;·&nbsp;No. 01</span>
+      </div>
+      <h1>Where the<br/><em>code</em> lives.</h1>
+    </div>
+    <div class="meta">
+      <strong>Repo</strong> ajbeck/quorra<br/>
+      <strong>Branch</strong> getting-started<br/>
+      <strong>Date</strong> 2026·05·10<br/>
+      <strong>Audience</strong> single-developer
+    </div>
+  </header>
+
+  <p class="deck">A working memo on how to lay out the Quorra repository, the Xcode project navigator, and the target graph — for an app, a CLI, and the shared modules that bind them. Aimed at a structure that survives sandboxing, App Store distribution, and a long second act as the codebase grows.</p>
+
+  <!-- ═════════════════ TL;DR ═════════════════ -->
+  <section class="tldr" aria-label="TL;DR">
+    <div class="label">▌ Recommendations · The Short Version</div>
+    <h2>Six decisions, in order of how much they save you.</h2>
+    <ol>
+      <li><strong>Keep synchronized folders.</strong> Quorra already uses Xcode 16 <code>PBXFileSystemSynchronizedRootGroup</code> — do not regress to virtual groups.</li>
+      <li><strong>Adopt a single workspace</strong> (<code>Quorra.xcworkspace</code>) that contains the <code>.xcodeproj</code> plus local Swift packages — the shared boundary between app and CLI.</li>
+      <li><strong>Move shared logic into local SwiftPM packages</strong> under <code>Packages/</code>. Make <code>QuorraCore</code> the umbrella; <code>AWSConfigINI</code> is the first leaf.</li>
+      <li><strong>Three Xcode targets, one workspace:</strong> <code>Quorra</code> (app), <code>quorra-cli</code> (CLI), <code>QuorraTests</code> (UI/integration). Library/unit tests ride inside the SwiftPM package.</li>
+      <li><strong>Rename <code>quorra/</code> → <code>App/</code></strong> on disk and update the synchronized folder. The lower-case Mac-target name is implementation detail; <code>App/</code> reads as architecture.</li>
+      <li><strong>Fix the typo:</strong> <code>project.pbxproj</code> currently references <code>../Pacakges/INI</code>. The folder doesn't exist; the package isn't really wired in yet.</li>
+    </ol>
+  </section>
+
+  <!-- ═════════════════ § 0 STATE OF PLAY ═════════════════ -->
+  <section>
+    <div class="section-head">
+      <div class="num">§ 00</div>
+      <h2>The board, as it stands.</h2>
+      <div class="kicker">What's already on disk before any recommendation lands</div>
+    </div>
+    <div class="section-body">
+      <div class="body-col">
+
+        <p>Quorra's repo today is a near-default Xcode 16 single-target macOS app, sandboxed, with an empty placeholder for shared packages and a Swift Testing target alongside the app. The project file already uses synchronized folders — the modern path — but a single misspelling has prevented the shared package boundary from coming online.</p>
+
+        <pre class="tree" data-label="current"><span class="dir">/Users/aj.beck/Developer/repos/ajbeck/quorra</span>
+├── <span class="dir">quorra/</span>                          <span class="note"># synchronized root group (blue folder)</span>
+│   ├── <span class="dir">App/</span>                         <span class="meta">AppModel · AppPhase · AppError · RootView</span>
+│   ├── <span class="dir">Bookmarks/</span>                   <span class="meta">BookmarkStorage · FolderPicker · UserHome</span>
+│   ├── <span class="dir">Theme/</span>                       <span class="meta">Theme.swift</span>
+│   ├── <span class="dir">Views/</span>                       <span class="meta">SetupView · MainView · ErrorView · FolderContentsView</span>
+│   ├── <span class="dir">Assets.xcassets/</span>
+│   └── <span class="file">quorraApp.swift</span>             <span class="meta">@main App entry point</span>
+├── <span class="dir">quorraTests/</span>                     <span class="note"># synchronized root group, Swift Testing</span>
+│   └── <span class="file">BookmarkStorageTests.swift</span>
+├── <span class="dir">Packages/</span>                        <span class="note"># empty placeholder folder</span>
+├── <span class="dir">docs/</span>
+├── <span class="dir">quorra.xcodeproj/</span>
+├── <span class="file">CLAUDE.md</span>
+└── <span class="file">.gitignore</span></pre>
+
+        <div class="state warn">
+          <div class="label">▲ Latent bug found while researching</div>
+          <p style="margin:0"><code>project.pbxproj</code> contains <code>path = ../Pacakges/INI</code> (note the misspelling). The pbxproj also lists a <code>Packages</code> group, an INI file reference, and a <code>quorra/Packages/INI/Package.swift</code> tree visible to <code>XcodeLS</code>, but the directory <code>Pacakges/</code> doesn't exist on disk and <code>Packages/</code> is empty. The package isn't actually checked in yet — only the broken reference is. Worth resolving before any further refactor.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═════════════════ § 1 REPO LAYOUT ═════════════════ -->
+  <section>
+    <div class="section-head">
+      <div class="num">§ 01</div>
+      <h2>Repository folders, on disk.</h2>
+      <div class="kicker">The thing your shell, your `git` and your future self all see</div>
+    </div>
+    <div class="section-body">
+      <div class="body-col">
+
+        <p>Quorra is small now and will grow into something with multiple deliverables — an app, a CLI, several modules, possibly a Homebrew formula and a launchd plist — that all need a place. The right tree is conservative at the root, expressive one level down, and tells a stranger which directory contains the executable, which contains the libraries, and which contains tests.</p>
+
+        <h3>Proposed Top-Level Tree</h3>
+
+        <pre class="tree" data-label="proposed"><span class="dir">quorra/</span>                                <span class="note"># repo root</span>
+├── <span class="dir new">App/</span>                              <span class="note"># renamed from quorra/ — clearer intent</span>
+│   ├── <span class="dir">App/</span>                          <span class="meta">composition root, AppModel, RootView</span>
+│   ├── <span class="dir">Features/</span>                     <span class="meta">Setup/, Main/, Error/  (group by feature, not type)</span>
+│   ├── <span class="dir">Theme/</span>
+│   ├── <span class="dir">Resources/</span>                    <span class="meta">Assets.xcassets, .strings catalogs</span>
+│   ├── <span class="file">QuorraApp.swift</span>              <span class="meta">@main entry point</span>
+│   └── <span class="file">Quorra.entitlements</span>
+├── <span class="dir new">CLI/</span>                              <span class="note"># new — companion binary lives here</span>
+│   ├── <span class="dir">Sources/</span>
+│   │   └── <span class="dir">QuorraCLI/</span>                 <span class="meta">main.swift, CommandRunner, subcommands/</span>
+│   └── <span class="file">QuorraCLI.entitlements</span>        <span class="meta">keychain-access-groups, no sandbox</span>
+├── <span class="dir new">Packages/</span>                         <span class="note"># local Swift packages — shared boundary</span>
+│   └── <span class="dir">QuorraCore/</span>                    <span class="pkg">Package.swift</span>
+│       ├── <span class="file">Package.swift</span>
+│       ├── <span class="dir">Sources/</span>
+│       │   ├── <span class="dir">AWSConfigINI/</span>           <span class="meta">INI parser (keep separate from the rest)</span>
+│       │   ├── <span class="dir">AWSConfig/</span>              <span class="meta">profile model, config & credentials files</span>
+│       │   ├── <span class="dir">QuorraKeychain/</span>         <span class="meta">SecItem* wrappers</span>
+│       │   ├── <span class="dir">QuorraIMDS/</span>             <span class="meta">IMDSv1/v2 server, port discovery</span>
+│       │   ├── <span class="dir">QuorraSSO/</span>              <span class="meta">OIDC device-code flow</span>
+│       │   └── <span class="dir">QuorraSupport/</span>          <span class="meta">tiny utilities, Logger, file locks</span>
+│       └── <span class="dir">Tests/</span>                      <span class="meta">Swift Testing, one folder per target above</span>
+├── <span class="dir new">Tests/</span>                            <span class="note"># Xcode-only tests (UI / app-level integration)</span>
+│   └── <span class="dir">QuorraAppTests/</span>                 <span class="meta">smoke tests using @Observable AppModel</span>
+├── <span class="dir new">Tools/</span>                            <span class="note"># scripts, install helpers — not a build target</span>
+│   ├── <span class="file">reset-sandbox.sh</span>              <span class="meta">rm -rf ~/Library/Containers/dev.ajbeck.quorra</span>
+│   └── <span class="file">install-cli.sh</span>
+├── <span class="dir">docs/</span>                              <span class="meta">design notes, this report, ADRs</span>
+├── <span class="dir">Quorra.xcodeproj/</span>                  <span class="note"># renamed: Quorra (proper noun)</span>
+├── <span class="file">Quorra.xcworkspace</span>                <span class="note"># NEW — opens the whole show</span>
+├── <span class="file">CLAUDE.md</span>
+├── <span class="file">README.md</span>
+├── <span class="file">.gitignore</span>
+└── <span class="file">.swift-version</span>                   <span class="meta">pin the toolchain</span></pre>
+
+        <h3>Why these particular folders</h3>
+
+        <table class="matrix">
+          <thead><tr><th>Folder</th><th>Concern</th><th>Reason it stands alone</th></tr></thead>
+          <tbody>
+            <tr><td><code>App/</code></td><td>SwiftUI macOS app</td><td>UI is the most volatile and most opinionated layer. Keeping it on its own keeps SwiftUI imports from leaking into headless code.</td></tr>
+            <tr><td><code>CLI/</code></td><td><code>quorra-cli</code> binary</td><td>Different entitlements (no sandbox), different deployment story (Homebrew, manual install). Mirrors the App ↔ CLI boundary defined in CLAUDE.md.</td></tr>
+            <tr><td><code>Packages/QuorraCore/</code></td><td>Shared Swift logic</td><td>One package, many library targets. SwiftPM lets the same module be linked into App, CLI, and tests with no fuss.</td></tr>
+            <tr><td><code>Tests/</code></td><td>App-level integration / UI</td><td>Library tests live inside the SwiftPM package; only tests that need the running app belong here.</td></tr>
+            <tr><td><code>Tools/</code></td><td>Shell helpers</td><td>Sandbox reset, install script, future notarization. Not a build target — keeps shell scripts out of <code>App/</code>.</td></tr>
+            <tr><td><code>docs/</code></td><td>Design notes &amp; ADRs</td><td>Already exists. Pair this report with future ADRs (one per non-trivial decision) and a plain README at root.</td></tr>
+          </tbody>
+        </table>
+
+        <blockquote>
+          “Folders have a much smaller representation in the project file, which can result in fewer merge conflicts because when you add or remove files to the project you don't modify the project file.”
+          <cite>Apple Developer Documentation — Managing files and folders [1]</cite>
+        </blockquote>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ═════════════════ § 2 FOLDERS VS GROUPS ═════════════════ -->
+  <section>
+    <div class="section-head">
+      <div class="num">§ 02</div>
+      <h2>Folders vs Groups, decisively.</h2>
+      <div class="kicker">The Xcode 16 answer is folders. Here's the texture.</div>
+    </div>
+    <div class="section-body">
+      <div class="body-col">
+
+        <p>Xcode has two ways to represent a directory in the Project navigator. <em>Groups</em> are the classic yellow folders — a virtual collection that lives inside <code>project.pbxproj</code> and may or may not match disk. <em>Folders</em> (called synchronized folders or buildable folders since Xcode 16) are blue — they reference an actual filesystem directory and Xcode automatically picks up files inside them, no pbxproj edit required.</p>
+
+        <p>For a single-developer project with a long horizon and a CLI sibling that will share files via SwiftPM packages, the decision is one-sided: <strong>folders, everywhere</strong>. The pbxproj file should describe targets and build settings — not enumerate every <code>.swift</code> file you ever add.</p>
+
+        <div class="compare">
+          <div class="pane folder">
+            <h4><span class="swatch"></span>Folders <em>(blue)</em></h4>
+            <div class="sub">PBXFileSystemSynchronizedRootGroup</div>
+            <ul>
+              <li class="pro">Xcode auto-picks up new files. Add a <code>.swift</code> in Finder, it appears in the navigator at next focus.</li>
+              <li class="pro">Tiny pbxproj footprint — the project file records the directory path, not its enumeration.</li>
+              <li class="pro">Near-zero merge conflicts in <code>project.pbxproj</code> when files are added or removed.</li>
+              <li class="pro">Filesystem and project navigator are <em>guaranteed</em> to agree — no drift, no “red” missing files.</li>
+              <li class="pro">Xcode 16's default for new projects. Already in use here for <code>quorra/</code> and <code>quorraTests/</code>.</li>
+              <li class="con">Per-file membership exceptions (e.g. <em>this one file is iOS-only</em>) require an exception list — fine for rare cases, awkward at scale.</li>
+              <li class="con">Less control over navigator order — folder contents are sorted by Xcode, not by pbxproj order.</li>
+            </ul>
+            <div class="verdict">Verdict — <strong>Default. Use for everything in this project.</strong></div>
+          </div>
+          <div class="pane group">
+            <h4><span class="swatch"></span>Groups <em>(yellow)</em></h4>
+            <div class="sub">PBXGroup</div>
+            <ul>
+              <li class="pro">Navigator structure can diverge from disk — useful if you need a curated view that doesn't match the filesystem.</li>
+              <li class="pro">Per-file target membership is granular and explicit.</li>
+              <li class="pro">Manual control over file order in the navigator.</li>
+              <li class="con">Every file add/remove edits <code>project.pbxproj</code>. On a team, this is the #1 source of merge conflicts.</li>
+              <li class="con">Files can go missing (red in navigator) without anyone noticing — disk and project drift apart.</li>
+              <li class="con">Two sources of truth (disk + pbxproj), both wrong in interesting ways.</li>
+              <li class="con">Apple's own docs lead with folders as the recommended path.</li>
+            </ul>
+            <div class="verdict">Verdict — <strong>Reserve for rare exceptions; keep one <code>Packages</code> group at most.</strong></div>
+          </div>
+        </div>
+
+        <h3>The one place a group still earns its keep</h3>
+        <p>Apple's own guidance for adding a local Swift package to a project says: <em>“Place the package in a <code>Packages</code> group to make it easier to track”</em> [3]. Local packages live as folder references inside the project, but a group is a fine container around them — it lets you collect <code>QuorraCore</code> alongside any future packages without forcing them to share a parent directory on disk that has no semantic meaning. <strong>This is the only group I'd keep.</strong></p>
+
+        <h3>Migration step (already 80% done)</h3>
+
+        <pre class="tree" data-label="state"><span class="meta"># Already done — confirmed via project.pbxproj inspection:</span>
+✓ <span class="file">quorra/</span>           PBXFileSystemSynchronizedRootGroup    <span class="note">(blue)</span>
+✓ <span class="file">quorraTests/</span>      PBXFileSystemSynchronizedRootGroup    <span class="note">(blue)</span>
+
+<span class="meta"># To do:</span>
+□ Rename <span class="file">quorra/</span> → <span class="new">App/</span> (Finder-rename, then update synchronized folder path in pbxproj)
+□ Rename <span class="file">quorraTests/</span> → <span class="new">Tests/QuorraAppTests/</span>
+□ Add <span class="new">CLI/</span> as a synchronized folder belonging to a new <code>quorra-cli</code> target
+□ Replace broken <span class="file">../Pacakges/INI</span> reference with a real <span class="new">Packages/QuorraCore/</span> local package</pre>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ═════════════════ § 3 TARGETS ═════════════════ -->
+  <section>
+    <div class="section-head">
+      <div class="num">§ 03</div>
+      <h2>Target organization.</h2>
+      <div class="kicker">Three Xcode targets, one SwiftPM package, one workspace</div>
+    </div>
+    <div class="section-body">
+      <div class="body-col">
+
+        <p>The interesting tension in Quorra is that the <strong>app and the CLI are independent binaries that share state only via Keychain</strong> (per CLAUDE.md). They cannot rely on bundle resources passed between processes. The shared surface must therefore be <em>code</em>, compiled into both — exactly what a SwiftPM library product is good at. A library does not impose a runtime relationship; it just gives both binaries the same <code>QuorraKeychain.swift</code>, the same <code>AWSConfigINI</code>, and the same access-group constants.</p>
+
+        <h3>The graph</h3>
+
+        <div class="targets">
+          <div class="target app t-app">
+            <div class="kind">▌ App target · macOS .app</div>
+            <h4>Quorra</h4>
+            <p>Sandboxed SwiftUI app. Contains UI, SetupView/MainView, AppModel, AppPhase. Imports library products from QuorraCore.</p>
+            <div class="deps">links → <span>QuorraCore</span> products</div>
+          </div>
+          <div class="target t-cli">
+            <div class="kind">▌ CLI target · cmdline tool</div>
+            <h4>quorra-cli</h4>
+            <p>Independent executable. Not sandboxed. Same Team ID, declares <code>keychain-access-groups</code>. Drives its own SSO/MFA prompts.</p>
+            <div class="deps">links → <span>QuorraCore</span> products</div>
+          </div>
+          <div class="target pkg t-pkg-1">
+            <div class="kind">▌ SwiftPM Package</div>
+            <h4>QuorraCore</h4>
+            <p>One package, many libraries. Exposes AWSConfigINI, AWSConfig, QuorraKeychain, QuorraIMDS, QuorraSSO, QuorraSupport.</p>
+            <div class="deps">no Apple-UI dependencies; pure Swift</div>
+          </div>
+          <div class="target t-test1">
+            <div class="kind">▌ Test target · SwiftPM</div>
+            <h4>QuorraCore Tests</h4>
+            <p>Lives inside <code>Packages/QuorraCore/Tests/</code>. Swift Testing. The <em>primary</em> testing surface — fast, headless, library-only.</p>
+            <div class="deps">runs via package scheme</div>
+          </div>
+          <div class="target t-test2">
+            <div class="kind">▌ Test target · Xcode</div>
+            <h4>QuorraAppTests</h4>
+            <p>Renamed <code>quorraTests</code>. Reserved for tests that need the app target — observable AppModel wiring, sandbox-touching code, UI tests.</p>
+            <div class="deps">target dep → Quorra</div>
+          </div>
+          <div class="target t-pkg-2">
+            <div class="kind">▌ Workspace</div>
+            <h4>Quorra.xcworkspace</h4>
+            <p>The thing you actually open in the morning. Contains the <code>.xcodeproj</code> and the <code>QuorraCore</code> package. Schemes for App, CLI, and library tests.</p>
+            <div class="deps">covers all of the above</div>
+          </div>
+        </div>
+
+        <h3>The three contenders for the shared module — why SwiftPM wins</h3>
+
+        <table class="matrix">
+          <thead>
+            <tr><th>Option</th><th>Build speed</th><th>Test ergonomics</th><th>App + CLI reuse</th><th>Verdict</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Xcode framework target</strong><br/><em>(traditional .framework)</em></td>
+              <td>Fast incremental, slower clean</td>
+              <td>Has to live in an Xcode test target</td>
+              <td>Works, but you're embedding a framework into the .app and somehow getting it to the CLI separately</td>
+              <td><span class="pick no">Avoid</span> Heavy for what we need; embedding into the CLI is awkward.</td>
+            </tr>
+            <tr>
+              <td><strong>SwiftPM local package</strong><br/><em>(in <code>Packages/</code>)</em></td>
+              <td>Fast; precompiles modules</td>
+              <td>Native Swift Testing; one <code>swift test</code> away</td>
+              <td>App and CLI both link the same library product. Static link means no embedding gymnastics for the CLI.</td>
+              <td><span class="pick yes">Pick</span> Apple's own “Organizing your code with local packages” walks this exact pattern. [2]</td>
+            </tr>
+            <tr>
+              <td><strong>SwiftPM workspace-only</strong><br/><em>(no .xcodeproj)</em></td>
+              <td>Fastest in CLI</td>
+              <td>Excellent for libraries</td>
+              <td>App targets are awkward in pure SwiftPM (no Asset Catalogs, no .xcassets-driven app icon, no entitlements UI)</td>
+              <td><span class="pick maybe">Tempting, no</span> The macOS app side of SwiftPM is still rough. Keep the .xcodeproj.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Why the CLI is its own Xcode target, not a SwiftPM executable product</h3>
+        <p>SwiftPM happily produces executables — the <code>.executableTarget</code> kind is exactly that. But a sandboxed-app sibling that needs <code>keychain-access-groups</code> entitlements, code-signing under the same Team ID, and a stable bundle identifier (<code>dev.ajbeck.quorra.cli</code>) is much easier to manage as an Xcode target than as a SwiftPM executable product. Xcode handles signing, entitlements, and provisioning per-target through its UI; SwiftPM does not [4]. The CLI <em>links</em> SwiftPM library products, but it <em>is</em> an Xcode target.</p>
+
+        <blockquote>
+          “When you organize your app's codebase using local packages, your Swift package's code is part of the same repository as your app's code. As you create more apps, consider moving local packages to their own Git repositories…”
+          <cite>Apple Developer Documentation — Organizing your code with local packages [2]</cite>
+        </blockquote>
+
+        <h3>Test target placement — the rule of thumb</h3>
+        <p><strong>Library tests follow the library.</strong> Tests for <code>AWSConfigINI</code>, <code>QuorraKeychain</code>, <code>BookmarkStorage</code>-style logic, etc. all live in <code>Packages/QuorraCore/Tests/</code>. They run via <code>swift test</code> or the package's auto-generated scheme — no Xcode .app required, no UserDefaults pollution. The existing <code>BookmarkStorageTests</code> should move <em>into the package</em> the moment <code>BookmarkStorage</code> moves into <code>QuorraSupport</code>.</p>
+        <p>The Xcode-only test target (<code>QuorraAppTests</code>, formerly <code>quorraTests</code>) is reserved for tests that genuinely need the app target — anything that exercises <code>AppModel</code> wiring, the security-scoped bookmark resolution against a real container, or eventual UI tests. Per Apple's testing docs, Swift Testing and XCTest can coexist in the same target [5].</p>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ═════════════════ § 4 PROPOSED TREE ═════════════════ -->
+  <section>
+    <div class="section-head">
+      <div class="num">§ 04</div>
+      <h2>The whole tree, annotated.</h2>
+      <div class="kicker">Concrete, not abstract — copy-pasteable into a migration ticket</div>
+    </div>
+    <div class="section-body">
+      <div class="body-col">
+
+        <pre class="tree" data-label="proposed · annotated"><span class="dir">quorra/</span>                                              <span class="note"># repo root, unchanged</span>
+│
+├── <span class="dir new">App/</span>                                            <span class="note"># renamed from `quorra/`. Synchronized folder.</span>
+│   ├── <span class="file">QuorraApp.swift</span>                             <span class="meta">@main, single line: WindowGroup { RootView() }</span>
+│   ├── <span class="file">Quorra.entitlements</span>                         <span class="meta">app-sandbox, files-user-selected, keychain-access-groups</span>
+│   ├── <span class="dir">App/</span>
+│   │   ├── <span class="file">AppModel.swift</span>                          <span class="meta">@Observable; phase mutator</span>
+│   │   ├── <span class="file">AppPhase.swift</span>
+│   │   ├── <span class="file">AppError.swift</span>
+│   │   └── <span class="file">RootView.swift</span>
+│   ├── <span class="dir">Features/</span>
+│   │   ├── <span class="dir">Setup/</span>      <span class="meta">SetupView · FolderPicker view-side wiring</span>
+│   │   ├── <span class="dir">Main/</span>       <span class="meta">MainView · FolderContentsView</span>
+│   │   └── <span class="dir">Error/</span>      <span class="meta">ErrorView per AppError case</span>
+│   ├── <span class="dir">Theme/</span>          <span class="meta">Theme.swift</span>
+│   └── <span class="dir">Resources/</span>
+│       └── <span class="dir">Assets.xcassets/</span>
+│
+├── <span class="dir new">CLI/</span>                                            <span class="note"># `quorra-cli` Xcode target, sandbox-free</span>
+│   ├── <span class="file">QuorraCLI.entitlements</span>                      <span class="meta">keychain-access-groups only; no sandbox</span>
+│   └── <span class="dir">Sources/</span>
+│       └── <span class="dir">QuorraCLI/</span>
+│           ├── <span class="file">main.swift</span>                          <span class="meta">argument parsing entry point</span>
+│           ├── <span class="dir">Commands/</span>                            <span class="meta">login · logout · profile · serve · whoami</span>
+│           └── <span class="dir">CredentialProcess/</span>                   <span class="meta">JSON output for AWS `credential_process`</span>
+│
+├── <span class="dir new">Packages/</span>                                       <span class="note"># Swift packages, local — referenced via workspace</span>
+│   └── <span class="dir">QuorraCore/</span>
+│       ├── <span class="pkg">Package.swift</span>                            <span class="meta">macOS(.v26), Swift 6.2; .library products listed below</span>
+│       ├── <span class="dir">Sources/</span>
+│       │   ├── <span class="dir">AWSConfigINI/</span>                        <span class="meta">INI parser; AWS-specific quirks</span>
+│       │   ├── <span class="dir">AWSConfig/</span>                           <span class="meta">Profile, ConfigFile, CredentialsFile model</span>
+│       │   ├── <span class="dir">QuorraKeychain/</span>                      <span class="meta">SecItemAdd/Copy/Update/Delete wrappers</span>
+│       │   ├── <span class="dir">QuorraIMDS/</span>                          <span class="meta">IMDSv1/v2 server; port discovery file</span>
+│       │   ├── <span class="dir">QuorraSSO/</span>                           <span class="meta">OIDC device-code flow, token refresh</span>
+│       │   └── <span class="dir">QuorraSupport/</span>                       <span class="meta">FileLock, Logger, BookmarkStorage, FolderPicker (NSOpenPanel-only)</span>
+│       └── <span class="dir">Tests/</span>
+│           ├── <span class="dir">AWSConfigINITests/</span>
+│           ├── <span class="dir">AWSConfigTests/</span>
+│           ├── <span class="dir">QuorraKeychainTests/</span>
+│           ├── <span class="dir">QuorraIMDSTests/</span>
+│           ├── <span class="dir">QuorraSSOTests/</span>
+│           └── <span class="dir">QuorraSupportTests/</span>                  <span class="meta">BookmarkStorageTests moves here from quorraTests</span>
+│
+├── <span class="dir new">Tests/</span>                                          <span class="note"># Xcode-only, app-aware tests</span>
+│   └── <span class="dir">QuorraAppTests/</span>
+│       └── <span class="file">AppModelTests.swift</span>                     <span class="meta">phase transitions; resolveStoredBookmark integration</span>
+│
+├── <span class="dir new">Tools/</span>                                          <span class="note"># scripts; not a build target</span>
+│   ├── <span class="file">reset-sandbox.sh</span>                            <span class="meta">documented in CLAUDE.md</span>
+│   ├── <span class="file">install-cli.sh</span>                              <span class="meta">copies built quorra-cli into /usr/local/bin</span>
+│   └── <span class="file">notarize.sh</span>                                 <span class="meta">future</span>
+│
+├── <span class="dir">docs/</span>
+│   ├── <span class="file">project-structure-report.html</span>               <span class="meta">this document</span>
+│   ├── <span class="dir">adr/</span>                                         <span class="meta">future architecture decision records</span>
+│   └── <span class="file">setup-flow.md</span>                               <span class="meta">extracted from CLAUDE.md as it grows</span>
+│
+├── <span class="file">Quorra.xcodeproj/</span>                              <span class="meta">renamed from quorra.xcodeproj</span>
+├── <span class="file">Quorra.xcworkspace</span>                             <span class="meta">contains .xcodeproj + Packages/QuorraCore</span>
+├── <span class="file">README.md</span>
+├── <span class="file">CLAUDE.md</span>
+├── <span class="file">.swift-version</span>
+└── <span class="file">.gitignore</span></pre>
+
+        <h3>One <code>Package.swift</code>, several library products</h3>
+        <p>The package manifest is the single source of truth for what the app and the CLI can <code>import</code>. Keeping all shared modules in one package (rather than one package per module) means one <code>Package.swift</code> to maintain, fast cross-module compilation, and a single point at which to declare the <code>macOS(.v26)</code> floor.</p>
+
+        <pre class="tree" data-label="Packages/QuorraCore/Package.swift · sketch"><span class="meta">// swift-tools-version: 6.2</span>
+import PackageDescription
+
+let package = Package(
+    name: <span class="new">"QuorraCore"</span>,
+    platforms: [.macOS(.v26)],
+    products: [
+        .library(name: <span class="new">"AWSConfigINI"</span>,    targets: [<span class="new">"AWSConfigINI"</span>]),
+        .library(name: <span class="new">"AWSConfig"</span>,       targets: [<span class="new">"AWSConfig"</span>]),
+        .library(name: <span class="new">"QuorraKeychain"</span>,  targets: [<span class="new">"QuorraKeychain"</span>]),
+        .library(name: <span class="new">"QuorraIMDS"</span>,      targets: [<span class="new">"QuorraIMDS"</span>]),
+        .library(name: <span class="new">"QuorraSSO"</span>,       targets: [<span class="new">"QuorraSSO"</span>]),
+        .library(name: <span class="new">"QuorraSupport"</span>,   targets: [<span class="new">"QuorraSupport"</span>]),
+    ],
+    targets: [
+        .target(name: <span class="new">"AWSConfigINI"</span>),
+        .target(name: <span class="new">"AWSConfig"</span>,      dependencies: [<span class="new">"AWSConfigINI"</span>, <span class="new">"QuorraSupport"</span>]),
+        .target(name: <span class="new">"QuorraKeychain"</span>, dependencies: [<span class="new">"QuorraSupport"</span>]),
+        .target(name: <span class="new">"QuorraIMDS"</span>,     dependencies: [<span class="new">"QuorraKeychain"</span>, <span class="new">"QuorraSupport"</span>]),
+        .target(name: <span class="new">"QuorraSSO"</span>,      dependencies: [<span class="new">"QuorraKeychain"</span>, <span class="new">"QuorraSupport"</span>]),
+        .target(name: <span class="new">"QuorraSupport"</span>),
+
+        .testTarget(name: <span class="new">"AWSConfigINITests"</span>,    dependencies: [<span class="new">"AWSConfigINI"</span>]),
+        .testTarget(name: <span class="new">"AWSConfigTests"</span>,       dependencies: [<span class="new">"AWSConfig"</span>]),
+        .testTarget(name: <span class="new">"QuorraKeychainTests"</span>,  dependencies: [<span class="new">"QuorraKeychain"</span>]),
+        .testTarget(name: <span class="new">"QuorraIMDSTests"</span>,      dependencies: [<span class="new">"QuorraIMDS"</span>]),
+        .testTarget(name: <span class="new">"QuorraSSOTests"</span>,       dependencies: [<span class="new">"QuorraSSO"</span>]),
+        .testTarget(name: <span class="new">"QuorraSupportTests"</span>,   dependencies: [<span class="new">"QuorraSupport"</span>]),
+    ]
+)</pre>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ═════════════════ § 5 OPEN QUESTIONS ═════════════════ -->
+  <section>
+    <div class="section-head">
+      <div class="num">§ 05</div>
+      <h2>Open questions.</h2>
+      <div class="kicker">Decisions a human should make before any of this lands</div>
+    </div>
+    <div class="section-body">
+      <div class="body-col">
+        <div class="questions">
+          <ol>
+            <li><strong>Workspace or no workspace?</strong> A workspace adds one file at the root and is the canonical way to combine an .xcodeproj with local Swift packages. The alternative is to keep the package as a folder reference inside the .xcodeproj. Workspaces feel slightly more correct for App + CLI + Package; folder reference is one fewer file. Either works.</li>
+            <li><strong>Does the CLI ship inside the app bundle, or as a separate binary?</strong> CLAUDE.md leans toward independent binaries. If the app ever needs to “install” the CLI for the user, Apple's <em>Embedding a command-line tool in a sandboxed app</em> guide [6] is the prescribed path — but that's a different topology to the one above. Worth confirming.</li>
+            <li><strong>One package or several?</strong> Single <code>QuorraCore</code> package with many library targets is what's drawn here. The alternative is one package per concern (<code>AWSConfigINI/</code>, <code>QuorraKeychain/</code>, …). Several packages are easier to extract publicly later but heavier today.</li>
+            <li><strong>Rename <code>quorra/</code> to <code>App/</code>?</strong> Ergonomically nicer; mechanically a one-line pbxproj edit on the synchronized folder path. But it breaks any in-flight branches that still reference <code>quorra/</code>. A merge-window decision.</li>
+            <li><strong>Where does the sandbox-free CLI's entitlement file live?</strong> Same folder as the source (<code>CLI/QuorraCLI.entitlements</code>) is the lazy answer. A dedicated <code>Configs/</code> sibling is the tidy answer. Pick one and be consistent.</li>
+            <li><strong>The <code>../Pacakges/INI</code> typo.</strong> Was the INI module ever working in Xcode, or is this an aspirational stub? Affects whether the migration is a refactor or a fresh start.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═════════════════ CITATIONS ═════════════════ -->
+  <section class="citations">
+    <div class="section-head">
+      <div class="num">§ ※</div>
+      <h2>Sources cited.</h2>
+      <div class="kicker">All Apple Developer Documentation, retrieved 2026·05·10</div>
+    </div>
+    <div class="section-body">
+      <div class="body-col">
+        <ol class="cite-list">
+          <li><span class="num">[1]</span> <span class="title">Managing files and folders in your Xcode project — Convert groups to folders.</span><br/><a href="https://developer.apple.com/documentation/xcode/managing-files-and-folders-in-your-xcode-project#Convert-groups-to-folders">developer.apple.com/.../managing-files-and-folders-in-your-xcode-project#Convert-groups-to-folders</a></li>
+          <li><span class="num">[2]</span> <span class="title">Organizing your code with local packages.</span><br/><a href="https://developer.apple.com/documentation/xcode/organizing-your-code-with-local-packages">developer.apple.com/.../organizing-your-code-with-local-packages</a></li>
+          <li><span class="num">[3]</span> <span class="title">Managing files and folders in your Xcode project — Add existing files and folders to a project.</span><br/><a href="https://developer.apple.com/documentation/xcode/managing-files-and-folders-in-your-xcode-project#Add-existing-files-and-folders-to-a-project">developer.apple.com/.../managing-files-and-folders-in-your-xcode-project#Add-existing-files-and-folders-to-a-project</a></li>
+          <li><span class="num">[4]</span> <span class="title">Configuring a new target in your project.</span><br/><a href="https://developer.apple.com/documentation/xcode/configuring-a-new-target-in-your-project">developer.apple.com/.../configuring-a-new-target-in-your-project</a></li>
+          <li><span class="num">[5]</span> <span class="title">Adding tests to your Xcode project — Add a new testing target.</span><br/><a href="https://developer.apple.com/documentation/xcode/adding-tests-to-your-xcode-project#Add-a-new-testing-target">developer.apple.com/.../adding-tests-to-your-xcode-project#Add-a-new-testing-target</a></li>
+          <li><span class="num">[6]</span> <span class="title">Embedding a command-line tool in a sandboxed app.</span><br/><a href="https://developer.apple.com/documentation/xcode/embedding-a-helper-tool-in-a-sandboxed-app">developer.apple.com/.../embedding-a-helper-tool-in-a-sandboxed-app</a></li>
+          <li><span class="num">[7]</span> <span class="title">Xcode updates — Projects and workspaces (buildable folders).</span><br/><a href="https://developer.apple.com/documentation/updates/xcode#Projects-and-workspaces">developer.apple.com/documentation/updates/xcode#Projects-and-workspaces</a></li>
+          <li><span class="num">[8]</span> <span class="title">Sharing access to keychain items among a collection of apps — Set your app's access groups.</span><br/><a href="https://developer.apple.com/documentation/security/sharing-access-to-keychain-items-among-a-collection-of-apps#Set-your-apps-access-groups">developer.apple.com/.../sharing-access-to-keychain-items-among-a-collection-of-apps#Set-your-apps-access-groups</a></li>
+          <li><span class="num">[9]</span> <span class="title">Creating a standalone Swift package with Xcode — Create a Swift package.</span><br/><a href="https://developer.apple.com/documentation/xcode/creating-a-standalone-swift-package-with-xcode#Create-a-Swift-package">developer.apple.com/.../creating-a-standalone-swift-package-with-xcode#Create-a-Swift-package</a></li>
+          <li><span class="num">[10]</span> <span class="title">Developing a Swift package in tandem with an app.</span><br/><a href="https://developer.apple.com/documentation/xcode/developing-a-swift-package-in-tandem-with-an-app">developer.apple.com/.../developing-a-swift-package-in-tandem-with-an-app</a></li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <footer class="colophon">
+    <span><span class="accent">●</span>&nbsp;Quorra Architecture Memo No. 01</span>
+    <span>Set in Iowan Old Style, Optima &amp; JetBrains Mono</span>
+    <span>docs/project-structure-report.html</span>
+  </footer>
+
+</main>
+</body>
+</html>
