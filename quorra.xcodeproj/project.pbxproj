@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1B88C1CA2FB1106B00A3CD79 /* quorra-cli in Embed CLI */ = {isa = PBXBuildFile; fileRef = 1BBF429E2FB0C7AE00B21E0D /* quorra-cli */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		1BA1B1C12FB0000000000001 /* AWSConfigINI in Frameworks */ = {isa = PBXBuildFile; productRef = 1BA1B1C22FB0000000000002 /* AWSConfigINI */; };
 /* End PBXBuildFile section */
 
@@ -18,7 +19,26 @@
 			remoteGlobalIDString = 1B5F7C8C2FACE2A100833D01;
 			remoteInfo = quorra;
 		};
+		1B88C1C52FB10F1500A3CD79 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1B5F7C852FACE2A100833D01 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 1BBF429D2FB0C7AE00B21E0D;
+			remoteInfo = "quorra-cli";
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		1B88C1C92FB1105E00A3CD79 /* Embed CLI */ = {
+			isa = PBXCopyFilesBuildPhase;
+			dstPath = "";
+			dstSubfolder = Executables;
+			files = (
+				1B88C1CA2FB1106B00A3CD79 /* quorra-cli in Embed CLI */,
+			);
+			name = "Embed CLI";
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		1B0E8B8E2FADF3FC002DC711 /* quorraTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = quorraTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -115,8 +135,12 @@
 				1B5F7C892FACE2A100833D01 /* Sources */,
 				1B5F7C8A2FACE2A100833D01 /* Frameworks */,
 				1B5F7C8B2FACE2A100833D01 /* Resources */,
+				1B88C1C92FB1105E00A3CD79 /* Embed CLI */,
 			);
 			buildRules = (
+			);
+			dependencies = (
+				1B88C1C62FB10F1500A3CD79 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				1B5F7C8F2FACE2A100833D01 /* App */,
@@ -229,6 +253,11 @@
 			isa = PBXTargetDependency;
 			target = 1B5F7C8C2FACE2A100833D01 /* quorra */;
 			targetProxy = 1B0E8B922FADF3FC002DC711 /* PBXContainerItemProxy */;
+		};
+		1B88C1C62FB10F1500A3CD79 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 1BBF429D2FB0C7AE00B21E0D /* quorra-cli */;
+			targetProxy = 1B88C1C52FB10F1500A3CD79 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
