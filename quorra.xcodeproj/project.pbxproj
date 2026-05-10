@@ -6,6 +6,10 @@
 	objectVersion = 100;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		1BA1B1C12FB0000000000001 /* AWSConfigINI in Frameworks */ = {isa = PBXBuildFile; productRef = 1BA1B1C22FB0000000000002 /* AWSConfigINI */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		1B0E8B922FADF3FC002DC711 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -43,6 +47,7 @@
 		1B5F7C8A2FACE2A100833D01 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+				1BA1B1C12FB0000000000001 /* AWSConfigINI in Frameworks */,
 			);
 		};
 /* End PBXFrameworksBuildPhase section */
@@ -104,6 +109,9 @@
 				1B5F7C8F2FACE2A100833D01 /* App */,
 			);
 			name = quorra;
+			packageProductDependencies = (
+				1BA1B1C22FB0000000000002 /* AWSConfigINI */,
+			);
 			productName = quorra;
 			productReference = 1B5F7C8D2FACE2A100833D01 /* quorra.app */;
 			productType = "com.apple.product-type.application";
@@ -137,6 +145,9 @@
 			);
 			mainGroup = 1B5F7C842FACE2A100833D01;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				1BA1B1C32FB0000000000003 /* XCLocalSwiftPackageReference "Packages/QuorraCore" */,
+			);
 			preferredProjectObjectVersion = 100;
 			productRefGroup = 1B5F7C8E2FACE2A100833D01 /* Products */;
 			projectDirPath = "";
@@ -427,6 +438,20 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		1BA1B1C32FB0000000000003 /* XCLocalSwiftPackageReference "Packages/QuorraCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/QuorraCore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		1BA1B1C22FB0000000000002 /* AWSConfigINI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = AWSConfigINI;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 1B5F7C852FACE2A100833D01 /* Project object */;
 }
