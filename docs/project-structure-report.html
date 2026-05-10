@@ -599,19 +599,19 @@
     </div>
   </header>
 
-  <p class="deck">A working memo on how to lay out the Quorra repository, the Xcode project navigator, and the target graph — for an app, a CLI, and the shared modules that bind them. Aimed at a structure that survives sandboxing, App Store distribution, and a long second act as the codebase grows.</p>
+  <p class="deck">A working memo on how the Quorra repository, the Xcode project navigator, and the target graph are laid out — for an app, a CLI, and the shared modules that bind them. The structure is built to survive sandboxing, Homebrew Cask distribution today, and an App Store upload tomorrow as the codebase grows.</p>
 
   <!-- ═════════════════ TL;DR ═════════════════ -->
   <section class="tldr" aria-label="TL;DR">
-    <div class="label">▌ Recommendations · The Short Version</div>
+    <div class="label">▌ Decisions · The Short Version</div>
     <h2>Six decisions, in order of how much they save you.</h2>
     <ol>
-      <li><strong>Keep synchronized folders.</strong> Quorra already uses Xcode 16 <code>PBXFileSystemSynchronizedRootGroup</code> — do not regress to virtual groups.</li>
-      <li><strong>Adopt a single workspace</strong> (<code>Quorra.xcworkspace</code>) that contains the <code>.xcodeproj</code> plus local Swift packages — the shared boundary between app and CLI.</li>
-      <li><strong>Move shared logic into local SwiftPM packages</strong> under <code>Packages/</code>. Make <code>QuorraCore</code> the umbrella; <code>AWSConfigINI</code> is the first leaf.</li>
-      <li><strong>Three Xcode targets, one workspace:</strong> <code>Quorra</code> (app), <code>quorra-cli</code> (CLI), <code>QuorraTests</code> (UI/integration). Library/unit tests ride inside the SwiftPM package.</li>
-      <li><strong>Rename <code>quorra/</code> → <code>App/</code></strong> on disk and update the synchronized folder. The lower-case Mac-target name is implementation detail; <code>App/</code> reads as architecture.</li>
-      <li><strong>Fix the typo:</strong> <code>project.pbxproj</code> currently references <code>../Pacakges/INI</code>. The folder doesn't exist; the package isn't really wired in yet.</li>
+      <li><strong>Synchronized folders, everywhere.</strong> Quorra uses Xcode 26 <code>PBXFileSystemSynchronizedRootGroup</code> for every source root — no virtual groups outside the workspace's package container.</li>
+      <li><strong>One workspace</strong> (<code>Quorra.xcworkspace</code>) that owns the <code>.xcodeproj</code> plus the local <code>QuorraCore</code> Swift package — the shared boundary between app and CLI.</li>
+      <li><strong>Shared logic lives in a local SwiftPM package</strong> under <code>Packages/QuorraCore/</code>. <code>AWSConfigINI</code> is the first leaf; more libraries (<code>AWSConfig</code>, <code>QuorraKeychain</code>, <code>QuorraIMDS</code>, <code>QuorraSSO</code>) join it as features land.</li>
+      <li><strong>Three Xcode targets:</strong> <code>quorra</code> (app, sandboxed), <code>quorra-cli</code> (CLI, sandboxed), <code>quorraTests</code> (Swift Testing). Library tests ride inside the SwiftPM package.</li>
+      <li><strong>Folder name = target name = binary name.</strong> Source roots are <code>App/</code> and <code>quorra-cli/</code> on disk. Symmetry was tempting (<code>App/</code> + <code>CLI/</code>) but discoverability and avoiding a synchronized-folder rename won out.</li>
+      <li><strong>Distribution: Homebrew Cask now, App Store-ready by construction.</strong> The CLI is embedded inside <code>Quorra.app/Contents/MacOS/quorra-cli</code> and a symlink installer puts it on <code>$PATH</code>. Sandbox + hardened runtime + identifier-based signing make App Store distribution a channel flip, not a rebuild.</li>
     </ol>
   </section>
 
@@ -620,32 +620,45 @@
     <div class="section-head">
       <div class="num">§ 00</div>
       <h2>The board, as it stands.</h2>
-      <div class="kicker">What's already on disk before any recommendation lands</div>
+      <div class="kicker">What's on disk after the migration landed</div>
     </div>
     <div class="section-body">
       <div class="body-col">
 
-        <p>Quorra's repo today is a near-default Xcode 16 single-target macOS app, sandboxed, with an empty placeholder for shared packages and a Swift Testing target alongside the app. The project file already uses synchronized folders — the modern path — but a single misspelling has prevented the shared package boundary from coming online.</p>
+        <p>Quorra's repo today is a workspace-rooted Xcode 26 project with three native targets — app, CLI, app-tests — and one local SwiftPM package hosting the shared libraries. Every source root is a synchronized folder. The CLI binary is copied into the app bundle as part of the app's build, so a single <code>Quorra.app</code> contains everything an end user needs.</p>
 
         <pre class="tree" data-label="current"><span class="dir">/Users/aj.beck/Developer/repos/ajbeck/quorra</span>
-├── <span class="dir">quorra/</span>                          <span class="note"># synchronized root group (blue folder)</span>
-│   ├── <span class="dir">App/</span>                         <span class="meta">AppModel · AppPhase · AppError · RootView</span>
-│   ├── <span class="dir">Bookmarks/</span>                   <span class="meta">BookmarkStorage · FolderPicker · UserHome</span>
-│   ├── <span class="dir">Theme/</span>                       <span class="meta">Theme.swift</span>
-│   ├── <span class="dir">Views/</span>                       <span class="meta">SetupView · MainView · ErrorView · FolderContentsView</span>
+├── <span class="dir">App/</span>                              <span class="note"># synchronized root group · target: quorra</span>
+│   ├── <span class="dir">Root/</span>                          <span class="meta">AppModel · AppPhase · AppError · RootView</span>
+│   ├── <span class="dir">Bookmarks/</span>                     <span class="meta">BookmarkStorage · FolderPicker · UserHome</span>
+│   ├── <span class="dir">Views/</span>                         <span class="meta">SetupView · MainView · FolderContentsView · ErrorView</span>
+│   ├── <span class="dir">Theme/</span>
 │   ├── <span class="dir">Assets.xcassets/</span>
-│   └── <span class="file">quorraApp.swift</span>             <span class="meta">@main App entry point</span>
-├── <span class="dir">quorraTests/</span>                     <span class="note"># synchronized root group, Swift Testing</span>
-│   └── <span class="file">BookmarkStorageTests.swift</span>
-├── <span class="dir">Packages/</span>                        <span class="note"># empty placeholder folder</span>
+│   └── <span class="file">quorraApp.swift</span>               <span class="meta">@main App entry point</span>
+├── <span class="dir">quorra-cli/</span>                        <span class="note"># synchronized root group · target: quorra-cli</span>
+│   └── <span class="file">main.swift</span>
+├── <span class="dir">Packages/</span>
+│   └── <span class="dir">QuorraCore/</span>                    <span class="note"># local SwiftPM package, owned by the workspace</span>
+│       ├── <span class="pkg">Package.swift</span>
+│       ├── <span class="dir">Sources/AWSConfigINI/</span>
+│       └── <span class="dir">Tests/AWSConfigINITests/</span>
+├── <span class="dir">Tests/</span>
+│   └── <span class="dir">QuorraAppTests/</span>                <span class="note"># synchronized root group · target: quorraTests</span>
+├── <span class="dir">Configs/</span>
+│   ├── <span class="file">Quorra.entitlements</span>
+│   └── <span class="file">QuorraCLI.entitlements</span>
+├── <span class="dir">Tools/</span>
+│   └── <span class="file">install-cli.sh</span>
 ├── <span class="dir">docs/</span>
+│   └── <span class="file">project-structure-report.html</span>
 ├── <span class="dir">quorra.xcodeproj/</span>
+├── <span class="file">Quorra.xcworkspace/</span>
 ├── <span class="file">CLAUDE.md</span>
 └── <span class="file">.gitignore</span></pre>
 
-        <div class="state warn">
-          <div class="label">▲ Latent bug found while researching</div>
-          <p style="margin:0"><code>project.pbxproj</code> contains <code>path = ../Pacakges/INI</code> (note the misspelling). The pbxproj also lists a <code>Packages</code> group, an INI file reference, and a <code>quorra/Packages/INI/Package.swift</code> tree visible to <code>XcodeLS</code>, but the directory <code>Pacakges/</code> doesn't exist on disk and <code>Packages/</code> is empty. The package isn't actually checked in yet — only the broken reference is. Worth resolving before any further refactor.</p>
+        <div class="state">
+          <div class="label">▌ Resolved during the migration</div>
+          <p style="margin:0">The earlier draft of this report flagged <code>path = ../Pacakges/INI</code> (a typo) in <code>project.pbxproj</code> and an empty <code>Packages/</code> folder. The fresh-start migration replaced both: the workspace now references <code>Packages/QuorraCore</code> via <code>contents.xcworkspacedata</code>, and the pbxproj uses <code>XCSwiftPackageProductDependency</code> entries rather than a fragile <code>XCLocalSwiftPackageReference</code>. No stale paths remain.</p>
         </div>
       </div>
     </div>
@@ -661,45 +674,39 @@
     <div class="section-body">
       <div class="body-col">
 
-        <p>Quorra is small now and will grow into something with multiple deliverables — an app, a CLI, several modules, possibly a Homebrew formula and a launchd plist — that all need a place. The right tree is conservative at the root, expressive one level down, and tells a stranger which directory contains the executable, which contains the libraries, and which contains tests.</p>
+        <p>Quorra is small now and will grow into something with multiple deliverables — an app, a CLI, several modules, a Homebrew Cask formula, eventually an App Store submission — that all need a place. The tree is conservative at the root, expressive one level down, and tells a stranger which directory contains the executable, which contains the libraries, and which contains tests.</p>
 
-        <h3>Proposed Top-Level Tree</h3>
+        <h3>Top-Level Tree, as shipped</h3>
 
-        <pre class="tree" data-label="proposed"><span class="dir">quorra/</span>                                <span class="note"># repo root</span>
-├── <span class="dir new">App/</span>                              <span class="note"># renamed from quorra/ — clearer intent</span>
-│   ├── <span class="dir">App/</span>                          <span class="meta">composition root, AppModel, RootView</span>
-│   ├── <span class="dir">Features/</span>                     <span class="meta">Setup/, Main/, Error/  (group by feature, not type)</span>
+        <pre class="tree" data-label="shipped"><span class="dir">quorra/</span>                                <span class="note"># repo root</span>
+├── <span class="dir">App/</span>                              <span class="note"># SwiftUI app sources · target: quorra</span>
+│   ├── <span class="dir">Root/</span>                          <span class="meta">AppModel · AppPhase · AppError · RootView</span>
+│   ├── <span class="dir">Bookmarks/</span>                     <span class="meta">BookmarkStorage · FolderPicker · UserHome</span>
+│   ├── <span class="dir">Views/</span>                         <span class="meta">SetupView · MainView · FolderContentsView · ErrorView</span>
 │   ├── <span class="dir">Theme/</span>
-│   ├── <span class="dir">Resources/</span>                    <span class="meta">Assets.xcassets, .strings catalogs</span>
-│   ├── <span class="file">QuorraApp.swift</span>              <span class="meta">@main entry point</span>
-│   └── <span class="file">Quorra.entitlements</span>
-├── <span class="dir new">CLI/</span>                              <span class="note"># new — companion binary lives here</span>
-│   ├── <span class="dir">Sources/</span>
-│   │   └── <span class="dir">QuorraCLI/</span>                 <span class="meta">main.swift, CommandRunner, subcommands/</span>
-│   └── <span class="file">QuorraCLI.entitlements</span>        <span class="meta">keychain-access-groups, no sandbox</span>
-├── <span class="dir new">Packages/</span>                         <span class="note"># local Swift packages — shared boundary</span>
-│   └── <span class="dir">QuorraCore/</span>                    <span class="pkg">Package.swift</span>
-│       ├── <span class="file">Package.swift</span>
+│   ├── <span class="dir">Assets.xcassets/</span>
+│   └── <span class="file">quorraApp.swift</span>               <span class="meta">@main entry point</span>
+├── <span class="dir">quorra-cli/</span>                        <span class="note"># CLI sources · target: quorra-cli (folder name = target name)</span>
+│   └── <span class="file">main.swift</span>
+├── <span class="dir">Packages/</span>
+│   └── <span class="dir">QuorraCore/</span>                    <span class="note"># local SwiftPM package, referenced from the workspace</span>
+│       ├── <span class="pkg">Package.swift</span>
 │       ├── <span class="dir">Sources/</span>
-│       │   ├── <span class="dir">AWSConfigINI/</span>           <span class="meta">INI parser (keep separate from the rest)</span>
-│       │   ├── <span class="dir">AWSConfig/</span>              <span class="meta">profile model, config & credentials files</span>
-│       │   ├── <span class="dir">QuorraKeychain/</span>         <span class="meta">SecItem* wrappers</span>
-│       │   ├── <span class="dir">QuorraIMDS/</span>             <span class="meta">IMDSv1/v2 server, port discovery</span>
-│       │   ├── <span class="dir">QuorraSSO/</span>              <span class="meta">OIDC device-code flow</span>
-│       │   └── <span class="dir">QuorraSupport/</span>          <span class="meta">tiny utilities, Logger, file locks</span>
-│       └── <span class="dir">Tests/</span>                      <span class="meta">Swift Testing, one folder per target above</span>
-├── <span class="dir new">Tests/</span>                            <span class="note"># Xcode-only tests (UI / app-level integration)</span>
-│   └── <span class="dir">QuorraAppTests/</span>                 <span class="meta">smoke tests using @Observable AppModel</span>
-├── <span class="dir new">Tools/</span>                            <span class="note"># scripts, install helpers — not a build target</span>
-│   ├── <span class="file">reset-sandbox.sh</span>              <span class="meta">rm -rf ~/Library/Containers/dev.ajbeck.quorra</span>
-│   └── <span class="file">install-cli.sh</span>
-├── <span class="dir">docs/</span>                              <span class="meta">design notes, this report, ADRs</span>
-├── <span class="dir">Quorra.xcodeproj/</span>                  <span class="note"># renamed: Quorra (proper noun)</span>
-├── <span class="file">Quorra.xcworkspace</span>                <span class="note"># NEW — opens the whole show</span>
+│       │   └── <span class="dir">AWSConfigINI/</span>           <span class="meta">INI parser; AWS-specific quirks (first leaf)</span>
+│       └── <span class="dir">Tests/</span>
+│           └── <span class="dir">AWSConfigINITests/</span>
+├── <span class="dir">Tests/</span>                            <span class="note"># Xcode-only, app-aware tests</span>
+│   └── <span class="dir">QuorraAppTests/</span>                <span class="meta">target: quorraTests · Swift Testing</span>
+├── <span class="dir">Configs/</span>                          <span class="note"># entitlements live here, not next to source</span>
+│   ├── <span class="file">Quorra.entitlements</span>
+│   └── <span class="file">QuorraCLI.entitlements</span>
+├── <span class="dir">Tools/</span>                            <span class="note"># scripts; not a build target</span>
+│   └── <span class="file">install-cli.sh</span>                <span class="meta">symlinks ~/.local/bin/quorra-cli → bundle path</span>
+├── <span class="dir">docs/</span>                              <span class="meta">design notes, this report</span>
+├── <span class="file">quorra.xcodeproj/</span>
+├── <span class="file">Quorra.xcworkspace/</span>               <span class="note"># opens the whole show; owns the package</span>
 ├── <span class="file">CLAUDE.md</span>
-├── <span class="file">README.md</span>
-├── <span class="file">.gitignore</span>
-└── <span class="file">.swift-version</span>                   <span class="meta">pin the toolchain</span></pre>
+└── <span class="file">.gitignore</span></pre>
 
         <h3>Why these particular folders</h3>
 
@@ -707,13 +714,17 @@
           <thead><tr><th>Folder</th><th>Concern</th><th>Reason it stands alone</th></tr></thead>
           <tbody>
             <tr><td><code>App/</code></td><td>SwiftUI macOS app</td><td>UI is the most volatile and most opinionated layer. Keeping it on its own keeps SwiftUI imports from leaking into headless code.</td></tr>
-            <tr><td><code>CLI/</code></td><td><code>quorra-cli</code> binary</td><td>Different entitlements (no sandbox), different deployment story (Homebrew, manual install). Mirrors the App ↔ CLI boundary defined in CLAUDE.md.</td></tr>
-            <tr><td><code>Packages/QuorraCore/</code></td><td>Shared Swift logic</td><td>One package, many library targets. SwiftPM lets the same module be linked into App, CLI, and tests with no fuss.</td></tr>
-            <tr><td><code>Tests/</code></td><td>App-level integration / UI</td><td>Library tests live inside the SwiftPM package; only tests that need the running app belong here.</td></tr>
-            <tr><td><code>Tools/</code></td><td>Shell helpers</td><td>Sandbox reset, install script, future notarization. Not a build target — keeps shell scripts out of <code>App/</code>.</td></tr>
-            <tr><td><code>docs/</code></td><td>Design notes &amp; ADRs</td><td>Already exists. Pair this report with future ADRs (one per non-trivial decision) and a plain README at root.</td></tr>
+            <tr><td><code>quorra-cli/</code></td><td><code>quorra-cli</code> binary</td><td>Folder name matches the target name and the resulting binary on disk — easy to tell what it produces. Same Team ID and Keychain access group as the app; different entitlements file.</td></tr>
+            <tr><td><code>Packages/QuorraCore/</code></td><td>Shared Swift logic</td><td>One package, many library targets. SwiftPM links the same module into App, CLI, and tests with no fuss.</td></tr>
+            <tr><td><code>Tests/</code></td><td>App-level integration / UI</td><td>Library tests live inside the SwiftPM package; only tests that need the running app target belong here.</td></tr>
+            <tr><td><code>Configs/</code></td><td>Entitlements</td><td>Both <code>.entitlements</code> files in one place. Build settings reference them by relative path. Keeps signing concerns out of source folders.</td></tr>
+            <tr><td><code>Tools/</code></td><td>Shell helpers</td><td><code>install-cli.sh</code> today; future notarization, sandbox reset wrappers. Not a build target — keeps shell scripts out of <code>App/</code>.</td></tr>
+            <tr><td><code>docs/</code></td><td>Design notes &amp; ADRs</td><td>This report lives here. Future ADRs (one per non-trivial decision) join it.</td></tr>
           </tbody>
         </table>
+
+        <h3>Why <code>quorra-cli/</code> and not <code>CLI/</code></h3>
+        <p>An earlier draft of this report proposed renaming the CLI source folder to <code>CLI/</code> for symmetry with <code>App/</code>. That was reversed. <strong>Folder name = target name = binary name</strong> beats symmetry: a stranger landing in the repo can read off <code>quorra-cli/</code> and know exactly what binary will fall out of it. Renaming a synchronized folder is also a high-touch operation in pbxproj; the win wasn't worth the churn.</p>
 
         <blockquote>
           “Folders have a much smaller representation in the project file, which can result in fewer merge conflicts because when you add or remove files to the project you don't modify the project file.”
@@ -729,12 +740,12 @@
     <div class="section-head">
       <div class="num">§ 02</div>
       <h2>Folders vs Groups, decisively.</h2>
-      <div class="kicker">The Xcode 16 answer is folders. Here's the texture.</div>
+      <div class="kicker">The Xcode 26 answer is folders. Here's the texture.</div>
     </div>
     <div class="section-body">
       <div class="body-col">
 
-        <p>Xcode has two ways to represent a directory in the Project navigator. <em>Groups</em> are the classic yellow folders — a virtual collection that lives inside <code>project.pbxproj</code> and may or may not match disk. <em>Folders</em> (called synchronized folders or buildable folders since Xcode 16) are blue — they reference an actual filesystem directory and Xcode automatically picks up files inside them, no pbxproj edit required.</p>
+        <p>Xcode has two ways to represent a directory in the Project navigator. <em>Groups</em> are the classic yellow folders — a virtual collection that lives inside <code>project.pbxproj</code> and may or may not match disk. <em>Folders</em> (called synchronized folders or buildable folders, available in Xcode 16 and later (shipping with Xcode 26 here)) are blue — they reference an actual filesystem directory and Xcode automatically picks up files inside them, no pbxproj edit required.</p>
 
         <p>For a single-developer project with a long horizon and a CLI sibling that will share files via SwiftPM packages, the decision is one-sided: <strong>folders, everywhere</strong>. The pbxproj file should describe targets and build settings — not enumerate every <code>.swift</code> file you ever add.</p>
 
@@ -747,7 +758,7 @@
               <li class="pro">Tiny pbxproj footprint — the project file records the directory path, not its enumeration.</li>
               <li class="pro">Near-zero merge conflicts in <code>project.pbxproj</code> when files are added or removed.</li>
               <li class="pro">Filesystem and project navigator are <em>guaranteed</em> to agree — no drift, no “red” missing files.</li>
-              <li class="pro">Xcode 16's default for new projects. Already in use here for <code>quorra/</code> and <code>quorraTests/</code>.</li>
+              <li class="pro">Xcode's default for new projects since Xcode 16; shipping in Xcode 26. In use here for <code>App/</code>, <code>quorra-cli/</code>, and <code>Tests/QuorraAppTests/</code>.</li>
               <li class="con">Per-file membership exceptions (e.g. <em>this one file is iOS-only</em>) require an exception list — fine for rare cases, awkward at scale.</li>
               <li class="con">Less control over navigator order — folder contents are sorted by Xcode, not by pbxproj order.</li>
             </ul>
@@ -770,19 +781,17 @@
         </div>
 
         <h3>The one place a group still earns its keep</h3>
-        <p>Apple's own guidance for adding a local Swift package to a project says: <em>“Place the package in a <code>Packages</code> group to make it easier to track”</em> [3]. Local packages live as folder references inside the project, but a group is a fine container around them — it lets you collect <code>QuorraCore</code> alongside any future packages without forcing them to share a parent directory on disk that has no semantic meaning. <strong>This is the only group I'd keep.</strong></p>
+        <p>Apple's own guidance for adding a local Swift package to a project says: <em>“Place the package in a <code>Packages</code> group to make it easier to track”</em> [3]. Local packages live as folder references inside the workspace, but a group is a fine container around them — it lets us collect <code>QuorraCore</code> alongside any future packages without forcing them to share a parent directory on disk that has no semantic meaning. <strong>This is the only group we keep.</strong></p>
 
-        <h3>Migration step (already 80% done)</h3>
+        <h3>Migration state — done</h3>
 
-        <pre class="tree" data-label="state"><span class="meta"># Already done — confirmed via project.pbxproj inspection:</span>
-✓ <span class="file">quorra/</span>           PBXFileSystemSynchronizedRootGroup    <span class="note">(blue)</span>
-✓ <span class="file">quorraTests/</span>      PBXFileSystemSynchronizedRootGroup    <span class="note">(blue)</span>
-
-<span class="meta"># To do:</span>
-□ Rename <span class="file">quorra/</span> → <span class="new">App/</span> (Finder-rename, then update synchronized folder path in pbxproj)
-□ Rename <span class="file">quorraTests/</span> → <span class="new">Tests/QuorraAppTests/</span>
-□ Add <span class="new">CLI/</span> as a synchronized folder belonging to a new <code>quorra-cli</code> target
-□ Replace broken <span class="file">../Pacakges/INI</span> reference with a real <span class="new">Packages/QuorraCore/</span> local package</pre>
+        <pre class="tree" data-label="shipped"><span class="meta"># Confirmed via project.pbxproj and contents.xcworkspacedata:</span>
+✓ <span class="file">App/</span>                   PBXFileSystemSynchronizedRootGroup    <span class="note">→ target: quorra</span>
+✓ <span class="file">quorra-cli/</span>             PBXFileSystemSynchronizedRootGroup    <span class="note">→ target: quorra-cli</span>
+✓ <span class="file">Tests/QuorraAppTests/</span>   PBXFileSystemSynchronizedRootGroup    <span class="note">→ target: quorraTests</span>
+✓ <span class="file">Packages/QuorraCore/</span>    referenced by Quorra.xcworkspace        <span class="note">via XCSwiftPackageProductDependency</span>
+✓ <span class="file">Configs/</span>               Quorra.entitlements · QuorraCLI.entitlements
+✓ <span class="file">Tools/install-cli.sh</span>   symlink installer for the embedded CLI</pre>
 
       </div>
     </div>
@@ -798,48 +807,62 @@
     <div class="section-body">
       <div class="body-col">
 
-        <p>The interesting tension in Quorra is that the <strong>app and the CLI are independent binaries that share state only via Keychain</strong> (per CLAUDE.md). They cannot rely on bundle resources passed between processes. The shared surface must therefore be <em>code</em>, compiled into both — exactly what a SwiftPM library product is good at. A library does not impose a runtime relationship; it just gives both binaries the same <code>QuorraKeychain.swift</code>, the same <code>AWSConfigINI</code>, and the same access-group constants.</p>
+        <p>The interesting tension in Quorra is that the <strong>app and the CLI are independent binaries that share state only via Keychain</strong> (per CLAUDE.md). They cannot rely on bundle resources passed between processes. The shared surface must therefore be <em>code</em>, compiled into both — exactly what a SwiftPM library product is good at. A library does not impose a runtime relationship; it just gives both binaries the same <code>AWSConfigINI</code>, the same <code>QuorraKeychain</code>, and the same access-group constants.</p>
 
         <h3>The graph</h3>
 
         <div class="targets">
           <div class="target app t-app">
             <div class="kind">▌ App target · macOS .app</div>
-            <h4>Quorra</h4>
-            <p>Sandboxed SwiftUI app. Contains UI, SetupView/MainView, AppModel, AppPhase. Imports library products from QuorraCore.</p>
-            <div class="deps">links → <span>QuorraCore</span> products</div>
+            <h4>quorra</h4>
+            <p>Sandboxed SwiftUI .app · bundle ID <code>dev.ajbeck.quorra</code> · entitlements <code>Configs/Quorra.entitlements</code>. Contains UI, SetupView/MainView, AppModel, AppPhase. Embeds the CLI binary at <code>Contents/MacOS/quorra-cli</code>.</p>
+            <div class="deps">links → <span>QuorraCore</span> · embeds → <span>quorra-cli</span></div>
           </div>
           <div class="target t-cli">
             <div class="kind">▌ CLI target · cmdline tool</div>
             <h4>quorra-cli</h4>
-            <p>Independent executable. Not sandboxed. Same Team ID, declares <code>keychain-access-groups</code>. Drives its own SSO/MFA prompts.</p>
-            <div class="deps">links → <span>QuorraCore</span> products</div>
+            <p>Sandboxed Command Line Tool · bundle ID <code>dev.ajbeck.quorra.cli</code> · entitlements <code>Configs/QuorraCLI.entitlements</code>. Same Team ID and Keychain access group as the app. Drives its own SSO/MFA prompts.</p>
+            <div class="deps">links → <span>QuorraCore</span></div>
           </div>
           <div class="target pkg t-pkg-1">
             <div class="kind">▌ SwiftPM Package</div>
             <h4>QuorraCore</h4>
-            <p>One package, many libraries. Exposes AWSConfigINI, AWSConfig, QuorraKeychain, QuorraIMDS, QuorraSSO, QuorraSupport.</p>
+            <p>One package, growing list of libraries. <code>AWSConfigINI</code> ships today; <code>AWSConfig</code>, <code>QuorraKeychain</code>, <code>QuorraIMDS</code>, <code>QuorraSSO</code>, <code>QuorraSupport</code> follow as features land.</p>
             <div class="deps">no Apple-UI dependencies; pure Swift</div>
           </div>
           <div class="target t-test1">
             <div class="kind">▌ Test target · SwiftPM</div>
             <h4>QuorraCore Tests</h4>
-            <p>Lives inside <code>Packages/QuorraCore/Tests/</code>. Swift Testing. The <em>primary</em> testing surface — fast, headless, library-only.</p>
+            <p>Lives inside <code>Packages/QuorraCore/Tests/</code>. Swift Testing. The <em>primary</em> testing surface — fast, headless, library-only. <code>AWSConfigINITests</code> is shipping; the rest follow their libraries.</p>
             <div class="deps">runs via package scheme</div>
           </div>
           <div class="target t-test2">
             <div class="kind">▌ Test target · Xcode</div>
-            <h4>QuorraAppTests</h4>
-            <p>Renamed <code>quorraTests</code>. Reserved for tests that need the app target — observable AppModel wiring, sandbox-touching code, UI tests.</p>
-            <div class="deps">target dep → Quorra</div>
+            <h4>quorraTests</h4>
+            <p>Sources at <code>Tests/QuorraAppTests/</code>. Reserved for tests that need the app target — observable AppModel wiring, sandbox-touching code, UI tests.</p>
+            <div class="deps">target dep → quorra</div>
           </div>
           <div class="target t-pkg-2">
             <div class="kind">▌ Workspace</div>
             <h4>Quorra.xcworkspace</h4>
-            <p>The thing you actually open in the morning. Contains the <code>.xcodeproj</code> and the <code>QuorraCore</code> package. Schemes for App, CLI, and library tests.</p>
+            <p>The thing you open in the morning. <code>contents.xcworkspacedata</code> references <code>quorra.xcodeproj</code> and <code>Packages/QuorraCore</code>. Schemes for app, CLI, and library tests.</p>
             <div class="deps">covers all of the above</div>
           </div>
         </div>
+
+        <h3>Entitlements — both binaries, identical set</h3>
+        <p>App and CLI share the same four entitlements. The CLI is sandboxed too — Mac App Store distribution is the long-term plan and a non-sandboxed sibling would block it.</p>
+        <pre class="tree" data-label="Configs/Quorra.entitlements · Configs/QuorraCLI.entitlements"><span class="new">com.apple.security.app-sandbox</span>                       = true
+<span class="new">com.apple.security.files.user-selected.read-write</span>     = true
+<span class="new">com.apple.security.network.client</span>                    = true
+<span class="new">keychain-access-groups</span>                               = [ $(AppIdentifierPrefix)dev.ajbeck.quorra.shared ]
+
+<span class="meta"># Explicitly NOT used:</span>
+<span class="meta"># com.apple.security.inherit — the CLI is never spawned as a child of the app.</span>
+<span class="meta"># AWS SDKs and shells exec the CLI directly, so it must stand on its own entitlements.</span></pre>
+
+        <h3>Embedding the CLI in the app bundle</h3>
+        <p>The CLI is copied into the app via a <em>Copy Files</em> build phase (destination: <em>Executables</em>), with <em>Code Sign On Copy</em> enabled and a target dependency from <code>quorra</code> on <code>quorra-cli</code>. End result: <code>Quorra.app/Contents/MacOS/quorra-cli</code> is signed with the same Team ID as the app, ships with it, and is discoverable from the app via <code>Bundle.main.bundleURL</code>. <code>Tools/install-cli.sh</code> creates a symlink at <code>~/.local/bin/quorra-cli</code> pointing to that path so users get the CLI on their <code>$PATH</code> without us copying anything outside the bundle.</p>
 
         <h3>The three contenders for the shared module — why SwiftPM wins</h3>
 
@@ -873,7 +896,7 @@
         </table>
 
         <h3>Why the CLI is its own Xcode target, not a SwiftPM executable product</h3>
-        <p>SwiftPM happily produces executables — the <code>.executableTarget</code> kind is exactly that. But a sandboxed-app sibling that needs <code>keychain-access-groups</code> entitlements, code-signing under the same Team ID, and a stable bundle identifier (<code>dev.ajbeck.quorra.cli</code>) is much easier to manage as an Xcode target than as a SwiftPM executable product. Xcode handles signing, entitlements, and provisioning per-target through its UI; SwiftPM does not [4]. The CLI <em>links</em> SwiftPM library products, but it <em>is</em> an Xcode target.</p>
+        <p>SwiftPM happily produces executables — the <code>.executableTarget</code> kind is exactly that. But a sandboxed sibling that needs <code>keychain-access-groups</code> entitlements, code-signing under the same Team ID, and a stable bundle identifier (<code>dev.ajbeck.quorra.cli</code>) is much easier to manage as an Xcode target than as a SwiftPM executable. Xcode handles signing, entitlements, and provisioning per-target through its UI; SwiftPM does not [4]. The CLI <em>links</em> SwiftPM library products, but it <em>is</em> an Xcode target.</p>
 
         <blockquote>
           “When you organize your app's codebase using local packages, your Swift package's code is part of the same repository as your app's code. As you create more apps, consider moving local packages to their own Git repositories…”
@@ -881,8 +904,8 @@
         </blockquote>
 
         <h3>Test target placement — the rule of thumb</h3>
-        <p><strong>Library tests follow the library.</strong> Tests for <code>AWSConfigINI</code>, <code>QuorraKeychain</code>, <code>BookmarkStorage</code>-style logic, etc. all live in <code>Packages/QuorraCore/Tests/</code>. They run via <code>swift test</code> or the package's auto-generated scheme — no Xcode .app required, no UserDefaults pollution. The existing <code>BookmarkStorageTests</code> should move <em>into the package</em> the moment <code>BookmarkStorage</code> moves into <code>QuorraSupport</code>.</p>
-        <p>The Xcode-only test target (<code>QuorraAppTests</code>, formerly <code>quorraTests</code>) is reserved for tests that genuinely need the app target — anything that exercises <code>AppModel</code> wiring, the security-scoped bookmark resolution against a real container, or eventual UI tests. Per Apple's testing docs, Swift Testing and XCTest can coexist in the same target [5].</p>
+        <p><strong>Library tests follow the library.</strong> Tests for <code>AWSConfigINI</code>, <code>QuorraKeychain</code>, <code>BookmarkStorage</code>-style logic, etc. all live in <code>Packages/QuorraCore/Tests/</code>. They run via <code>swift test</code> or the package's auto-generated scheme — no Xcode .app required, no UserDefaults pollution. The existing <code>BookmarkStorageTests</code> moves <em>into the package</em> the moment <code>BookmarkStorage</code> moves into a library target there.</p>
+        <p>The Xcode-only test target (<code>quorraTests</code>, sources at <code>Tests/QuorraAppTests/</code>) is reserved for tests that genuinely need the app target — anything that exercises <code>AppModel</code> wiring, the security-scoped bookmark resolution against a real container, or eventual UI tests. Per Apple's testing docs, Swift Testing and XCTest can coexist in the same target [5].</p>
 
       </div>
     </div>
@@ -893,107 +916,81 @@
     <div class="section-head">
       <div class="num">§ 04</div>
       <h2>The whole tree, annotated.</h2>
-      <div class="kicker">Concrete, not abstract — copy-pasteable into a migration ticket</div>
+      <div class="kicker">Concrete, shipped — what's on disk today</div>
     </div>
     <div class="section-body">
       <div class="body-col">
 
-        <pre class="tree" data-label="proposed · annotated"><span class="dir">quorra/</span>                                              <span class="note"># repo root, unchanged</span>
+        <pre class="tree" data-label="shipped · annotated"><span class="dir">quorra/</span>                                              <span class="note"># repo root</span>
 │
-├── <span class="dir new">App/</span>                                            <span class="note"># renamed from `quorra/`. Synchronized folder.</span>
-│   ├── <span class="file">QuorraApp.swift</span>                             <span class="meta">@main, single line: WindowGroup { RootView() }</span>
-│   ├── <span class="file">Quorra.entitlements</span>                         <span class="meta">app-sandbox, files-user-selected, keychain-access-groups</span>
-│   ├── <span class="dir">App/</span>
+├── <span class="dir">App/</span>                                            <span class="note"># SwiftUI app sources · target: quorra · synchronized folder</span>
+│   ├── <span class="file">quorraApp.swift</span>                             <span class="meta">@main, WindowGroup { RootView() }</span>
+│   ├── <span class="dir">Root/</span>
 │   │   ├── <span class="file">AppModel.swift</span>                          <span class="meta">@Observable; phase mutator</span>
 │   │   ├── <span class="file">AppPhase.swift</span>
 │   │   ├── <span class="file">AppError.swift</span>
 │   │   └── <span class="file">RootView.swift</span>
-│   ├── <span class="dir">Features/</span>
-│   │   ├── <span class="dir">Setup/</span>      <span class="meta">SetupView · FolderPicker view-side wiring</span>
-│   │   ├── <span class="dir">Main/</span>       <span class="meta">MainView · FolderContentsView</span>
-│   │   └── <span class="dir">Error/</span>      <span class="meta">ErrorView per AppError case</span>
-│   ├── <span class="dir">Theme/</span>          <span class="meta">Theme.swift</span>
-│   └── <span class="dir">Resources/</span>
-│       └── <span class="dir">Assets.xcassets/</span>
+│   ├── <span class="dir">Bookmarks/</span>
+│   │   ├── <span class="file">BookmarkStorage.swift</span>                   <span class="meta">UserDefaults round-trip helper</span>
+│   │   ├── <span class="file">FolderPicker.swift</span>                      <span class="meta">NSOpenPanel wrapped for async</span>
+│   │   └── <span class="file">UserHome.swift</span>
+│   ├── <span class="dir">Views/</span>
+│   │   ├── <span class="file">SetupView.swift</span>
+│   │   ├── <span class="file">MainView.swift</span>
+│   │   ├── <span class="file">FolderContentsView.swift</span>
+│   │   └── <span class="file">ErrorView.swift</span>                         <span class="meta">per-AppError-case recovery actions</span>
+│   ├── <span class="dir">Theme/</span>
+│   └── <span class="dir">Assets.xcassets/</span>
 │
-├── <span class="dir new">CLI/</span>                                            <span class="note"># `quorra-cli` Xcode target, sandbox-free</span>
-│   ├── <span class="file">QuorraCLI.entitlements</span>                      <span class="meta">keychain-access-groups only; no sandbox</span>
-│   └── <span class="dir">Sources/</span>
-│       └── <span class="dir">QuorraCLI/</span>
-│           ├── <span class="file">main.swift</span>                          <span class="meta">argument parsing entry point</span>
-│           ├── <span class="dir">Commands/</span>                            <span class="meta">login · logout · profile · serve · whoami</span>
-│           └── <span class="dir">CredentialProcess/</span>                   <span class="meta">JSON output for AWS `credential_process`</span>
+├── <span class="dir">quorra-cli/</span>                                    <span class="note"># CLI sources · target: quorra-cli · synchronized folder</span>
+│   └── <span class="file">main.swift</span>                                  <span class="meta">argv entry point; subcommands land here as features grow</span>
 │
-├── <span class="dir new">Packages/</span>                                       <span class="note"># Swift packages, local — referenced via workspace</span>
+├── <span class="dir">Packages/</span>                                      <span class="note"># Swift packages, local — owned by the workspace</span>
 │   └── <span class="dir">QuorraCore/</span>
-│       ├── <span class="pkg">Package.swift</span>                            <span class="meta">macOS(.v26), Swift 6.2; .library products listed below</span>
+│       ├── <span class="pkg">Package.swift</span>                            <span class="meta">macOS(.v26), Swift 6.2</span>
 │       ├── <span class="dir">Sources/</span>
-│       │   ├── <span class="dir">AWSConfigINI/</span>                        <span class="meta">INI parser; AWS-specific quirks</span>
-│       │   ├── <span class="dir">AWSConfig/</span>                           <span class="meta">Profile, ConfigFile, CredentialsFile model</span>
-│       │   ├── <span class="dir">QuorraKeychain/</span>                      <span class="meta">SecItemAdd/Copy/Update/Delete wrappers</span>
-│       │   ├── <span class="dir">QuorraIMDS/</span>                          <span class="meta">IMDSv1/v2 server; port discovery file</span>
-│       │   ├── <span class="dir">QuorraSSO/</span>                           <span class="meta">OIDC device-code flow, token refresh</span>
-│       │   └── <span class="dir">QuorraSupport/</span>                       <span class="meta">FileLock, Logger, BookmarkStorage, FolderPicker (NSOpenPanel-only)</span>
+│       │   └── <span class="dir">AWSConfigINI/</span>                        <span class="meta">INI parser; AWS-specific quirks (first leaf shipped)</span>
 │       └── <span class="dir">Tests/</span>
-│           ├── <span class="dir">AWSConfigINITests/</span>
-│           ├── <span class="dir">AWSConfigTests/</span>
-│           ├── <span class="dir">QuorraKeychainTests/</span>
-│           ├── <span class="dir">QuorraIMDSTests/</span>
-│           ├── <span class="dir">QuorraSSOTests/</span>
-│           └── <span class="dir">QuorraSupportTests/</span>                  <span class="meta">BookmarkStorageTests moves here from quorraTests</span>
+│           └── <span class="dir">AWSConfigINITests/</span>                    <span class="meta">Swift Testing</span>
 │
-├── <span class="dir new">Tests/</span>                                          <span class="note"># Xcode-only, app-aware tests</span>
-│   └── <span class="dir">QuorraAppTests/</span>
-│       └── <span class="file">AppModelTests.swift</span>                     <span class="meta">phase transitions; resolveStoredBookmark integration</span>
+├── <span class="dir">Tests/</span>                                          <span class="note"># Xcode-only, app-aware tests</span>
+│   └── <span class="dir">QuorraAppTests/</span>                              <span class="meta">target: quorraTests · Swift Testing</span>
 │
-├── <span class="dir new">Tools/</span>                                          <span class="note"># scripts; not a build target</span>
-│   ├── <span class="file">reset-sandbox.sh</span>                            <span class="meta">documented in CLAUDE.md</span>
-│   ├── <span class="file">install-cli.sh</span>                              <span class="meta">copies built quorra-cli into /usr/local/bin</span>
-│   └── <span class="file">notarize.sh</span>                                 <span class="meta">future</span>
+├── <span class="dir">Configs/</span>                                        <span class="note"># entitlements, kept out of source folders</span>
+│   ├── <span class="file">Quorra.entitlements</span>                         <span class="meta">app-sandbox + user-selected RW + network-client + keychain-access-groups</span>
+│   └── <span class="file">QuorraCLI.entitlements</span>                      <span class="meta">same four entitlements as the app</span>
+│
+├── <span class="dir">Tools/</span>                                          <span class="note"># scripts; not a build target</span>
+│   └── <span class="file">install-cli.sh</span>                              <span class="meta">symlinks ~/.local/bin/quorra-cli → bundle path</span>
 │
 ├── <span class="dir">docs/</span>
-│   ├── <span class="file">project-structure-report.html</span>               <span class="meta">this document</span>
-│   ├── <span class="dir">adr/</span>                                         <span class="meta">future architecture decision records</span>
-│   └── <span class="file">setup-flow.md</span>                               <span class="meta">extracted from CLAUDE.md as it grows</span>
+│   └── <span class="file">project-structure-report.html</span>               <span class="meta">this document</span>
 │
-├── <span class="file">Quorra.xcodeproj/</span>                              <span class="meta">renamed from quorra.xcodeproj</span>
-├── <span class="file">Quorra.xcworkspace</span>                             <span class="meta">contains .xcodeproj + Packages/QuorraCore</span>
-├── <span class="file">README.md</span>
+├── <span class="file">quorra.xcodeproj/</span>
+├── <span class="file">Quorra.xcworkspace/</span>                             <span class="meta">contains .xcodeproj + Packages/QuorraCore</span>
 ├── <span class="file">CLAUDE.md</span>
-├── <span class="file">.swift-version</span>
 └── <span class="file">.gitignore</span></pre>
 
-        <h3>One <code>Package.swift</code>, several library products</h3>
-        <p>The package manifest is the single source of truth for what the app and the CLI can <code>import</code>. Keeping all shared modules in one package (rather than one package per module) means one <code>Package.swift</code> to maintain, fast cross-module compilation, and a single point at which to declare the <code>macOS(.v26)</code> floor.</p>
+        <h3>One <code>Package.swift</code>, growing list of library products</h3>
+        <p>The package manifest is the single source of truth for what the app and the CLI can <code>import</code>. Keeping all shared modules in one package (rather than one package per module) means one <code>Package.swift</code> to maintain, fast cross-module compilation, and a single point at which to declare the <code>macOS(.v26)</code> floor. <code>AWSConfigINI</code> is the leaf shipping today; the other libraries below are sketched in for when their concerns land.</p>
 
-        <pre class="tree" data-label="Packages/QuorraCore/Package.swift · sketch"><span class="meta">// swift-tools-version: 6.2</span>
+        <pre class="tree" data-label="Packages/QuorraCore/Package.swift · trajectory"><span class="meta">// swift-tools-version: 6.2</span>
 import PackageDescription
 
 let package = Package(
     name: <span class="new">"QuorraCore"</span>,
     platforms: [.macOS(.v26)],
     products: [
-        .library(name: <span class="new">"AWSConfigINI"</span>,    targets: [<span class="new">"AWSConfigINI"</span>]),
-        .library(name: <span class="new">"AWSConfig"</span>,       targets: [<span class="new">"AWSConfig"</span>]),
-        .library(name: <span class="new">"QuorraKeychain"</span>,  targets: [<span class="new">"QuorraKeychain"</span>]),
-        .library(name: <span class="new">"QuorraIMDS"</span>,      targets: [<span class="new">"QuorraIMDS"</span>]),
-        .library(name: <span class="new">"QuorraSSO"</span>,       targets: [<span class="new">"QuorraSSO"</span>]),
-        .library(name: <span class="new">"QuorraSupport"</span>,   targets: [<span class="new">"QuorraSupport"</span>]),
+        .library(name: <span class="new">"AWSConfigINI"</span>,    targets: [<span class="new">"AWSConfigINI"</span>]),     <span class="meta">// shipping</span>
+        <span class="meta">// .library(name: "AWSConfig",       targets: ["AWSConfig"]),       // future</span>
+        <span class="meta">// .library(name: "QuorraKeychain",  targets: ["QuorraKeychain"]),  // future</span>
+        <span class="meta">// .library(name: "QuorraIMDS",      targets: ["QuorraIMDS"]),      // future</span>
+        <span class="meta">// .library(name: "QuorraSSO",       targets: ["QuorraSSO"]),       // future</span>
+        <span class="meta">// .library(name: "QuorraSupport",   targets: ["QuorraSupport"]),   // future</span>
     ],
     targets: [
         .target(name: <span class="new">"AWSConfigINI"</span>),
-        .target(name: <span class="new">"AWSConfig"</span>,      dependencies: [<span class="new">"AWSConfigINI"</span>, <span class="new">"QuorraSupport"</span>]),
-        .target(name: <span class="new">"QuorraKeychain"</span>, dependencies: [<span class="new">"QuorraSupport"</span>]),
-        .target(name: <span class="new">"QuorraIMDS"</span>,     dependencies: [<span class="new">"QuorraKeychain"</span>, <span class="new">"QuorraSupport"</span>]),
-        .target(name: <span class="new">"QuorraSSO"</span>,      dependencies: [<span class="new">"QuorraKeychain"</span>, <span class="new">"QuorraSupport"</span>]),
-        .target(name: <span class="new">"QuorraSupport"</span>),
-
-        .testTarget(name: <span class="new">"AWSConfigINITests"</span>,    dependencies: [<span class="new">"AWSConfigINI"</span>]),
-        .testTarget(name: <span class="new">"AWSConfigTests"</span>,       dependencies: [<span class="new">"AWSConfig"</span>]),
-        .testTarget(name: <span class="new">"QuorraKeychainTests"</span>,  dependencies: [<span class="new">"QuorraKeychain"</span>]),
-        .testTarget(name: <span class="new">"QuorraIMDSTests"</span>,      dependencies: [<span class="new">"QuorraIMDS"</span>]),
-        .testTarget(name: <span class="new">"QuorraSSOTests"</span>,       dependencies: [<span class="new">"QuorraSSO"</span>]),
-        .testTarget(name: <span class="new">"QuorraSupportTests"</span>,   dependencies: [<span class="new">"QuorraSupport"</span>]),
+        .testTarget(name: <span class="new">"AWSConfigINITests"</span>, dependencies: [<span class="new">"AWSConfigINI"</span>]),
     ]
 )</pre>
 
@@ -1001,23 +998,56 @@ let package = Package(
     </div>
   </section>
 
-  <!-- ═════════════════ § 5 OPEN QUESTIONS ═════════════════ -->
+  <!-- ═════════════════ § 4½ DISTRIBUTION ═════════════════ -->
   <section>
     <div class="section-head">
       <div class="num">§ 05</div>
-      <h2>Open questions.</h2>
-      <div class="kicker">Decisions a human should make before any of this lands</div>
+      <h2>Distribution.</h2>
+      <div class="kicker">Homebrew Cask now · App Store-ready by construction</div>
+    </div>
+    <div class="section-body">
+      <div class="body-col">
+
+        <p>Quorra ships through Homebrew Cask first. The user installs <code>Quorra.app</code>; the CLI rides inside it at <code>Quorra.app/Contents/MacOS/quorra-cli</code>; <code>Tools/install-cli.sh</code> drops a symlink at <code>~/.local/bin/quorra-cli</code> so the CLI ends up on <code>$PATH</code>. There is no second installer to maintain, no separate signing pipeline for the CLI, and no place where the app and CLI binaries can drift out of sync — they are built and signed together.</p>
+
+        <h3>Why this works for both channels</h3>
+        <p>The structural choices that the previous sections describe — sandboxing on both binaries, hardened runtime, identifier-based code signing, the embedded CLI, the shared Keychain access group — are exactly the choices required for App Store submission. Switching distribution channels is therefore an <em>upload-target</em> change, not a rebuild:</p>
+
+        <table class="matrix">
+          <thead><tr><th>Concern</th><th>Homebrew Cask (today)</th><th>Mac App Store (later)</th></tr></thead>
+          <tbody>
+            <tr><td>Binary</td><td><code>Quorra.app</code> with embedded <code>quorra-cli</code></td><td>Same <code>Quorra.app</code>, same embedded CLI</td></tr>
+            <tr><td>Sandboxing</td><td>Required by us</td><td>Required by App Review</td></tr>
+            <tr><td>Hardened runtime</td><td>Required for notarization</td><td>Required by App Review</td></tr>
+            <tr><td>Code signing</td><td>Developer ID Application</td><td>Apple Distribution + identifier-based profile</td></tr>
+            <tr><td>CLI on <code>$PATH</code></td><td><code>install-cli.sh</code> symlinks into <code>~/.local/bin</code></td><td>Same script, run from the app's first-launch flow</td></tr>
+            <tr><td>Keychain group</td><td><code>$(AppIdentifierPrefix)dev.ajbeck.quorra.shared</code></td><td>Identical</td></tr>
+          </tbody>
+        </table>
+
+        <p>The only thing that changes between channels is the signing certificate and the upload destination. Mac App Store is the long-term plan; Homebrew Cask is the right entry point for a developer-tool audience that already lives in <code>brew</code>.</p>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ═════════════════ § 6 DECISIONS MADE ═════════════════ -->
+  <section>
+    <div class="section-head">
+      <div class="num">§ 06</div>
+      <h2>Decisions made.</h2>
+      <div class="kicker">The questions the earlier draft of this report left open — now answered</div>
     </div>
     <div class="section-body">
       <div class="body-col">
         <div class="questions">
           <ol>
-            <li><strong>Workspace or no workspace?</strong> A workspace adds one file at the root and is the canonical way to combine an .xcodeproj with local Swift packages. The alternative is to keep the package as a folder reference inside the .xcodeproj. Workspaces feel slightly more correct for App + CLI + Package; folder reference is one fewer file. Either works.</li>
-            <li><strong>Does the CLI ship inside the app bundle, or as a separate binary?</strong> CLAUDE.md leans toward independent binaries. If the app ever needs to “install” the CLI for the user, Apple's <em>Embedding a command-line tool in a sandboxed app</em> guide [6] is the prescribed path — but that's a different topology to the one above. Worth confirming.</li>
-            <li><strong>One package or several?</strong> Single <code>QuorraCore</code> package with many library targets is what's drawn here. The alternative is one package per concern (<code>AWSConfigINI/</code>, <code>QuorraKeychain/</code>, …). Several packages are easier to extract publicly later but heavier today.</li>
-            <li><strong>Rename <code>quorra/</code> to <code>App/</code>?</strong> Ergonomically nicer; mechanically a one-line pbxproj edit on the synchronized folder path. But it breaks any in-flight branches that still reference <code>quorra/</code>. A merge-window decision.</li>
-            <li><strong>Where does the sandbox-free CLI's entitlement file live?</strong> Same folder as the source (<code>CLI/QuorraCLI.entitlements</code>) is the lazy answer. A dedicated <code>Configs/</code> sibling is the tidy answer. Pick one and be consistent.</li>
-            <li><strong>The <code>../Pacakges/INI</code> typo.</strong> Was the INI module ever working in Xcode, or is this an aspirational stub? Affects whether the migration is a refactor or a fresh start.</li>
+            <li><strong>Workspace.</strong> <code>Quorra.xcworkspace</code> is the front door — it owns <code>quorra.xcodeproj</code> and <code>Packages/QuorraCore</code>. The pbxproj uses <code>XCSwiftPackageProductDependency</code> entries; there is no <code>XCLocalSwiftPackageReference</code>. Workspace-as-truth keeps schemes and package resolution coherent across app and CLI.</li>
+            <li><strong>The CLI ships inside the app bundle.</strong> Embedded at <code>Quorra.app/Contents/MacOS/quorra-cli</code> via a Copy Files (Executables) build phase with Code Sign On Copy. <code>Tools/install-cli.sh</code> symlinks <code>~/.local/bin/quorra-cli</code> to the bundle path so users get it on <code>$PATH</code>. Apple's <em>Embedding a command-line tool in a sandboxed app</em> guide [6] is the model.</li>
+            <li><strong>One package, growing.</strong> Single <code>QuorraCore</code> package with many library targets, added as features land. <code>AWSConfigINI</code> ships today; <code>AWSConfig</code>, <code>QuorraKeychain</code>, <code>QuorraIMDS</code>, <code>QuorraSSO</code>, <code>QuorraSupport</code> follow.</li>
+            <li><strong>App source folder is <code>App/</code>; CLI source folder is <code>quorra-cli/</code>.</strong> The CLI was deliberately <em>not</em> renamed to <code>CLI/</code>: folder name = target name = binary name beats symmetry, and skipping a synchronized-folder rename avoided a high-risk pbxproj operation.</li>
+            <li><strong>Entitlements live in <code>Configs/</code>.</strong> <code>Configs/Quorra.entitlements</code> and <code>Configs/QuorraCLI.entitlements</code> sit side-by-side. Both binaries are sandboxed and share an identical entitlement set; <code>com.apple.security.inherit</code> is explicitly absent because the CLI is never spawned as a child of the app.</li>
+            <li><strong>The <code>../Pacakges/INI</code> typo is gone.</strong> Resolved as part of the fresh-start migration. The workspace now references <code>Packages/QuorraCore</code> directly and the pbxproj is clean of stale paths.</li>
           </ol>
         </div>
       </div>
