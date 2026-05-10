@@ -16,9 +16,48 @@ Quorra is a macOS app (and companion Swift CLI) for managing AWS credentials on 
 - **Persistence**: macOS Keychain (`Security` framework) for secrets; direct file I/O for `~/.aws/` files
 - **Xcode MCP server**: use `mcp__xcode__*` tools for build, diagnostics, preview, grep, file ops — prefer these over raw `bash` for anything touching the Xcode project
 
-## Bundle Identifier
+## Bundle Identifiers
 
-`dev.ajbeck.quorra` is the app's bundle identifier. Keychain access groups and the sandbox container path are derived from this.
+- App: `dev.ajbeck.quorra` — produces `quorra.app`
+- CLI: `dev.ajbeck.quorra.cli` — produces `quorra-cli`, embedded into the app bundle at `quorra.app/Contents/MacOS/quorra-cli`
+
+Both are signed with the same Team ID and share the keychain access group `$(AppIdentifierPrefix)dev.ajbeck.quorra.shared` (`AppIdentifierPrefix` resolves to the Team ID at sign time).
+
+## Project Structure
+
+```
+App/                              SwiftUI app sources (target: quorra)
+  Root/                           AppModel, AppPhase, AppError, RootView
+  Bookmarks/                      BookmarkStorage, FolderPicker, UserHome
+  Views/                          SetupView, MainView, FolderContentsView, ErrorView
+  Theme/                          Theme.swift
+  Assets.xcassets/                AppIcon, AccentColor
+  quorraApp.swift                 @main entry point
+quorra-cli/                       CLI sources (target: quorra-cli)
+  main.swift                      placeholder
+Packages/
+  QuorraCore/                     local SwiftPM package, multiple library products
+    Package.swift
+    Sources/AWSConfigINI/         INI parser (placeholder)
+    Tests/AWSConfigINITests/      Swift Testing
+Tests/
+  QuorraAppTests/                 app-level tests (target: quorraTests)
+                                  library tests live in the SwiftPM package
+Configs/
+  Quorra.entitlements             app sandbox + keychain-access-groups
+  QuorraCLI.entitlements          CLI sandbox + keychain-access-groups
+Tools/
+  install-cli.sh                  symlinks /Applications/Quorra.app/Contents/MacOS/quorra-cli
+                                  onto user PATH (default ~/.local/bin)
+docs/
+  project-structure-report.html   layout rationale
+quorra.xcodeproj/
+Quorra.xcworkspace/               opens the .xcodeproj + Packages/QuorraCore/
+```
+
+## Distribution
+
+Initially via **Homebrew Cask** distributing `Quorra.app`. The CLI is **embedded inside the app bundle** at `Contents/MacOS/quorra-cli` and exposed on `$PATH` via a user-invoked symlink (`Tools/install-cli.sh`). App Store distribution is planned long-term — the build is configured today for App Store constraints (sandbox, hardened runtime, identifier-based signing, embedded CLI), so the binary itself is the same artifact for both channels. Only the upload target changes.
 
 ## Setup Flow (First Launch)
 
@@ -27,7 +66,7 @@ On first launch the app has no security-scoped bookmark yet, so it shows `SetupV
 - **What the user picks:** the `~/.aws` folder (a single folder, not individual files). Sandbox access extends to everything inside, including files created later (important for `~/.aws/sso/cache/*.json` which are generated at runtime).
 - **Picker:** `NSOpenPanel` directly (not SwiftUI's `fileImporter`) so we can set `showsHiddenFiles = true`. Pre-fills `directoryURL = ~/.aws`. Presented via `withCheckedContinuation` around `panel.begin { ... }` — non-blocking, `async`-compatible.
 - **Non-standard folder handling:** accept any folder the user picks. If it's not `~/.aws`, show a non-blocking warning about `AWS_CONFIG_FILE` before persisting the bookmark.
-- **Bookmark storage:** `UserDefaults.standard` under key `dev.ajbeck.quorra.awsFolderBookmark`. Pure helper type `BookmarkStorage` owns the save/load/resolve plumbing (stateless, no SwiftUI dependency).
+- **Bookmark storage:** `UserDefaults.standard` under key `dev.ajbeck.quorra.awsFolderBookmark`. Pure helper type `BookmarkStorage` owns the save/load/resolve plumbing (stateless, no SwiftUI dependency). Each sandboxed binary has its own UserDefaults — the app's bookmark is invisible to the CLI. Sharing the bookmark with the CLI is a planned follow-up via a Keychain item in the shared access group.
 - **Security-scope lifetime:** resolve + `startAccessingSecurityScopedResource()` once at launch, hold for app lifetime. Matches "this app is authorised to read the user's AWS folder" semantically.
 
 ## Rules
@@ -40,21 +79,21 @@ On first launch the app has no security-scoped bookmark yet, so it shows `SetupV
 
 ## Sandbox & Dev Loop
 
-App is sandboxed. This is locked in — Mac App Store distribution is the long-term target and sandboxing is an App Store requirement. Access to `~/.aws` is granted via the security-scoped bookmark chosen in `SetupView`.
+Both the app and the CLI are sandboxed. App Store distribution is the long-term target and sandboxing is an App Store requirement. Access to `~/.aws` is granted via the security-scoped bookmark chosen in `SetupView`.
 
 **Reset to clean state** (Apple's documented approach for testing first-launch behaviour):
 
 ```
-rm -rf ~/Library/Containers/dev.ajbeck.quorra
+rm -rf ~/Library/Containers/dev.ajbeck.quorra ~/Library/Containers/dev.ajbeck.quorra.cli
 ```
 
-Relaunch the app afterwards — macOS recreates the container empty. This clears UserDefaults (including the bookmark), Application Support, Caches — everything the sandboxed app has written. **Does not clear Keychain items** (Keychain is system-scoped). When we add Keychain usage, a companion reset command will be needed.
+Relaunch the app/CLI afterwards — macOS recreates each container empty. This clears UserDefaults (including the bookmark), Application Support, Caches — everything the sandboxed binaries have written. **Does not clear Keychain items** (Keychain is system-scoped). When we add Keychain usage, a companion reset command will be needed.
 
 No macOS Simulator exists. Apps run natively via ⌘R in Xcode. Use SwiftUI `#Preview` for iterating on view code without launching the app.
 
 ## Testing
 
-`quorraTests` target uses **Swift Testing** (`@Test` macro), not XCTest. Swift Testing is the default for Xcode 16+ projects and is the forward-looking choice. XCTest stays for UI tests if we ever add them.
+`QuorraAppTests` target uses **Swift Testing** (`@Test` macro), not XCTest. Swift Testing is the default for Xcode 26 projects and is the forward-looking choice. XCTest stays for UI tests if we ever add them.
 
 First test target is `BookmarkStorage` — round-trip save/load, missing-key handling, malformed-data handling. Tests inject a `UserDefaults(suiteName:)` to avoid polluting real defaults.
 
@@ -66,7 +105,8 @@ Implications:
 
 - Any mutation of AWS config/credentials files, Keychain items, or SSO tokens may happen from either binary. Both must treat the filesystem and Keychain as shared mutable state and use file locks (`flock`/`fcntl`) for concurrent safety.
 - When the CLI needs user interaction (e.g. SSO login, MFA prompt) the CLI drives it itself — it does not hand off to the running app. This keeps the CLI independently usable even when the app is not running.
-- Both targets must be code-signed with the same Team ID and declare a shared `keychain-access-groups` entitlement (e.g. `$(TeamIdentifierPrefix)dev.ajbeck.quorra.shared`).
+- Both targets are code-signed with the same Team ID. Both declare `keychain-access-groups = $(AppIdentifierPrefix)dev.ajbeck.quorra.shared` in their entitlements files (`Configs/Quorra.entitlements`, `Configs/QuorraCLI.entitlements`).
+- Sandboxed binaries can't see each other's `UserDefaults`. The app's bookmark to `~/.aws` is therefore stored in a Keychain item the CLI also reads (planned — not yet implemented), since the access-group Keychain is the only writable surface both binaries can reach.
 
 ## Local IMDS Server
 
@@ -124,8 +164,8 @@ mcp__xcode__RunAllTests / RunSomeTests — run tests
 
 ## SwiftUI Conventions
 
-- Use `@Observable` (Swift 5.9 macro) not `ObservableObject`/`@Published` for view models
+- Use `@Observable` (Swift Observation framework) not `ObservableObject`/`@Published` for view models
 - Views are structs in their own files, named after the view
 - Previews required for all `View` types
-- macOS 14+ minimum target (enables `@Observable`, `NavigationSplitView`, etc.)
+- macOS 26 (Tahoe) minimum target — Xcode 26 toolchain
 - No third-party UI libraries — AppKit bridging via `NSViewRepresentable` only when SwiftUI has no equivalent
