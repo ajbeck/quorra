@@ -20,17 +20,6 @@
 		};
 /* End PBXContainerItemProxy section */
 
-/* Begin PBXCopyFilesBuildPhase section */
-		1BBF429C2FB0C7AE00B21E0D /* CopyFiles */ = {
-			isa = PBXCopyFilesBuildPhase;
-			dstPath = /usr/share/man/man1/;
-			dstSubfolder = None;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 1;
-		};
-/* End PBXCopyFilesBuildPhase section */
-
 /* Begin PBXFileReference section */
 		1B0E8B8E2FADF3FC002DC711 /* quorraTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = quorraTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1B5F7C8D2FACE2A100833D01 /* quorra.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = quorra.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -146,7 +135,6 @@
 			buildPhases = (
 				1BBF429A2FB0C7AE00B21E0D /* Sources */,
 				1BBF429B2FB0C7AE00B21E0D /* Frameworks */,
-				1BBF429C2FB0C7AE00B21E0D /* CopyFiles */,
 			);
 			buildRules = (
 			);
@@ -464,8 +452,16 @@
 		1BBF42A32FB0C7AE00B21E0D /* Debug configuration for PBXNativeTarget "quorra-cli" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Configs/QuorraCLI.entitlements;
+				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				CODE_SIGN_STYLE = Automatic;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				OTHER_CODE_SIGN_FLAGS = "$(inherited) -i $(PRODUCT_BUNDLE_IDENTIFIER)";
+				PRODUCT_BUNDLE_IDENTIFIER = dev.ajbeck.quorra.cli;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
@@ -475,8 +471,16 @@
 		1BBF42A42FB0C7AE00B21E0D /* Release configuration for PBXNativeTarget "quorra-cli" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Configs/QuorraCLI.entitlements;
+				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				CODE_SIGN_STYLE = Automatic;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				OTHER_CODE_SIGN_FLAGS = "$(inherited) -i $(PRODUCT_BUNDLE_IDENTIFIER)";
+				PRODUCT_BUNDLE_IDENTIFIER = dev.ajbeck.quorra.cli;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
