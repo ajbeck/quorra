@@ -22,14 +22,14 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		1B0E8B8F2FADF3FC002DC711 /* quorraTests */ = {
+		1B0E8B8F2FADF3FC002DC711 /* Tests/QuorraAppTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = quorraTests;
+			path = Tests/QuorraAppTests;
 			sourceTree = "<group>";
 		};
-		1B5F7C8F2FACE2A100833D01 /* quorra */ = {
+		1B5F7C8F2FACE2A100833D01 /* App */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = quorra;
+			path = App;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -51,8 +51,8 @@
 		1B5F7C842FACE2A100833D01 = {
 			isa = PBXGroup;
 			children = (
-				1B5F7C8F2FACE2A100833D01 /* quorra */,
-				1B0E8B8F2FADF3FC002DC711 /* quorraTests */,
+				1B5F7C8F2FACE2A100833D01 /* App */,
+				1B0E8B8F2FADF3FC002DC711 /* Tests/QuorraAppTests */,
 				1B5F7C8E2FACE2A100833D01 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -83,7 +83,7 @@
 				1B0E8B932FADF3FC002DC711 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				1B0E8B8F2FADF3FC002DC711 /* quorraTests */,
+				1B0E8B8F2FADF3FC002DC711 /* Tests/QuorraAppTests */,
 			);
 			name = quorraTests;
 			productName = quorraTests;
@@ -101,7 +101,7 @@
 			buildRules = (
 			);
 			fileSystemSynchronizedGroups = (
-				1B5F7C8F2FACE2A100833D01 /* quorra */,
+				1B5F7C8F2FACE2A100833D01 /* App */,
 			);
 			name = quorra;
 			productName = quorra;
