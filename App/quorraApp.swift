@@ -9,5 +9,10 @@ struct quorraApp: App {
             RootView()
                 .environment(appModel)
         }
+
+        Settings {
+            SettingsView()
+                .environment(appModel)
+        }
     }
 }
