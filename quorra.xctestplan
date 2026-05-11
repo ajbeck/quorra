@@ -1,0 +1,31 @@
+{
+  "configurations" : [
+    {
+      "id" : "994FF3CE-80F2-4ECF-A1FB-CF43D0CE9D00",
+      "name" : "Configuration 1",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:Packages\/QuorraCore",
+        "identifier" : "AWSConfigINITests",
+        "name" : "AWSConfigINITests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:quorra.xcodeproj",
+        "identifier" : "1B0E8B8D2FADF3FC002DC711",
+        "name" : "quorraTests"
+      }
+    }
+  ],
+  "version" : 1
+}

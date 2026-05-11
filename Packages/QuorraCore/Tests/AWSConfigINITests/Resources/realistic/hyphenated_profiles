@@ -1,0 +1,8 @@
+[profile my-org-dev-us-east-1]
+region = us-east-1
+role_arn = arn:aws:iam::123456789012:role/Developer
+
+[profile my-org-prod-eu-west-1]
+region = eu-west-1
+role_arn = arn:aws:iam::987654321098:role/ReadOnly
+source_profile = default

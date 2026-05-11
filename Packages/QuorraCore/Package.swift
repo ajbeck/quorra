@@ -14,7 +14,10 @@ let package = Package(
         .target(name: "AWSConfigINI"),
         .testTarget(
             name: "AWSConfigINITests",
-            dependencies: ["AWSConfigINI"]
+            dependencies: ["AWSConfigINI"],
+            resources: [
+                .copy("Resources"),
+            ]
         ),
     ]
 )

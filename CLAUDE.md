@@ -137,7 +137,7 @@ Read https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.md for
 
 ### INI Parser
 
-Swift Foundation has no INI parser. Generic Swift packages do not handle the AWS-specific quirks (section asymmetry, indented sub-sections under `services`, comment round-trip preservation). Quorra ships its own parser modeled on `aws-sdk-go-v2/internal/ini`.
+Swift Foundation has no INI parser. Generic Swift packages do not handle the AWS-specific quirks (section asymmetry, indented sub-sections under `services`, comment round-trip preservation). Quorra ships its own parser modeled on `github.com/aws/aws-sdk-go-v2/config/internal/ini`.
 
 ## Keychain Storage
 
