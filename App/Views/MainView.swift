@@ -17,6 +17,17 @@ struct MainView: View {
         .task(id: folderURL) {
             await profilesModel.load(folder: folderURL)
         }
+        .onChange(of: profilesModel.loadState) { _, newState in
+            guard newState == .loaded, selection == nil else { return }
+            let groups = profilesModel.groups
+            if let firstSession = groups.ssoSessions.first, let firstProfile = firstSession.profiles.first {
+                selection = .profile(name: firstProfile.id)
+            } else if let firstLTK = groups.longTermKeys.first {
+                selection = .profile(name: firstLTK.id)
+            } else if let firstOther = groups.other.first {
+                selection = .profile(name: firstOther.id)
+            }
+        }
     }
 
     @ToolbarContentBuilder private var toolbarContent: some ToolbarContent {
