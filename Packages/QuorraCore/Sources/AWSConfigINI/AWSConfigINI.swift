@@ -1,6 +1,13 @@
-// AWSConfigINI — placeholder.
+// AWSConfigINI — public umbrella and type-alias hub.
 //
-// Real implementation lands in a follow-up. This file exists so the target
-// has at least one source file, which is required for SwiftPM to emit a module.
+// The primary public API entry point is `AWSConfigINIDocument`.
+// Public types are re-exported from their individual files; this file
+// provides the `AWSConfigINIDocument.Options` typealias for the plan §5 API shape.
 
-public enum AWSConfigINI {}
+import Foundation
+
+// Typealiases to match the plan §5 public API shape.
+// The concrete type is AWSConfigINIDocumentOptions (in Options.swift).
+extension AWSConfigINIDocument {
+    public typealias Options = AWSConfigINIDocumentOptions
+}

@@ -16,6 +16,9 @@ Package.resolved
 .claude/settings.local.json
 .claude/skills/
 
+# Research checkouts (not part of the project)
+.research/
+
 # Build output
 build/
 DerivedData/

@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AWSConfigINI — Quorra</title>
+<style>
+  /* ================================================================
+     Color tokens (palette you supplied)
+     ================================================================ */
+  :root {
+    color-scheme: light dark;
+
+    --coral-50:  #FFF0ED; --coral-100: #FFDDD6; --coral-200: #FFB3A3; --coral-300: #FF8A6F;
+    --coral-400: #FF6347; --coral-500: #E8452C; --coral-600: #C43420; --coral-700: #9A2718;
+    --coral-800: #741D12; --coral-900: #50130D; --coral-950: #300B07;
+
+    --sunshine-50:  #FFFCE5; --sunshine-100: #FFF8BF; --sunshine-200: #FFF080; --sunshine-300: #FFE433;
+    --sunshine-400: #FFD700; --sunshine-500: #E5BF00; --sunshine-600: #BF9F00; --sunshine-700: #997F00;
+    --sunshine-800: #736000; --sunshine-900: #4D4000; --sunshine-950: #2E2600;
+
+    --sky-50:  #E8F4FF; --sky-100: #CCE7FF; --sky-200: #99CFFF; --sky-300: #5CB3FF;
+    --sky-400: #2196F5; --sky-500: #0A7EDB; --sky-600: #0066B8; --sky-700: #004F8F;
+    --sky-800: #003B6B; --sky-900: #002949; --sky-950: #00182B;
+
+    --mint-50:  #E6FFF3; --mint-100: #C0FFE0; --mint-200: #80FFC2; --mint-300: #33F59A;
+    --mint-400: #00D97F; --mint-500: #00B86B; --mint-600: #009959; --mint-700: #007A47;
+    --mint-800: #005C35; --mint-900: #003D24; --mint-950: #002415;
+
+    --violet-50:  #F3EDFF; --violet-100: #E2D5FF; --violet-200: #C6ABFF; --violet-300: #A47DFF;
+    --violet-400: #8B5CF6; --violet-500: #7342DB; --violet-600: #5E33B8; --violet-700: #49278F;
+    --violet-800: #371D6B; --violet-900: #251349; --violet-950: #160B2B;
+
+    --tangerine-50:  #FFF4E5; --tangerine-100: #FFE4BF; --tangerine-200: #FFC880; --tangerine-300: #FFA833;
+    --tangerine-400: #FF9500; --tangerine-500: #E58000; --tangerine-600: #BF6A00; --tangerine-700: #995500;
+    --tangerine-800: #733F00; --tangerine-900: #4D2A00; --tangerine-950: #2E1900;
+
+    --bubblegum-50:  #FFF0F8; --bubblegum-100: #FFDBEE; --bubblegum-200: #FFB3DB; --bubblegum-300: #FF80C5;
+    --bubblegum-400: #FF47AE; --bubblegum-500: #E52D94; --bubblegum-600: #BF2079; --bubblegum-700: #991661;
+    --bubblegum-800: #731049; --bubblegum-900: #4D0B31; --bubblegum-950: #2E061D;
+
+    --lagoon-50:  #E5FFFC; --lagoon-100: #B3FFF5; --lagoon-200: #66FFEB; --lagoon-300: #1AE8D5;
+    --lagoon-400: #00CCB8; --lagoon-500: #00AD9E; --lagoon-600: #008F83; --lagoon-700: #007068;
+    --lagoon-800: #00544E; --lagoon-900: #003935; --lagoon-950: #002220;
+
+    --slate-50:  #F8F9FA; --slate-100: #F1F3F5; --slate-200: #E2E5E9; --slate-300: #C8CDD3;
+    --slate-400: #A1A9B3; --slate-500: #6C757D; --slate-600: #545B62; --slate-700: #40464C;
+    --slate-800: #2D3238; --slate-900: #1A1E23; --slate-950: #0D0F12;
+
+    --success-300: #5CF58A; --success-500: #10B845; --success-700: #07742A;
+    --warning-300: #FCBF3C; --warning-500: #D4920B; --warning-700: #8C6007;
+    --error-300:   #FF6B6B; --error-500:   #D42020; --error-700:   #881212;
+  }
+
+  /* ================================================================
+     Theme: dark default ("Terminal Garden"), light variant via @media
+     ================================================================ */
+  :root {
+    --bg:            var(--slate-950);
+    --bg-elev:       var(--slate-900);
+    --bg-code:       #0a0d10;
+    --bg-card:       rgba(45, 50, 56, 0.35);
+    --fg:            var(--slate-100);
+    --fg-mute:       var(--slate-400);
+    --fg-dim:        var(--slate-500);
+    --rule:          var(--slate-800);
+    --rule-soft:     #1c2026;
+    --primary:       var(--coral-400);
+    --primary-deep:  var(--coral-500);
+    --primary-soft:  rgba(255, 99, 71, 0.12);
+    --type:          var(--sky-300);
+    --keyword:       var(--violet-300);
+    --string:        var(--mint-300);
+    --number:        var(--tangerine-300);
+    --comment:       var(--slate-500);
+    --aws-accent:    var(--tangerine-400);
+    --decision:      var(--sunshine-300);
+    --success:       var(--success-300);
+    --warning:       var(--warning-300);
+    --error:         var(--error-300);
+    --grid-tint:     rgba(255, 99, 71, 0.04);
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg:            var(--slate-50);
+      --bg-elev:       #ffffff;
+      --bg-code:       var(--slate-900);
+      --bg-card:       #ffffff;
+      --fg:            var(--slate-900);
+      --fg-mute:       var(--slate-600);
+      --fg-dim:        var(--slate-500);
+      --rule:          var(--slate-200);
+      --rule-soft:     var(--slate-100);
+      --primary:       var(--coral-500);
+      --primary-deep:  var(--coral-700);
+      --primary-soft:  var(--coral-50);
+      --type:          var(--sky-700);
+      --keyword:       var(--violet-700);
+      --string:        var(--mint-700);
+      --number:        var(--tangerine-700);
+      --comment:       var(--slate-500);
+      --aws-accent:    var(--tangerine-600);
+      --decision:      var(--sunshine-700);
+      --success:       var(--success-700);
+      --warning:       var(--warning-700);
+      --error:         var(--error-700);
+      --grid-tint:     rgba(232, 69, 44, 0.04);
+    }
+    /* Code blocks stay dark in light mode — first-class citizens */
+    :root pre, :root .code-frame { color: var(--slate-100) !important; }
+  }
+
+  /* ================================================================
+     Base
+     ================================================================ */
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    background-image:
+      linear-gradient(var(--grid-tint) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-tint) 1px, transparent 1px);
+    background-size: 64px 64px, 64px 64px;
+    color: var(--fg);
+    font-family: ui-serif, "Iowan Old Style", "Charter", "Source Serif Pro", "Hoefler Text", "Palatino", Georgia, serif;
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "kern", "liga", "onum";
+  }
+  ::selection { background: var(--primary-soft); color: var(--fg); }
+
+  a { color: var(--primary); text-decoration: none; border-bottom: 1px solid transparent; transition: border-color 120ms ease, color 120ms ease; }
+  a:hover { border-bottom-color: var(--primary); color: var(--primary-deep); }
+
+  /* Mono everywhere code happens */
+  code, pre, kbd, samp,
+  .mono, .term-prompt, .badge, .tag,
+  h1 .moniker, .section-anchor, .toc-link, .toc-num,
+  .tok-key, .tok-string, .tok-number, .tok-comment, .tok-keyword, .tok-type,
+  .signature, .field, .ini-section, .ini-key, .ini-value, .err-case {
+    font-family: "Berkeley Mono", "JetBrains Mono", "IBM Plex Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+    font-feature-settings: "ss01", "ss02", "calt", "zero";
+  }
+
+  /* ================================================================
+     Layout
+     ================================================================ */
+  .layout {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: 0;
+    max-width: 1400px;
+    margin: 0 auto;
+    min-height: 100vh;
+  }
+
+  /* TOC rail */
+  aside.rail {
+    border-right: 1px solid var(--rule);
+    padding: 2.5rem 1.75rem 4rem 2rem;
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100vh;
+    overflow-y: auto;
+    background: linear-gradient(180deg, transparent 0%, var(--bg) 8%, var(--bg) 92%, transparent 100%);
+  }
+  aside.rail::-webkit-scrollbar { width: 6px; }
+  aside.rail::-webkit-scrollbar-track { background: transparent; }
+  aside.rail::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 3px; }
+
+  .rail-title {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--fg-dim);
+    margin: 0 0 0.4rem;
+  }
+  .rail-product {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.95rem;
+    color: var(--fg);
+    margin: 0 0 1.6rem;
+    display: flex; align-items: baseline; gap: 0.5rem;
+  }
+  .rail-product .live-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 12px var(--success), 0 0 0 3px rgba(92, 245, 138, 0.12);
+    animation: pulse 2.4s ease-in-out infinite;
+    flex: 0 0 auto;
+    transform: translateY(-1px);
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+  }
+
+  .toc { list-style: none; padding: 0; margin: 0; }
+  .toc-section { margin: 0 0 1.5rem; }
+  .toc-section-label {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--fg-dim);
+    margin: 0 0 0.45rem;
+    display: flex; align-items: center; gap: 0.55rem;
+  }
+  .toc-section-label::before {
+    content: ""; flex: 0 0 8px; height: 1px; background: var(--primary);
+  }
+  .toc-link {
+    display: flex;
+    align-items: baseline;
+    gap: 0.65rem;
+    padding: 0.28rem 0;
+    color: var(--fg-mute);
+    font-size: 0.85rem;
+    border-bottom: none;
+    transition: color 120ms ease, transform 120ms ease;
+  }
+  .toc-link:hover { color: var(--primary); transform: translateX(2px); border-bottom: none; }
+  .toc-num {
+    color: var(--fg-dim);
+    font-size: 0.7rem;
+    flex: 0 0 auto;
+  }
+
+  /* Main column */
+  main {
+    padding: 4rem 4rem 8rem;
+    max-width: 920px;
+    min-width: 0;
+  }
+  @media (max-width: 1100px) {
+    .layout { grid-template-columns: 1fr; }
+    aside.rail {
+      position: static;
+      height: auto;
+      border-right: none;
+      border-bottom: 1px solid var(--rule);
+      padding: 2rem 1.5rem;
+    }
+    main { padding: 2.5rem 1.5rem 5rem; }
+  }
+  @media (max-width: 720px) {
+    main { padding: 2rem 1rem 4rem; }
+    body { background-size: 32px 32px, 32px 32px; }
+  }
+
+  /* ================================================================
+     Hero
+     ================================================================ */
+  .hero {
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 2.5rem 2.25rem;
+    margin: 0 0 3.5rem;
+    background:
+      radial-gradient(at 8% 0%, rgba(255, 99, 71, 0.10) 0, transparent 38%),
+      radial-gradient(at 100% 100%, rgba(115, 66, 219, 0.07) 0, transparent 42%),
+      var(--bg-card);
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--primary) 30%, var(--primary) 70%, transparent);
+    opacity: 0.6;
+  }
+  .hero-meta {
+    display: flex; flex-wrap: wrap; gap: 0.5rem;
+    margin: 0 0 1.5rem;
+  }
+  .badge {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    padding: 0.3rem 0.6rem;
+    border-radius: 3px;
+    border: 1px solid currentColor;
+    text-transform: lowercase;
+  }
+  .badge.primary { color: var(--primary); }
+  .badge.swift   { color: var(--tangerine-400); }
+  .badge.macos   { color: var(--sky-300); }
+  .badge.tests   { color: var(--success); }
+  @media (prefers-color-scheme: light) {
+    .badge.primary { color: var(--coral-700); }
+    .badge.swift   { color: var(--tangerine-700); }
+    .badge.macos   { color: var(--sky-700); }
+    .badge.tests   { color: var(--success-700); }
+  }
+
+  h1 {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-weight: 600;
+    font-size: clamp(2rem, 5.5vw, 3.5rem);
+    line-height: 1;
+    letter-spacing: -0.025em;
+    margin: 0 0 1rem;
+    color: var(--fg);
+  }
+  h1 .moniker {
+    color: var(--primary);
+    font-weight: 600;
+  }
+  h1 .moniker-bracket {
+    color: var(--fg-dim);
+    font-weight: 400;
+  }
+  .lede {
+    font-size: 1.15rem;
+    line-height: 1.55;
+    color: var(--fg-mute);
+    max-width: 56ch;
+    margin: 0 0 1.5rem;
+    font-style: italic;
+  }
+  .hero-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1rem 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px dashed var(--rule);
+  }
+  .stat .num {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 1.5rem;
+    color: var(--primary);
+    font-weight: 600;
+    display: block;
+  }
+  .stat .label {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--fg-dim);
+    margin-top: 0.15rem;
+    display: block;
+  }
+
+  /* ================================================================
+     Headings
+     ================================================================ */
+  h2 {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 1.45rem;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    margin: 4.5rem 0 1.2rem;
+    padding-top: 1.2rem;
+    border-top: 1px solid var(--rule);
+    position: relative;
+    color: var(--fg);
+  }
+  h2 .section-anchor {
+    color: var(--primary);
+    margin-right: 0.6rem;
+    font-size: 0.85rem;
+    letter-spacing: 0;
+    vertical-align: 0.15em;
+  }
+  h3 {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 2.4rem 0 0.7rem;
+    color: var(--fg);
+  }
+  h3::before {
+    content: "▸";
+    color: var(--primary);
+    margin-right: 0.4rem;
+    font-size: 0.85em;
+  }
+  h4 {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--fg-mute);
+    margin: 1.8rem 0 0.5rem;
+    font-weight: 600;
+  }
+  p { margin: 0 0 1.05rem; }
+  ul, ol { margin: 0 0 1.1rem; padding-left: 1.4rem; }
+  li { margin: 0.3rem 0; }
+  li::marker { color: var(--primary); }
+  strong { font-weight: 600; color: var(--fg); }
+  em { font-style: italic; color: var(--fg-mute); }
+
+  /* Inline code */
+  p code, li code, td code, h2 code, h3 code, h4 code {
+    background: var(--primary-soft);
+    color: var(--primary);
+    padding: 0.1em 0.4em;
+    border-radius: 3px;
+    font-size: 0.86em;
+    border: 1px solid transparent;
+  }
+  @media (prefers-color-scheme: light) {
+    p code, li code, td code, h2 code, h3 code, h4 code {
+      background: var(--coral-50);
+      color: var(--coral-700);
+      border: 1px solid var(--coral-100);
+    }
+  }
+
+  /* ================================================================
+     Code frames — first-class citizens
+     ================================================================ */
+  .code-frame {
+    margin: 1.4rem 0;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--bg-code);
+    border: 1px solid #1d2228;
+    box-shadow: 0 8px 28px -16px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 99, 71, 0.04) inset;
+  }
+  .code-titlebar {
+    display: flex; align-items: center; gap: 0.6rem;
+    padding: 0.6rem 0.9rem;
+    background: linear-gradient(180deg, #14181d 0%, #0d1014 100%);
+    border-bottom: 1px solid #1d2228;
+  }
+  .lights { display: flex; gap: 0.4rem; }
+  .lights span {
+    width: 11px; height: 11px; border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.35);
+  }
+  .lights .l1 { background: var(--coral-400); }
+  .lights .l2 { background: var(--sunshine-400); }
+  .lights .l3 { background: var(--mint-400); }
+  .code-titlebar .filename {
+    color: var(--slate-400);
+    font-size: 0.78rem;
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    margin-left: 0.4rem;
+  }
+  .code-titlebar .filename .ext { color: var(--primary); }
+  .code-titlebar .langtag {
+    margin-left: auto;
+    color: var(--slate-500);
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 0.18rem 0.5rem;
+    border: 1px solid #1d2228;
+    border-radius: 3px;
+  }
+  pre {
+    margin: 0;
+    padding: 1.1rem 1.2rem;
+    overflow-x: auto;
+    color: var(--slate-100);
+    font-size: 0.82rem;
+    line-height: 1.6;
+    font-family: "Berkeley Mono", "JetBrains Mono", "IBM Plex Mono", "SF Mono", ui-monospace, monospace;
+    font-feature-settings: "ss01", "ss02";
+    tab-size: 4;
+  }
+  pre code { background: transparent; color: inherit; padding: 0; border: none; font-size: inherit; }
+
+  /* Hand-tinted Swift / INI tokens */
+  .tok-keyword { color: var(--keyword); }
+  .tok-type    { color: var(--type); }
+  .tok-string  { color: var(--string); }
+  .tok-number  { color: var(--number); }
+  .tok-comment { color: var(--comment); font-style: italic; }
+  .ini-section { color: var(--aws-accent); font-weight: 600; }
+  .ini-key     { color: var(--sky-300); }
+  .ini-value   { color: var(--mint-300); }
+  .term-prompt { color: var(--success); user-select: none; }
+
+  /* ================================================================
+     Cards / Callouts
+     ================================================================ */
+  .callout {
+    margin: 1.4rem 0;
+    border-left: 3px solid var(--primary);
+    padding: 0.95rem 1.15rem;
+    background: var(--primary-soft);
+    border-radius: 0 4px 4px 0;
+    font-size: 0.95rem;
+  }
+  .callout.note    { border-color: var(--type);    background: rgba(92, 179, 255, 0.08); }
+  .callout.warn    { border-color: var(--warning); background: rgba(252, 191, 60, 0.08); }
+  .callout.success { border-color: var(--success); background: rgba(92, 245, 138, 0.08); }
+  .callout.danger  { border-color: var(--error);   background: rgba(255, 107, 107, 0.08); }
+  @media (prefers-color-scheme: light) {
+    .callout         { background: var(--coral-50); }
+    .callout.note    { background: var(--sky-50); }
+    .callout.warn    { background: var(--warning-50, #FFF8EB); }
+    .callout.success { background: #EDFFF0; }
+    .callout.danger  { background: #FFF0F0; }
+  }
+  .callout strong {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--primary);
+    margin-right: 0.4rem;
+    display: inline-block;
+  }
+  .callout.note strong    { color: var(--type); }
+  .callout.warn strong    { color: var(--warning); }
+  .callout.success strong { color: var(--success); }
+  .callout.danger strong  { color: var(--error); }
+
+  /* ================================================================
+     API entries (Swift signatures)
+     ================================================================ */
+  .api {
+    margin: 1.5rem 0 2rem;
+    padding: 0 0 0 1rem;
+    border-left: 2px solid var(--rule);
+  }
+  .api-title {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.95rem;
+    color: var(--fg);
+    margin: 0 0 0.35rem;
+    display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.5rem;
+  }
+  .api-title .kind {
+    color: var(--keyword);
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-right: 0.3rem;
+  }
+  .api-title .name { color: var(--primary); font-weight: 600; }
+  .api-desc { color: var(--fg-mute); font-size: 0.95rem; margin: 0.35rem 0 0.65rem; }
+
+  /* Compact signature snippets */
+  .signature {
+    display: block;
+    background: var(--bg-code);
+    color: var(--slate-100);
+    padding: 0.7rem 0.95rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    line-height: 1.55;
+    margin: 0.5rem 0 0.6rem;
+    overflow-x: auto;
+    border: 1px solid #1d2228;
+  }
+
+  /* Field tables for structs */
+  table.fields {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.6rem 0 1rem;
+    font-size: 0.88rem;
+  }
+  table.fields th, table.fields td {
+    text-align: left;
+    padding: 0.5rem 0.7rem;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: top;
+  }
+  table.fields th {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--fg-dim);
+    font-weight: 600;
+    border-bottom: 1px solid var(--rule);
+  }
+  table.fields td.field {
+    color: var(--primary);
+  }
+  table.fields td.type {
+    color: var(--type);
+  }
+  table.fields td.note {
+    color: var(--fg-mute);
+    font-family: ui-serif, Georgia, serif;
+  }
+
+  /* Error list */
+  .errors {
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0;
+    display: grid;
+    gap: 0.5rem;
+  }
+  .errors li {
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--error);
+    border-radius: 4px;
+    padding: 0.7rem 0.9rem;
+    background: var(--bg-card);
+    display: grid;
+    grid-template-columns: minmax(180px, max-content) 1fr;
+    gap: 0.9rem;
+    align-items: baseline;
+  }
+  .errors li .err-case {
+    color: var(--error);
+    font-size: 0.86rem;
+  }
+  .errors li .err-desc {
+    color: var(--fg-mute);
+    font-size: 0.92rem;
+    font-family: ui-serif, Georgia, serif;
+  }
+
+  /* Quickstart steps */
+  .steps { counter-reset: step; padding: 0; list-style: none; }
+  .steps > li {
+    counter-increment: step;
+    margin: 0 0 1.5rem;
+    padding-left: 2.4rem;
+    position: relative;
+  }
+  .steps > li::before {
+    content: counter(step, decimal-leading-zero);
+    position: absolute;
+    left: 0;
+    top: 0;
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.85rem;
+    color: var(--primary);
+    background: var(--primary-soft);
+    border: 1px solid var(--primary);
+    border-radius: 4px;
+    padding: 0.18rem 0.45rem;
+    line-height: 1;
+  }
+
+  /* Decision pills */
+  .pills {
+    display: flex; flex-wrap: wrap; gap: 0.45rem;
+    margin: 0.8rem 0 1.4rem;
+  }
+  .pill {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.72rem;
+    padding: 0.32rem 0.6rem;
+    border-radius: 3px;
+    color: var(--fg);
+    border: 1px solid var(--rule);
+    background: var(--bg-card);
+  }
+  .pill .dot { color: var(--primary); margin-right: 0.3rem; }
+
+  /* Footer */
+  footer {
+    margin: 6rem 0 0;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--rule);
+    color: var(--fg-dim);
+    font-size: 0.85rem;
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem;
+  }
+  footer .blink::after { content: "_"; animation: blink 1s steps(1) infinite; color: var(--primary); }
+  @keyframes blink { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
+
+  h2[id], h3[id] { scroll-margin-top: 1.5rem; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- ================================================================
+       TOC RAIL
+       ================================================================ -->
+  <aside class="rail">
+    <p class="rail-title">// quorra · package</p>
+    <p class="rail-product"><span class="live-dot" aria-hidden="true"></span>AWSConfigINI</p>
+
+    <nav class="toc">
+      <div class="toc-section">
+        <p class="toc-section-label">Start</p>
+        <a class="toc-link" href="#overview"><span class="toc-num">01</span><span>Overview</span></a>
+        <a class="toc-link" href="#install"><span class="toc-num">02</span><span>Install</span></a>
+        <a class="toc-link" href="#quickstart"><span class="toc-num">03</span><span>Quickstart</span></a>
+        <a class="toc-link" href="#concepts"><span class="toc-num">04</span><span>Concepts</span></a>
+      </div>
+
+      <div class="toc-section">
+        <p class="toc-section-label">Reference</p>
+        <a class="toc-link" href="#document"><span class="toc-num">05</span><span>Document</span></a>
+        <a class="toc-link" href="#section"><span class="toc-num">06</span><span>Section</span></a>
+        <a class="toc-link" href="#key"><span class="toc-num">07</span><span>Key</span></a>
+        <a class="toc-link" href="#codable"><span class="toc-num">08</span><span>Codable</span></a>
+        <a class="toc-link" href="#aws-overlay"><span class="toc-num">09</span><span>AWS overlay</span></a>
+        <a class="toc-link" href="#mode"><span class="toc-num">10</span><span>Modes &amp; locking</span></a>
+        <a class="toc-link" href="#errors"><span class="toc-num">11</span><span>Errors</span></a>
+      </div>
+
+      <div class="toc-section">
+        <p class="toc-section-label">Recipes</p>
+        <a class="toc-link" href="#recipes"><span class="toc-num">12</span><span>Common tasks</span></a>
+        <a class="toc-link" href="#decisions"><span class="toc-num">13</span><span>Design notes</span></a>
+      </div>
+    </nav>
+  </aside>
+
+  <!-- ================================================================
+       MAIN
+       ================================================================ -->
+  <main>
+
+    <!-- HERO -->
+    <header class="hero">
+      <div class="hero-meta">
+        <span class="badge primary">v1.0</span>
+        <span class="badge swift">swift 6.2</span>
+        <span class="badge macos">macos 26+</span>
+        <span class="badge tests">228 tests passing</span>
+      </div>
+      <h1><span class="moniker-bracket">[</span><span class="moniker">AWSConfigINI</span><span class="moniker-bracket">]</span></h1>
+      <p class="lede">A Swift package for reading, editing, and writing AWS shared-config files (<code>~/.aws/config</code> and <code>~/.aws/credentials</code>) with parser parity against the AWS Go SDK, fcntl-locked concurrent writes, and a lean Codable layer for the AWS schema.</p>
+
+      <div class="hero-stats">
+        <div class="stat"><span class="num">~1.9k</span><span class="label">lines · source</span></div>
+        <div class="stat"><span class="num">~2.3k</span><span class="label">lines · tests</span></div>
+        <div class="stat"><span class="num">8</span><span class="label">public types</span></div>
+        <div class="stat"><span class="num">0</span><span class="label">dependencies</span></div>
+      </div>
+    </header>
+
+    <!-- 01 OVERVIEW -->
+    <section id="overview">
+      <h2><span class="section-anchor">01</span>Overview</h2>
+      <p><code>AWSConfigINI</code> is the engine behind Quorra's profile management. It does four things:</p>
+      <ul>
+        <li><strong>Parses</strong> AWS INI files matching the AWS Go SDK reference parser exactly — including the awkward bits (<code>[default]</code> vs <code>[profile foo]</code> vs <code>[foo]</code>, sub-property maps under <code>services</code>, the <code>=</code>-or-<code>:</code> separator, comment-trim asymmetry, BOM detection).</li>
+        <li><strong>Edits</strong> documents in memory through a value-typed API (<code>Document</code>, <code>Section</code>, <code>Key</code>) with deterministic key/section ordering on write.</li>
+        <li><strong>Writes</strong> atomically with an fcntl advisory lock so the Quorra app and CLI can both touch the same file without losing updates.</li>
+        <li><strong>Maps</strong> AWS structures onto Swift via a <code>Codable</code> encoder/decoder plus three opinionated structs (<code>Profile</code>, <code>SSOSession</code>, <code>ServicesEntry</code>).</li>
+      </ul>
+
+      <div class="callout note"><strong>scope</strong>This package is AWS-aware on purpose — section-name projection (<code>[profile foo]</code> ↔ <code>[foo]</code>) lives inside the module. It is not a general-purpose INI library.</div>
+    </section>
+
+    <!-- 02 INSTALL -->
+    <section id="install">
+      <h2><span class="section-anchor">02</span>Install</h2>
+      <p>The package lives at <code>Packages/QuorraCore</code> and exposes the <code>AWSConfigINI</code> library product. Inside Quorra, depend on it via the local SwiftPM package:</p>
+
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">Package<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
+        </div>
+<pre><code><span class="tok-keyword">import</span> <span class="tok-type">PackageDescription</span>
+
+<span class="tok-keyword">let</span> package = <span class="tok-type">Package</span>(
+    name: <span class="tok-string">"YourTarget"</span>,
+    dependencies: [
+        .<span class="tok-keyword">package</span>(path: <span class="tok-string">"./Packages/QuorraCore"</span>),
+    ],
+    targets: [
+        .<span class="tok-keyword">target</span>(
+            name: <span class="tok-string">"YourTarget"</span>,
+            dependencies: [
+                .<span class="tok-keyword">product</span>(name: <span class="tok-string">"AWSConfigINI"</span>, package: <span class="tok-string">"QuorraCore"</span>),
+            ]
+        ),
+    ]
+)</code></pre>
+      </div>
+
+      <p>Then, in any file:</p>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">YourFile<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
+        </div>
+<pre><code><span class="tok-keyword">import</span> <span class="tok-type">AWSConfigINI</span></code></pre>
+      </div>
+    </section>
+
+    <!-- 03 QUICKSTART -->
+    <section id="quickstart">
+      <h2><span class="section-anchor">03</span>Quickstart</h2>
+
+      <ol class="steps">
+        <li>
+          <h3 style="margin-top:0">Read a file</h3>
+          <p>Pass the URL explicitly. The flavor (<code>.config</code> or <code>.credentials</code>) tells the AWS overlay how to project profile names.</p>
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">read<span class="ext">.swift</span></span>
+              <span class="langtag">swift</span>
+            </div>
+<pre><code><span class="tok-keyword">let</span> url  = <span class="tok-type">URL</span>(filePath: <span class="tok-string">"~/.aws/config"</span>).resolvingSymlinksInPath()
+<span class="tok-keyword">let</span> doc  = <span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIDocument</span>(contentsOf: url, flavor: .config)
+
+<span class="tok-keyword">let</span> region = doc.section(<span class="tok-string">"profile dev"</span>)?.key(<span class="tok-string">"region"</span>)?.stringValue
+<span class="tok-comment">// "us-east-1"</span></code></pre>
+          </div>
+        </li>
+
+        <li>
+          <h3 style="margin-top:0">Edit a value</h3>
+          <p><code>Section</code> is a value type. Mutations route through <code>Document.update(_:_:)</code> which mutates in place.</p>
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">edit<span class="ext">.swift</span></span>
+              <span class="langtag">swift</span>
+            </div>
+<pre><code><span class="tok-keyword">var</span> doc = <span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIDocument</span>(contentsOf: url, flavor: .config)
+
+doc.update(<span class="tok-string">"profile dev"</span>) { section <span class="tok-keyword">in</span>
+    section.setKey(<span class="tok-string">"region"</span>, value: <span class="tok-string">"eu-west-1"</span>)
+    section.setKey(<span class="tok-string">"output"</span>, value: <span class="tok-string">"json"</span>)
+}</code></pre>
+          </div>
+        </li>
+
+        <li>
+          <h3 style="margin-top:0">Save with locking</h3>
+          <p><code>Document.update(at:flavor:_:)</code> is the safe entry point. It acquires an fcntl lock around the read-modify-write cycle, atomically replaces the file, and prepends the managed-mode header on first write.</p>
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">save<span class="ext">.swift</span></span>
+              <span class="langtag">swift</span>
+            </div>
+<pre><code><span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIDocument</span>.update(at: url, flavor: .config) { doc <span class="tok-keyword">in</span>
+    doc.update(<span class="tok-string">"profile dev"</span>) { s <span class="tok-keyword">in</span>
+        s.setKey(<span class="tok-string">"region"</span>, value: <span class="tok-string">"eu-west-1"</span>)
+    }
+}</code></pre>
+          </div>
+        </li>
+
+        <li>
+          <h3 style="margin-top:0">Use a typed model</h3>
+          <p>The <code>Profile</code> struct decodes a profile section directly. The default snake-case strategy maps Swift camelCase to AWS snake_case (<code>ssoSession</code> ↔ <code>sso_session</code>).</p>
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">decode<span class="ext">.swift</span></span>
+              <span class="langtag">swift</span>
+            </div>
+<pre><code><span class="tok-keyword">let</span> dev = <span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIDecoder</span>()
+    .decodeProfile(<span class="tok-type">Profile</span>.self, named: <span class="tok-string">"dev"</span>, from: doc)
+
+<span class="tok-keyword">print</span>(dev.region, dev.ssoSession <span class="tok-keyword">as</span> <span class="tok-type">Any</span>)</code></pre>
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <!-- 04 CONCEPTS -->
+    <section id="concepts">
+      <h2><span class="section-anchor">04</span>Concepts</h2>
+
+      <h3>The data model is three layers</h3>
+      <p>A parsed INI file becomes an <code>AWSConfigINIDocument</code>, which is an ordered list of <code>Section</code>s, each an ordered list of <code>Key</code>s. Every <code>Key</code>'s value is either a plain string or a sub-property map — there's no third case.</p>
+
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">~/.aws/config</span>
+          <span class="langtag">ini</span>
+        </div>
+<pre><code><span class="tok-comment"># default credentials</span>
+<span class="ini-section">[default]</span>
+<span class="ini-key">region</span> = <span class="ini-value">us-east-1</span>
+<span class="ini-key">output</span> = <span class="ini-value">json</span>
+
+<span class="tok-comment"># work account</span>
+<span class="ini-section">[profile dev]</span>
+<span class="ini-key">region</span>             = <span class="ini-value">us-east-1</span>
+<span class="ini-key">sso_session</span>        = <span class="ini-value">my-sso</span>
+<span class="ini-key">credential_process</span> = <span class="ini-value">/usr/local/bin/quorra-cli credentials --profile dev</span>
+
+<span class="ini-section">[sso-session my-sso]</span>
+<span class="ini-key">sso_start_url</span>           = <span class="ini-value">https://example.awsapps.com/start</span>
+<span class="ini-key">sso_region</span>              = <span class="ini-value">us-east-1</span>
+<span class="ini-key">sso_registration_scopes</span> = <span class="ini-value">sso:account:access</span>
+
+<span class="ini-section">[services my-services]</span>
+<span class="ini-key">dynamodb</span> =
+  <span class="ini-key">endpoint_url</span> = <span class="ini-value">http://localhost:1234</span></code></pre>
+      </div>
+
+      <h3>Profile vs section</h3>
+      <p>Profile names are not the same as section names. AWS encodes the same profile differently in <code>config</code> and <code>credentials</code>:</p>
+      <table class="fields">
+        <thead><tr><th>file flavor</th><th>default profile</th><th>named profile</th></tr></thead>
+        <tbody>
+          <tr><td class="field">.config</td><td class="type">[default]</td><td class="type">[profile NAME]</td></tr>
+          <tr><td class="field">.credentials</td><td class="type">[default]</td><td class="type">[NAME]</td></tr>
+        </tbody>
+      </table>
+      <p>Use <code>document.profileSection(named:)</code> or the <code>encodeProfile</code> / <code>decodeProfile</code> convenience methods to let the projection happen automatically. Or call <code>flavor.profileSectionName(for: name)</code> if you want the raw section name.</p>
+
+      <h3>Two write paths</h3>
+      <p>There are exactly two ways to persist a document:</p>
+      <ul>
+        <li><code>doc.write(to: url, mode:)</code> — atomic-rename only. Use when nothing else writes the file concurrently.</li>
+        <li><code>AWSConfigINIDocument.update(at: url, flavor:, mode:, _:)</code> — fcntl advisory lock + atomic rename. <strong>Use this between processes</strong> (the Quorra app and CLI both call this).</li>
+      </ul>
+
+      <div class="callout warn"><strong>per-process</strong>The fcntl lock serializes <em>between processes</em> but not between threads in the same process. If multiple threads in your app could call <code>update(at:_:)</code> concurrently, wrap with an <code>actor</code> or <code>NSLock</code>.</div>
+
+      <h3>Managed vs read-only mode</h3>
+      <p>Every write call takes a <code>ManagedMode</code>. In <code>.managed</code> (the default) Quorra owns the file and may canonicalize formatting; in <code>.readOnly</code> any write throws <code>.readOnly(URL)</code> immediately, before any IO. The mode itself is a caller-supplied parameter — this module doesn't store the user's preference (the app/CLI persist that in shared Keychain).</p>
+    </section>
+
+    <!-- 05 DOCUMENT -->
+    <section id="document">
+      <h2><span class="section-anchor">05</span>AWSConfigINIDocument</h2>
+      <p>Top-level value type. Holds an ordered set of sections, the BOM kind, the document-level leading comments, and any global parser warnings.</p>
+
+      <h4>Construct</h4>
+      <div class="api">
+        <p class="api-title"><span class="kind">init</span><span class="name">AWSConfigINIDocument(_:flavor:options:)</span></p>
+        <code class="signature"><span class="tok-keyword">public init</span>(_ string: <span class="tok-type">String</span>, flavor: <span class="tok-type">FileFlavor</span> = .config, options: <span class="tok-type">AWSConfigINIDocumentOptions</span> = .default) <span class="tok-keyword">throws</span>(<span class="tok-type">AWSConfigINIError</span>)</code>
+        <p class="api-desc">Parse a string. Almost never throws (the parser is silent-tolerant) but the typed signature reserves the right to.</p>
+      </div>
+      <div class="api">
+        <p class="api-title"><span class="kind">init</span><span class="name">AWSConfigINIDocument(contentsOf:flavor:options:)</span></p>
+        <code class="signature"><span class="tok-keyword">public init</span>(contentsOf url: <span class="tok-type">URL</span>, flavor: <span class="tok-type">FileFlavor</span> = .config, options: <span class="tok-type">AWSConfigINIDocumentOptions</span> = .default) <span class="tok-keyword">throws</span></code>
+        <p class="api-desc">Read and parse from disk. Throws <code>.fileNotFound</code>, <code>.ioError</code>, or <code>.malformedInput</code> for non-UTF-8 content.</p>
+      </div>
+      <div class="api">
+        <p class="api-title"><span class="kind">init</span><span class="name">AWSConfigINIDocument(empty:)</span></p>
+        <code class="signature"><span class="tok-keyword">public init</span>(empty flavor: <span class="tok-type">FileFlavor</span>)</code>
+        <p class="api-desc">A blank document of the given flavor. Useful when generating a fresh file.</p>
+      </div>
+
+      <h4>Section access</h4>
+      <div class="api">
+        <p class="api-title"><span class="name">sections</span> · <span class="name">section(_:)</span> · <span class="name">profileSection(named:)</span></p>
+        <code class="signature"><span class="tok-keyword">public var</span> sections: [<span class="tok-type">Section</span>] { <span class="tok-keyword">get</span> }
+<span class="tok-keyword">public func</span> section(_ name: <span class="tok-type">String</span>) -> <span class="tok-type">Section</span>?
+<span class="tok-keyword">public func</span> profileSection(named name: <span class="tok-type">String</span>) -> <span class="tok-type">Section</span>?</code>
+        <p class="api-desc"><code>section(_:)</code> takes the verbatim header (e.g. <code>"profile dev"</code>); <code>profileSection(named:)</code> applies the flavor-aware projection so you can pass <code>"dev"</code>.</p>
+      </div>
+
+      <h4>Mutate</h4>
+      <div class="api">
+        <p class="api-title"><span class="name">ensureSection(_:)</span> · <span class="name">deleteSection(_:)</span> · <span class="name">update(_:_:)</span></p>
+        <code class="signature"><span class="tok-keyword">public mutating func</span> ensureSection(_ name: <span class="tok-type">String</span>) -> <span class="tok-type">Section</span>
+<span class="tok-keyword">public mutating func</span> deleteSection(_ name: <span class="tok-type">String</span>)
+<span class="tok-keyword">public mutating func</span> update(_ name: <span class="tok-type">String</span>, _ block: (<span class="tok-keyword">inout</span> <span class="tok-type">Section</span>) -> <span class="tok-type">Void</span>)</code>
+        <p class="api-desc"><code>ensureSection</code> returns a snapshot — mutating it does not affect the document. To change a section, route through <code>update(_:_:)</code>.</p>
+      </div>
+
+      <h4>Persist</h4>
+      <div class="api">
+        <p class="api-title"><span class="kind">func</span><span class="name">write()</span> · <span class="name">write(to:mode:options:)</span></p>
+        <code class="signature"><span class="tok-keyword">public func</span> write() <span class="tok-keyword">throws</span>(<span class="tok-type">AWSConfigINIError</span>) -> <span class="tok-type">String</span>
+<span class="tok-keyword">public func</span> write(to url: <span class="tok-type">URL</span>, mode: <span class="tok-type">ManagedMode</span> = .managed, options: <span class="tok-type">AWSConfigINIDocumentOptions</span> = .default) <span class="tok-keyword">throws</span>(<span class="tok-type">AWSConfigINIError</span>)</code>
+        <p class="api-desc">Serializes deterministically: <code>[default]</code> hoisted first, other sections in parse order, <code>" = "</code> separator, all string values double-quoted. Atomic-rename only — for cross-process safety use <code>update(at:_:)</code>.</p>
+      </div>
+
+      <div class="api">
+        <p class="api-title"><span class="kind">static func</span><span class="name">update(at:flavor:options:mode:_:)</span></p>
+        <code class="signature"><span class="tok-keyword">public static func</span> update(
+    at url: <span class="tok-type">URL</span>,
+    flavor: <span class="tok-type">FileFlavor</span>,
+    options: <span class="tok-type">AWSConfigINIDocumentOptions</span> = .default,
+    mode: <span class="tok-type">ManagedMode</span> = .managed,
+    _ block: (<span class="tok-keyword">inout</span> <span class="tok-type">AWSConfigINIDocument</span>) <span class="tok-keyword">throws</span>(<span class="tok-type">AWSConfigINIError</span>) -> <span class="tok-type">Void</span>
+) <span class="tok-keyword">throws</span>(<span class="tok-type">AWSConfigINIError</span>)</code>
+        <p class="api-desc">The safe entry point for shared files. Acquires <code>&lt;url&gt;.lock</code> via fcntl, reads the current contents (treating a missing file as an empty document), hands the mutable document to <code>block</code>, then atomically writes. <code>.readOnly</code> mode short-circuits before any IO.</p>
+      </div>
+    </section>
+
+    <!-- 06 SECTION -->
+    <section id="section">
+      <h2><span class="section-anchor">06</span>Section</h2>
+      <p>A named bag of <code>Key</code>s. Names are case-sensitive; keys inside are stored lowercased. <code>Section</code> is a value type — pass it through <code>Document.update(_:_:)</code> for in-place mutation.</p>
+
+      <table class="fields">
+        <thead><tr><th>member</th><th>type</th><th></th></tr></thead>
+        <tbody>
+          <tr><td class="field">name</td><td class="type">String</td><td class="note">verbatim header, e.g. <code>"profile dev"</code></td></tr>
+          <tr><td class="field">leadingComments</td><td class="type">[String]</td><td class="note">comments above the <code>[name]</code> line, with their <code>#</code> or <code>;</code> prefix preserved</td></tr>
+          <tr><td class="field">warnings</td><td class="type">[Warning]</td><td class="note">parser tolerances surfaced as diagnostics (duplicate keys, unrecognized lines)</td></tr>
+          <tr><td class="field">keys</td><td class="type">[Key]</td><td class="note">ordered, insertion order preserved</td></tr>
+          <tr><td class="field">key(_:)</td><td class="type">(String) -> Key?</td><td class="note">case-insensitive lookup; input is lowercased before matching</td></tr>
+          <tr><td class="field">setKey(_:value:)</td><td class="type">mutating</td><td class="note">update existing or append new; preserves leading comments on update</td></tr>
+          <tr><td class="field">setKey(_:map:)</td><td class="type">mutating</td><td class="note">same, but for sub-property maps (services-section style)</td></tr>
+          <tr><td class="field">deleteKey(_:)</td><td class="type">mutating</td><td class="note">remove by name; no-op if absent</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 07 KEY -->
+    <section id="key">
+      <h2><span class="section-anchor">07</span>Key</h2>
+      <p>A name + a value. The value is either a string or a <code>[String: String]</code> sub-property map. Coercion to numeric/Boolean is on demand.</p>
+
+      <h4>Members</h4>
+      <table class="fields">
+        <thead><tr><th>member</th><th>type</th><th></th></tr></thead>
+        <tbody>
+          <tr><td class="field">name</td><td class="type">String</td><td class="note">always lowercased on parse</td></tr>
+          <tr><td class="field">stringValue</td><td class="type">String</td><td class="note">unquoted raw value; returns <code>""</code> for map-typed keys</td></tr>
+          <tr><td class="field">intValue()</td><td class="type">Int64?</td><td class="note">accepts decimal, <code>0x</code>/<code>0o</code>/<code>0b</code>, signed; <code>nil</code> on overflow or non-numeric</td></tr>
+          <tr><td class="field">doubleValue()</td><td class="type">Double?</td><td class="note">scientific notation supported; rejects hex floats</td></tr>
+          <tr><td class="field">boolValue()</td><td class="type">Bool?</td><td class="note">strict — case-insensitive <code>"true"</code>/<code>"false"</code> only</td></tr>
+          <tr><td class="field">mapValue()</td><td class="type">[String: String]?</td><td class="note">non-nil only for sub-property keys</td></tr>
+          <tr><td class="field">leadingComments</td><td class="type">[String]</td><td class="note">comments above this key in the source file</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout note"><strong>strict bool</strong>The bool grammar matches the AWS Go SDK: only <code>"true"</code> and <code>"false"</code> (any case) decode as Booleans. <code>"yes"</code>, <code>"on"</code>, <code>"1"</code> all return <code>nil</code>. The Codable layer can opt into a lenient grammar for non-AWS use cases.</div>
+    </section>
+
+    <!-- 08 CODABLE -->
+    <section id="codable">
+      <h2><span class="section-anchor">08</span>Codable</h2>
+      <p>Two encoder/decoder types, modeled on Foundation's <code>JSONEncoder</code> / <code>JSONDecoder</code>. They operate on a <code>Section</code> rather than raw bytes — so a single read-mutate-write cycle keeps the parsed document intact.</p>
+
+      <h3>AWSConfigINIDecoder</h3>
+      <div class="api">
+        <code class="signature"><span class="tok-keyword">public struct</span> <span class="tok-type">AWSConfigINIDecoder</span>: <span class="tok-type">Sendable</span> {
+    <span class="tok-keyword">public var</span> keyDecodingStrategy: <span class="tok-type">KeyDecodingStrategy</span> = .convertFromSnakeCase
+    <span class="tok-keyword">public var</span> booleanLeniency: <span class="tok-type">BooleanLeniency</span> = .strict
+
+    <span class="tok-keyword">public func</span> decode&lt;T: <span class="tok-type">Decodable</span>&gt;(_ type: <span class="tok-type">T</span>.<span class="tok-type">Type</span>, from doc: <span class="tok-type">AWSConfigINIDocument</span>, section: <span class="tok-type">String</span>) <span class="tok-keyword">throws</span>(<span class="tok-type">AWSConfigINIError</span>) -> <span class="tok-type">T</span>
+    <span class="tok-keyword">public func</span> decodeProfile&lt;T: <span class="tok-type">Decodable</span>&gt;(_ type: <span class="tok-type">T</span>.<span class="tok-type">Type</span>, named: <span class="tok-type">String</span>, from doc: <span class="tok-type">AWSConfigINIDocument</span>) <span class="tok-keyword">throws</span>(<span class="tok-type">AWSConfigINIError</span>) -> <span class="tok-type">T</span>
+}</code>
+      </div>
+
+      <h3>AWSConfigINIEncoder</h3>
+      <div class="api">
+        <code class="signature"><span class="tok-keyword">public struct</span> <span class="tok-type">AWSConfigINIEncoder</span>: <span class="tok-type">Sendable</span> {
+    <span class="tok-keyword">public var</span> keyEncodingStrategy: <span class="tok-type">KeyEncodingStrategy</span> = .convertToSnakeCase
+    <span class="tok-keyword">public var</span> omitEmpty: <span class="tok-type">Bool</span> = <span class="tok-keyword">true</span>
+
+    <span class="tok-keyword">public func</span> encode&lt;T: <span class="tok-type">Encodable</span>&gt;(_ value: <span class="tok-type">T</span>, into doc: <span class="tok-keyword">inout</span> <span class="tok-type">AWSConfigINIDocument</span>, section: <span class="tok-type">String</span>) <span class="tok-keyword">throws</span>(<span class="tok-type">AWSConfigINIError</span>)
+    <span class="tok-keyword">public func</span> encodeProfile&lt;T: <span class="tok-type">Encodable</span>&gt;(_ value: <span class="tok-type">T</span>, named: <span class="tok-type">String</span>, into doc: <span class="tok-keyword">inout</span> <span class="tok-type">AWSConfigINIDocument</span>) <span class="tok-keyword">throws</span>(<span class="tok-type">AWSConfigINIError</span>)
+}</code>
+      </div>
+
+      <h3>What it can encode</h3>
+      <table class="fields">
+        <thead><tr><th>swift type</th><th>ini representation</th><th></th></tr></thead>
+        <tbody>
+          <tr><td class="field">String, Int*, UInt*, Float, Double</td><td class="type">"value"</td><td class="note">always double-quoted on write</td></tr>
+          <tr><td class="field">Bool</td><td class="type">"true" / "false"</td><td class="note">strict form regardless of leniency setting</td></tr>
+          <tr><td class="field">[String]</td><td class="type">"a, b, c"</td><td class="note">comma-joined; the AWS list pattern (e.g. <code>sso_registration_scopes</code>)</td></tr>
+          <tr><td class="field">[String: String]</td><td class="type">empty parent + indented entries</td><td class="note">the AWS sub-property map shape</td></tr>
+          <tr><td class="field">Optional&lt;T&gt;</td><td class="type">key omitted when nil</td><td class="note">controlled by <code>omitEmpty</code> (default true)</td></tr>
+          <tr><td class="field">nested struct / [T] of struct</td><td class="type">— rejected —</td><td class="note">throws <code>.encodeError</code> / <code>.decodeError</code></td></tr>
+        </tbody>
+      </table>
+
+      <h3>Snake-case strategy</h3>
+      <p>The default <code>convertToSnakeCase</code> / <code>convertFromSnakeCase</code> handles AWS field names without any explicit <code>CodingKeys</code>:</p>
+      <table class="fields">
+        <thead><tr><th>swift</th><th>ini</th></tr></thead>
+        <tbody>
+          <tr><td class="field">ssoSession</td><td class="type">sso_session</td></tr>
+          <tr><td class="field">credentialProcess</td><td class="type">credential_process</td></tr>
+          <tr><td class="field">roleArn</td><td class="type">role_arn</td></tr>
+          <tr><td class="field">ssoRegistrationScopes</td><td class="type">sso_registration_scopes</td></tr>
+        </tbody>
+      </table>
+      <p>For non-AWS naming, set <code>keyEncodingStrategy = .useDefaultKeys</code> or <code>.custom { ... }</code>.</p>
+
+      <h3>Section-replace semantics</h3>
+      <p>Encoding a value into a section <strong>replaces every key</strong> in that section. The section's <code>leadingComments</code> survive; per-key comments inside the section are dropped. Other sections in the document are untouched.</p>
+    </section>
+
+    <!-- 09 AWS OVERLAY -->
+    <section id="aws-overlay">
+      <h2><span class="section-anchor">09</span>AWS overlay</h2>
+      <p>Three opinionated <code>Codable</code> structs cover Quorra's actual flows. Other AWS settings are accessible through the raw <code>Section</code>/<code>Key</code> API.</p>
+
+      <h3>Profile</h3>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">Profile<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
+        </div>
+<pre><code><span class="tok-keyword">public struct</span> <span class="tok-type">Profile</span>: <span class="tok-type">Codable</span>, <span class="tok-type">Sendable</span>, <span class="tok-type">Hashable</span> {
+    <span class="tok-keyword">public var</span> region:            <span class="tok-type">String</span>?
+    <span class="tok-keyword">public var</span> output:            <span class="tok-type">String</span>?
+    <span class="tok-keyword">public var</span> ssoSession:        <span class="tok-type">String</span>?  <span class="tok-comment">// sso_session</span>
+    <span class="tok-keyword">public var</span> credentialProcess: <span class="tok-type">String</span>?  <span class="tok-comment">// credential_process</span>
+    <span class="tok-keyword">public var</span> sourceProfile:     <span class="tok-type">String</span>?  <span class="tok-comment">// source_profile</span>
+    <span class="tok-keyword">public var</span> roleArn:           <span class="tok-type">String</span>?  <span class="tok-comment">// role_arn</span>
+    <span class="tok-keyword">public var</span> roleSessionName:   <span class="tok-type">String</span>?  <span class="tok-comment">// role_session_name</span>
+    <span class="tok-keyword">public var</span> mfaSerial:         <span class="tok-type">String</span>?  <span class="tok-comment">// mfa_serial</span>
+}</code></pre>
+      </div>
+
+      <h3>SSOSession</h3>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">SSOSession<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
+        </div>
+<pre><code><span class="tok-keyword">public struct</span> <span class="tok-type">SSOSession</span>: <span class="tok-type">Codable</span>, <span class="tok-type">Sendable</span>, <span class="tok-type">Hashable</span> {
+    <span class="tok-keyword">public var</span> ssoStartUrl:           <span class="tok-type">String</span>?
+    <span class="tok-keyword">public var</span> ssoRegion:             <span class="tok-type">String</span>?
+    <span class="tok-keyword">public var</span> ssoRegistrationScopes: [<span class="tok-type">String</span>]?  <span class="tok-comment">// comma-joined on write</span>
+}</code></pre>
+      </div>
+
+      <h3>ServicesEntry</h3>
+      <p>The <code>[services NAME]</code> shape is two layers of nesting. <code>ServicesEntry</code> wraps it as a <code>[String: [String: String]]</code>:</p>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">ServicesEntry<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
+        </div>
+<pre><code><span class="tok-keyword">public struct</span> <span class="tok-type">ServicesEntry</span>: <span class="tok-type">Codable</span>, <span class="tok-type">Sendable</span>, <span class="tok-type">Hashable</span> {
+    <span class="tok-keyword">public var</span> entries: [<span class="tok-type">String</span>: [<span class="tok-type">String</span>: <span class="tok-type">String</span>]]
+}
+
+<span class="tok-comment">// usage</span>
+<span class="tok-keyword">var</span> decoder = <span class="tok-type">AWSConfigINIDecoder</span>()
+decoder.keyDecodingStrategy = .useDefaultKeys
+<span class="tok-keyword">let</span> services = <span class="tok-keyword">try</span> decoder.decode(
+    <span class="tok-type">ServicesEntry</span>.self, from: doc, section: <span class="tok-string">"services my-services"</span>
+)
+services.entries[<span class="tok-string">"dynamodb"</span>]?[<span class="tok-string">"endpoint_url"</span>]
+<span class="tok-comment">// "http://localhost:1234"</span></code></pre>
+      </div>
+
+      <h3>FileFlavor</h3>
+      <p>Drives the projection between profile names and section names.</p>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">FileFlavor<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
+        </div>
+<pre><code><span class="tok-keyword">public enum</span> <span class="tok-type">FileFlavor</span>: <span class="tok-type">Sendable</span>, <span class="tok-type">Hashable</span> {
+    <span class="tok-keyword">case</span> config
+    <span class="tok-keyword">case</span> credentials
+}
+
+<span class="tok-keyword">public extension</span> <span class="tok-type">FileFlavor</span> {
+    <span class="tok-keyword">func</span> profileSectionName(<span class="tok-keyword">for</span> name: <span class="tok-type">String</span>) -> <span class="tok-type">String</span>
+}
+
+<span class="tok-type">FileFlavor</span>.config.profileSectionName(for: <span class="tok-string">"dev"</span>)        <span class="tok-comment">// "profile dev"</span>
+<span class="tok-type">FileFlavor</span>.credentials.profileSectionName(for: <span class="tok-string">"dev"</span>)   <span class="tok-comment">// "dev"</span>
+<span class="tok-type">FileFlavor</span>.config.profileSectionName(for: <span class="tok-string">"default"</span>)    <span class="tok-comment">// "default"</span></code></pre>
+      </div>
+    </section>
+
+    <!-- 10 MODE -->
+    <section id="mode">
+      <h2><span class="section-anchor">10</span>Modes &amp; locking</h2>
+
+      <h3>ManagedMode</h3>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">Mode<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
+        </div>
+<pre><code><span class="tok-keyword">public enum</span> <span class="tok-type">ManagedMode</span>: <span class="tok-type">Sendable</span>, <span class="tok-type">Hashable</span>, <span class="tok-type">Codable</span> {
+    <span class="tok-keyword">case</span> managed     <span class="tok-comment">// Quorra owns the file, may canonicalize, prepends header</span>
+    <span class="tok-keyword">case</span> readOnly    <span class="tok-comment">// Any write throws .readOnly(URL) before any IO</span>
+}</code></pre>
+      </div>
+      <p>Mode is a parameter on every write call. The user's preference (managed vs. read-only) is stored outside this module — the Quorra app and CLI persist it in shared Keychain and pass the resolved mode in.</p>
+
+      <h3>The managed-mode header</h3>
+      <p>On the first managed-mode write, a comment is prepended at the top of the file:</p>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">~/.aws/config</span>
+          <span class="langtag">ini</span>
+        </div>
+<pre><code><span class="tok-comment"># Managed by Quorra. Edits made outside Quorra may be reformatted.</span>
+
+<span class="ini-section">[default]</span>
+<span class="ini-key">region</span> = <span class="ini-value">"us-east-1"</span></code></pre>
+      </div>
+      <p>The header is content data — it lives in <code>Document.leadingComments</code> and round-trips through write→read. Subsequent writes are idempotent (no duplicates). Customize via <code>AWSConfigINIDocumentOptions.managedHeaderText</code>.</p>
+
+      <h3>fcntl advisory lock</h3>
+      <p><code>Document.update(at:flavor:_:)</code> opens a sibling <code>&lt;path&gt;.lock</code> file and acquires an exclusive fcntl write lock on it before reading the data file. The lock file is intentionally never cleaned up — it is a coordination point, not a data file.</p>
+
+      <ul>
+        <li><strong>Polling.</strong> Acquisition uses <code>F_SETLK</code> with a 50&nbsp;ms poll loop, defaulting to a 5&nbsp;s timeout. Throws <code>.lockTimeout(URL)</code> on expiry.</li>
+        <li><strong>Per-process scope.</strong> Darwin fcntl locks are per-process. The same process always succeeds <code>F_SETLK</code> against itself — wrap with an in-process lock if you call <code>update(at:_:)</code> from multiple threads.</li>
+        <li><strong>Synchronous.</strong> Wrap with <code>Task.detached { ... }</code> if you need to call from a Swift Concurrency executor — <code>Thread.sleep</code> would otherwise block the cooperative scheduler.</li>
+      </ul>
+
+      <h3>Atomic write</h3>
+      <p>Both <code>write(to:)</code> and <code>update(at:_:)</code> use <code>Data.write(to:options:.atomic)</code>, which writes to a sibling temp file and renames it over the destination. The temp file is removed on success; readers never see a half-written file.</p>
+    </section>
+
+    <!-- 11 ERRORS -->
+    <section id="errors">
+      <h2><span class="section-anchor">11</span>Errors</h2>
+      <p>All public throws use Swift 6.2 typed throws against a single error enum:</p>
+      <ul class="errors">
+        <li><span class="err-case">.fileNotFound(URL)</span><span class="err-desc">The file at <code>URL</code> does not exist. Thrown by <code>init(contentsOf:)</code>.</span></li>
+        <li><span class="err-case">.ioError(URL, underlying:)</span><span class="err-desc">A read or write failed for an OS-level reason. <code>underlying</code> carries the original <code>NSError</code>.</span></li>
+        <li><span class="err-case">.lockTimeout(URL)</span><span class="err-desc">Could not acquire <code>&lt;url&gt;.lock</code> within the configured timeout (default 5 seconds).</span></li>
+        <li><span class="err-case">.readOnly(URL)</span><span class="err-desc">A write was attempted with <code>mode == .readOnly</code>. Thrown immediately, before any IO.</span></li>
+        <li><span class="err-case">.decodeError(String)</span><span class="err-desc">Codable decoding failed — missing required field, type mismatch, nested struct, etc. The message names the offending key.</span></li>
+        <li><span class="err-case">.encodeError(String)</span><span class="err-desc">A value contains characters that cannot survive a write (an unescaped <code>"</code> or <code>\n</code>) or an unsupported container shape was used.</span></li>
+        <li><span class="err-case">.malformedInput(String)</span><span class="err-desc">A hard parse failure — rare; the parser is almost entirely silent-tolerant. Used for non-UTF-8 file contents.</span></li>
+      </ul>
+
+      <div class="callout note"><strong>typed throws</strong>You can <code>catch</code> exhaustively over <code>AWSConfigINIError</code>. Soft parser issues (duplicate keys, properties before any section, unrecognized lines) do not throw — they're collected on <code>Section.warnings</code> and <code>Document.globalWarnings</code> for inspection.</div>
+    </section>
+
+    <!-- 12 RECIPES -->
+    <section id="recipes">
+      <h2><span class="section-anchor">12</span>Recipes</h2>
+
+      <h3>Add a new profile from scratch</h3>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">add-profile<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
+        </div>
+<pre><code><span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIDocument</span>.update(at: configURL, flavor: .config) { doc <span class="tok-keyword">in</span>
+    <span class="tok-keyword">let</span> profile = <span class="tok-type">Profile</span>(
+        region: <span class="tok-string">"us-east-1"</span>,
+        output: <span class="tok-string">"json"</span>,
+        ssoSession: <span class="tok-string">"corp-sso"</span>
+    )
+    <span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIEncoder</span>().encodeProfile(profile, named: <span class="tok-string">"dev"</span>, into: &amp;doc)
+}</code></pre>
+      </div>
+
+      <h3>Read the SSO session for a profile</h3>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">resolve-sso<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
+        </div>
+<pre><code><span class="tok-keyword">let</span> doc = <span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIDocument</span>(contentsOf: configURL, flavor: .config)
+<span class="tok-keyword">let</span> dev = <span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIDecoder</span>().decodeProfile(<span class="tok-type">Profile</span>.self, named: <span class="tok-string">"dev"</span>, from: doc)
+
+<span class="tok-keyword">guard let</span> sessionName = dev.ssoSession <span class="tok-keyword">else</span> { <span class="tok-keyword">return nil</span> }
+<span class="tok-keyword">return try</span> <span class="tok-type">AWSConfigINIDecoder</span>().decode(
+    <span class="tok-type">SSOSession</span>.self, from: doc, section: <span class="tok-string">"sso-session \(sessionName)"</span>
+)</code></pre>
+      </div>
+
+      <h3>Delete a profile</h3>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">delete-profile<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
+        </div>
+<pre><code><span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIDocument</span>.update(at: configURL, flavor: .config) { doc <span class="tok-keyword">in</span>
+    doc.deleteSection(.config.profileSectionName(for: <span class="tok-string">"old-profile"</span>))
+}</code></pre>
+      </div>
+
+      <h3>Set a single key without Codable</h3>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">set-key<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
+        </div>
+<pre><code><span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIDocument</span>.update(at: configURL, flavor: .config) { doc <span class="tok-keyword">in</span>
+    doc.update(<span class="tok-string">"profile dev"</span>) { s <span class="tok-keyword">in</span>
+        s.setKey(<span class="tok-string">"region"</span>, value: <span class="tok-string">"eu-west-1"</span>)
+    }
+}</code></pre>
+      </div>
+
+      <h3>Iterate every profile</h3>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">iterate<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
+        </div>
+<pre><code><span class="tok-keyword">let</span> doc = <span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIDocument</span>(contentsOf: configURL, flavor: .config)
+
+<span class="tok-keyword">for</span> section <span class="tok-keyword">in</span> doc.sections <span class="tok-keyword">where</span> section.name == <span class="tok-string">"default"</span> || section.name.hasPrefix(<span class="tok-string">"profile "</span>) {
+    <span class="tok-keyword">let</span> profileName = section.name == <span class="tok-string">"default"</span>
+        ? <span class="tok-string">"default"</span>
+        : <span class="tok-type">String</span>(section.name.dropFirst(<span class="tok-string">"profile "</span>.count))
+    <span class="tok-keyword">let</span> profile = <span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIDecoder</span>().decodeProfile(<span class="tok-type">Profile</span>.self, named: profileName, from: doc)
+    <span class="tok-keyword">print</span>(profileName, profile.region <span class="tok-keyword">as</span> <span class="tok-type">Any</span>)
+}</code></pre>
+      </div>
+
+      <h3>Read-only inspection (no writes possible)</h3>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">readonly<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
+        </div>
+<pre><code><span class="tok-keyword">let</span> doc = <span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIDocument</span>(contentsOf: configURL, flavor: .config)
+
+<span class="tok-comment">// later, attempt a write — will throw .readOnly without touching disk</span>
+<span class="tok-keyword">do</span> {
+    <span class="tok-keyword">try</span> doc.write(to: configURL, mode: .readOnly)
+} <span class="tok-keyword">catch</span> <span class="tok-type">AWSConfigINIError</span>.readOnly(<span class="tok-keyword">let</span> url) {
+    <span class="tok-keyword">print</span>(<span class="tok-string">"refused to write to \(url)"</span>)
+}</code></pre>
+      </div>
+    </section>
+
+    <!-- 13 DECISIONS -->
+    <section id="decisions">
+      <h2><span class="section-anchor">13</span>Design notes</h2>
+      <p>Some load-bearing choices worth knowing about, with citations to the parser spec and the AWS Go SDK reference parser:</p>
+
+      <div class="pills">
+        <span class="pill"><span class="dot">●</span>Parser parity vs AWS Go SDK</span>
+        <span class="pill"><span class="dot">●</span>Canonical writer (D03)</span>
+        <span class="pill"><span class="dot">●</span><code>=</code> separator + <code>"value"</code> quoting (D14, D15)</span>
+        <span class="pill"><span class="dot">●</span><code>[default]</code> first (D16)</span>
+        <span class="pill"><span class="dot">●</span>Strict bool grammar (D11)</span>
+        <span class="pill"><span class="dot">●</span>fcntl advisory lock (D08)</span>
+        <span class="pill"><span class="dot">●</span>Section-replace Codable (D05)</span>
+        <span class="pill"><span class="dot">●</span>Caller-supplied mode (D02)</span>
+        <span class="pill"><span class="dot">●</span>Lean Codable surface (D10)</span>
+        <span class="pill"><span class="dot">●</span>Typed throws (D20)</span>
+      </div>
+
+      <h3>Parser tolerances, not errors</h3>
+      <p>The parser matches the AWS Go SDK's silent-tolerance behavior (parser spec §11): malformed lines are dropped, duplicate keys overwrite + emit a warning, properties before any section are dropped. Look at <code>Section.warnings</code> and <code>Document.globalWarnings</code> for the diagnostics — they don't bubble up as errors.</p>
+
+      <h3>Why writes are not byte-exact</h3>
+      <p>The writer is canonical, not faithful. It preserves comments and section/key order, but normalizes alignment, separator spacing, and quoting on every write. This is a deliberate trade-off: byte-exact preservation would require a two-layer trivia AST and an order of magnitude more code. The managed/read-only mode pair gives the user explicit control over whether Quorra reformats their file.</p>
+
+      <h3>Why the encoder replaces sections wholesale</h3>
+      <p>Codable's natural shape is "serialize value → bytes." Mapping that onto field-level diffs against an existing section requires a secondary diffing engine and adds API surface for marginal gain. Section-replace is simple, predictable, and matches what users expect from <code>JSONEncoder</code>. Per-key comments inside a section are dropped on encode; section-level <code>leadingComments</code> survive.</p>
+
+      <h3>Why <code>init(contentsOf:)</code> uses untyped <code>throws</code></h3>
+      <p>Swift 6.2 (Xcode 26) crashes the SIL passes (<code>OSSACompleteLifetime</code>) when typed throws is combined with <code>try Data(contentsOf:)</code> inside an init body. The thrown value is still always an <code>AWSConfigINIError</code> — callers can <code>catch let e as AWSConfigINIError</code> for exhaustive handling.</p>
+    </section>
+
+    <footer>
+      <span class="blink">$ aws-config-ini --help</span>
+      <span>quorra · macOS 26 · swift 6.2</span>
+    </footer>
+
+  </main>
+</div>
+
+</body>
+</html>

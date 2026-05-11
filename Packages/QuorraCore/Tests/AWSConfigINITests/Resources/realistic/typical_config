@@ -1,0 +1,26 @@
+# AWS config — typical multi-profile dev setup with SSO
+# Managed by developer
+
+[default]
+region = us-east-1
+output = json
+
+# Development profile via SSO
+[profile dev]
+sso_session = my-company-sso
+sso_account_id = 123456789012
+sso_role_name = DeveloperAccess
+region = us-east-1
+output = json
+
+# Production — read-only role
+[profile prod-readonly]
+sso_session = my-company-sso
+sso_account_id = 987654321098
+sso_role_name = ReadOnlyAccess
+region = us-west-2
+
+[sso-session my-company-sso]
+sso_start_url = https://my-company.awsapps.com/start
+sso_region = us-east-1
+sso_registration_scopes = sso:account:access
