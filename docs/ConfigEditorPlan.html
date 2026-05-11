@@ -1,0 +1,2363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Config Editor — Implementation Plan — Quorra</title>
+<style>
+  /* ================================================================
+     Color tokens — shared with AWSConfigINI.html
+     ================================================================ */
+  :root {
+    color-scheme: light dark;
+
+    --coral-50:  #FFF0ED; --coral-100: #FFDDD6; --coral-200: #FFB3A3; --coral-300: #FF8A6F;
+    --coral-400: #FF6347; --coral-500: #E8452C; --coral-600: #C43420; --coral-700: #9A2718;
+    --coral-800: #741D12; --coral-900: #50130D; --coral-950: #300B07;
+
+    --sunshine-50:  #FFFCE5; --sunshine-100: #FFF8BF; --sunshine-200: #FFF080; --sunshine-300: #FFE433;
+    --sunshine-400: #FFD700; --sunshine-500: #E5BF00; --sunshine-600: #BF9F00; --sunshine-700: #997F00;
+    --sunshine-800: #736000; --sunshine-900: #4D4000; --sunshine-950: #2E2600;
+
+    --sky-50:  #E8F4FF; --sky-100: #CCE7FF; --sky-200: #99CFFF; --sky-300: #5CB3FF;
+    --sky-400: #2196F5; --sky-500: #0A7EDB; --sky-600: #0066B8; --sky-700: #004F8F;
+    --sky-800: #003B6B; --sky-900: #002949; --sky-950: #00182B;
+
+    --mint-50:  #E6FFF3; --mint-100: #C0FFE0; --mint-200: #80FFC2; --mint-300: #33F59A;
+    --mint-400: #00D97F; --mint-500: #00B86B; --mint-600: #009959; --mint-700: #007A47;
+    --mint-800: #005C35; --mint-900: #003D24; --mint-950: #002415;
+
+    --violet-50:  #F3EDFF; --violet-100: #E2D5FF; --violet-200: #C6ABFF; --violet-300: #A47DFF;
+    --violet-400: #8B5CF6; --violet-500: #7342DB; --violet-600: #5E33B8; --violet-700: #49278F;
+    --violet-800: #371D6B; --violet-900: #251349; --violet-950: #160B2B;
+
+    --tangerine-50:  #FFF4E5; --tangerine-100: #FFE4BF; --tangerine-200: #FFC880; --tangerine-300: #FFA833;
+    --tangerine-400: #FF9500; --tangerine-500: #E58000; --tangerine-600: #BF6A00; --tangerine-700: #995500;
+    --tangerine-800: #733F00; --tangerine-900: #4D2A00; --tangerine-950: #2E1900;
+
+    --bubblegum-50:  #FFF0F8; --bubblegum-100: #FFDBEE; --bubblegum-200: #FFB3DB; --bubblegum-300: #FF80C5;
+    --bubblegum-400: #FF47AE; --bubblegum-500: #E52D94; --bubblegum-600: #BF2079; --bubblegum-700: #991661;
+    --bubblegum-800: #731049; --bubblegum-900: #4D0B31; --bubblegum-950: #2E061D;
+
+    --lagoon-50:  #E5FFFC; --lagoon-100: #B3FFF5; --lagoon-200: #66FFEB; --lagoon-300: #1AE8D5;
+    --lagoon-400: #00CCB8; --lagoon-500: #00AD9E; --lagoon-600: #008F83; --lagoon-700: #007068;
+    --lagoon-800: #00544E; --lagoon-900: #003935; --lagoon-950: #002220;
+
+    --slate-50:  #F8F9FA; --slate-100: #F1F3F5; --slate-200: #E2E5E9; --slate-300: #C8CDD3;
+    --slate-400: #A1A9B3; --slate-500: #6C757D; --slate-600: #545B62; --slate-700: #40464C;
+    --slate-800: #2D3238; --slate-900: #1A1E23; --slate-950: #0D0F12;
+
+    --success-300: #5CF58A; --success-500: #10B845; --success-700: #07742A;
+    --warning-300: #FCBF3C; --warning-500: #D4920B; --warning-700: #8C6007;
+    --error-300:   #FF6B6B; --error-500:   #D42020; --error-700:   #881212;
+  }
+
+  :root {
+    --bg:            var(--slate-950);
+    --bg-elev:       var(--slate-900);
+    --bg-code:       #0a0d10;
+    --bg-card:       rgba(45, 50, 56, 0.35);
+    --fg:            var(--slate-100);
+    --fg-mute:       var(--slate-400);
+    --fg-dim:        var(--slate-500);
+    --rule:          var(--slate-800);
+    --rule-soft:     #1c2026;
+    --primary:       var(--coral-400);
+    --primary-deep:  var(--coral-500);
+    --primary-soft:  rgba(255, 99, 71, 0.12);
+    --type:          var(--sky-300);
+    --keyword:       var(--violet-300);
+    --string:        var(--mint-300);
+    --number:        var(--tangerine-300);
+    --comment:       var(--slate-500);
+    --aws-accent:    var(--tangerine-400);
+    --decision:      var(--sunshine-300);
+    --success:       var(--success-300);
+    --warning:       var(--warning-300);
+    --error:         var(--error-300);
+    --grid-tint:     rgba(255, 99, 71, 0.04);
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg:            var(--slate-50);
+      --bg-elev:       #ffffff;
+      --bg-code:       var(--slate-900);
+      --bg-card:       #ffffff;
+      --fg:            var(--slate-900);
+      --fg-mute:       var(--slate-600);
+      --fg-dim:        var(--slate-500);
+      --rule:          var(--slate-200);
+      --rule-soft:     var(--slate-100);
+      --primary:       var(--coral-500);
+      --primary-deep:  var(--coral-700);
+      --primary-soft:  var(--coral-50);
+      --type:          var(--sky-700);
+      --keyword:       var(--violet-700);
+      --string:        var(--mint-700);
+      --number:        var(--tangerine-700);
+      --comment:       var(--slate-500);
+      --aws-accent:    var(--tangerine-600);
+      --decision:      var(--sunshine-700);
+      --success:       var(--success-700);
+      --warning:       var(--warning-700);
+      --error:         var(--error-700);
+      --grid-tint:     rgba(232, 69, 44, 0.04);
+    }
+    :root pre, :root .code-frame { color: var(--slate-100) !important; }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    background-image:
+      linear-gradient(var(--grid-tint) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-tint) 1px, transparent 1px);
+    background-size: 64px 64px, 64px 64px;
+    color: var(--fg);
+    font-family: ui-serif, "Iowan Old Style", "Charter", "Source Serif Pro", "Hoefler Text", "Palatino", Georgia, serif;
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "kern", "liga", "onum";
+  }
+  ::selection { background: var(--primary-soft); color: var(--fg); }
+  a { color: var(--primary); text-decoration: none; border-bottom: 1px solid transparent; transition: border-color 120ms ease, color 120ms ease; }
+  a:hover { border-bottom-color: var(--primary); color: var(--primary-deep); }
+
+  code, pre, kbd, samp,
+  .mono, .term-prompt, .badge, .tag,
+  h1 .moniker, .section-anchor, .toc-link, .toc-num,
+  .tok-key, .tok-string, .tok-number, .tok-comment, .tok-keyword, .tok-type,
+  .signature, .field, .ini-section, .ini-key, .ini-value, .err-case,
+  .phase-num, .pill, .stat .num, .stat .label {
+    font-family: "Berkeley Mono", "JetBrains Mono", "IBM Plex Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+    font-feature-settings: "ss01", "ss02", "calt", "zero";
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: 0;
+    max-width: 1400px;
+    margin: 0 auto;
+    min-height: 100vh;
+  }
+
+  aside.rail {
+    border-right: 1px solid var(--rule);
+    padding: 2.5rem 1.75rem 4rem 2rem;
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100vh;
+    overflow-y: auto;
+    background: linear-gradient(180deg, transparent 0%, var(--bg) 8%, var(--bg) 92%, transparent 100%);
+  }
+  aside.rail::-webkit-scrollbar { width: 6px; }
+  aside.rail::-webkit-scrollbar-track { background: transparent; }
+  aside.rail::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 3px; }
+
+  .rail-title {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--fg-dim);
+    margin: 0 0 0.4rem;
+  }
+  .rail-product {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.95rem;
+    color: var(--fg);
+    margin: 0 0 1.6rem;
+    display: flex; align-items: baseline; gap: 0.5rem;
+  }
+  .rail-product .live-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--decision);
+    box-shadow: 0 0 12px var(--decision), 0 0 0 3px rgba(255, 228, 51, 0.12);
+    animation: pulse 2.4s ease-in-out infinite;
+    flex: 0 0 auto;
+    transform: translateY(-1px);
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+  }
+
+  .toc { list-style: none; padding: 0; margin: 0; }
+  .toc-section { margin: 0 0 1.5rem; }
+  .toc-section-label {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--fg-dim);
+    margin: 0 0 0.45rem;
+    display: flex; align-items: center; gap: 0.55rem;
+  }
+  .toc-section-label::before {
+    content: ""; flex: 0 0 8px; height: 1px; background: var(--primary);
+  }
+  .toc-link {
+    display: flex;
+    align-items: baseline;
+    gap: 0.65rem;
+    padding: 0.28rem 0;
+    color: var(--fg-mute);
+    font-size: 0.85rem;
+    border-bottom: none;
+    transition: color 120ms ease, transform 120ms ease;
+  }
+  .toc-link:hover { color: var(--primary); transform: translateX(2px); border-bottom: none; }
+  .toc-num {
+    color: var(--fg-dim);
+    font-size: 0.7rem;
+    flex: 0 0 auto;
+  }
+
+  main {
+    padding: 4rem 4rem 8rem;
+    max-width: 920px;
+    min-width: 0;
+  }
+  @media (max-width: 1100px) {
+    .layout { grid-template-columns: 1fr; }
+    aside.rail {
+      position: static;
+      height: auto;
+      border-right: none;
+      border-bottom: 1px solid var(--rule);
+      padding: 2rem 1.5rem;
+    }
+    main { padding: 2.5rem 1.5rem 5rem; }
+  }
+  @media (max-width: 720px) {
+    main { padding: 2rem 1rem 4rem; }
+    body { background-size: 32px 32px, 32px 32px; }
+  }
+
+  .hero {
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 2.5rem 2.25rem;
+    margin: 0 0 3.5rem;
+    background:
+      radial-gradient(at 8% 0%, rgba(255, 215, 0, 0.10) 0, transparent 38%),
+      radial-gradient(at 100% 100%, rgba(255, 99, 71, 0.07) 0, transparent 42%),
+      var(--bg-card);
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--decision) 30%, var(--primary) 70%, transparent);
+    opacity: 0.6;
+  }
+  .hero-meta {
+    display: flex; flex-wrap: wrap; gap: 0.5rem;
+    margin: 0 0 1.5rem;
+  }
+  .badge {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    padding: 0.3rem 0.6rem;
+    border-radius: 3px;
+    border: 1px solid currentColor;
+    text-transform: lowercase;
+  }
+  .badge.primary { color: var(--primary); }
+  .badge.swift   { color: var(--tangerine-400); }
+  .badge.macos   { color: var(--sky-300); }
+  .badge.iter    { color: var(--decision); }
+  .badge.scope   { color: var(--mint-300); }
+  @media (prefers-color-scheme: light) {
+    .badge.primary { color: var(--coral-700); }
+    .badge.swift   { color: var(--tangerine-700); }
+    .badge.macos   { color: var(--sky-700); }
+    .badge.iter    { color: var(--sunshine-700); }
+    .badge.scope   { color: var(--mint-700); }
+  }
+
+  h1 {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-weight: 600;
+    font-size: clamp(2rem, 5vw, 3rem);
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    margin: 0 0 1rem;
+    color: var(--fg);
+  }
+  h1 .moniker { color: var(--primary); font-weight: 600; }
+  h1 .moniker-bracket { color: var(--fg-dim); font-weight: 400; }
+  .lede {
+    font-size: 1.1rem;
+    line-height: 1.55;
+    color: var(--fg-mute);
+    max-width: 60ch;
+    margin: 0 0 1.5rem;
+    font-style: italic;
+  }
+  .hero-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1rem 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px dashed var(--rule);
+  }
+  .stat .num {
+    font-size: 1.5rem;
+    color: var(--primary);
+    font-weight: 600;
+    display: block;
+  }
+  .stat .label {
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--fg-dim);
+    margin-top: 0.15rem;
+    display: block;
+  }
+
+  h2 {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 1.45rem;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    margin: 4.5rem 0 1.2rem;
+    padding-top: 1.2rem;
+    border-top: 1px solid var(--rule);
+    position: relative;
+    color: var(--fg);
+  }
+  h2 .section-anchor {
+    color: var(--primary);
+    margin-right: 0.6rem;
+    font-size: 0.85rem;
+    letter-spacing: 0;
+    vertical-align: 0.15em;
+  }
+  h3 {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 2.4rem 0 0.7rem;
+    color: var(--fg);
+  }
+  h3::before { content: "▸"; color: var(--primary); margin-right: 0.4rem; font-size: 0.85em; }
+  h4 {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--fg-mute);
+    margin: 1.8rem 0 0.5rem;
+    font-weight: 600;
+  }
+  p { margin: 0 0 1.05rem; }
+  ul, ol { margin: 0 0 1.1rem; padding-left: 1.4rem; }
+  li { margin: 0.3rem 0; }
+  li::marker { color: var(--primary); }
+  strong { font-weight: 600; color: var(--fg); }
+  em { font-style: italic; color: var(--fg-mute); }
+
+  p code, li code, td code, h2 code, h3 code, h4 code {
+    background: var(--primary-soft);
+    color: var(--primary);
+    padding: 0.1em 0.4em;
+    border-radius: 3px;
+    font-size: 0.86em;
+    border: 1px solid transparent;
+  }
+  @media (prefers-color-scheme: light) {
+    p code, li code, td code, h2 code, h3 code, h4 code {
+      background: var(--coral-50);
+      color: var(--coral-700);
+      border: 1px solid var(--coral-100);
+    }
+  }
+
+  .code-frame {
+    margin: 1.4rem 0;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--bg-code);
+    border: 1px solid #1d2228;
+    box-shadow: 0 8px 28px -16px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 99, 71, 0.04) inset;
+  }
+  .code-titlebar {
+    display: flex; align-items: center; gap: 0.6rem;
+    padding: 0.6rem 0.9rem;
+    background: linear-gradient(180deg, #14181d 0%, #0d1014 100%);
+    border-bottom: 1px solid #1d2228;
+  }
+  .lights { display: flex; gap: 0.4rem; }
+  .lights span {
+    width: 11px; height: 11px; border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.35);
+  }
+  .lights .l1 { background: var(--coral-400); }
+  .lights .l2 { background: var(--sunshine-400); }
+  .lights .l3 { background: var(--mint-400); }
+  .code-titlebar .filename {
+    color: var(--slate-400);
+    font-size: 0.78rem;
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    margin-left: 0.4rem;
+  }
+  .code-titlebar .filename .ext { color: var(--primary); }
+  .code-titlebar .langtag {
+    margin-left: auto;
+    color: var(--slate-500);
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 0.18rem 0.5rem;
+    border: 1px solid #1d2228;
+    border-radius: 3px;
+  }
+  pre {
+    margin: 0;
+    padding: 1.1rem 1.2rem;
+    overflow-x: auto;
+    color: var(--slate-100);
+    font-size: 0.82rem;
+    line-height: 1.6;
+    font-family: "Berkeley Mono", "JetBrains Mono", "IBM Plex Mono", "SF Mono", ui-monospace, monospace;
+    font-feature-settings: "ss01", "ss02";
+    tab-size: 4;
+  }
+  pre code { background: transparent; color: inherit; padding: 0; border: none; font-size: inherit; }
+
+  .tok-keyword { color: var(--keyword); }
+  .tok-type    { color: var(--type); }
+  .tok-string  { color: var(--string); }
+  .tok-number  { color: var(--number); }
+  .tok-comment { color: var(--comment); font-style: italic; }
+  .ini-section { color: var(--aws-accent); font-weight: 600; }
+  .ini-key     { color: var(--sky-300); }
+  .ini-value   { color: var(--mint-300); }
+  .term-prompt { color: var(--success); user-select: none; }
+
+  .callout {
+    margin: 1.4rem 0;
+    border-left: 3px solid var(--primary);
+    padding: 0.95rem 1.15rem;
+    background: var(--primary-soft);
+    border-radius: 0 4px 4px 0;
+    font-size: 0.95rem;
+  }
+  .callout.note    { border-color: var(--type);    background: rgba(92, 179, 255, 0.08); }
+  .callout.warn    { border-color: var(--warning); background: rgba(252, 191, 60, 0.08); }
+  .callout.success { border-color: var(--success); background: rgba(92, 245, 138, 0.08); }
+  .callout.danger  { border-color: var(--error);   background: rgba(255, 107, 107, 0.08); }
+  .callout.spec    { border-color: var(--decision); background: rgba(255, 228, 51, 0.06); }
+  @media (prefers-color-scheme: light) {
+    .callout         { background: var(--coral-50); }
+    .callout.note    { background: var(--sky-50); }
+    .callout.warn    { background: #FFF8EB; }
+    .callout.success { background: #EDFFF0; }
+    .callout.danger  { background: #FFF0F0; }
+    .callout.spec    { background: var(--sunshine-50); }
+  }
+  .callout strong {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--primary);
+    margin-right: 0.4rem;
+    display: inline-block;
+  }
+  .callout.note strong    { color: var(--type); }
+  .callout.warn strong    { color: var(--warning); }
+  .callout.success strong { color: var(--success); }
+  .callout.danger strong  { color: var(--error); }
+  .callout.spec strong    { color: var(--decision); }
+
+  table.fields {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.6rem 0 1rem;
+    font-size: 0.88rem;
+  }
+  table.fields th, table.fields td {
+    text-align: left;
+    padding: 0.5rem 0.7rem;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: top;
+  }
+  table.fields th {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--fg-dim);
+    font-weight: 600;
+    border-bottom: 1px solid var(--rule);
+  }
+  table.fields td.field { color: var(--primary); }
+  table.fields td.type  { color: var(--type); }
+  table.fields td.note  { color: var(--fg-mute); font-family: ui-serif, Georgia, serif; }
+
+  /* Phase header — distinctive marker for an implementation phase */
+  .phase {
+    margin: 2rem 0;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    background: var(--bg-card);
+    overflow: hidden;
+  }
+  .phase-head {
+    display: flex; align-items: center; gap: 0.9rem;
+    padding: 0.85rem 1rem;
+    background: linear-gradient(90deg, rgba(255, 99, 71, 0.06), transparent 60%);
+    border-bottom: 1px solid var(--rule);
+  }
+  .phase-num {
+    font-size: 0.75rem;
+    color: var(--decision);
+    background: rgba(255, 228, 51, 0.08);
+    border: 1px solid rgba(255, 228, 51, 0.35);
+    padding: 0.2rem 0.55rem;
+    border-radius: 3px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .phase-title {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 1rem;
+    color: var(--fg);
+    font-weight: 600;
+    margin: 0;
+  }
+  .phase-deps {
+    margin-left: auto;
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.7rem;
+    color: var(--fg-dim);
+    letter-spacing: 0.06em;
+  }
+  .phase-deps em { color: var(--fg-mute); font-style: normal; }
+  .phase-body { padding: 1.1rem 1.25rem 1.4rem; }
+
+  /* Inline reference card — pointer to docs */
+  .ref-card {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: 0.9rem;
+    align-items: start;
+    margin: 1rem 0;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 0.8rem 1rem;
+    background: var(--bg-card);
+  }
+  .ref-card .label {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--decision);
+    padding-top: 0.15rem;
+  }
+  .ref-card .body { font-size: 0.92rem; color: var(--fg-mute); }
+  .ref-card .body a { color: var(--primary); }
+
+  /* Acceptance check list */
+  .checks { list-style: none; padding: 0; margin: 1rem 0; counter-reset: chk; }
+  .checks li {
+    counter-increment: chk;
+    padding: 0.55rem 0.75rem 0.55rem 2.6rem;
+    border-bottom: 1px solid var(--rule-soft);
+    position: relative;
+    font-size: 0.94rem;
+  }
+  .checks li::before {
+    content: "□  " counter(chk, decimal-leading-zero);
+    position: absolute;
+    left: 0.55rem;
+    top: 0.55rem;
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    color: var(--decision);
+    font-size: 0.78rem;
+    letter-spacing: 0.05em;
+  }
+
+  .pills { display: flex; flex-wrap: wrap; gap: 0.45rem; margin: 0.8rem 0 1.4rem; }
+  .pill {
+    font-size: 0.72rem;
+    padding: 0.32rem 0.6rem;
+    border-radius: 3px;
+    color: var(--fg);
+    border: 1px solid var(--rule);
+    background: var(--bg-card);
+  }
+  .pill .dot { color: var(--primary); margin-right: 0.3rem; }
+
+  footer {
+    margin: 6rem 0 0;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--rule);
+    color: var(--fg-dim);
+    font-size: 0.85rem;
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem;
+  }
+  footer .blink::after { content: "_"; animation: blink 1s steps(1) infinite; color: var(--primary); }
+  @keyframes blink { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
+
+  h2[id], h3[id] { scroll-margin-top: 1.5rem; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <aside class="rail">
+    <p class="rail-title">// quorra · iteration plan</p>
+    <p class="rail-product"><span class="live-dot" aria-hidden="true"></span>Config Editor</p>
+
+    <nav class="toc">
+      <div class="toc-section">
+        <p class="toc-section-label">Frame</p>
+        <a class="toc-link" href="#overview"><span class="toc-num">01</span><span>Overview</span></a>
+        <a class="toc-link" href="#scope"><span class="toc-num">02</span><span>Scope &amp; non-goals</span></a>
+        <a class="toc-link" href="#references"><span class="toc-num">03</span><span>Reference docs</span></a>
+        <a class="toc-link" href="#dep-graph"><span class="toc-num">04</span><span>Dependency graph</span></a>
+      </div>
+
+      <div class="toc-section">
+        <p class="toc-section-label">Phases</p>
+        <a class="toc-link" href="#phase-1"><span class="toc-num">05</span><span>Package additions</span></a>
+        <a class="toc-link" href="#phase-2"><span class="toc-num">06</span><span>Mode preference</span></a>
+        <a class="toc-link" href="#phase-3"><span class="toc-num">07</span><span>AppModel + setup card</span></a>
+        <a class="toc-link" href="#phase-4"><span class="toc-num">08</span><span>Settings scene</span></a>
+        <a class="toc-link" href="#phase-5"><span class="toc-num">09</span><span>ProfilesModel</span></a>
+        <a class="toc-link" href="#phase-6"><span class="toc-num">10</span><span>MainView shell</span></a>
+        <a class="toc-link" href="#phase-7"><span class="toc-num">11</span><span>Sidebar grammar</span></a>
+        <a class="toc-link" href="#phase-8"><span class="toc-num">12</span><span>Detail panes</span></a>
+        <a class="toc-link" href="#phase-9"><span class="toc-num">13</span><span>Save round-trip</span></a>
+        <a class="toc-link" href="#phase-10"><span class="toc-num">14</span><span>Polish &amp; close</span></a>
+      </div>
+
+      <div class="toc-section">
+        <p class="toc-section-label">Close</p>
+        <a class="toc-link" href="#acceptance"><span class="toc-num">15</span><span>Acceptance walk</span></a>
+        <a class="toc-link" href="#design-notes"><span class="toc-num">16</span><span>Design notes</span></a>
+      </div>
+    </nav>
+  </aside>
+
+  <main>
+
+    <header class="hero">
+      <div class="hero-meta">
+        <span class="badge primary">v1 · iteration</span>
+        <span class="badge swift">swift 6.2</span>
+        <span class="badge macos">macos 26+</span>
+        <span class="badge iter">10 phases</span>
+        <span class="badge scope">read + edit only</span>
+      </div>
+      <h1><span class="moniker-bracket">[</span><span class="moniker">Config Editor</span><span class="moniker-bracket">]</span></h1>
+      <p class="lede">A complete implementation plan for Quorra's first real working iteration: end the setup flow on <code>MainView</code>, wire <code>AWSConfigINI</code>, render an SSO-grouped sidebar, and edit one profile/session at a time through a typed form that respects Edit&nbsp;&amp;&nbsp;Manage vs Read&nbsp;Only mode.</p>
+
+      <div class="hero-stats">
+        <div class="stat"><span class="num">10</span><span class="label">phases</span></div>
+        <div class="stat"><span class="num">3</span><span class="label">package adds</span></div>
+        <div class="stat"><span class="num">1</span><span class="label">tab in v1</span></div>
+        <div class="stat"><span class="num">8</span><span class="label">acceptance steps</span></div>
+      </div>
+    </header>
+
+    <section id="overview">
+      <h2><span class="section-anchor">01</span>Overview</h2>
+      <p>Quorra today launches into <code>SetupView</code>, lets the user pick <code>~/.aws</code>, persists a security-scoped bookmark, and lands on a placeholder <code>MainView</code> that lists folder contents. This iteration replaces the placeholder with a real working surface: a sidebar of SSO-session-grouped profiles, a profile/session detail pane backed by the typed <code>Profile</code> / <code>SSOSession</code> models from <a href="./AWSConfigINI.html">AWSConfigINI</a>, and a save round-trip that exercises the full fcntl-locked atomic write path.</p>
+      <p>The defining design choice is the <strong>mode contract</strong>: every user starts in <strong>Edit&nbsp;&amp;&nbsp;Manage</strong> mode (the default), but they may pick <strong>Read&nbsp;Only</strong> during setup or in <code>Settings</code> at any time. Read&nbsp;Only renders the same forms as labels — the app reads, browses, and (eventually) serves credentials, but never writes the AWS files. Edit&nbsp;&amp;&nbsp;Manage prepends <code># Managed by Quorra</code> on first save and may canonicalize formatting.</p>
+      <p>The plan is broken into ten phases ordered by dependency. Each phase is small enough to land in a single session, and most close with a short acceptance check the implementer can run before moving on.</p>
+    </section>
+
+    <section id="scope">
+      <h2><span class="section-anchor">02</span>Scope &amp; non-goals</h2>
+
+      <h3>In scope</h3>
+      <ul>
+        <li>Mode preference (Edit&nbsp;&amp;&nbsp;Manage / Read&nbsp;Only) persisted to <code>UserDefaults.standard</code>.</li>
+        <li>Mode card on <code>SetupView</code> + radio-group toggle in <code>Settings</code> scene.</li>
+        <li>Standard macOS <code>Settings { ... }</code> scene reachable via <strong>⌘,</strong> and the App-menu Settings… item.</li>
+        <li>End the existing setup flow on the new <code>MainView</code> (no placeholder).</li>
+        <li><code>NavigationSplitView</code> with a sidebar and a single detail pane.</li>
+        <li>Sidebar: <code>List(selection:)</code> with one <code>Section { OutlineGroup }</code> for SSO Sessions, plus flat <code>Section</code>s for Long-term keys / Other.</li>
+        <li>Profile detail pane: single <em>Configuration</em> tab with a typed <code>Form</code>.</li>
+        <li>SSO session detail pane: same <code>Form</code> shape, against <code>SSOSession</code>.</li>
+        <li>Save round-trip via <code>AWSConfigINIDocument.update(at:flavor:_:)</code> with re-parse on success.</li>
+        <li>Toolbar refresh button (<strong>⌘R</strong>) preserving selection.</li>
+        <li>Read&nbsp;Only mode renders forms as <code>LabeledContent</code> + a top notice <code>Section</code> with an <em>Open Settings…</em> button.</li>
+        <li>Three additive changes inside the AWSConfigINI package, tested in-package before app work begins.</li>
+      </ul>
+
+      <h3>Out of scope (deferred)</h3>
+      <ul>
+        <li><strong>Add Profile / Delete Profile / search</strong> — the iteration is read+edit only.</li>
+        <li><strong>Credentials tab</strong> — depends on Keychain wiring not built yet.</li>
+        <li><strong>Activity tab</strong> — no event stream yet.</li>
+        <li><strong>IMDS Server view &amp; runtime</strong> — separate iteration.</li>
+        <li><strong>SSO OIDC device-code flow</strong> — Renew / Sign out buttons are deferred.</li>
+        <li><strong>FSEvents file watching</strong> — refresh button + after-save re-parse only.</li>
+        <li><strong>App↔CLI bookmark sharing</strong> via App Group — bookmark stays in app-only <code>UserDefaults</code>.</li>
+        <li><strong>Raw INI editor</strong> — power-user feature, additive later.</li>
+        <li><strong>Profile rename</strong> — section-header editing is out.</li>
+        <li><strong>Region / source-profile / session autocomplete</strong> — free-text fields.</li>
+      </ul>
+
+      <div class="callout note"><strong>scope guard</strong>If the implementer feels the urge to add an "Add Profile" button or a search field "since we're already here" — don't. Each deferred item has a real reason; relitigating during implementation invalidates the plan.</div>
+    </section>
+
+    <section id="references">
+      <h2><span class="section-anchor">03</span>Reference docs</h2>
+      <p>Implementation must be grounded in the following sources. Cite each by URL when in doubt.</p>
+
+      <h3>Primary — Quorra-internal</h3>
+      <div class="ref-card">
+        <span class="label">Package</span>
+        <span class="body"><a href="./AWSConfigINI.html"><strong>AWSConfigINI</strong> — Reading, editing, and writing AWS shared-config files</a> (this directory). Authoritative reference for <code>AWSConfigINIDocument</code>, <code>Section</code>, <code>Key</code>, <code>Profile</code>, <code>SSOSession</code>, <code>FileFlavor</code>, <code>ManagedMode</code>, <code>AWSConfigINIError</code>, <code>AWSConfigINIDecoder</code>, <code>AWSConfigINIEncoder</code>, fcntl-locked <code>update(at:flavor:_:)</code>.</span>
+      </div>
+      <div class="ref-card">
+        <span class="label">Project</span>
+        <span class="body"><code>CLAUDE.md</code> at the repo root. Defines bundle IDs (<code>dev.ajbeck.quorra</code>, <code>dev.ajbeck.quorra.cli</code>), the keychain access group, the setup-flow contract, the sandbox reset workflow, and the App↔CLI architecture (Keychain access group only — no XPC).</span>
+      </div>
+
+      <h3>Apple — SwiftUI surface</h3>
+      <ul>
+        <li><a href="https://developer.apple.com/documentation/swiftui/settings"><code>Settings</code> scene</a> — auto-wires ⌘, and the App-menu Settings… item.</li>
+        <li><a href="https://developer.apple.com/documentation/swiftui/environmentvalues/opensettings"><code>@Environment(\.openSettings)</code></a> + <a href="https://developer.apple.com/documentation/swiftui/opensettingsaction"><code>OpenSettingsAction</code></a> — programmatic deep-link to Settings.</li>
+        <li><a href="https://developer.apple.com/documentation/swiftui/navigationsplitview"><code>NavigationSplitView</code></a> — two-column sidebar/detail layout for macOS.</li>
+        <li><a href="https://developer.apple.com/documentation/swiftui/list/init(selection:content:)-4sffx"><code>List(selection:content:)</code></a> + <a href="https://developer.apple.com/documentation/swiftui/outlinegroup"><code>OutlineGroup</code></a> — outline parents inside <code>Section</code>s, unified selection.</li>
+        <li><a href="https://developer.apple.com/documentation/swiftui/form"><code>Form</code></a> + <a href="https://developer.apple.com/documentation/swiftui/labeledcontent"><code>LabeledContent</code></a> — typed entry / read-only display rows.</li>
+        <li><a href="https://developer.apple.com/documentation/swiftui/picker"><code>Picker</code></a>, <a href="https://developer.apple.com/documentation/swiftui/pickerstyle/radiogroup"><code>.radioGroup</code></a>, <a href="https://developer.apple.com/documentation/swiftui/pickerstyle/menu"><code>.menu</code></a>.</li>
+        <li><a href="https://developer.apple.com/documentation/swiftui/toolbaritemplacement/confirmationaction"><code>.confirmationAction</code></a> + <a href="https://developer.apple.com/documentation/swiftui/toolbaritemplacement/cancellationaction"><code>.cancellationAction</code></a> — Save / Discard placement.</li>
+        <li><a href="https://developer.apple.com/documentation/swiftui/view/navigationsubtitle(_:)"><code>navigationSubtitle</code></a> — dirty indicator (<em>"Edited"</em>) on macOS.</li>
+        <li><a href="https://developer.apple.com/documentation/swiftui/buttonrole/destructive"><code>ButtonRole.destructive</code></a> — Discard styling.</li>
+        <li><a href="https://developer.apple.com/documentation/swiftui/view/alert(_:ispresented:presenting:actions:message:)-1zcyt"><code>.alert(isPresented:error:actions:message:)</code></a> — typed <code>LocalizedError</code>-driven alert.</li>
+        <li><a href="https://developer.apple.com/documentation/swiftui/view/task(id:name:priority:file:line:_:)"><code>.task(id:)</code></a> — eager async load on URL change.</li>
+        <li><a href="https://developer.apple.com/documentation/swiftui/migrating-from-the-observable-object-protocol-to-the-observable-macro">Migration to <code>@Observable</code></a> — granular per-property tracking.</li>
+        <li><a href="https://developer.apple.com/documentation/swiftui/managing-model-data-in-your-app">Managing model data</a> — separation between data and views.</li>
+      </ul>
+
+      <h3>Apple — Foundation / AppKit</h3>
+      <ul>
+        <li><a href="https://developer.apple.com/documentation/foundation/userdefaults"><code>UserDefaults</code></a> — "nonsensitive information, such as app-specific configuration details" (Apple's words). The documented home for the mode preference.</li>
+        <li><a href="https://developer.apple.com/documentation/swiftui/scenephase/background"><code>scenePhase.background</code></a> — on macOS this means termination, not "user switched windows." Don't use for reload-on-return.</li>
+        <li><a href="https://developer.apple.com/documentation/swiftui/environmentvalues/appearsactive"><code>EnvironmentValues.appearsActive</code></a> — the macOS-correct primitive when we eventually want it (deferred).</li>
+      </ul>
+
+      <h3>AWS</h3>
+      <ul>
+        <li><a href="https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html">AWS CLI configuration and credentials files</a> — the on-disk format AWSConfigINI parses.</li>
+        <li><a href="https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html#config-settings-and-precedence">Configuration setting precedence</a> — credentials-file values override config-file values for the same profile.</li>
+      </ul>
+
+      <div class="callout spec"><strong>citation rule</strong>Every API choice in the implementation must be defensible by reference to the AWSConfigINI documentation or one of the Apple URLs above. If a chosen API isn't covered by the references, pause and flag it in code review rather than guessing.</div>
+    </section>
+
+    <section id="dep-graph">
+      <h2><span class="section-anchor">04</span>Dependency graph</h2>
+      <p>Phases are ordered so each one depends only on phases above it. A phase that touches the AWSConfigINI package must land &amp; ship its tests before any app-side code consumes the new surface.</p>
+
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">phases<span class="ext">.txt</span></span>
+          <span class="langtag">deps</span>
+        </div>
+<pre><code>P1  Package additions  ─────────────────────────┐
+                                                ▼
+P2  ModePreference     ────┐                    │
+                           ▼                    │
+P3  AppModel + Setup card ─┴──┐                 │
+                              ▼                 │
+P4  Settings scene     ───────┴──┐              │
+                                 ▼              │
+P5  ProfilesModel      ──────────┴──────────────┤
+                                                ▼
+P6  MainView shell     ─────────────────────────┤
+                                                ▼
+P7  Sidebar grammar    ─────────────────────────┤
+                                                ▼
+P8  Detail panes       ─────────────────────────┤
+                                                ▼
+P9  Save round-trip    ─────────────────────────┤
+                                                ▼
+P10 Polish &amp; close     ─────────────────────────┘</code></pre>
+      </div>
+
+      <p><strong>Critical path:</strong> P1 → P5 → P9. Everything else can shift without unblocking the editor save round-trip; if implementation slips, prioritize the critical path.</p>
+    </section>
+
+    <!-- ================================================================
+         PHASE 1
+         ================================================================ -->
+    <section id="phase-1">
+      <h2><span class="section-anchor">05</span>Phase 1 — Package additions</h2>
+
+      <div class="phase">
+        <div class="phase-head">
+          <span class="phase-num">P1</span>
+          <p class="phase-title">Additive changes inside Packages/QuorraCore/Sources/AWSConfigINI</p>
+          <span class="phase-deps"><em>depends on</em>: nothing</span>
+        </div>
+        <div class="phase-body">
+          <p>Three small, additive changes to the AWSConfigINI module. All three land with tests inside <code>Packages/QuorraCore/Tests/AWSConfigINITests</code> before any app-side code consumes them. Don't bump the v1.0 version label in the header doc — these are additive and source-compatible.</p>
+
+          <h4>P1.1 — Extend <code>Profile</code> with two SSO header fields</h4>
+          <p>The profile detail header needs to render <em>"Account 412903117204 · AdministratorAccess"</em>. Today's <code>Profile</code> doesn't carry those fields. Add them as additive optional properties.</p>
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">Profile<span class="ext">.swift</span></span>
+              <span class="langtag">swift</span>
+            </div>
+<pre><code><span class="tok-keyword">public struct</span> <span class="tok-type">Profile</span>: <span class="tok-type">Codable</span>, <span class="tok-type">Sendable</span>, <span class="tok-type">Hashable</span> {
+    <span class="tok-keyword">public var</span> region:            <span class="tok-type">String</span>?
+    <span class="tok-keyword">public var</span> output:            <span class="tok-type">String</span>?
+    <span class="tok-keyword">public var</span> ssoSession:        <span class="tok-type">String</span>?
+    <span class="tok-keyword">public var</span> ssoAccountId:      <span class="tok-type">String</span>?  <span class="tok-comment">// NEW — sso_account_id</span>
+    <span class="tok-keyword">public var</span> ssoRoleName:       <span class="tok-type">String</span>?  <span class="tok-comment">// NEW — sso_role_name</span>
+    <span class="tok-keyword">public var</span> credentialProcess: <span class="tok-type">String</span>?
+    <span class="tok-keyword">public var</span> sourceProfile:     <span class="tok-type">String</span>?
+    <span class="tok-keyword">public var</span> roleArn:           <span class="tok-type">String</span>?
+    <span class="tok-keyword">public var</span> roleSessionName:   <span class="tok-type">String</span>?
+    <span class="tok-keyword">public var</span> mfaSerial:         <span class="tok-type">String</span>?
+}</code></pre>
+          </div>
+          <p>Snake-case strategy maps both new fields automatically (<code>sso_account_id</code> ↔ <code>ssoAccountId</code>). No <code>CodingKeys</code> needed.</p>
+
+          <p><strong>Tests to add</strong> in <code>ProfileCodableTests.swift</code>:</p>
+          <ul>
+            <li>Decode an SSO profile that includes <code>sso_account_id</code> + <code>sso_role_name</code>; assert both fields populated.</li>
+            <li>Encode a <code>Profile</code> that has the new fields; assert the resulting INI contains the snake-case keys.</li>
+            <li>Round-trip a profile through encode → decode; assert equality on the new fields.</li>
+            <li>Decode an old-style profile without these fields; assert both are <code>nil</code> and no decode error.</li>
+          </ul>
+
+          <h4>P1.2 — <code>AWSConfigINIError: LocalizedError</code></h4>
+          <p>SwiftUI's <a href="https://developer.apple.com/documentation/swiftui/view/alert(_:ispresented:presenting:actions:message:)-1zcyt">data-driven alert overload</a> takes <code>E?</code> where <code>E: LocalizedError</code>. Conforming the typed error makes the alert API "just work" without a wrapper. The error is already an <code>enum</code> with associated <code>URL</code> / <code>String</code> values; this conformance is purely additive.</p>
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">AWSConfigINIError<span class="ext">+LocalizedError.swift</span></span>
+              <span class="langtag">swift</span>
+            </div>
+<pre><code><span class="tok-keyword">extension</span> <span class="tok-type">AWSConfigINIError</span>: <span class="tok-type">LocalizedError</span> {
+    <span class="tok-keyword">public var</span> errorDescription: <span class="tok-type">String</span>? {
+        <span class="tok-keyword">switch</span> <span class="tok-keyword">self</span> {
+        <span class="tok-keyword">case</span> .fileNotFound(<span class="tok-keyword">let</span> url):
+            <span class="tok-keyword">return</span> <span class="tok-string">"Couldn't find the file at \(url.path(percentEncoded: false))."</span>
+        <span class="tok-keyword">case</span> .ioError(<span class="tok-keyword">let</span> url, <span class="tok-keyword">_</span>):
+            <span class="tok-keyword">return</span> <span class="tok-string">"Couldn't read or write \(url.lastPathComponent)."</span>
+        <span class="tok-keyword">case</span> .lockTimeout(<span class="tok-keyword">let</span> url):
+            <span class="tok-keyword">return</span> <span class="tok-string">"Couldn't get exclusive access to \(url.lastPathComponent). Another process may be holding the lock."</span>
+        <span class="tok-keyword">case</span> .readOnly(<span class="tok-keyword">let</span> url):
+            <span class="tok-keyword">return</span> <span class="tok-string">"\(url.lastPathComponent) is open in Read Only mode and can't be written."</span>
+        <span class="tok-keyword">case</span> .decodeError(<span class="tok-keyword">let</span> message):
+            <span class="tok-keyword">return</span> <span class="tok-string">"Couldn't read this profile: \(message)"</span>
+        <span class="tok-keyword">case</span> .encodeError(<span class="tok-keyword">let</span> message):
+            <span class="tok-keyword">return</span> <span class="tok-string">"This value can't be saved: \(message)"</span>
+        <span class="tok-keyword">case</span> .malformedInput(<span class="tok-keyword">let</span> message):
+            <span class="tok-keyword">return</span> <span class="tok-string">"Couldn't parse the file: \(message)"</span>
+        }
+    }
+
+    <span class="tok-keyword">public var</span> recoverySuggestion: <span class="tok-type">String</span>? {
+        <span class="tok-keyword">switch</span> <span class="tok-keyword">self</span> {
+        <span class="tok-keyword">case</span> .lockTimeout: <span class="tok-keyword">return</span> <span class="tok-string">"Try again in a moment."</span>
+        <span class="tok-keyword">case</span> .readOnly:    <span class="tok-keyword">return</span> <span class="tok-string">"Switch to Edit &amp; Manage in Settings to make changes."</span>
+        <span class="tok-keyword">case</span> .ioError(<span class="tok-keyword">_</span>, <span class="tok-keyword">let</span> underlying): <span class="tok-keyword">return</span> underlying.localizedDescription
+        <span class="tok-keyword">default</span>: <span class="tok-keyword">return nil</span>
+        }
+    }
+}</code></pre>
+          </div>
+
+          <p><strong>Tests to add</strong> in <code>AWSConfigINIErrorTests.swift</code>:</p>
+          <ul>
+            <li>For each <code>AWSConfigINIError</code> case: assert <code>errorDescription</code> is non-nil and contains identifying substring (URL last component, message text).</li>
+            <li>Assert <code>recoverySuggestion</code> is set for <code>.lockTimeout</code>, <code>.readOnly</code>, <code>.ioError</code> and absent for the rest.</li>
+            <li>Cast through <code>error as LocalizedError</code> to confirm the conformance is reachable via the protocol.</li>
+          </ul>
+
+          <h4>P1.3 — Convenience for "default profile name in flavor"</h4>
+          <p>Several call sites in the app need the verbatim section name <em>"default"</em> projected from a flavor. The package already has <code>FileFlavor.profileSectionName(for:)</code> which handles this. <strong>No new API needed</strong> — call <code>.config.profileSectionName(for: "default")</code> at the call site. This is documented for future implementers reading the plan: there's no Phase 1.3 hidden API extension.</p>
+
+          <h4>Acceptance — Phase 1</h4>
+          <ol class="checks">
+            <li>Run <code>mcp__xcode__RunSomeTests</code> targeting <code>AWSConfigINITests</code>; all existing tests pass and new tests pass.</li>
+            <li>Run <code>mcp__xcode__BuildProject</code>; no warnings introduced in the package.</li>
+            <li>Open <code>docs/AWSConfigINI.html</code> and visually confirm <code>Profile.ssoAccountId</code> / <code>ssoRoleName</code> appear in the <em>AWS overlay</em> section. (The HTML doc is hand-written; if the new fields aren't reflected, update the doc as part of this phase. The Phase 1 commit message should be something like <code>feat(AWSConfigINI): add Profile sso_account_id / sso_role_name + LocalizedError</code>.)</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         PHASE 2
+         ================================================================ -->
+    <section id="phase-2">
+      <h2><span class="section-anchor">06</span>Phase 2 — Mode preference</h2>
+      <div class="phase">
+        <div class="phase-head">
+          <span class="phase-num">P2</span>
+          <p class="phase-title">ModePreferenceStorage value type + tests</p>
+          <span class="phase-deps"><em>depends on</em>: P1</span>
+        </div>
+        <div class="phase-body">
+          <p>The user's mode (Edit&nbsp;&amp;&nbsp;Manage / Read&nbsp;Only) is non-secret app config. Apple's <a href="https://developer.apple.com/documentation/foundation/userdefaults"><code>UserDefaults</code></a> docs say: <em>"You use this system to store nonsensitive information, such as app-specific configuration details."</em> That's exactly the right home. Mirror the existing <code>BookmarkStorage</code> pattern so the code reads as a family.</p>
+
+          <div class="callout note"><strong>why not @AppStorage</strong>The view-level wrapper is fine for views, but <code>AppModel</code> needs to read the persisted value at <code>init</code> time before any view body runs. A small storage struct accessed from <code>AppModel</code> mirrors the existing <code>BookmarkStorage</code> shape and is the right place to put the persistence logic.</div>
+
+          <h4>New file: <code>App/Preferences/ModePreferenceStorage.swift</code></h4>
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">ModePreferenceStorage<span class="ext">.swift</span></span>
+              <span class="langtag">swift</span>
+            </div>
+<pre><code><span class="tok-keyword">import</span> <span class="tok-type">Foundation</span>
+<span class="tok-keyword">import</span> <span class="tok-type">AWSConfigINI</span>
+
+<span class="tok-keyword">struct</span> <span class="tok-type">ModePreferenceStorage</span> {
+    <span class="tok-keyword">static let</span> key = <span class="tok-string">"dev.ajbeck.quorra.managedMode"</span>
+
+    <span class="tok-keyword">static let</span> <span class="tok-keyword">`default`</span> = <span class="tok-type">ModePreferenceStorage</span>(defaults: .standard)
+
+    <span class="tok-keyword">let</span> defaults: <span class="tok-type">UserDefaults</span>
+
+    <span class="tok-keyword">init</span>(defaults: <span class="tok-type">UserDefaults</span>) { <span class="tok-keyword">self</span>.defaults = defaults }
+
+    <span class="tok-comment">/// Returns the persisted mode, or `.managed` (the documented default) when absent or unparseable.</span>
+    <span class="tok-keyword">func</span> load() -&gt; <span class="tok-type">ManagedMode</span> {
+        <span class="tok-keyword">guard let</span> raw = defaults.string(forKey: <span class="tok-type">Self</span>.key) <span class="tok-keyword">else</span> { <span class="tok-keyword">return</span> .managed }
+        <span class="tok-keyword">switch</span> raw {
+        <span class="tok-keyword">case</span> <span class="tok-string">"managed"</span>:  <span class="tok-keyword">return</span> .managed
+        <span class="tok-keyword">case</span> <span class="tok-string">"readOnly"</span>: <span class="tok-keyword">return</span> .readOnly
+        <span class="tok-keyword">default</span>:           <span class="tok-keyword">return</span> .managed
+        }
+    }
+
+    <span class="tok-keyword">func</span> save(<span class="tok-keyword">_</span> mode: <span class="tok-type">ManagedMode</span>) {
+        <span class="tok-keyword">switch</span> mode {
+        <span class="tok-keyword">case</span> .managed:  defaults.set(<span class="tok-string">"managed"</span>,  forKey: <span class="tok-type">Self</span>.key)
+        <span class="tok-keyword">case</span> .readOnly: defaults.set(<span class="tok-string">"readOnly"</span>, forKey: <span class="tok-type">Self</span>.key)
+        }
+    }
+
+    <span class="tok-keyword">func</span> clear() { defaults.removeObject(forKey: <span class="tok-type">Self</span>.key) }
+}</code></pre>
+          </div>
+
+          <h4>New tests: <code>Tests/QuorraAppTests/ModePreferenceStorageTests.swift</code></h4>
+          <p>Use Swift Testing (<code>@Test</code>), inject <code>UserDefaults(suiteName:)</code> per <code>BookmarkStorageTests</code>:</p>
+          <ul>
+            <li><code>load_returns_managed_when_no_value_present</code> — fresh suite returns <code>.managed</code>.</li>
+            <li><code>save_then_load_round_trips_managed</code> and <code>...readOnly</code>.</li>
+            <li><code>clear_removes_value</code> — after clear, <code>load()</code> returns <code>.managed</code>.</li>
+            <li><code>load_returns_managed_for_unrecognized_string</code> — write a junk string directly via the same key, assert <code>.managed</code>.</li>
+            <li>One round-trip test that reads both <code>BookmarkStorage</code> and <code>ModePreferenceStorage</code> from the same suite to confirm key namespacing doesn't collide.</li>
+          </ul>
+
+          <h4>Acceptance — Phase 2</h4>
+          <ol class="checks">
+            <li>All <code>ModePreferenceStorage</code> tests pass.</li>
+            <li>Storage struct is <code>Sendable</code>-compatible (struct of <code>UserDefaults</code> + <code>String</code> key) and compiles in Swift 6 strict-concurrency mode.</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         PHASE 3
+         ================================================================ -->
+    <section id="phase-3">
+      <h2><span class="section-anchor">07</span>Phase 3 — AppModel + setup card</h2>
+      <div class="phase">
+        <div class="phase-head">
+          <span class="phase-num">P3</span>
+          <p class="phase-title">Mode lives on AppModel; SetupView grows a mode card</p>
+          <span class="phase-deps"><em>depends on</em>: P1, P2</span>
+        </div>
+        <div class="phase-body">
+          <p>Mode is parallel to <code>phase</code> on <code>AppModel</code> — they have orthogonal lifecycles. A user in <code>.error</code> still has a mode preference; toggling mode never changes phase. Apple's per-property tracking on <code>@Observable</code> means views observing only <code>mode</code> won't redraw when <code>phase</code> changes (per the <a href="https://developer.apple.com/documentation/swiftui/migrating-from-the-observable-object-protocol-to-the-observable-macro">migration doc</a>).</p>
+
+          <h4>P3.1 — Extend <code>AppModel</code></h4>
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">AppModel<span class="ext">.swift</span></span>
+              <span class="langtag">swift</span>
+            </div>
+<pre><code><span class="tok-keyword">import</span> <span class="tok-type">Foundation</span>
+<span class="tok-keyword">import</span> <span class="tok-type">Observation</span>
+<span class="tok-keyword">import</span> <span class="tok-type">AWSConfigINI</span>
+
+<span class="tok-keyword">@Observable</span>
+<span class="tok-keyword">final class</span> <span class="tok-type">AppModel</span> {
+    <span class="tok-keyword">private(set) var</span> phase: <span class="tok-type">AppPhase</span>
+    <span class="tok-keyword">private(set) var</span> mode:  <span class="tok-type">ManagedMode</span>
+
+    <span class="tok-keyword">@ObservationIgnored private let</span> bookmarkStorage: <span class="tok-type">BookmarkStorage</span>
+    <span class="tok-keyword">@ObservationIgnored private let</span> modeStorage:     <span class="tok-type">ModePreferenceStorage</span>
+    <span class="tok-keyword">@ObservationIgnored private var</span> currentAccessURL: <span class="tok-type">URL</span>?
+
+    <span class="tok-keyword">init</span>(
+        bookmarkStorage: <span class="tok-type">BookmarkStorage</span>      = .<span class="tok-keyword">default</span>,
+        modeStorage:     <span class="tok-type">ModePreferenceStorage</span> = .<span class="tok-keyword">default</span>
+    ) {
+        <span class="tok-keyword">self</span>.bookmarkStorage = bookmarkStorage
+        <span class="tok-keyword">self</span>.modeStorage = modeStorage
+        <span class="tok-keyword">self</span>.phase = .setup
+        <span class="tok-keyword">self</span>.mode  = modeStorage.load()
+    }
+
+    <span class="tok-keyword">init</span>(
+        bookmarkStorage: <span class="tok-type">BookmarkStorage</span>      = .<span class="tok-keyword">default</span>,
+        modeStorage:     <span class="tok-type">ModePreferenceStorage</span> = .<span class="tok-keyword">default</span>,
+        initialPhase:    <span class="tok-type">AppPhase</span>,
+        initialMode:     <span class="tok-type">ManagedMode</span>?         = <span class="tok-keyword">nil</span>
+    ) {
+        <span class="tok-keyword">self</span>.bookmarkStorage = bookmarkStorage
+        <span class="tok-keyword">self</span>.modeStorage = modeStorage
+        <span class="tok-keyword">self</span>.phase = initialPhase
+        <span class="tok-keyword">self</span>.mode  = initialMode ?? modeStorage.load()
+    }
+
+    <span class="tok-comment">// Existing API — unchanged behavior, but completeSetup grows a mode parameter.</span>
+    <span class="tok-keyword">func</span> resolveStoredBookmark() <span class="tok-keyword">async</span> { <span class="tok-comment">/* unchanged */</span> }
+
+    <span class="tok-keyword">func</span> completeSetup(selectedFolder url: <span class="tok-type">URL</span>, mode newMode: <span class="tok-type">ManagedMode</span>) <span class="tok-keyword">async</span> {
+        modeStorage.save(newMode)
+        <span class="tok-keyword">self</span>.mode = newMode
+        <span class="tok-keyword">do</span> {
+            <span class="tok-keyword">let</span> data = <span class="tok-keyword">try</span> bookmarkStorage.makeBookmark(for: url)
+            bookmarkStorage.save(data)
+            currentAccessURL = url
+            phase = .ready(url)
+        } <span class="tok-keyword">catch</span> {
+            phase = .error(.bookmarkResolutionFailed(underlying: error))
+        }
+    }
+
+    <span class="tok-keyword">func</span> setMode(<span class="tok-keyword">_</span> newMode: <span class="tok-type">ManagedMode</span>) <span class="tok-keyword">async</span> {
+        modeStorage.save(newMode)
+        <span class="tok-keyword">self</span>.mode = newMode
+    }
+
+    <span class="tok-keyword">func</span> resetToSetup() <span class="tok-keyword">async</span> { <span class="tok-comment">/* unchanged */</span> }
+    <span class="tok-keyword">func</span> retryResolution() <span class="tok-keyword">async</span> { <span class="tok-comment">/* unchanged */</span> }
+}</code></pre>
+          </div>
+
+          <p><strong>Mode-flip ordering invariant</strong>: persistence first, then state. If <code>save</code> succeeded but the published value wasn't updated, an observer reading both would briefly see disagreement. Persisting first means the worst case is "old observer state, correct disk state" — recoverable on next read.</p>
+
+          <h4>P3.2 — Extend <code>SetupView</code> with the mode card</h4>
+          <p>The card sits between the path field and the button row. Two selectable card-style buttons for <em>Edit &amp; Manage</em> and <em>Read Only</em>. Default selection: <code>.managed</code>. Disabled when the non-standard-folder warning is showing (matches the existing <code>isWarningShown</code> dimming pattern).</p>
+
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">SetupView<span class="ext">.swift</span></span>
+              <span class="langtag">swift</span>
+            </div>
+<pre><code><span class="tok-keyword">struct</span> <span class="tok-type">SetupView</span>: <span class="tok-type">View</span> {
+    <span class="tok-keyword">@Environment</span>(<span class="tok-type">AppModel</span>.<span class="tok-keyword">self</span>) <span class="tok-keyword">private var</span> appModel
+    <span class="tok-keyword">@State private var</span> pendingFolder: <span class="tok-type">URL</span>?
+    <span class="tok-keyword">@State private var</span> selectedMode: <span class="tok-type">ManagedMode</span> = .managed
+
+    <span class="tok-keyword">var</span> body: <span class="tok-keyword">some</span> <span class="tok-type">View</span> {
+        <span class="tok-type">VStack</span>(alignment: .leading, spacing: <span class="tok-number">22</span>) {
+            header
+            <span class="tok-keyword">if let</span> pending = pendingFolder { nonStandardWarning(for: pending) }
+            pathField.opacity(isWarningShown ? <span class="tok-number">0.5</span> : <span class="tok-number">1</span>).disabled(isWarningShown)
+            modeCard.opacity(isWarningShown ? <span class="tok-number">0.5</span> : <span class="tok-number">1</span>).disabled(isWarningShown)  <span class="tok-comment">// NEW</span>
+            <span class="tok-type">Spacer</span>(minLength: <span class="tok-number">0</span>)
+            buttonRow.opacity(isWarningShown ? <span class="tok-number">0.5</span> : <span class="tok-number">1</span>).disabled(isWarningShown)
+        }
+        <span class="tok-comment">// padding etc — unchanged</span>
+    }
+
+    <span class="tok-keyword">private var</span> modeCard: <span class="tok-keyword">some</span> <span class="tok-type">View</span> {
+        <span class="tok-type">VStack</span>(alignment: .leading, spacing: <span class="tok-number">10</span>) {
+            <span class="tok-type">Text</span>(<span class="tok-string">"HOW SHOULD QUORRA MANAGE THIS FOLDER?"</span>)
+                .font(.system(size: <span class="tok-number">11.5</span>, weight: .semibold))
+                .tracking(<span class="tok-number">0.06</span> * <span class="tok-number">11.5</span>)
+                .foregroundStyle(.secondary)
+
+            <span class="tok-type">HStack</span>(spacing: <span class="tok-number">10</span>) {
+                modeOption(
+                    .managed,
+                    title: <span class="tok-string">"Edit &amp; Manage"</span>,
+                    blurb: <span class="tok-string">"Quorra can add, edit, and reformat profiles in your AWS files. A `# Managed by Quorra` header is added on first save."</span>,
+                    isRecommended: <span class="tok-keyword">true</span>
+                )
+                modeOption(
+                    .readOnly,
+                    title: <span class="tok-string">"Read Only"</span>,
+                    blurb: <span class="tok-string">"Quorra reads your profiles and serves credentials, but never writes to your AWS files. Useful if you hand-edit them."</span>,
+                    isRecommended: <span class="tok-keyword">false</span>
+                )
+            }
+        }
+    }
+
+    <span class="tok-keyword">private func</span> modeOption(<span class="tok-keyword">_</span> mode: <span class="tok-type">ManagedMode</span>, title: <span class="tok-type">String</span>, blurb: <span class="tok-type">String</span>, isRecommended: <span class="tok-type">Bool</span>) -&gt; <span class="tok-keyword">some</span> <span class="tok-type">View</span> {
+        <span class="tok-type">Button</span> { selectedMode = mode } label: {
+            <span class="tok-type">VStack</span>(alignment: .leading, spacing: <span class="tok-number">6</span>) {
+                <span class="tok-type">HStack</span>(spacing: <span class="tok-number">6</span>) {
+                    <span class="tok-type">Image</span>(systemName: selectedMode == mode ? <span class="tok-string">"largecircle.fill.circle"</span> : <span class="tok-string">"circle"</span>)
+                    <span class="tok-type">Text</span>(title).font(.system(size: <span class="tok-number">13</span>, weight: .semibold))
+                    <span class="tok-keyword">if</span> isRecommended {
+                        <span class="tok-type">Text</span>(<span class="tok-string">"recommended"</span>)
+                            .font(.system(size: <span class="tok-number">10</span>, weight: .medium))
+                            .padding(.horizontal, <span class="tok-number">5</span>).padding(.vertical, <span class="tok-number">1</span>)
+                            .background(<span class="tok-type">Capsule</span>().fill(<span class="tok-type">Color</span>.accentColor.opacity(<span class="tok-number">0.18</span>)))
+                    }
+                }
+                <span class="tok-type">Text</span>(blurb)
+                    .font(.system(size: <span class="tok-number">11.5</span>))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: <span class="tok-keyword">false</span>, vertical: <span class="tok-keyword">true</span>)
+            }
+            .padding(<span class="tok-number">12</span>)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(modeOptionBackground(isSelected: selectedMode == mode))
+        }
+        .buttonStyle(.plain)
+    }
+
+    <span class="tok-comment">// continueWithDefault, runPicker, confirmPendingFolder all forward `selectedMode`</span>
+    <span class="tok-comment">// to appModel.completeSetup(selectedFolder:mode:)</span>
+}</code></pre>
+          </div>
+
+          <h4>Previews</h4>
+          <ul>
+            <li><code>#Preview("Setup – idle (managed)")</code> — default state.</li>
+            <li><code>#Preview("Setup – read-only selected")</code> — preview selecting read-only.</li>
+            <li><code>#Preview("Setup – non-standard warning")</code> — existing preview, mode card dimmed.</li>
+          </ul>
+
+          <h4>P3.3 — AppModel test additions</h4>
+          <p>If <code>AppModel</code> currently has no test target, this iteration introduces one (or extends an existing target). Tests use injected <code>UserDefaults(suiteName:)</code>:</p>
+          <ul>
+            <li><code>init_loads_managed_by_default</code>.</li>
+            <li><code>init_loads_persisted_readOnly</code> — pre-populate the suite, assert <code>mode == .readOnly</code>.</li>
+            <li><code>completeSetup_persists_mode_then_phase</code>.</li>
+            <li><code>setMode_persists_and_publishes</code>.</li>
+            <li><code>setMode_in_error_phase_succeeds</code> — assert mode-flip works while <code>phase == .error</code>.</li>
+          </ul>
+
+          <h4>Acceptance — Phase 3</h4>
+          <ol class="checks">
+            <li>App builds; <code>SetupView</code> renders the mode card; selecting Read Only persists across relaunch.</li>
+            <li>Default selection is Edit &amp; Manage on a clean container.</li>
+            <li>Continue button forwards the selected mode through to <code>completeSetup(selectedFolder:mode:)</code>.</li>
+            <li>Non-standard-folder warning dims the mode card identically to other content.</li>
+            <li>All <code>AppModel</code> tests pass.</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         PHASE 4
+         ================================================================ -->
+    <section id="phase-4">
+      <h2><span class="section-anchor">08</span>Phase 4 — Settings scene</h2>
+      <div class="phase">
+        <div class="phase-head">
+          <span class="phase-num">P4</span>
+          <p class="phase-title">Settings { ... } scene + ⌘, wiring</p>
+          <span class="phase-deps"><em>depends on</em>: P3</span>
+        </div>
+        <div class="phase-body">
+          <p>The <a href="https://developer.apple.com/documentation/swiftui/settings"><code>Settings</code> scene</a> auto-wires <strong>⌘,</strong> and the App-menu Settings… item. We declare it at the App level and put the mode toggle + folder row inside. The mockup's in-window Settings sidebar destination is dropped — Settings is a separate window now, per Apple's macOS conventions.</p>
+
+          <h4>P4.1 — Wire the scene in <code>quorraApp.swift</code></h4>
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">quorraApp<span class="ext">.swift</span></span>
+              <span class="langtag">swift</span>
+            </div>
+<pre><code><span class="tok-keyword">@main</span>
+<span class="tok-keyword">struct</span> <span class="tok-type">QuorraApp</span>: <span class="tok-type">App</span> {
+    <span class="tok-keyword">@State private var</span> appModel = <span class="tok-type">AppModel</span>()
+
+    <span class="tok-keyword">var</span> body: <span class="tok-keyword">some</span> <span class="tok-type">Scene</span> {
+        <span class="tok-type">WindowGroup</span> {
+            <span class="tok-type">RootView</span>().environment(appModel)
+        }
+
+        <span class="tok-type">Settings</span> {
+            <span class="tok-type">SettingsView</span>().environment(appModel)
+        }
+    }
+}</code></pre>
+          </div>
+
+          <h4>P4.2 — New file: <code>App/Views/Settings/SettingsView.swift</code></h4>
+          <p>Two tabs in v1: <em>General</em> (mode toggle + AWS folder row) and <em>About</em> (build info). More tabs are added as features land.</p>
+
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">SettingsView<span class="ext">.swift</span></span>
+              <span class="langtag">swift</span>
+            </div>
+<pre><code><span class="tok-keyword">struct</span> <span class="tok-type">SettingsView</span>: <span class="tok-type">View</span> {
+    <span class="tok-keyword">var</span> body: <span class="tok-keyword">some</span> <span class="tok-type">View</span> {
+        <span class="tok-type">TabView</span> {
+            <span class="tok-type">GeneralSettingsTab</span>()
+                .tabItem { <span class="tok-type">Label</span>(<span class="tok-string">"General"</span>, systemImage: <span class="tok-string">"gear"</span>) }
+            <span class="tok-type">AboutSettingsTab</span>()
+                .tabItem { <span class="tok-type">Label</span>(<span class="tok-string">"About"</span>, systemImage: <span class="tok-string">"info.circle"</span>) }
+        }
+        .scenePadding()
+        .frame(minWidth: <span class="tok-number">480</span>, idealWidth: <span class="tok-number">540</span>, minHeight: <span class="tok-number">320</span>)
+    }
+}</code></pre>
+          </div>
+
+          <h4>P4.3 — <code>GeneralSettingsTab.swift</code> — mode + folder</h4>
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">GeneralSettingsTab<span class="ext">.swift</span></span>
+              <span class="langtag">swift</span>
+            </div>
+<pre><code><span class="tok-keyword">struct</span> <span class="tok-type">GeneralSettingsTab</span>: <span class="tok-type">View</span> {
+    <span class="tok-keyword">@Environment</span>(<span class="tok-type">AppModel</span>.<span class="tok-keyword">self</span>) <span class="tok-keyword">private var</span> appModel
+
+    <span class="tok-keyword">var</span> body: <span class="tok-keyword">some</span> <span class="tok-type">View</span> {
+        <span class="tok-type">Form</span> {
+            <span class="tok-type">Section</span>(<span class="tok-string">"AWS Folder"</span>) {
+                folderRow
+            }
+            <span class="tok-type">Section</span>(<span class="tok-string">"Mode"</span>) {
+                <span class="tok-type">Picker</span>(<span class="tok-string">"Quorra can"</span>, selection: <span class="tok-type">Binding</span>(
+                    get: { appModel.mode },
+                    set: { newValue <span class="tok-keyword">in</span> <span class="tok-type">Task</span> { <span class="tok-keyword">await</span> appModel.setMode(newValue) } }
+                )) {
+                    <span class="tok-type">Text</span>(<span class="tok-string">"Edit &amp; Manage"</span>).tag(<span class="tok-type">ManagedMode</span>.managed)
+                    <span class="tok-type">Text</span>(<span class="tok-string">"Read Only"</span>).tag(<span class="tok-type">ManagedMode</span>.readOnly)
+                }
+                .pickerStyle(.radioGroup)
+
+                <span class="tok-type">Text</span>(modeBlurb)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    <span class="tok-keyword">private var</span> modeBlurb: <span class="tok-type">String</span> {
+        <span class="tok-keyword">switch</span> appModel.mode {
+        <span class="tok-keyword">case</span> .managed:  <span class="tok-keyword">return</span> <span class="tok-string">"Quorra modifies ~/.aws/config and ~/.aws/credentials when you save changes."</span>
+        <span class="tok-keyword">case</span> .readOnly: <span class="tok-keyword">return</span> <span class="tok-string">"Quorra never writes to your AWS files. Profiles are read-only."</span>
+        }
+    }
+
+    <span class="tok-keyword">@ViewBuilder private var</span> folderRow: <span class="tok-keyword">some</span> <span class="tok-type">View</span> {
+        <span class="tok-keyword">switch</span> appModel.phase {
+        <span class="tok-keyword">case</span> .ready(<span class="tok-keyword">let</span> url):
+            <span class="tok-type">LabeledContent</span>(<span class="tok-string">"Path"</span>, value: url.path(percentEncoded: <span class="tok-keyword">false</span>))
+            <span class="tok-type">Button</span>(<span class="tok-string">"Change Folder…"</span>) { <span class="tok-type">Task</span> { <span class="tok-keyword">await</span> changeFolder() } }
+        <span class="tok-keyword">default</span>:
+            <span class="tok-type">Text</span>(<span class="tok-string">"Folder access not granted. Re-launch the app to set up."</span>)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    <span class="tok-keyword">private func</span> changeFolder() <span class="tok-keyword">async</span> {
+        <span class="tok-keyword">guard let</span> picked = <span class="tok-keyword">await</span> <span class="tok-type">FolderPicker</span>.pickAWSFolder() <span class="tok-keyword">else</span> { <span class="tok-keyword">return</span> }
+        <span class="tok-keyword">await</span> appModel.completeSetup(selectedFolder: picked, mode: appModel.mode)
+    }
+}</code></pre>
+          </div>
+
+          <p><strong>Mode-flip with unsaved changes</strong>: this is wired in Phase 9, after the editor is built. The radio group will gain a confirmation dialog there. For now, the radio group flips immediately.</p>
+
+          <h4>P4.4 — Verify ⌘, opens Settings</h4>
+          <p>Build &amp; run; press ⌘, from anywhere in the app. The Settings window should appear with two tabs. The App menu's Settings… item should also work. <strong>If it doesn't,</strong> the <code>Settings</code> scene wasn't declared correctly — check <code>quorraApp.swift</code>.</p>
+
+          <h4>Acceptance — Phase 4</h4>
+          <ol class="checks">
+            <li>⌘, opens the Settings window with General + About tabs.</li>
+            <li>App-menu "Settings…" item also works.</li>
+            <li>Flipping the mode picker persists; relaunching the app restores the chosen mode.</li>
+            <li>Change Folder… in Settings opens the folder picker and re-runs the bookmark grant; the resolved <code>phase = .ready(url)</code> reflects the new folder.</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         PHASE 5
+         ================================================================ -->
+    <section id="phase-5">
+      <h2><span class="section-anchor">09</span>Phase 5 — ProfilesModel</h2>
+      <div class="phase">
+        <div class="phase-head">
+          <span class="phase-num">P5</span>
+          <p class="phase-title">@Observable ProfilesModel + derived sidebar groups</p>
+          <span class="phase-deps"><em>depends on</em>: P1, P3</span>
+        </div>
+        <div class="phase-body">
+          <p>This phase introduces a second observable root next to <code>AppModel</code>. <code>ProfilesModel</code> owns the parsed AWS files and the derived view-models the sidebar consumes. Apple's environment slot is per-type (per <a href="https://developer.apple.com/documentation/swiftui/view/environment(_:)">View/environment</a>), so two distinct types coexist trivially. The motivation is granular tracking — views observing only <code>profilesModel.groups</code> won't redraw when <code>appModel.mode</code> changes.</p>
+
+          <h4>P5.1 — Type definitions</h4>
+          <p>Three small <code>Identifiable</code> / <code>Hashable</code> view-model types and the <code>ProfilesModel</code> itself. Live under <code>App/Profiles/</code>.</p>
+
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">SidebarSelection<span class="ext">.swift</span></span>
+              <span class="langtag">swift</span>
+            </div>
+<pre><code><span class="tok-keyword">enum</span> <span class="tok-type">SidebarSelection</span>: <span class="tok-type">Hashable</span> {
+    <span class="tok-keyword">case</span> session(name: <span class="tok-type">String</span>)   <span class="tok-comment">// SSO session selected</span>
+    <span class="tok-keyword">case</span> profile(name: <span class="tok-type">String</span>)   <span class="tok-comment">// profile leaf selected</span>
+}</code></pre>
+          </div>
+
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">ProfileNode<span class="ext">.swift</span></span>
+              <span class="langtag">swift</span>
+            </div>
+<pre><code><span class="tok-keyword">struct</span> <span class="tok-type">ProfileNode</span>: <span class="tok-type">Identifiable</span>, <span class="tok-type">Hashable</span> {
+    <span class="tok-keyword">let</span> id: <span class="tok-type">String</span>            <span class="tok-comment">// profile name (e.g. "dev", "default")</span>
+    <span class="tok-keyword">let</span> profile: <span class="tok-type">Profile</span>     <span class="tok-comment">// decoded; merged across files if applicable</span>
+    <span class="tok-keyword">let</span> origin: <span class="tok-type">Origin</span>
+
+    <span class="tok-keyword">enum</span> <span class="tok-type">Origin</span>: <span class="tok-type">Hashable</span> {
+        <span class="tok-keyword">case</span> configOnly         <span class="tok-comment">// section in ~/.aws/config only</span>
+        <span class="tok-keyword">case</span> credentialsOnly    <span class="tok-comment">// section in ~/.aws/credentials only</span>
+        <span class="tok-keyword">case</span> both                <span class="tok-comment">// in both files; credentials wins per-key</span>
+    }
+
+    <span class="tok-comment">/// The flavor that should receive a write for this profile.</span>
+    <span class="tok-comment">/// In v1: always .config when both, since we don't edit credentials-file fields.</span>
+    <span class="tok-keyword">var</span> writeFlavor: <span class="tok-type">FileFlavor</span> {
+        <span class="tok-keyword">switch</span> origin {
+        <span class="tok-keyword">case</span> .configOnly, .both:  <span class="tok-keyword">return</span> .config
+        <span class="tok-keyword">case</span> .credentialsOnly:    <span class="tok-keyword">return</span> .credentials
+        }
+    }
+}</code></pre>
+          </div>
+
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">SSOSessionNode<span class="ext">.swift</span></span>
+              <span class="langtag">swift</span>
+            </div>
+<pre><code><span class="tok-keyword">struct</span> <span class="tok-type">SSOSessionNode</span>: <span class="tok-type">Identifiable</span>, <span class="tok-type">Hashable</span> {
+    <span class="tok-keyword">let</span> id: <span class="tok-type">String</span>          <span class="tok-comment">// verbatim session name, e.g. "acme"</span>
+    <span class="tok-keyword">let</span> session: <span class="tok-type">SSOSession</span>?   <span class="tok-comment">// nil if section can't decode</span>
+    <span class="tok-keyword">var</span> profiles: [<span class="tok-type">ProfileNode</span>] <span class="tok-comment">// rooted to this session</span>
+}</code></pre>
+          </div>
+
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">SidebarGroups<span class="ext">.swift</span></span>
+              <span class="langtag">swift</span>
+            </div>
+<pre><code><span class="tok-keyword">struct</span> <span class="tok-type">SidebarGroups</span>: <span class="tok-type">Hashable</span> {
+    <span class="tok-keyword">var</span> ssoSessions:  [<span class="tok-type">SSOSessionNode</span>]
+    <span class="tok-keyword">var</span> longTermKeys: [<span class="tok-type">ProfileNode</span>]
+    <span class="tok-keyword">var</span> other:        [<span class="tok-type">ProfileNode</span>]
+
+    <span class="tok-keyword">static let</span> empty = <span class="tok-type">SidebarGroups</span>(ssoSessions: [], longTermKeys: [], other: [])
+}</code></pre>
+          </div>
+
+          <h4>P5.2 — <code>ProfilesModel</code></h4>
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">ProfilesModel<span class="ext">.swift</span></span>
+              <span class="langtag">swift</span>
+            </div>
+<pre><code><span class="tok-keyword">@Observable</span>
+<span class="tok-keyword">final class</span> <span class="tok-type">ProfilesModel</span> {
+    <span class="tok-keyword">private(set) var</span> configDocument:      <span class="tok-type">AWSConfigINIDocument</span>?
+    <span class="tok-keyword">private(set) var</span> credentialsDocument: <span class="tok-type">AWSConfigINIDocument</span>?
+    <span class="tok-keyword">private(set) var</span> groups:              <span class="tok-type">SidebarGroups</span> = .empty
+    <span class="tok-keyword">private(set) var</span> loadState:           <span class="tok-type">LoadState</span> = .idle
+
+    <span class="tok-keyword">enum</span> <span class="tok-type">LoadState</span>: <span class="tok-type">Equatable</span> {
+        <span class="tok-keyword">case</span> idle
+        <span class="tok-keyword">case</span> loading
+        <span class="tok-keyword">case</span> loaded
+        <span class="tok-keyword">case</span> failed(<span class="tok-type">AWSConfigINIError</span>)
+    }
+
+    <span class="tok-keyword">@ObservationIgnored private var</span> currentFolder: <span class="tok-type">URL</span>?
+
+    <span class="tok-keyword">func</span> load(folder: <span class="tok-type">URL</span>) <span class="tok-keyword">async</span> {
+        currentFolder = folder
+        loadState = .loading
+        <span class="tok-keyword">do</span> {
+            <span class="tok-keyword">let</span> configURL      = folder.appending(path: <span class="tok-string">"config"</span>)
+            <span class="tok-keyword">let</span> credentialsURL = folder.appending(path: <span class="tok-string">"credentials"</span>)
+
+            configDocument      = <span class="tok-keyword">try</span> readOrEmpty(configURL,      flavor: .config)
+            credentialsDocument = <span class="tok-keyword">try</span> readOrEmpty(credentialsURL, flavor: .credentials)
+
+            groups = derive(config: configDocument!, credentials: credentialsDocument!)
+            loadState = .loaded
+        } <span class="tok-keyword">catch let</span> error <span class="tok-keyword">as</span> <span class="tok-type">AWSConfigINIError</span> {
+            loadState = .failed(error)
+        } <span class="tok-keyword">catch</span> {
+            <span class="tok-comment">// shouldn't happen — readOrEmpty narrows to AWSConfigINIError</span>
+            loadState = .failed(.malformedInput(error.localizedDescription))
+        }
+    }
+
+    <span class="tok-keyword">func</span> reload() <span class="tok-keyword">async</span> {
+        <span class="tok-keyword">guard let</span> folder = currentFolder <span class="tok-keyword">else</span> { <span class="tok-keyword">return</span> }
+        <span class="tok-keyword">await</span> load(folder: folder)
+    }
+
+    <span class="tok-keyword">private func</span> readOrEmpty(<span class="tok-keyword">_</span> url: <span class="tok-type">URL</span>, flavor: <span class="tok-type">FileFlavor</span>) <span class="tok-keyword">throws</span> -&gt; <span class="tok-type">AWSConfigINIDocument</span> {
+        <span class="tok-keyword">if</span> <span class="tok-type">FileManager</span>.<span class="tok-keyword">default</span>.fileExists(atPath: url.path(percentEncoded: <span class="tok-keyword">false</span>)) {
+            <span class="tok-keyword">return try</span> <span class="tok-type">AWSConfigINIDocument</span>(contentsOf: url, flavor: flavor)
+        } <span class="tok-keyword">else</span> {
+            <span class="tok-keyword">return</span> <span class="tok-type">AWSConfigINIDocument</span>(empty: flavor)
+        }
+    }
+
+    <span class="tok-comment">// derive(...) — the classification ladder; spec'd in P5.3</span>
+}</code></pre>
+          </div>
+
+          <h4>P5.3 — Classification ladder (the <code>derive</code> function)</h4>
+          <p>The ladder is in Section 16 of this plan. Restated for the implementer:</p>
+          <ol>
+            <li>For each section <code>S</code> in <code>config</code> + <code>credentials</code> whose name names a <em>profile</em> (after stripping the <code>profile&nbsp;</code> prefix in the config flavor, or always-as-given in credentials):
+              <ol>
+                <li>Build a merged <code>Profile</code>: decode the config-side section first, then overlay credentials-side values for any keys present in both. Use the existing <code>AWSConfigINIDecoder</code>; for the merge, decode each side, then write a small key-by-key picker that prefers credentials.</li>
+                <li>Tag the resulting <code>ProfileNode.origin</code> based on which file(s) the section appeared in.</li>
+              </ol>
+            </li>
+            <li><strong>SSO-rooted</strong>: <code>profile.ssoSession != nil &amp;&amp; !profile.ssoSession!.isEmpty</code> → bucket under that session name.</li>
+            <li><strong>Long-term keys</strong>: <code>origin == .credentialsOnly</code> OR the section in config has <code>aws_access_key_id</code>. (The latter is rare in <code>~/.aws/config</code> but legal.)</li>
+            <li><strong>Other</strong>: everything else.</li>
+          </ol>
+          <p>For <strong>SSO sessions themselves</strong>: enumerate all <code>[sso-session NAME]</code> sections in the config document; create one <code>SSOSessionNode</code> per session, even if no profiles reference it (a session with zero profiles still appears, just without a chevron). Decoding may fail if a session is malformed; in that case set <code>session: nil</code> and still surface the row.</p>
+
+          <p><strong>Sort order:</strong> SSO sessions in the order their <code>[sso-session NAME]</code> sections appear in the config file. Profiles within an SSO session: alphabetical, with <code>default</code> first if present. Long-term keys / Other: alphabetical, <code>default</code> first.</p>
+
+          <h4>P5.4 — Inject in <code>quorraApp.swift</code></h4>
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">quorraApp<span class="ext">.swift</span></span>
+              <span class="langtag">swift</span>
+            </div>
+<pre><code><span class="tok-keyword">@main</span>
+<span class="tok-keyword">struct</span> <span class="tok-type">QuorraApp</span>: <span class="tok-type">App</span> {
+    <span class="tok-keyword">@State private var</span> appModel = <span class="tok-type">AppModel</span>()
+    <span class="tok-keyword">@State private var</span> profilesModel = <span class="tok-type">ProfilesModel</span>()
+
+    <span class="tok-keyword">var</span> body: <span class="tok-keyword">some</span> <span class="tok-type">Scene</span> {
+        <span class="tok-type">WindowGroup</span> {
+            <span class="tok-type">RootView</span>()
+                .environment(appModel)
+                .environment(profilesModel)
+        }
+        <span class="tok-type">Settings</span> {
+            <span class="tok-type">SettingsView</span>().environment(appModel)
+        }
+    }
+}</code></pre>
+          </div>
+
+          <h4>P5.5 — Tests</h4>
+          <p>The <code>derive</code> function is pure (takes two documents, returns groups) and is the load-bearing testable surface. Build a fixture-based test suite:</p>
+          <ul>
+            <li><code>derive_groups_sso_profiles_under_session</code> — config has <code>[sso-session acme]</code> and three profiles with <code>sso_session = acme</code>; assert one SSO group with three children.</li>
+            <li><code>derive_orphan_session_appears</code> — session declared, no profile uses it; assert the session row exists with empty <code>profiles</code>.</li>
+            <li><code>derive_long_term_keys</code> — credentials-file profile with <code>aws_access_key_id</code>; assert it lands in <code>longTermKeys</code>.</li>
+            <li><code>derive_other_role_assumption</code> — config profile with <code>role_arn</code> + <code>source_profile</code>, no <code>sso_session</code>; assert <code>other</code>.</li>
+            <li><code>derive_default_first</code> — multiple profiles including <code>default</code>; assert <code>default</code> is first within its group.</li>
+            <li><code>derive_credentials_overrides_config</code> — same profile name in both files, different <code>region</code>; assert credentials-side region wins in the merged <code>Profile</code>.</li>
+            <li><code>derive_session_in_source_order</code> — multiple sessions; assert order matches source-file appearance.</li>
+          </ul>
+          <p>Place fixtures under <code>Tests/QuorraAppTests/Fixtures/Profiles/</code> as INI strings (read into in-memory <code>AWSConfigINIDocument(_:flavor:)</code> — no disk required for these tests).</p>
+
+          <h4>Acceptance — Phase 5</h4>
+          <ol class="checks">
+            <li>All <code>ProfilesModel</code>/<code>derive</code> tests pass.</li>
+            <li>Manual smoke: instantiate <code>ProfilesModel</code> in a Preview, point at a fixture folder, assert <code>groups</code> populates.</li>
+            <li>The <code>derive</code> function is reachable for tests (either <code>internal</code> or exposed via a separate <code>derivation</code> file).</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         PHASE 6
+         ================================================================ -->
+    <section id="phase-6">
+      <h2><span class="section-anchor">10</span>Phase 6 — MainView shell</h2>
+      <div class="phase">
+        <div class="phase-head">
+          <span class="phase-num">P6</span>
+          <p class="phase-title">NavigationSplitView with stub sidebar &amp; detail</p>
+          <span class="phase-deps"><em>depends on</em>: P5</span>
+        </div>
+        <div class="phase-body">
+          <p>Replace the existing placeholder <code>MainView</code> (which shows folder contents) with a <a href="https://developer.apple.com/documentation/swiftui/navigationsplitview"><code>NavigationSplitView</code></a> two-column layout. This phase only stubs the sidebar and detail surfaces; Phase 7 fills in the sidebar grammar and Phase 8 fills in the detail panes.</p>
+
+          <h4>P6.1 — <code>MainView</code> rewrite</h4>
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">MainView<span class="ext">.swift</span></span>
+              <span class="langtag">swift</span>
+            </div>
+<pre><code><span class="tok-keyword">struct</span> <span class="tok-type">MainView</span>: <span class="tok-type">View</span> {
+    <span class="tok-keyword">let</span> folderURL: <span class="tok-type">URL</span>
+    <span class="tok-keyword">@Environment</span>(<span class="tok-type">AppModel</span>.<span class="tok-keyword">self</span>) <span class="tok-keyword">private var</span> appModel
+    <span class="tok-keyword">@Environment</span>(<span class="tok-type">ProfilesModel</span>.<span class="tok-keyword">self</span>) <span class="tok-keyword">private var</span> profilesModel
+    <span class="tok-keyword">@State private var</span> selection: <span class="tok-type">SidebarSelection</span>? = <span class="tok-keyword">nil</span>
+
+    <span class="tok-keyword">var</span> body: <span class="tok-keyword">some</span> <span class="tok-type">View</span> {
+        <span class="tok-type">NavigationSplitView</span> {
+            <span class="tok-type">SidebarView</span>(selection: $selection)
+                .navigationSplitViewColumnWidth(min: <span class="tok-number">200</span>, ideal: <span class="tok-number">240</span>, max: <span class="tok-number">320</span>)
+        } detail: {
+            <span class="tok-type">DetailView</span>(selection: selection)
+        }
+        .toolbar { toolbarContent }
+        .task(id: folderURL) {
+            <span class="tok-keyword">await</span> profilesModel.load(folder: folderURL)
+        }
+    }
+
+    <span class="tok-keyword">@ToolbarContentBuilder private var</span> toolbarContent: <span class="tok-keyword">some</span> <span class="tok-type">ToolbarContent</span> {
+        <span class="tok-type">ToolbarItem</span>(placement: .primaryAction) {
+            <span class="tok-type">Button</span> {
+                <span class="tok-type">Task</span> { <span class="tok-keyword">await</span> profilesModel.reload() }
+            } label: {
+                <span class="tok-type">Label</span>(<span class="tok-string">"Refresh"</span>, systemImage: <span class="tok-string">"arrow.clockwise"</span>)
+            }
+            .keyboardShortcut(<span class="tok-string">"r"</span>, modifiers: [.command])
+        }
+    }
+}</code></pre>
+          </div>
+
+          <p><strong>Selection persistence on reload</strong>: the <code>List</code> binding is <code>$selection</code>, a <code>SidebarSelection?</code> on this view. After <code>profilesModel.reload()</code>, if the previously selected entity is no longer present in <code>groups</code>, SwiftUI quietly clears the selection (since the corresponding row is gone). If it's still present, selection survives.</p>
+
+          <h4>P6.2 — Stub <code>SidebarView</code> and <code>DetailView</code></h4>
+          <p>Just enough to render Phase 6 without errors. Phases 7 + 8 replace the bodies.</p>
+
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">SidebarView<span class="ext">.swift</span> (stub)</span>
+              <span class="langtag">swift</span>
+            </div>
+<pre><code><span class="tok-keyword">struct</span> <span class="tok-type">SidebarView</span>: <span class="tok-type">View</span> {
+    <span class="tok-keyword">@Binding var</span> selection: <span class="tok-type">SidebarSelection</span>?
+    <span class="tok-keyword">@Environment</span>(<span class="tok-type">ProfilesModel</span>.<span class="tok-keyword">self</span>) <span class="tok-keyword">private var</span> profilesModel
+
+    <span class="tok-keyword">var</span> body: <span class="tok-keyword">some</span> <span class="tok-type">View</span> {
+        <span class="tok-type">List</span>(selection: $selection) {
+            <span class="tok-type">Section</span>(<span class="tok-string">"SSO Sessions"</span>) { <span class="tok-type">Text</span>(<span class="tok-string">"(stub — phase 7)"</span>) }
+        }
+        .listStyle(.sidebar)
+    }
+}</code></pre>
+          </div>
+
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">DetailView<span class="ext">.swift</span> (stub)</span>
+              <span class="langtag">swift</span>
+            </div>
+<pre><code><span class="tok-keyword">struct</span> <span class="tok-type">DetailView</span>: <span class="tok-type">View</span> {
+    <span class="tok-keyword">let</span> selection: <span class="tok-type">SidebarSelection</span>?
+    <span class="tok-keyword">@Environment</span>(<span class="tok-type">ProfilesModel</span>.<span class="tok-keyword">self</span>) <span class="tok-keyword">private var</span> profilesModel
+
+    <span class="tok-keyword">var</span> body: <span class="tok-keyword">some</span> <span class="tok-type">View</span> {
+        <span class="tok-keyword">switch</span> profilesModel.loadState {
+        <span class="tok-keyword">case</span> .idle, .loading:
+            <span class="tok-type">ProgressView</span>().controlSize(.small)
+        <span class="tok-keyword">case</span> .failed(<span class="tok-keyword">let</span> error):
+            <span class="tok-type">ContentUnavailableView</span>(<span class="tok-string">"Couldn't load profiles"</span>, systemImage: <span class="tok-string">"exclamationmark.triangle"</span>, description: <span class="tok-type">Text</span>(error.localizedDescription))
+        <span class="tok-keyword">case</span> .loaded:
+            <span class="tok-keyword">switch</span> selection {
+            <span class="tok-keyword">case</span> .none:
+                <span class="tok-type">ContentUnavailableView</span>(<span class="tok-string">"Select a profile or session"</span>, systemImage: <span class="tok-string">"sidebar.leading"</span>)
+            <span class="tok-keyword">case</span> .session(<span class="tok-keyword">let</span> name):
+                <span class="tok-type">Text</span>(<span class="tok-string">"Session: \(name) (stub — phase 8)"</span>)
+            <span class="tok-keyword">case</span> .profile(<span class="tok-keyword">let</span> name):
+                <span class="tok-type">Text</span>(<span class="tok-string">"Profile: \(name) (stub — phase 8)"</span>)
+            }
+        }
+    }
+}</code></pre>
+          </div>
+
+          <h4>P6.3 — Update the stale folder-contents view</h4>
+          <p>Delete <code>App/Views/FolderContentsView.swift</code> — it's the placeholder this phase replaces. Confirm no other references remain via <code>mcp__xcode__XcodeGrep "FolderContentsView"</code>.</p>
+
+          <h4>Acceptance — Phase 6</h4>
+          <ol class="checks">
+            <li>App launches into <code>MainView</code> with a two-column split layout.</li>
+            <li>Sidebar shows the placeholder "(stub)" row inside a "SSO Sessions" section.</li>
+            <li>Detail pane shows <code>ContentUnavailableView</code> "Select a profile or session" when nothing is selected.</li>
+            <li>Toolbar refresh button (⌘R) is present and triggers <code>ProfilesModel.reload()</code>.</li>
+            <li><code>FolderContentsView</code> is removed; project compiles.</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         PHASE 7
+         ================================================================ -->
+    <section id="phase-7">
+      <h2><span class="section-anchor">11</span>Phase 7 — Sidebar grammar</h2>
+      <div class="phase">
+        <div class="phase-head">
+          <span class="phase-num">P7</span>
+          <p class="phase-title">Sections + OutlineGroup with unified selection</p>
+          <span class="phase-deps"><em>depends on</em>: P5, P6</span>
+        </div>
+        <div class="phase-body">
+          <p>The sidebar combines a hierarchical <code>OutlineGroup</code> for the SSO Sessions section with flat <code>ForEach</code> rows for Long-term keys / Other. Per the <a href="https://developer.apple.com/documentation/swiftui/outlinegroup">documentation</a>, <code>OutlineGroup</code> participates in the enclosing <code>List</code>'s selection. The hierarchical <code>List(_:children:selection:)</code> initializer <strong>cannot be combined with sibling <code>Section</code>s</strong> — it owns the entire list. We use <code>List(selection:content:)</code> instead.</p>
+
+          <div class="callout warn"><strong>composition trap</strong>The shape <code>List(sessions, children: \.profiles, selection: $sel) { ... }; Section { ... }</code> does not compile. The hierarchical initializer's <code>Content</code> is fixed to a single <code>OutlineGroup</code>. The correct shape is <code>List(selection: $sel) { Section { OutlineGroup(...) }; Section { ForEach(...) } }</code>.</div>
+
+          <h4>P7.1 — <code>SidebarView</code> body</h4>
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">SidebarView<span class="ext">.swift</span></span>
+              <span class="langtag">swift</span>
+            </div>
+<pre><code><span class="tok-keyword">struct</span> <span class="tok-type">SidebarView</span>: <span class="tok-type">View</span> {
+    <span class="tok-keyword">@Binding var</span> selection: <span class="tok-type">SidebarSelection</span>?
+    <span class="tok-keyword">@Environment</span>(<span class="tok-type">ProfilesModel</span>.<span class="tok-keyword">self</span>) <span class="tok-keyword">private var</span> profilesModel
+
+    <span class="tok-keyword">var</span> body: <span class="tok-keyword">some</span> <span class="tok-type">View</span> {
+        <span class="tok-type">List</span>(selection: $selection) {
+            ssoSessionsSection
+            longTermKeysSection
+            otherSection
+        }
+        .listStyle(.sidebar)
+    }
+
+    <span class="tok-keyword">@ViewBuilder private var</span> ssoSessionsSection: <span class="tok-keyword">some</span> <span class="tok-type">View</span> {
+        <span class="tok-keyword">if</span> !profilesModel.groups.ssoSessions.isEmpty {
+            <span class="tok-type">Section</span>(<span class="tok-string">"SSO Sessions"</span>) {
+                <span class="tok-type">ForEach</span>(profilesModel.groups.ssoSessions) { session <span class="tok-keyword">in</span>
+                    <span class="tok-keyword">if</span> session.profiles.isEmpty {
+                        <span class="tok-comment">// no chevron — flat row, still selectable as a session</span>
+                        <span class="tok-type">SessionRow</span>(session: session)
+                            .tag(<span class="tok-type">SidebarSelection</span>.session(name: session.id))
+                    } <span class="tok-keyword">else</span> {
+                        <span class="tok-type">DisclosureGroup</span> {
+                            <span class="tok-type">ForEach</span>(session.profiles) { profile <span class="tok-keyword">in</span>
+                                <span class="tok-type">ProfileRow</span>(profile: profile)
+                                    .tag(<span class="tok-type">SidebarSelection</span>.profile(name: profile.id))
+                            }
+                        } label: {
+                            <span class="tok-type">SessionRow</span>(session: session)
+                        }
+                        .tag(<span class="tok-type">SidebarSelection</span>.session(name: session.id))
+                    }
+                }
+            }
+        }
+    }
+
+    <span class="tok-keyword">@ViewBuilder private var</span> longTermKeysSection: <span class="tok-keyword">some</span> <span class="tok-type">View</span> {
+        <span class="tok-keyword">if</span> !profilesModel.groups.longTermKeys.isEmpty {
+            <span class="tok-type">Section</span>(<span class="tok-string">"Long-term keys"</span>) {
+                <span class="tok-type">ForEach</span>(profilesModel.groups.longTermKeys) { profile <span class="tok-keyword">in</span>
+                    <span class="tok-type">ProfileRow</span>(profile: profile)
+                        .tag(<span class="tok-type">SidebarSelection</span>.profile(name: profile.id))
+                }
+            }
+        }
+    }
+
+    <span class="tok-keyword">@ViewBuilder private var</span> otherSection: <span class="tok-keyword">some</span> <span class="tok-type">View</span> {
+        <span class="tok-keyword">if</span> !profilesModel.groups.other.isEmpty {
+            <span class="tok-type">Section</span>(<span class="tok-string">"Other"</span>) {
+                <span class="tok-type">ForEach</span>(profilesModel.groups.other) { profile <span class="tok-keyword">in</span>
+                    <span class="tok-type">ProfileRow</span>(profile: profile)
+                        .tag(<span class="tok-type">SidebarSelection</span>.profile(name: profile.id))
+                }
+            }
+        }
+    }
+}</code></pre>
+          </div>
+
+          <div class="callout note"><strong>DisclosureGroup vs OutlineGroup</strong>The Apple-research agent flagged "don't hand-roll <code>DisclosureGroup</code> inside <code>List(selection:)</code>." But that warning is about <em>flat</em> uses where the label doesn't get a <code>.tag(...)</code>. Here we explicitly tag both the label (the session row) and the children (profile rows), so selection works for both. <code>OutlineGroup</code> with the <code>children</code> keypath is also acceptable but ties data shape to the keypath — using <code>DisclosureGroup</code> + <code>ForEach</code> with explicit <code>.tag</code>s gives us flexibility to render different row types per level (which we want — a session row carries different metadata than a profile row).</div>
+
+          <h4>P7.2 — Row views</h4>
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">SessionRow<span class="ext">.swift</span></span>
+              <span class="langtag">swift</span>
+            </div>
+<pre><code><span class="tok-keyword">struct</span> <span class="tok-type">SessionRow</span>: <span class="tok-type">View</span> {
+    <span class="tok-keyword">let</span> session: <span class="tok-type">SSOSessionNode</span>
+
+    <span class="tok-keyword">var</span> body: <span class="tok-keyword">some</span> <span class="tok-type">View</span> {
+        <span class="tok-type">HStack</span>(spacing: <span class="tok-number">8</span>) {
+            <span class="tok-type">Image</span>(systemName: <span class="tok-string">"cloud"</span>)
+                .foregroundStyle(.secondary)
+            <span class="tok-type">Text</span>(session.id)
+                .lineLimit(<span class="tok-number">1</span>)
+            <span class="tok-type">Spacer</span>(minLength: <span class="tok-number">0</span>)
+            <span class="tok-keyword">if</span> session.profiles.count &gt; <span class="tok-number">0</span> {
+                <span class="tok-type">Text</span>(<span class="tok-string">"\(session.profiles.count)"</span>)
+                    .font(.caption2.monospaced())
+                    .foregroundStyle(.tertiary)
+            }
+        }
+    }
+}</code></pre>
+          </div>
+
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">ProfileRow<span class="ext">.swift</span></span>
+              <span class="langtag">swift</span>
+            </div>
+<pre><code><span class="tok-keyword">struct</span> <span class="tok-type">ProfileRow</span>: <span class="tok-type">View</span> {
+    <span class="tok-keyword">let</span> profile: <span class="tok-type">ProfileNode</span>
+
+    <span class="tok-keyword">var</span> body: <span class="tok-keyword">some</span> <span class="tok-type">View</span> {
+        <span class="tok-type">HStack</span>(spacing: <span class="tok-number">8</span>) {
+            <span class="tok-type">Image</span>(systemName: <span class="tok-string">"person.crop.circle"</span>)
+                .foregroundStyle(.secondary)
+            <span class="tok-type">Text</span>(profile.id)
+                .lineLimit(<span class="tok-number">1</span>)
+            <span class="tok-type">Spacer</span>(minLength: <span class="tok-number">0</span>)
+        }
+    }
+}</code></pre>
+          </div>
+
+          <h4>P7.3 — Empty &amp; error states</h4>
+          <p>If <code>profilesModel.groups</code> is fully empty (no SSO sessions, no profiles in any bucket), render the same <code>ContentUnavailableView</code> the detail pane shows: "No profiles found". The sidebar itself stays empty (no rows, no sections). Don't render section headers with no children — the <code>@ViewBuilder</code> guards above already do this.</p>
+
+          <h4>P7.4 — Default selection on first load</h4>
+          <p>After <code>profilesModel.load(folder:)</code> completes (loadState == .loaded), if <code>selection == nil</code>, set it to the first available item: first profile under first SSO session, else first long-term-keys profile, else first other profile. Implementation: a small <code>onChange(of: profilesModel.loadState)</code> in <code>MainView</code>. Skip if <code>groups</code> is empty.</p>
+
+          <h4>Acceptance — Phase 7</h4>
+          <ol class="checks">
+            <li>Pointing the app at a real <code>~/.aws</code> folder shows actual SSO sessions and profiles in the sidebar.</li>
+            <li>Clicking an SSO session header selects it (detail pane reads <em>"Session: NAME"</em>); clicking a profile leaf selects the profile.</li>
+            <li>SSO sessions with zero profiles render without a chevron, still selectable.</li>
+            <li>Long-term keys / Other sections only render when non-empty.</li>
+            <li>First load selects the first available item automatically.</li>
+            <li>⌘R refreshes; selection survives if the entity still exists, clears otherwise.</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         PHASE 8
+         ================================================================ -->
+    <section id="phase-8">
+      <h2><span class="section-anchor">12</span>Phase 8 — Detail panes</h2>
+      <div class="phase">
+        <div class="phase-head">
+          <span class="phase-num">P8</span>
+          <p class="phase-title">Profile + SSO session detail panes (read path only)</p>
+          <span class="phase-deps"><em>depends on</em>: P7</span>
+        </div>
+        <div class="phase-body">
+          <p>Phase 8 builds the detail panes' <strong>read path</strong>: render a <code>Form</code> with <code>LabeledContent</code> rows in Read Only mode and editable controls in Edit&nbsp;&amp;&nbsp;Manage mode. The Save round-trip is wired in Phase 9 — for this phase, edits are kept in local <code>@State</code> and discarded on selection change.</p>
+
+          <h4>P8.1 — <code>DetailView</code> dispatch</h4>
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">DetailView<span class="ext">.swift</span></span>
+              <span class="langtag">swift</span>
+            </div>
+<pre><code><span class="tok-keyword">struct</span> <span class="tok-type">DetailView</span>: <span class="tok-type">View</span> {
+    <span class="tok-keyword">let</span> selection: <span class="tok-type">SidebarSelection</span>?
+    <span class="tok-keyword">@Environment</span>(<span class="tok-type">AppModel</span>.<span class="tok-keyword">self</span>) <span class="tok-keyword">private var</span> appModel
+    <span class="tok-keyword">@Environment</span>(<span class="tok-type">ProfilesModel</span>.<span class="tok-keyword">self</span>) <span class="tok-keyword">private var</span> profilesModel
+
+    <span class="tok-keyword">var</span> body: <span class="tok-keyword">some</span> <span class="tok-type">View</span> {
+        <span class="tok-keyword">switch</span> (profilesModel.loadState, selection) {
+        <span class="tok-keyword">case</span> (.idle, <span class="tok-keyword">_</span>), (.loading, <span class="tok-keyword">_</span>):
+            <span class="tok-type">ProgressView</span>().controlSize(.small)
+        <span class="tok-keyword">case</span> (.failed(<span class="tok-keyword">let</span> err), <span class="tok-keyword">_</span>):
+            <span class="tok-type">ContentUnavailableView</span>(<span class="tok-string">"Couldn't load profiles"</span>,
+                                   systemImage: <span class="tok-string">"exclamationmark.triangle"</span>,
+                                   description: <span class="tok-type">Text</span>(err.localizedDescription))
+        <span class="tok-keyword">case</span> (.loaded, .none):
+            <span class="tok-type">ContentUnavailableView</span>(<span class="tok-string">"Select a profile or session"</span>, systemImage: <span class="tok-string">"sidebar.leading"</span>)
+        <span class="tok-keyword">case</span> (.loaded, .profile(<span class="tok-keyword">let</span> name)):
+            <span class="tok-keyword">if let</span> node = profilesModel.findProfile(named: name) {
+                <span class="tok-type">ProfileDetailView</span>(node: node)
+            } <span class="tok-keyword">else</span> {
+                <span class="tok-type">ContentUnavailableView</span>(<span class="tok-string">"Profile not found"</span>, systemImage: <span class="tok-string">"questionmark.circle"</span>)
+            }
+        <span class="tok-keyword">case</span> (.loaded, .session(<span class="tok-keyword">let</span> name)):
+            <span class="tok-keyword">if let</span> node = profilesModel.findSession(named: name) {
+                <span class="tok-type">SessionDetailView</span>(node: node)
+            } <span class="tok-keyword">else</span> {
+                <span class="tok-type">ContentUnavailableView</span>(<span class="tok-string">"Session not found"</span>, systemImage: <span class="tok-string">"questionmark.circle"</span>)
+            }
+        }
+    }
+}</code></pre>
+          </div>
+
+          <p><code>findProfile(named:)</code> and <code>findSession(named:)</code> are tiny lookup helpers on <code>ProfilesModel</code>: walk <code>groups</code>, return the first match. They centralize the lookup; keeps the view simple.</p>
+
+          <h4>P8.2 — <code>ProfileDetailView</code> (read path)</h4>
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">ProfileDetailView<span class="ext">.swift</span></span>
+              <span class="langtag">swift</span>
+            </div>
+<pre><code><span class="tok-keyword">struct</span> <span class="tok-type">ProfileDetailView</span>: <span class="tok-type">View</span> {
+    <span class="tok-keyword">let</span> node: <span class="tok-type">ProfileNode</span>
+    <span class="tok-keyword">@Environment</span>(<span class="tok-type">AppModel</span>.<span class="tok-keyword">self</span>) <span class="tok-keyword">private var</span> appModel
+    <span class="tok-keyword">@Environment</span>(<span class="tok-keyword">\</span>.openSettings) <span class="tok-keyword">private var</span> openSettings
+
+    <span class="tok-keyword">@State private var</span> draft: <span class="tok-type">Profile</span>
+    <span class="tok-keyword">@State private var</span> isPresentingSaveError = <span class="tok-keyword">false</span>
+    <span class="tok-keyword">@State private var</span> saveError: <span class="tok-type">AWSConfigINIError</span>?
+
+    <span class="tok-keyword">init</span>(node: <span class="tok-type">ProfileNode</span>) {
+        <span class="tok-keyword">self</span>.node = node
+        <span class="tok-keyword">self</span>._draft = <span class="tok-type">State</span>(initialValue: node.profile)
+    }
+
+    <span class="tok-keyword">private var</span> isReadOnly: <span class="tok-type">Bool</span> { appModel.mode == .readOnly }
+    <span class="tok-keyword">private var</span> isDirty: <span class="tok-type">Bool</span> { draft != node.profile }
+
+    <span class="tok-keyword">var</span> body: <span class="tok-keyword">some</span> <span class="tok-type">View</span> {
+        <span class="tok-type">Form</span> {
+            <span class="tok-keyword">if</span> isReadOnly { readOnlyBanner }
+            identitySection
+            sessionLinkSection
+            roleSection
+        }
+        .formStyle(.grouped)
+        .navigationTitle(node.id)
+        .navigationSubtitle(isDirty ? <span class="tok-string">"Edited"</span> : <span class="tok-string">""</span>)
+        .toolbar { editorToolbar }
+        .onChange(of: node) { _, newValue <span class="tok-keyword">in</span>
+            <span class="tok-comment">// re-seed draft when selection changes</span>
+            draft = newValue.profile
+        }
+    }
+
+    <span class="tok-comment">// editor toolbar, sections, save() — fleshed in Phase 9</span>
+}</code></pre>
+          </div>
+
+          <p><strong>Form sections in v1</strong>:</p>
+          <ul>
+            <li><strong>Identity</strong>: <code>region</code>, <code>output</code>, <code>ssoAccountId</code>, <code>ssoRoleName</code>.</li>
+            <li><strong>SSO link</strong> (only when <code>draft.ssoSession != nil</code>): <code>ssoSession</code> name, plus a "View session…" button that flips <code>selection</code> to <code>.session(name: draft.ssoSession!)</code>.</li>
+            <li><strong>Role</strong> (only when <code>draft.roleArn != nil || draft.sourceProfile != nil</code>): <code>roleArn</code>, <code>sourceProfile</code>, <code>roleSessionName</code>, <code>mfaSerial</code>.</li>
+            <li><strong>Custom credential process</strong> (only when <code>draft.credentialProcess != nil</code>): <code>credentialProcess</code>.</li>
+          </ul>
+
+          <h4>P8.3 — Field rendering rules</h4>
+          <ul>
+            <li><strong>Read Only mode</strong>: every row is <code>LabeledContent("Region", value: draft.region ?? "—")</code>. No <code>TextField</code>, no <code>Picker</code>.</li>
+            <li><strong>Edit&nbsp;&amp;&nbsp;Manage</strong>:
+              <ul>
+                <li><code>region</code>: <code>TextField</code>, monospaced, placeholder <code>"us-east-1"</code>.</li>
+                <li><code>output</code>: <code>Picker</code> over <code>{ json, text, table, yaml, yaml-stream }</code>; default style (pop-up) per <a href="https://developer.apple.com/documentation/swiftui/pickerstyle/menu">menu picker</a>.</li>
+                <li>Strings (account ID, role ARN, etc.): <code>TextField</code>.</li>
+                <li><code>credentialProcess</code>: <code>TextField</code>, monospaced, full-width.</li>
+              </ul>
+            </li>
+          </ul>
+
+          <h4>P8.4 — Read Only banner</h4>
+          <p>Top of the form (a <code>Section</code> with no header) — not <code>ContentUnavailableView</code> (that's an empty-state primitive).</p>
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">readOnlyBanner.swift</span>
+              <span class="langtag">swift</span>
+            </div>
+<pre><code><span class="tok-keyword">@ViewBuilder private var</span> readOnlyBanner: <span class="tok-keyword">some</span> <span class="tok-type">View</span> {
+    <span class="tok-type">Section</span> {
+        <span class="tok-type">HStack</span>(spacing: <span class="tok-number">10</span>) {
+            <span class="tok-type">Image</span>(systemName: <span class="tok-string">"lock.fill"</span>)
+                .foregroundStyle(.secondary)
+            <span class="tok-type">VStack</span>(alignment: .leading, spacing: <span class="tok-number">2</span>) {
+                <span class="tok-type">Text</span>(<span class="tok-string">"Read Only mode"</span>).font(.callout.weight(.semibold))
+                <span class="tok-type">Text</span>(<span class="tok-string">"Quorra won't write to your AWS files."</span>)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            <span class="tok-type">Spacer</span>(minLength: <span class="tok-number">0</span>)
+            <span class="tok-type">Button</span>(<span class="tok-string">"Open Settings…"</span>) { openSettings() }
+                .controlSize(.small)
+        }
+    }
+}</code></pre>
+          </div>
+
+          <h4>P8.5 — <code>SessionDetailView</code></h4>
+          <p>Same shape as <code>ProfileDetailView</code> but typed against <code>SSOSession</code>:</p>
+          <ul>
+            <li>Sections: <strong>Identity</strong> (<code>ssoStartUrl</code>, <code>ssoRegion</code>), <strong>Scopes</strong> (<code>ssoRegistrationScopes</code> as a comma-separated <code>TextField</code> with hint copy <em>"Comma-separated, e.g. <code>sso:account:access</code>"</em>).</li>
+            <li>Status row near the title: <em>"Sign-in not yet implemented in this build"</em> in secondary color.</li>
+            <li>Renew / Sign out buttons not rendered.</li>
+          </ul>
+
+          <h4>P8.6 — Cross-link (profile → session)</h4>
+          <p>The "SSO link" section in the profile view has a "View session…" button. It needs to flip the parent's <code>SidebarSelection</code> binding. Pass the binding down from <code>MainView</code> → <code>DetailView</code> → <code>ProfileDetailView</code>. Or — simpler — use SwiftUI's <code>NavigationLink(value:)</code> if <code>NavigationSplitView</code>'s <code>NavigationStack</code>-style nesting fits. <strong>v1: pass the binding</strong>; <code>NavigationLink(value:)</code> introduces a stack we don't want here.</p>
+
+          <h4>Acceptance — Phase 8</h4>
+          <ol class="checks">
+            <li>Selecting a profile shows a <code>Form</code> populated with the profile's fields.</li>
+            <li>In Edit&nbsp;&amp;&nbsp;Manage, fields render as <code>TextField</code>s / <code>Picker</code>; in Read Only as <code>LabeledContent</code>.</li>
+            <li>Read Only mode shows the lock banner with an <em>Open Settings…</em> button that opens the standard Settings window.</li>
+            <li>Selecting an SSO session shows session-typed fields with the placeholder status row.</li>
+            <li>Profile view's "View session…" button flips the sidebar selection.</li>
+            <li>The dirty <code>navigationSubtitle("Edited")</code> appears as soon as a field is changed.</li>
+            <li>Switching selection while dirty discards in-flight edits (this is acceptable for Phase 8 — Phase 9 introduces the close-confirmation dialog for window close, but an explicit selection change just re-seeds the draft).</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         PHASE 9
+         ================================================================ -->
+    <section id="phase-9">
+      <h2><span class="section-anchor">13</span>Phase 9 — Save round-trip</h2>
+      <div class="phase">
+        <div class="phase-head">
+          <span class="phase-num">P9</span>
+          <p class="phase-title">Save / Discard / error alert / mode-flip dialog</p>
+          <span class="phase-deps"><em>depends on</em>: P8</span>
+        </div>
+        <div class="phase-body">
+          <p>This is the iteration's load-bearing phase. It exercises the full <a href="./AWSConfigINI.html#mode"><code>AWSConfigINIDocument.update(at:flavor:_:)</code></a> path: fcntl lock, atomic rename, managed-mode header, re-parse. Cite the AWSConfigINI doc for the exact API contract; this phase consumes that contract.</p>
+
+          <h4>P9.1 — Toolbar Save / Discard</h4>
+          <p>Use the documented placements: <a href="https://developer.apple.com/documentation/swiftui/toolbaritemplacement/confirmationaction"><code>.confirmationAction</code></a> for Save (gets accent color + default-action keyboard shortcut), <a href="https://developer.apple.com/documentation/swiftui/toolbaritemplacement/cancellationaction"><code>.cancellationAction</code></a> for Discard.</p>
+
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">ProfileDetailView+Toolbar<span class="ext">.swift</span></span>
+              <span class="langtag">swift</span>
+            </div>
+<pre><code><span class="tok-keyword">@ToolbarContentBuilder private var</span> editorToolbar: <span class="tok-keyword">some</span> <span class="tok-type">ToolbarContent</span> {
+    <span class="tok-keyword">if</span> !isReadOnly {
+        <span class="tok-type">ToolbarItem</span>(placement: .cancellationAction) {
+            <span class="tok-type">Button</span>(<span class="tok-string">"Discard"</span>, role: .destructive) {
+                draft = node.profile
+            }
+            .disabled(!isDirty)
+        }
+        <span class="tok-type">ToolbarItem</span>(placement: .confirmationAction) {
+            <span class="tok-type">Button</span>(<span class="tok-string">"Save"</span>) {
+                <span class="tok-type">Task</span> { <span class="tok-keyword">await</span> save() }
+            }
+            .disabled(!isDirty)
+            .keyboardShortcut(.defaultAction)
+        }
+    }
+}</code></pre>
+          </div>
+
+          <h4>P9.2 — Save implementation</h4>
+          <p>Per-section save. Wraps the call in <code>AWSConfigINIDocument.update(at:flavor:.managed)</code>. The function lives on <code>ProfilesModel</code> so it can re-derive groups after the write.</p>
+
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">ProfilesModel+Save<span class="ext">.swift</span></span>
+              <span class="langtag">swift</span>
+            </div>
+<pre><code><span class="tok-keyword">extension</span> <span class="tok-type">ProfilesModel</span> {
+    <span class="tok-comment">/// Persist a Profile change for the given node. Re-reads + re-derives on success.</span>
+    <span class="tok-keyword">func</span> save(_ updated: <span class="tok-type">Profile</span>, for node: <span class="tok-type">ProfileNode</span>) <span class="tok-keyword">async throws</span>(<span class="tok-type">AWSConfigINIError</span>) {
+        <span class="tok-keyword">guard let</span> folder = currentFolder <span class="tok-keyword">else</span> {
+            <span class="tok-keyword">throw</span> .ioError(<span class="tok-type">URL</span>(filePath: <span class="tok-string">"/dev/null"</span>),
+                          underlying: <span class="tok-type">NSError</span>(domain: <span class="tok-string">"Quorra"</span>, code: -<span class="tok-number">1</span>))
+        }
+        <span class="tok-keyword">let</span> flavor = node.writeFlavor
+        <span class="tok-keyword">let</span> url = folder.appending(path: flavor == .config ? <span class="tok-string">"config"</span> : <span class="tok-string">"credentials"</span>)
+        <span class="tok-keyword">let</span> sectionName = flavor.profileSectionName(for: node.id)
+
+        <span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIDocument</span>.update(at: url, flavor: flavor, mode: .managed) { doc <span class="tok-keyword">in</span>
+            <span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIEncoder</span>().encodeProfile(updated, named: node.id, into: &amp;doc)
+        }
+
+        <span class="tok-keyword">await</span> reload()
+    }
+
+    <span class="tok-keyword">func</span> save(_ updated: <span class="tok-type">SSOSession</span>, for node: <span class="tok-type">SSOSessionNode</span>) <span class="tok-keyword">async throws</span>(<span class="tok-type">AWSConfigINIError</span>) {
+        <span class="tok-keyword">guard let</span> folder = currentFolder <span class="tok-keyword">else</span> {
+            <span class="tok-keyword">throw</span> .ioError(<span class="tok-type">URL</span>(filePath: <span class="tok-string">"/dev/null"</span>),
+                          underlying: <span class="tok-type">NSError</span>(domain: <span class="tok-string">"Quorra"</span>, code: -<span class="tok-number">1</span>))
+        }
+        <span class="tok-keyword">let</span> url = folder.appending(path: <span class="tok-string">"config"</span>)
+        <span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIDocument</span>.update(at: url, flavor: .config, mode: .managed) { doc <span class="tok-keyword">in</span>
+            <span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIEncoder</span>().encode(updated, into: &amp;doc, section: <span class="tok-string">"sso-session \(node.id)"</span>)
+        }
+        <span class="tok-keyword">await</span> reload()
+    }
+}</code></pre>
+          </div>
+
+          <p>Calling site in the view:</p>
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">ProfileDetailView+Save<span class="ext">.swift</span></span>
+              <span class="langtag">swift</span>
+            </div>
+<pre><code><span class="tok-keyword">private func</span> save() <span class="tok-keyword">async</span> {
+    <span class="tok-keyword">do</span> {
+        <span class="tok-keyword">try await</span> profilesModel.save(draft, for: node)
+        <span class="tok-comment">// reload() will re-derive groups and `node` will be replaced — onChange re-seeds draft</span>
+    } <span class="tok-keyword">catch let</span> err <span class="tok-keyword">as</span> <span class="tok-type">AWSConfigINIError</span> {
+        saveError = err
+        isPresentingSaveError = <span class="tok-keyword">true</span>
+    } <span class="tok-keyword">catch</span> {
+        saveError = .malformedInput(error.localizedDescription)
+        isPresentingSaveError = <span class="tok-keyword">true</span>
+    }
+}</code></pre>
+          </div>
+
+          <div class="callout warn"><strong>typed-throws note</strong><code>AWSConfigINIDocument.update(at:flavor:_:)</code> uses Swift 6.2 typed throws — <code>throws(AWSConfigINIError)</code>. The view's <code>do/catch</code> must catch the typed error, not <code>Error</code>. The <code>let err as AWSConfigINIError</code> form works for the typed-throw bridge, but the second <code>catch</code> for <code>error</code> is unreachable in practice — keep it for compiler exhaustiveness if needed.</div>
+
+          <h4>P9.3 — Error alert</h4>
+          <p>Use the data-driven alert overload — <code>AWSConfigINIError</code> conforms to <code>LocalizedError</code> from Phase 1.</p>
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">ProfileDetailView+Alert<span class="ext">.swift</span></span>
+              <span class="langtag">swift</span>
+            </div>
+<pre><code>.alert(
+    <span class="tok-string">"Couldn't save"</span>,
+    isPresented: $isPresentingSaveError,
+    presenting: saveError
+) { <span class="tok-keyword">_ in</span>
+    <span class="tok-type">Button</span>(<span class="tok-string">"Retry"</span>) { <span class="tok-type">Task</span> { <span class="tok-keyword">await</span> save() } }
+    <span class="tok-type">Button</span>(<span class="tok-string">"OK"</span>, role: .cancel) { }
+} message: { error <span class="tok-keyword">in</span>
+    <span class="tok-type">Text</span>([error.errorDescription, error.recoverySuggestion]
+        .compactMap { $0 }.joined(separator: <span class="tok-string">"\n\n"</span>))
+}</code></pre>
+          </div>
+
+          <p><strong>Form stays dirty on save failure</strong> — we don't reset <code>draft</code> in the catch path. Re-clicking Save retries.</p>
+
+          <h4>P9.4 — Mode-flip with unsaved changes</h4>
+          <p>The <code>Settings</code> mode picker needs a confirmation when the active detail pane is dirty. The cleanest place to enforce this is at the <code>setMode</code> call site — but the Settings tab doesn't know about detail-pane dirty state.</p>
+          <p><strong>Approach:</strong> add a <code>hasUnsavedChanges</code> environment value, set by <code>ProfileDetailView</code> / <code>SessionDetailView</code> via <code>.onChange(of: isDirty)</code> updating an <code>@Observable AppDirtyState</code> singleton (yes, another small observable, scoped specifically to "is some pane dirty"). Settings reads it and gates the picker.</p>
+
+          <p>Alternative — <strong>simpler — accepted for v1:</strong> Settings' picker calls a wrapper <code>confirmAndSetMode(_:)</code> that checks <code>profilesModel.dirtyDetailPane</code>. <code>ProfilesModel</code> exposes a <code>dirtyDetailPane: Bool</code> property the detail panes maintain via <code>@Bindable</code>. Trade-off: profiles-model knows about an editor concern. But it's small and centralizes the check.</p>
+
+          <p><strong>Final decision:</strong> a tiny <code>@Observable EditorState</code> alongside <code>AppModel</code> / <code>ProfilesModel</code>. Holds <code>dirtyDescription: String?</code>. Detail panes set it when dirty (with a description like "<em>changes to profile dev</em>"). The Settings picker reads it.</p>
+
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">EditorState<span class="ext">.swift</span></span>
+              <span class="langtag">swift</span>
+            </div>
+<pre><code><span class="tok-keyword">@Observable</span>
+<span class="tok-keyword">final class</span> <span class="tok-type">EditorState</span> {
+    <span class="tok-comment">/// Non-nil when a detail pane has unsaved changes.</span>
+    <span class="tok-keyword">var</span> dirtyDescription: <span class="tok-type">String</span>?
+}</code></pre>
+          </div>
+
+          <p>The Settings picker uses a <code>confirmationDialog</code>:</p>
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">GeneralSettingsTab+ModeFlip<span class="ext">.swift</span></span>
+              <span class="langtag">swift</span>
+            </div>
+<pre><code><span class="tok-keyword">@State private var</span> pendingMode: <span class="tok-type">ManagedMode</span>?
+
+<span class="tok-comment">// Picker selection wired through this binding:</span>
+<span class="tok-type">Binding</span>(
+    get: { appModel.mode },
+    set: { newValue <span class="tok-keyword">in</span>
+        <span class="tok-keyword">if</span> editorState.dirtyDescription != <span class="tok-keyword">nil</span> &amp;&amp; newValue != appModel.mode {
+            pendingMode = newValue
+        } <span class="tok-keyword">else</span> {
+            <span class="tok-type">Task</span> { <span class="tok-keyword">await</span> appModel.setMode(newValue) }
+        }
+    }
+)
+.confirmationDialog(
+    <span class="tok-string">"You have unsaved changes"</span>,
+    isPresented: <span class="tok-type">Binding</span>(get: { pendingMode != <span class="tok-keyword">nil</span> }, set: { <span class="tok-keyword">if</span> !$0 { pendingMode = <span class="tok-keyword">nil</span> } }),
+    titleVisibility: .visible
+) {
+    <span class="tok-type">Button</span>(<span class="tok-string">"Discard &amp; Switch"</span>, role: .destructive) {
+        <span class="tok-keyword">if let</span> mode = pendingMode {
+            <span class="tok-type">Task</span> { <span class="tok-keyword">await</span> appModel.setMode(mode) }
+            editorState.dirtyDescription = <span class="tok-keyword">nil</span>
+            pendingMode = <span class="tok-keyword">nil</span>
+        }
+    }
+    <span class="tok-type">Button</span>(<span class="tok-string">"Cancel"</span>, role: .cancel) { pendingMode = <span class="tok-keyword">nil</span> }
+} message: {
+    <span class="tok-type">Text</span>(editorState.dirtyDescription ?? <span class="tok-string">""</span>)
+}</code></pre>
+          </div>
+
+          <p><strong>Save &amp; Switch</strong> would be ideal too but requires the editor to expose a save action across the boundary; defer until we have a need. <strong>v1 ships with Discard &amp; Switch / Cancel.</strong></p>
+
+          <h4>P9.5 — Window-close confirmation</h4>
+          <p>When the window is closing with unsaved changes, prompt. Apple ships <code>.dismissalConfirmationDialog</code> on certain presentations; for top-level windows on macOS, the equivalent is <code>NSWindow</code>-level. Simplest path: the same <code>EditorState.dirtyDescription</code> drives a window-close handler. Implementation note: this requires either an <code>NSWindowDelegate</code> bridge or — since macOS 14+ — <code>WindowGroup { ... }.commands(...)</code> intercepting the close menu item. <strong>v1 ships a simple sheet that appears when the user tries to close while dirty</strong>:</p>
+
+          <div class="callout note"><strong>scope check</strong>If the close-confirmation flow grows beyond a single sheet, scope it down. The fallback v1 behavior is "best-effort" — losing edits on window close is recoverable in this app (the user can re-edit). Don't ship a fragile <code>NSWindowDelegate</code> bridge for v1.</div>
+
+          <h4>P9.6 — Re-seed draft after reload</h4>
+          <p>After <code>save()</code> succeeds, <code>profilesModel.reload()</code> replaces <code>node</code> with a fresh <code>ProfileNode</code> derived from the just-written file. The view's <code>.onChange(of: node)</code> picks this up and re-seeds <code>draft</code>. Result: the form goes from dirty → clean smoothly without a flash.</p>
+
+          <h4>Acceptance — Phase 9</h4>
+          <ol class="checks">
+            <li>Edit <code>region</code>, click Save → file on disk updates; the <code># Managed by Quorra</code> header is prepended on first save (verify with <code>cat ~/.aws/config</code>).</li>
+            <li>Subsequent saves don't duplicate the header.</li>
+            <li>The dirty subtitle <em>"Edited"</em> clears once save completes.</li>
+            <li>Discard reverts the form to the last-loaded value without touching disk.</li>
+            <li>Force a save error: e.g. <code>chmod 444 ~/.aws/config</code>, then Save → alert appears with "Couldn't save" and <code>recoverySuggestion</code>.</li>
+            <li>Restore permissions, click Retry in the alert → save succeeds.</li>
+            <li>Make a change, open Settings (⌘,), flip mode → confirmation dialog appears with <em>"Discard &amp; Switch"</em> / <em>"Cancel"</em>.</li>
+            <li>SSO session detail editing also works end-to-end.</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         PHASE 10
+         ================================================================ -->
+    <section id="phase-10">
+      <h2><span class="section-anchor">14</span>Phase 10 — Polish &amp; close</h2>
+      <div class="phase">
+        <div class="phase-head">
+          <span class="phase-num">P10</span>
+          <p class="phase-title">Previews, error states, accessibility, doc updates</p>
+          <span class="phase-deps"><em>depends on</em>: P1–P9</span>
+        </div>
+        <div class="phase-body">
+          <p>Round out the iteration with the small things that distinguish "compiles" from "ships." Keep this phase under a single session — if any item turns into hours of work, log it and defer.</p>
+
+          <h4>P10.1 — Previews on every view</h4>
+          <p>Per the project rule (<code>CLAUDE.md</code>): every view file ships at least one <code>#Preview</code>. Named previews for distinct states.</p>
+          <ul>
+            <li><code>SidebarView</code>: Empty / Populated / Long-running load.</li>
+            <li><code>ProfileDetailView</code>: Edit mode (clean) / Edit mode (dirty) / Read Only / Profile not found.</li>
+            <li><code>SessionDetailView</code>: Edit mode / Read Only / Decode failure.</li>
+            <li><code>SettingsView</code>: General tab / About tab.</li>
+            <li><code>SetupView</code>: existing previews + new "non-standard warning + read-only selected".</li>
+          </ul>
+          <p>Previews use in-memory <code>AWSConfigINIDocument(_:flavor:)</code> fixtures so they don't touch the user's real <code>~/.aws</code>.</p>
+
+          <h4>P10.2 — Empty-state copy</h4>
+          <p>If <code>~/.aws</code> is empty (no <code>config</code> or <code>credentials</code> file): sidebar has zero rows, detail pane shows:</p>
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">empty-state<span class="ext">.swift</span></span>
+              <span class="langtag">swift</span>
+            </div>
+<pre><code><span class="tok-type">ContentUnavailableView</span> {
+    <span class="tok-type">Label</span>(<span class="tok-string">"No profiles yet"</span>, systemImage: <span class="tok-string">"folder"</span>)
+} description: {
+    <span class="tok-type">Text</span>(<span class="tok-string">"Quorra will read profiles from ~/.aws/config and ~/.aws/credentials. Add profiles using the AWS CLI to see them here."</span>)
+}</code></pre>
+          </div>
+
+          <p>(Add Profile is deferred — empty-state copy points the user at the AWS CLI rather than promising a button that doesn't exist.)</p>
+
+          <h4>P10.3 — Accessibility pass</h4>
+          <p>HIG-aligned but pragmatic for v1:</p>
+          <ul>
+            <li>Sidebar rows: <code>.accessibilityLabel("Profile dev, region us-east-1")</code> on <code>ProfileRow</code>; <code>.accessibilityLabel("SSO session acme, 3 profiles")</code> on <code>SessionRow</code>.</li>
+            <li>Mode picker in setup: each card has an <code>.accessibilityHint</code> summarizing the implication.</li>
+            <li>Refresh button: <code>.accessibilityLabel("Refresh profiles")</code>.</li>
+            <li>Read Only banner: ensure the lock icon has <code>.accessibilityHidden(true)</code> (decorative); the text label conveys the meaning.</li>
+            <li>Run the app with <strong>VoiceOver enabled</strong> (System Settings → Accessibility) and walk the happy path. Note any rough edges as follow-ups; don't block the iteration on perfect VoiceOver.</li>
+          </ul>
+
+          <h4>P10.4 — Update <code>AWSConfigINI.html</code></h4>
+          <p>If Phase 1 added <code>ssoAccountId</code> + <code>ssoRoleName</code> to <code>Profile</code>, the AWSConfigINI documentation needs to reflect it. Edit <code>docs/AWSConfigINI.html</code>'s "AWS overlay" section — find the <code>Profile</code> code block and add the two lines. Keep the visual style identical (don't reformat unrelated content).</p>
+
+          <h4>P10.5 — README / CLAUDE.md sanity</h4>
+          <p>Update <code>CLAUDE.md</code>'s "Setup Flow" section to reflect:</p>
+          <ul>
+            <li>Mode card now sits on <code>SetupView</code>; default Edit&nbsp;&amp;&nbsp;Manage.</li>
+            <li><code>ManagedMode</code> persisted via <code>ModePreferenceStorage</code> in <code>UserDefaults.standard</code>.</li>
+            <li>Settings reachable via ⌘,; in-window Settings sidebar destination is not built.</li>
+            <li><code>ProfilesModel</code> exists alongside <code>AppModel</code>.</li>
+          </ul>
+          <p>Don't expand the doc into a tutorial — keep it fact-shaped.</p>
+
+          <h4>P10.6 — Build &amp; commit hygiene</h4>
+          <ul>
+            <li>One commit per phase is reasonable (<code>feat(app): phase 1 / package additions</code>, etc.) so the PR can be reviewed phase-by-phase. If multiple phases land together, group commits by concern.</li>
+            <li>Run <code>mcp__xcode__BuildProject</code> + <code>mcp__xcode__RunAllTests</code> before opening a PR.</li>
+            <li>Reset the container for a final acceptance walk (Section 15).</li>
+          </ul>
+
+          <h4>Acceptance — Phase 10</h4>
+          <ol class="checks">
+            <li>All views render in their <code>#Preview</code>s without crashing.</li>
+            <li>VoiceOver reaches every interactive element with a meaningful label.</li>
+            <li><code>docs/AWSConfigINI.html</code> reflects the new <code>Profile</code> fields.</li>
+            <li><code>CLAUDE.md</code>'s setup flow section reflects the new mode card.</li>
+            <li>Full acceptance walk (Section 15) passes on a clean container.</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         ACCEPTANCE
+         ================================================================ -->
+    <section id="acceptance">
+      <h2><span class="section-anchor">15</span>Acceptance walk</h2>
+      <p>End-of-iteration verification. Run on a clean container. Every step should pass before the iteration is declared done.</p>
+
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">acceptance<span class="ext">.sh</span></span>
+          <span class="langtag">bash</span>
+        </div>
+<pre><code><span class="term-prompt">$</span> rm -rf ~/Library/Containers/dev.ajbeck.quorra ~/Library/Containers/dev.ajbeck.quorra.cli
+<span class="term-prompt">$</span> # then launch the app from Xcode (⌘R)</code></pre>
+      </div>
+
+      <ol class="checks">
+        <li><strong>Setup with mode card.</strong> Launch → <code>SetupView</code>. Mode card visible between path field and Continue. <em>Edit &amp; Manage</em> selected by default with the "recommended" pill. Pick <code>~/.aws</code>. Continue.</li>
+        <li><strong>Land on MainView.</strong> No placeholder. <code>NavigationSplitView</code> sidebar populated with real SSO sessions and profiles. Detail pane shows the auto-selected first profile.</li>
+        <li><strong>Sidebar grammar.</strong> SSO session group headers selectable; clicking a header shows the session detail pane. Profile leaves selectable. Long-term keys / Other sections render only if non-empty.</li>
+        <li><strong>Edit a profile.</strong> Pick a profile. Form is editable (Edit&nbsp;&amp;&nbsp;Manage default). Change <code>region</code> to a new value. Subtitle reads <em>"Edited"</em>. Click Save. Form goes clean. <code>cat ~/.aws/config</code> shows the change and the <code># Managed by Quorra</code> header at the top of the file.</li>
+        <li><strong>Edit again.</strong> Save a second change. <code>cat</code> shows the new value; the managed header is not duplicated.</li>
+        <li><strong>Refresh.</strong> Press ⌘R. Sidebar re-derives. Selection survives.</li>
+        <li><strong>Read Only switch.</strong> Open Settings (⌘,). Flip to Read Only. Close Settings. Return to detail pane: fields render as <code>LabeledContent</code>, lock banner appears, Save / Discard absent.</li>
+        <li><strong>Mode-flip with unsaved changes.</strong> Switch to Edit&nbsp;&amp;&nbsp;Manage. Edit a field but don't save. Open Settings. Flip to Read Only → confirmation dialog appears with <em>Discard &amp; Switch</em> / <em>Cancel</em>. Discard. Detail pane re-renders Read Only.</li>
+        <li><strong>SSO session detail.</strong> Switch back to Edit&nbsp;&amp;&nbsp;Manage. Click an SSO session group header. Form shows session-typed fields. Edit <code>sso_region</code>. Save. <code>grep "sso_region" ~/.aws/config</code> shows the new value.</li>
+        <li><strong>Cross-link.</strong> From a profile, click <em>"View session…"</em>. Sidebar selection flips to the session.</li>
+        <li><strong>Persistence.</strong> Quit the app. Relaunch. Lands directly on <code>MainView</code> (no setup). Mode preserved.</li>
+        <li><strong>Error path.</strong> <code>chmod 444 ~/.aws/config</code>. Try to Save a change. Alert appears with descriptive copy and a Retry button. <code>chmod 644 ~/.aws/config</code>. Retry. Save succeeds.</li>
+      </ol>
+
+      <div class="callout success"><strong>done</strong>If all 12 acceptance steps pass on a clean container, this iteration is shippable. Hand back to the senior reviewer for the <code>/simplify</code> review pass.</div>
+    </section>
+
+    <!-- ================================================================
+         DESIGN NOTES
+         ================================================================ -->
+    <section id="design-notes">
+      <h2><span class="section-anchor">16</span>Design notes</h2>
+      <p>Load-bearing decisions, with the rationale that justifies them. Cite when discussing during review.</p>
+
+      <div class="pills">
+        <span class="pill"><span class="dot">●</span>UserDefaults for non-secret config</span>
+        <span class="pill"><span class="dot">●</span>Settings { } scene for ⌘,</span>
+        <span class="pill"><span class="dot">●</span>Two @Observable models</span>
+        <span class="pill"><span class="dot">●</span>List(selection:) + OutlineGroup</span>
+        <span class="pill"><span class="dot">●</span>Form + LabeledContent</span>
+        <span class="pill"><span class="dot">●</span>Confirmation/Cancellation toolbar</span>
+        <span class="pill"><span class="dot">●</span>navigationSubtitle("Edited")</span>
+        <span class="pill"><span class="dot">●</span>Typed-error LocalizedError alert</span>
+        <span class="pill"><span class="dot">●</span>Per-section save</span>
+        <span class="pill"><span class="dot">●</span>Credentials wins on merge</span>
+      </div>
+
+      <h3>Why <code>UserDefaults</code>, not Keychain, for mode</h3>
+      <p>The mode is non-secret app configuration. Apple's <a href="https://developer.apple.com/documentation/foundation/userdefaults"><code>UserDefaults</code></a> doc says: <em>"Don't store personal or sensitive information as settings… Store personal or sensitive information in the person's Keychain instead."</em> Mode is the inverse — it's exactly what <code>UserDefaults</code> is for. Putting it in Keychain would conflate two storage tiers and confuse the codebase.</p>
+
+      <h3>Why <code>Settings { }</code> instead of an in-window destination</h3>
+      <p>The mockup showed Settings as a sidebar item; we deliberately diverged. Apple's <a href="https://developer.apple.com/documentation/swiftui/settings"><code>Settings</code> scene</a> auto-wires ⌘, and the App-menu Settings… item — both user expectations on macOS. The mockup is design-direction, not behavior spec; the HIG approach takes priority.</p>
+
+      <h3>Why two <code>@Observable</code> models</h3>
+      <p>Per the <a href="https://developer.apple.com/documentation/swiftui/migrating-from-the-observable-object-protocol-to-the-observable-macro">Observation migration doc</a>, SwiftUI tracks reads <em>per-property</em>. Splitting <code>AppModel</code> (phase / mode / bookmark) from <code>ProfilesModel</code> (parsed documents / sidebar groups) means views observing only the sidebar groups don't redraw when the mode flips. Granular tracking + separation of concerns are the same gain in this case.</p>
+
+      <h3>Why <code>List(selection:)</code> + <code>OutlineGroup</code> instead of <code>List(_:children:selection:)</code></h3>
+      <p>The hierarchical <code>List(_:children:selection:)</code> initializer's <code>Content</code> is fixed to a single <code>OutlineGroup</code>; it cannot accept sibling <code>Section</code>s. Our sidebar mixes a hierarchical SSO Sessions section with flat Long-term keys / Other sections. The correct shape is <code>List(selection: $sel) { Section { ... }; Section { ... } }</code> with <code>DisclosureGroup</code> or <code>OutlineGroup</code> inside the section that needs hierarchy.</p>
+
+      <h3>Why <code>Form</code> + <code>LabeledContent</code></h3>
+      <p><a href="https://developer.apple.com/documentation/swiftui/form"><code>Form</code></a> is documented as <em>"a container for grouping controls used for data entry, such as in settings or inspectors."</em> <a href="https://developer.apple.com/documentation/swiftui/labeledcontent"><code>LabeledContent</code></a> is documented for <em>"a read-only or read-write value, and its label identifies or describes the purpose of that value."</em> They are exactly the structured-edit + read-only-display primitives our editor needs. No custom layout required.</p>
+
+      <h3>Why <code>navigationSubtitle("Edited")</code> not "•"</h3>
+      <p>AppKit's <code>NSWindow.isDocumentEdited</code> renders the dot inside the <em>close button</em> — there is no documented "•" suffix in the title string. SwiftUI's <a href="https://developer.apple.com/documentation/swiftui/view/navigationsubtitle(_:)"><code>navigationSubtitle</code></a> is the macOS-shaped place to surface the dirty cue inline. Cleaner, no AppKit bridge.</p>
+
+      <h3>Why <code>scenePhase</code> is <em>not</em> in the reload triggers</h3>
+      <p>On macOS, <a href="https://developer.apple.com/documentation/swiftui/scenephase/background"><code>scenePhase.background</code></a> means the scene is being terminated, not "the user switched windows." Wiring reload-on-background-to-active would only fire on app termination — useless for our intent. The macOS-correct primitive when we eventually want this is <a href="https://developer.apple.com/documentation/swiftui/environmentvalues/appearsactive"><code>EnvironmentValues.appearsActive</code></a>. v1 ships without it.</p>
+
+      <h3>Why credentials-file values override config values on merge</h3>
+      <p>This is AWS's documented precedence — see <a href="https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html#config-settings-and-precedence">Configuration setting precedence</a>. The merge happens in our <em>view-model</em> layer (<code>ProfilesModel.derive</code>), not in <code>AWSConfigINI</code>. The package's job is faithful per-file representation; AWS's domain-specific precedence is consumer logic. Keeping the package single-purpose preserves write-safety: writes target the originating file, the merge is read-only.</p>
+
+      <h3>Why the writer isn't byte-exact</h3>
+      <p>Inherited from <a href="./AWSConfigINI.html#decisions">AWSConfigINI</a>'s deliberate trade-off: canonical writes preserve comments and order but normalize alignment, separator spacing, and quoting. The managed/read-only mode pair gives the user explicit control over whether Quorra reformats their file. This iteration ships <strong>Edit&nbsp;&amp;&nbsp;Manage</strong> as the default, so first-time users will see canonicalization on first save — the <code># Managed by Quorra</code> header makes this expectation visible.</p>
+
+      <h3>Why per-section save instead of autosave</h3>
+      <p><a href="https://developer.apple.com/documentation/appkit/nsdocument"><code>NSDocument</code></a> autosaves in place; Quorra is not a document app. Per-section save matches the user's mental model of "I edited this profile, I clicked Save, the change is on disk" and minimizes lock-acquire churn. Autosave on every keystroke would re-acquire the fcntl lock and re-prepend the managed header repeatedly — wasteful and surprising.</p>
+
+      <h3>What was deliberately not built</h3>
+      <p>Add Profile, Delete Profile, Search, Credentials tab, Activity tab, IMDS Server view, SSO OIDC flow, FSEvents file watching, App↔CLI bookmark sharing, raw INI editor, profile rename, autocomplete. Each has a real reason it's deferred (listed in §02). The implementer should not relitigate during implementation; if a deferred item starts to feel necessary, raise it in the review pass — the senior reviewer with <code>/simplify</code> can decide whether to absorb it into v1 or push to v2.</p>
+    </section>
+
+    <footer>
+      <span class="blink">$ quorra · iteration · open</span>
+      <span>10 phases · 12 acceptance steps · grounded in Apple HIG</span>
+    </footer>
+
+  </main>
+</div>
+
+</body>
+</html>
