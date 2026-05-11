@@ -1,0 +1,14 @@
+[default]
+region = us-east-1
+
+[profile local-dev]
+region = us-east-1
+services = local-overrides
+
+[services local-overrides]
+dynamodb =
+  endpoint_url = http://localhost:8000
+s3 =
+  endpoint_url = http://localhost:9000
+sqs =
+  endpoint_url = http://localhost:9324
