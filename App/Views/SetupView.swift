@@ -1,13 +1,16 @@
 import AppKit
 import SwiftUI
+import AWSConfigINI
 
 struct SetupView: View {
     @Environment(AppModel.self) private var appModel
     @State private var pendingFolder: URL?
+    @State private var selectedMode: ManagedMode = .managed
 
-    /// Preview-only seed for the non-standard-folder warning state.
-    init(previewPendingFolder: URL? = nil) {
+    /// Preview-only seed for warning and mode-card states.
+    init(previewPendingFolder: URL? = nil, previewSelectedMode: ManagedMode = .managed) {
         _pendingFolder = State(initialValue: previewPendingFolder)
+        _selectedMode = State(initialValue: previewSelectedMode)
     }
 
     private var isWarningShown: Bool { pendingFolder != nil }
@@ -24,6 +27,10 @@ struct SetupView: View {
                 .opacity(isWarningShown ? 0.5 : 1)
                 .disabled(isWarningShown)
 
+            modeCard
+                .opacity(isWarningShown ? 0.5 : 1)
+                .disabled(isWarningShown)
+
             Spacer(minLength: 0)
 
             buttonRow
@@ -37,8 +44,6 @@ struct SetupView: View {
         .animation(.easeInOut(duration: 0.18), value: isWarningShown)
     }
 
-    // MARK: - Header
-
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Set up Quorra")
@@ -49,8 +54,6 @@ struct SetupView: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
-
-    // MARK: - Path field
 
     private var pathField: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -89,15 +92,74 @@ struct SetupView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        .background(cardBackground)
+        .background(cardBackground(isSelected: false))
     }
 
-    private var cardBackground: some View {
+    private var modeCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("HOW SHOULD QUORRA MANAGE THIS FOLDER?")
+                .font(.system(size: 11.5, weight: .semibold))
+                .tracking(0.06 * 11.5)
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 10) {
+                modeOption(
+                    .managed,
+                    title: "Edit & Manage",
+                    blurb: "Quorra can add, edit, and reformat profiles in your AWS files. A `# Managed by Quorra` header is added on first save.",
+                    isRecommended: true
+                )
+                modeOption(
+                    .readOnly,
+                    title: "Read Only",
+                    blurb: "Quorra reads your profiles and serves credentials, but never writes to your AWS files. Choose this if you hand-edit them.",
+                    isRecommended: false
+                )
+            }
+        }
+    }
+
+    private func modeOption(_ mode: ManagedMode, title: String, blurb: String, isRecommended: Bool) -> some View {
+        let isSelected = selectedMode == mode
+        return Button { selectedMode = mode } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 6) {
+                    Image(systemName: isSelected ? "largecircle.fill.circle" : "circle")
+                        .foregroundStyle(isSelected ? Theme.accent : .secondary)
+                    Text(title)
+                        .font(.system(size: 13, weight: .semibold))
+                    if isRecommended {
+                        Text("recommended")
+                            .font(.system(size: 10, weight: .medium))
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(Capsule().fill(Theme.accent.opacity(0.18)))
+                    }
+                }
+                Text(blurb)
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(cardBackground(isSelected: isSelected))
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(isRecommended ? "\(title). Recommended." : title)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private func cardBackground(isSelected: Bool) -> some View {
         RoundedRectangle(cornerRadius: 8)
-            .fill(Color(nsColor: .controlBackgroundColor))
+            .fill(isSelected ? Theme.accent.opacity(0.08) : Color(nsColor: .controlBackgroundColor))
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
+                    .stroke(
+                        isSelected ? Theme.accent.opacity(0.5) : Color.primary.opacity(0.08),
+                        lineWidth: isSelected ? 1 : 0.5
+                    )
             )
     }
 
@@ -197,7 +259,7 @@ struct SetupView: View {
         guard let picked = await FolderPicker.pickAWSFolder() else { return }
 
         if picked.standardizedFileURL == UserHome.awsFolder.standardizedFileURL {
-            await appModel.completeSetup(selectedFolder: picked)
+            await appModel.completeSetup(selectedFolder: picked, mode: selectedMode)
         } else {
             pendingFolder = picked
         }
@@ -205,12 +267,17 @@ struct SetupView: View {
 
     private func confirmPendingFolder() async {
         guard let folder = pendingFolder else { return }
-        await appModel.completeSetup(selectedFolder: folder)
+        await appModel.completeSetup(selectedFolder: folder, mode: selectedMode)
     }
 }
 
-#Preview("Setup – idle") {
+#Preview("Setup – idle (managed)") {
     SetupView()
+        .environment(AppModel(initialPhase: .setup))
+}
+
+#Preview("Setup – read-only selected") {
+    SetupView(previewSelectedMode: .readOnly)
         .environment(AppModel(initialPhase: .setup))
 }
 
