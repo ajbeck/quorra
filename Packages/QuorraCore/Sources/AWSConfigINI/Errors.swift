@@ -1,14 +1,8 @@
-// AWSConfigINIError — all public errors for the module.
-//
-// Uses Swift 6.2 typed throws (Decision D20).
-// M01 only wires .fileNotFound, .ioError, .malformedInput;
-// the remaining cases exist for later milestones.
-
 import Foundation
 
 /// All errors that can be thrown by `AWSConfigINI` operations.
 ///
-/// Callers can exhaustively switch over this enum. Decision D20.
+/// Uses Swift 6.2 typed throws so callers can `catch` exhaustively.
 public enum AWSConfigINIError: Error, Sendable {
     /// The specified file does not exist.
     case fileNotFound(URL)
@@ -16,18 +10,18 @@ public enum AWSConfigINIError: Error, Sendable {
     /// A file read or write operation failed.
     case ioError(URL, underlying: any Error)
 
-    /// Acquiring a file lock timed out. (M05)
+    /// Acquiring a file lock timed out.
     case lockTimeout(URL)
 
-    /// Attempted to write while mode is `.readOnly`. (M08)
+    /// Attempted to write while mode is `.readOnly`.
     case readOnly(URL)
 
-    /// A `Codable` decode operation failed. (M06)
+    /// A `Codable` decode operation failed.
     case decodeError(String)
 
-    /// A `Codable` encode operation failed. (M06)
+    /// A `Codable` encode operation failed.
     case encodeError(String)
 
-    /// A hard parse failure (rare — the parser is almost entirely silent-tolerant). (M01)
+    /// A hard parse failure (rare — the parser is almost entirely silent-tolerant).
     case malformedInput(String)
 }
