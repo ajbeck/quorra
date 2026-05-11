@@ -158,7 +158,7 @@ struct ErrorView: View {
 
     private func runPicker() async {
         guard let picked = await FolderPicker.pickAWSFolder() else { return }
-        await appModel.completeSetup(selectedFolder: picked)
+        await appModel.completeSetup(selectedFolder: picked, mode: appModel.mode)
     }
 }
 
