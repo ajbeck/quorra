@@ -225,6 +225,19 @@ final class ProfilesModel {
         if b.id == "default" { return false }
         return a.id < b.id
     }
+
+    func findProfile(named name: String) -> ProfileNode? {
+        for session in groups.ssoSessions {
+            if let match = session.profiles.first(where: { $0.id == name }) { return match }
+        }
+        if let match = groups.longTermKeys.first(where: { $0.id == name }) { return match }
+        if let match = groups.other.first(where: { $0.id == name }) { return match }
+        return nil
+    }
+
+    func findSession(named name: String) -> SSOSessionNode? {
+        groups.ssoSessions.first(where: { $0.id == name })
+    }
 }
 
 extension ProfilesModel.LoadState: Equatable {
