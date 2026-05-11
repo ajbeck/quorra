@@ -11,7 +11,7 @@ struct MainView: View {
             SidebarView(selection: $selection)
                 .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 320)
         } detail: {
-            DetailView(selection: selection)
+            DetailView(selection: $selection)
         }
         .toolbar { toolbarContent }
         .task(id: folderURL) {
