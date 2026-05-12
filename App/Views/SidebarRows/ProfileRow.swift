@@ -6,7 +6,7 @@ struct ProfileRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "person.crop.circle")
+            Image(systemName: "person.icloud")
                 .foregroundStyle(.secondary)
             Text(profile.id)
                 .lineLimit(1)

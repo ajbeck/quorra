@@ -6,7 +6,7 @@ struct SessionRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "cloud")
+            Image(systemName: "key.icloud")
                 .foregroundStyle(.secondary)
             Text(session.id)
                 .lineLimit(1)
