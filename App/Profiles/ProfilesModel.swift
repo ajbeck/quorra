@@ -210,7 +210,7 @@ final class ProfilesModel {
         config: AWSConfigINIDocument,
         credentials: AWSConfigINIDocument
     ) -> Bool {
-        if node.origin == .credentialsOnly { return true }
+        if case .credentialsOnly = node.origin { return true }
         // Check config section for aws_access_key_id (unusual but permitted by AWS docs)
         let sectionName = config.flavor.profileSectionName(for: node.id)
         if let section = config.section(sectionName), section.key("aws_access_key_id") != nil {

@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		1B84B1B42FB1D87700D138C8 /* quorra.xctestplan in Resources */ = {isa = PBXBuildFile; fileRef = 1B84B1B32FB1D87700D138C8 /* quorra.xctestplan */; };
+		1B84B1E82FB38D8C00D138C8 /* IAMIdentityCenter in Frameworks */ = {isa = PBXBuildFile; productRef = 1B84B1E72FB38D8C00D138C8 /* IAMIdentityCenter */; };
 		1B88C1CA2FB1106B00A3CD79 /* quorra-cli in Embed CLI */ = {isa = PBXBuildFile; fileRef = 1BBF429E2FB0C7AE00B21E0D /* quorra-cli */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		1BA1B1C12FB0000000000001 /* AWSConfigINI in Frameworks */ = {isa = PBXBuildFile; productRef = 1BA1B1C22FB0000000000002 /* AWSConfigINI */; };
 /* End PBXBuildFile section */
@@ -76,6 +77,7 @@
 			isa = PBXFrameworksBuildPhase;
 			files = (
 				1BA1B1C12FB0000000000001 /* AWSConfigINI in Frameworks */,
+				1B84B1E82FB38D8C00D138C8 /* IAMIdentityCenter in Frameworks */,
 			);
 		};
 		1BBF429B2FB0C7AE00B21E0D /* Frameworks */ = {
@@ -93,6 +95,7 @@
 				1B5F7C8F2FACE2A100833D01 /* App */,
 				1B0E8B8F2FADF3FC002DC711 /* Tests/QuorraAppTests */,
 				1BBF429F2FB0C7AE00B21E0D /* quorra-cli */,
+				1B84B1E62FB38D8C00D138C8 /* Frameworks */,
 				1B5F7C8E2FACE2A100833D01 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -105,6 +108,13 @@
 				1BBF429E2FB0C7AE00B21E0D /* quorra-cli */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		1B84B1E62FB38D8C00D138C8 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -151,6 +161,7 @@
 			name = quorra;
 			packageProductDependencies = (
 				1BA1B1C22FB0000000000002 /* AWSConfigINI */,
+				1B84B1E72FB38D8C00D138C8 /* IAMIdentityCenter */,
 			);
 			productName = quorra;
 			productReference = 1B5F7C8D2FACE2A100833D01 /* quorra.app */;
@@ -581,6 +592,10 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		1B84B1E72FB38D8C00D138C8 /* IAMIdentityCenter */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = IAMIdentityCenter;
+		};
 		1BA1B1C22FB0000000000002 /* AWSConfigINI */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = AWSConfigINI;
