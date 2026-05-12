@@ -18,7 +18,7 @@ final class ProfilesModel {
     }
 
 
-    @ObservationIgnored private var currentFolder: URL?
+    @ObservationIgnored var currentFolder: URL?
 
     func load(folder: URL) async {
         currentFolder = folder

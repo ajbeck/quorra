@@ -55,6 +55,7 @@ private struct DetailViewPreviewHarness: View {
     @State private var selection: SidebarSelection?
     @State private var appModel: AppModel
     @State private var profilesModel = ProfilesModel()
+    @State private var editorState = EditorState()
 
     init(selection: SidebarSelection?, mode: ManagedMode = .managed) {
         self.initialSelection = selection
@@ -68,6 +69,7 @@ private struct DetailViewPreviewHarness: View {
         DetailView(selection: $selection)
             .environment(appModel)
             .environment(profilesModel)
+            .environment(editorState)
             .task {
                 let tmp = FileManager.default.temporaryDirectory
                     .appending(path: UUID().uuidString, directoryHint: .isDirectory)

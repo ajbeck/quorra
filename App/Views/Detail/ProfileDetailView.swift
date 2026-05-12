@@ -5,6 +5,8 @@ struct ProfileDetailView: View {
     let node: ProfileNode
     @Binding var sidebarSelection: SidebarSelection?
     @Environment(AppModel.self) private var appModel
+    @Environment(ProfilesModel.self) private var profilesModel
+    @Environment(EditorState.self) private var editorState
     @Environment(\.openSettings) private var openSettings
     @State private var draft: Profile
     @State private var isPresentingSaveError = false
@@ -30,8 +32,56 @@ struct ProfileDetailView: View {
         .formStyle(.grouped)
         .navigationTitle(node.id)
         .navigationSubtitle(isDirty ? "Edited" : "")
+        .toolbar { editorToolbar }
         .onChange(of: node) { _, newValue in
             draft = newValue.profile
+        }
+        .onChange(of: isDirty) { _, newValue in
+            editorState.dirtyDescription = newValue ? "changes to profile \(node.id)" : nil
+        }
+        .onDisappear {
+            editorState.dirtyDescription = nil
+        }
+        .alert(
+            "Couldn't save",
+            isPresented: $isPresentingSaveError,
+            presenting: saveError
+        ) { _ in
+            Button("Retry") { Task { await save() } }
+            Button("OK", role: .cancel) { }
+        } message: { error in
+            Text([error.errorDescription, error.recoverySuggestion]
+                .compactMap { $0 }.joined(separator: "\n\n"))
+        }
+    }
+
+    @ToolbarContentBuilder private var editorToolbar: some ToolbarContent {
+        if !isReadOnly {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Discard", role: .destructive) {
+                    draft = node.profile
+                }
+                .disabled(!isDirty)
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Save") {
+                    Task { await save() }
+                }
+                .disabled(!isDirty)
+                .keyboardShortcut(.defaultAction)
+            }
+        }
+    }
+
+    private func save() async {
+        do {
+            try await profilesModel.save(draft, for: node)
+        } catch let err as AWSConfigINIError {
+            saveError = err
+            isPresentingSaveError = true
+        } catch {
+            saveError = .malformedInput(error.localizedDescription)
+            isPresentingSaveError = true
         }
     }
 
@@ -134,6 +184,7 @@ private struct ProfileDetailPreviewHarness: View {
     @State private var selection: SidebarSelection? = .profile(name: "default")
     @State private var appModel: AppModel
     @State private var profilesModel = ProfilesModel()
+    @State private var editorState = EditorState()
 
     init(mode: ManagedMode) {
         self.mode = mode
@@ -147,6 +198,8 @@ private struct ProfileDetailPreviewHarness: View {
                let node = profilesModel.findProfile(named: "default") {
                 ProfileDetailView(node: node, sidebarSelection: $selection)
                     .environment(appModel)
+                    .environment(profilesModel)
+                    .environment(editorState)
             } else {
                 ProgressView().controlSize(.small)
             }
