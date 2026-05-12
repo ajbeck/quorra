@@ -4,6 +4,8 @@ import SwiftUI
 
 struct GeneralSettingsTab: View {
     @Environment(AppModel.self) private var appModel
+    @Environment(EditorState.self) private var editorState
+    @State private var pendingMode: ManagedMode?
 
     var body: some View {
         Form {
@@ -13,7 +15,13 @@ struct GeneralSettingsTab: View {
             Section("Mode") {
                 Picker("Quorra can", selection: Binding(
                     get: { appModel.mode },
-                    set: { newValue in Task { await appModel.setMode(newValue) } }
+                    set: { newValue in
+                        if editorState.dirtyDescription != nil && newValue != appModel.mode {
+                            pendingMode = newValue
+                        } else {
+                            Task { await appModel.setMode(newValue) }
+                        }
+                    }
                 )) {
                     Text("Edit & Manage").tag(ManagedMode.managed)
                     Text("Read Only").tag(ManagedMode.readOnly)
@@ -27,6 +35,25 @@ struct GeneralSettingsTab: View {
         }
         .formStyle(.grouped)
         .navigationTitle("General")
+        .confirmationDialog(
+            "You have unsaved changes",
+            isPresented: Binding(
+                get: { pendingMode != nil },
+                set: { if !$0 { pendingMode = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Discard & Switch", role: .destructive) {
+                if let mode = pendingMode {
+                    Task { await appModel.setMode(mode) }
+                    editorState.dirtyDescription = nil
+                    pendingMode = nil
+                }
+            }
+            Button("Cancel", role: .cancel) { pendingMode = nil }
+        } message: {
+            Text(editorState.dirtyDescription ?? "")
+        }
     }
 
     private var modeBlurb: String {
@@ -56,11 +83,13 @@ struct GeneralSettingsTab: View {
 #Preview("General – ready") {
     GeneralSettingsTab()
         .environment(AppModel(initialPhase: .ready(URL(filePath: "/Users/example/.aws"))))
+        .environment(EditorState())
         .frame(width: 540)
 }
 
 #Preview("General – setup") {
     GeneralSettingsTab()
         .environment(AppModel(initialPhase: .setup))
+        .environment(EditorState())
         .frame(width: 540)
 }

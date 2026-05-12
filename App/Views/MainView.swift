@@ -47,6 +47,7 @@ struct MainView: View {
     MainView(folderURL: folderURL)
         .environment(AppModel(initialPhase: .ready(folderURL)))
         .environment(ProfilesModel())
+        .environment(EditorState())
 }
 
 #Preview("Main – with sample data") {
@@ -57,6 +58,7 @@ private struct MainViewSampleDataHarness: View {
     @State private var folderURL: URL?
     @State private var appModel = AppModel(initialPhase: .setup)
     @State private var profilesModel = ProfilesModel()
+    @State private var editorState = EditorState()
 
     var body: some View {
         Group {
@@ -64,6 +66,7 @@ private struct MainViewSampleDataHarness: View {
                 MainView(folderURL: folderURL)
                     .environment(appModel)
                     .environment(profilesModel)
+                    .environment(editorState)
             } else {
                 ProgressView().controlSize(.small)
             }
