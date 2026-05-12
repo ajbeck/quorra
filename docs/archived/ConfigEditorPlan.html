@@ -183,6 +183,11 @@
     flex: 0 0 auto;
     transform: translateY(-1px);
   }
+  .rail-product .live-dot.shipped {
+    background: var(--success);
+    box-shadow: 0 0 12px var(--success), 0 0 0 3px rgba(92, 245, 138, 0.12);
+    animation: none;
+  }
   @keyframes pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.55; }
@@ -275,12 +280,18 @@
   .badge.macos   { color: var(--sky-300); }
   .badge.iter    { color: var(--decision); }
   .badge.scope   { color: var(--mint-300); }
+  .badge.shipped {
+    color: var(--success);
+    background: rgba(92, 245, 138, 0.10);
+    border-color: var(--success);
+  }
   @media (prefers-color-scheme: light) {
     .badge.primary { color: var(--coral-700); }
     .badge.swift   { color: var(--tangerine-700); }
     .badge.macos   { color: var(--sky-700); }
     .badge.iter    { color: var(--sunshine-700); }
     .badge.scope   { color: var(--mint-700); }
+    .badge.shipped { color: var(--success-700); background: #EDFFF0; }
   }
 
   h1 {
@@ -621,8 +632,8 @@
 <div class="layout">
 
   <aside class="rail">
-    <p class="rail-title">// quorra · iteration plan</p>
-    <p class="rail-product"><span class="live-dot" aria-hidden="true"></span>Config Editor</p>
+    <p class="rail-title">// quorra · archived plan</p>
+    <p class="rail-product"><span class="live-dot shipped" aria-hidden="true"></span>Config Editor</p>
 
     <nav class="toc">
       <div class="toc-section">
@@ -659,6 +670,7 @@
 
     <header class="hero">
       <div class="hero-meta">
+        <span class="badge shipped">✓ shipped · 2026-05-12</span>
         <span class="badge primary">v1 · iteration</span>
         <span class="badge swift">swift 6.2</span>
         <span class="badge macos">macos 26+</span>
@@ -676,9 +688,30 @@
       </div>
     </header>
 
+    <div class="callout success">
+      <strong>archived</strong>This iteration shipped on <strong>2026-05-12</strong> across 11 commits on the <code>getting-started</code> branch (<code>3004a58</code> → <code>3c39d56</code>). The plan is preserved here for reference; live design notes have moved to <a href="../README.md">README.md</a> and <a href="../AWSConfigINI.html">AWSConfigINI.html</a>. The acceptance walk-through in §15 remains a valid smoke-test script.
+
+      <table class="fields" style="margin-top: 1rem;">
+        <thead><tr><th>phase</th><th>commit</th><th>title</th></tr></thead>
+        <tbody>
+          <tr><td class="field">P1</td><td class="type">2ef574e</td><td class="note">AWSConfigINI: Profile sso fields + LocalizedError</td></tr>
+          <tr><td class="field">P2</td><td class="type">cfd15f3</td><td class="note">app: persist ManagedMode via ModePreferenceStorage</td></tr>
+          <tr><td class="field">P3</td><td class="type">59e4244</td><td class="note">app: mode preference on AppModel + setup card</td></tr>
+          <tr><td class="field">P4</td><td class="type">59fa6e3</td><td class="note">app: Settings scene with General + About tabs</td></tr>
+          <tr><td class="field">P5</td><td class="type">8365e4d</td><td class="note">app: ProfilesModel + sidebar classification ladder</td></tr>
+          <tr><td class="field">P6</td><td class="type">d686bc2</td><td class="note">app: MainView NavigationSplitView shell + stub sidebar/detail</td></tr>
+          <tr><td class="field">P7</td><td class="type">3d60905</td><td class="note">app: real sidebar grammar with SSO outline + flat sections</td></tr>
+          <tr><td class="field">P8</td><td class="type">25797ff</td><td class="note">app: profile + session detail panes (read path)</td></tr>
+          <tr><td class="field">P9</td><td class="type">9e3fb87</td><td class="note">app: save round-trip with confirmation flows</td></tr>
+          <tr><td class="field">P10</td><td class="type">d59844f</td><td class="note">app: empty-state copy + accessibility polish</td></tr>
+          <tr><td class="field">+</td><td class="type">3c39d56</td><td class="note">app: switch sidebar icons + set default window size</td></tr>
+        </tbody>
+      </table>
+    </div>
+
     <section id="overview">
       <h2><span class="section-anchor">01</span>Overview</h2>
-      <p>Quorra today launches into <code>SetupView</code>, lets the user pick <code>~/.aws</code>, persists a security-scoped bookmark, and lands on a placeholder <code>MainView</code> that lists folder contents. This iteration replaces the placeholder with a real working surface: a sidebar of SSO-session-grouped profiles, a profile/session detail pane backed by the typed <code>Profile</code> / <code>SSOSession</code> models from <a href="./AWSConfigINI.html">AWSConfigINI</a>, and a save round-trip that exercises the full fcntl-locked atomic write path.</p>
+      <p>Quorra today launches into <code>SetupView</code>, lets the user pick <code>~/.aws</code>, persists a security-scoped bookmark, and lands on a placeholder <code>MainView</code> that lists folder contents. This iteration replaces the placeholder with a real working surface: a sidebar of SSO-session-grouped profiles, a profile/session detail pane backed by the typed <code>Profile</code> / <code>SSOSession</code> models from <a href="../AWSConfigINI.html">AWSConfigINI</a>, and a save round-trip that exercises the full fcntl-locked atomic write path.</p>
       <p>The defining design choice is the <strong>mode contract</strong>: every user starts in <strong>Edit&nbsp;&amp;&nbsp;Manage</strong> mode (the default), but they may pick <strong>Read&nbsp;Only</strong> during setup or in <code>Settings</code> at any time. Read&nbsp;Only renders the same forms as labels — the app reads, browses, and (eventually) serves credentials, but never writes the AWS files. Edit&nbsp;&amp;&nbsp;Manage prepends <code># Managed by Quorra</code> on first save and may canonicalize formatting.</p>
       <p>The plan is broken into ten phases ordered by dependency. Each phase is small enough to land in a single session, and most close with a short acceptance check the implementer can run before moving on.</p>
     </section>
@@ -726,7 +759,7 @@
       <h3>Primary — Quorra-internal</h3>
       <div class="ref-card">
         <span class="label">Package</span>
-        <span class="body"><a href="./AWSConfigINI.html"><strong>AWSConfigINI</strong> — Reading, editing, and writing AWS shared-config files</a> (this directory). Authoritative reference for <code>AWSConfigINIDocument</code>, <code>Section</code>, <code>Key</code>, <code>Profile</code>, <code>SSOSession</code>, <code>FileFlavor</code>, <code>ManagedMode</code>, <code>AWSConfigINIError</code>, <code>AWSConfigINIDecoder</code>, <code>AWSConfigINIEncoder</code>, fcntl-locked <code>update(at:flavor:_:)</code>.</span>
+        <span class="body"><a href="../AWSConfigINI.html"><strong>AWSConfigINI</strong> — Reading, editing, and writing AWS shared-config files</a> (this directory). Authoritative reference for <code>AWSConfigINIDocument</code>, <code>Section</code>, <code>Key</code>, <code>Profile</code>, <code>SSOSession</code>, <code>FileFlavor</code>, <code>ManagedMode</code>, <code>AWSConfigINIError</code>, <code>AWSConfigINIDecoder</code>, <code>AWSConfigINIEncoder</code>, fcntl-locked <code>update(at:flavor:_:)</code>.</span>
       </div>
       <div class="ref-card">
         <span class="label">Project</span>
@@ -1977,7 +2010,7 @@ P10 Polish &amp; close     ─────────────────�
           <span class="phase-deps"><em>depends on</em>: P8</span>
         </div>
         <div class="phase-body">
-          <p>This is the iteration's load-bearing phase. It exercises the full <a href="./AWSConfigINI.html#mode"><code>AWSConfigINIDocument.update(at:flavor:_:)</code></a> path: fcntl lock, atomic rename, managed-mode header, re-parse. Cite the AWSConfigINI doc for the exact API contract; this phase consumes that contract.</p>
+          <p>This is the iteration's load-bearing phase. It exercises the full <a href="../AWSConfigINI.html#mode"><code>AWSConfigINIDocument.update(at:flavor:_:)</code></a> path: fcntl lock, atomic rename, managed-mode header, re-parse. Cite the AWSConfigINI doc for the exact API contract; this phase consumes that contract.</p>
 
           <h4>P9.1 — Toolbar Save / Discard</h4>
           <p>Use the documented placements: <a href="https://developer.apple.com/documentation/swiftui/toolbaritemplacement/confirmationaction"><code>.confirmationAction</code></a> for Save (gets accent color + default-action keyboard shortcut), <a href="https://developer.apple.com/documentation/swiftui/toolbaritemplacement/cancellationaction"><code>.cancellationAction</code></a> for Discard.</p>
@@ -2342,7 +2375,7 @@ P10 Polish &amp; close     ─────────────────�
       <p>This is AWS's documented precedence — see <a href="https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html#config-settings-and-precedence">Configuration setting precedence</a>. The merge happens in our <em>view-model</em> layer (<code>ProfilesModel.derive</code>), not in <code>AWSConfigINI</code>. The package's job is faithful per-file representation; AWS's domain-specific precedence is consumer logic. Keeping the package single-purpose preserves write-safety: writes target the originating file, the merge is read-only.</p>
 
       <h3>Why the writer isn't byte-exact</h3>
-      <p>Inherited from <a href="./AWSConfigINI.html#decisions">AWSConfigINI</a>'s deliberate trade-off: canonical writes preserve comments and order but normalize alignment, separator spacing, and quoting. The managed/read-only mode pair gives the user explicit control over whether Quorra reformats their file. This iteration ships <strong>Edit&nbsp;&amp;&nbsp;Manage</strong> as the default, so first-time users will see canonicalization on first save — the <code># Managed by Quorra</code> header makes this expectation visible.</p>
+      <p>Inherited from <a href="../AWSConfigINI.html#decisions">AWSConfigINI</a>'s deliberate trade-off: canonical writes preserve comments and order but normalize alignment, separator spacing, and quoting. The managed/read-only mode pair gives the user explicit control over whether Quorra reformats their file. This iteration ships <strong>Edit&nbsp;&amp;&nbsp;Manage</strong> as the default, so first-time users will see canonicalization on first save — the <code># Managed by Quorra</code> header makes this expectation visible.</p>
 
       <h3>Why per-section save instead of autosave</h3>
       <p><a href="https://developer.apple.com/documentation/appkit/nsdocument"><code>NSDocument</code></a> autosaves in place; Quorra is not a document app. Per-section save matches the user's mental model of "I edited this profile, I clicked Save, the change is on disk" and minimizes lock-acquire churn. Autosave on every keystroke would re-acquire the fcntl lock and re-prepend the managed header repeatedly — wasteful and surprising.</p>
