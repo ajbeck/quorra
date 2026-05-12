@@ -25,35 +25,7 @@ Both are signed with the same Team ID and share the keychain access group `$(App
 
 ## Project Structure
 
-```
-App/                              SwiftUI app sources (target: quorra)
-  Root/                           AppModel, AppPhase, AppError, RootView
-  Bookmarks/                      BookmarkStorage, FolderPicker, UserHome
-  Views/                          SetupView, MainView, FolderContentsView, ErrorView
-  Theme/                          Theme.swift
-  Assets.xcassets/                AppIcon, AccentColor
-  quorraApp.swift                 @main entry point
-quorra-cli/                       CLI sources (target: quorra-cli)
-  main.swift                      placeholder
-Packages/
-  QuorraCore/                     local SwiftPM package, multiple library products
-    Package.swift
-    Sources/AWSConfigINI/         INI parser (placeholder)
-    Tests/AWSConfigINITests/      Swift Testing
-Tests/
-  QuorraAppTests/                 app-level tests (target: quorraTests)
-                                  library tests live in the SwiftPM package
-Configs/
-  Quorra.entitlements             app sandbox + keychain-access-groups
-  QuorraCLI.entitlements          CLI sandbox + keychain-access-groups
-Tools/
-  install-cli.sh                  symlinks /Applications/Quorra.app/Contents/MacOS/quorra-cli
-                                  onto user PATH (default ~/.local/bin)
-docs/
-  project-structure-report.html   layout rationale
-quorra.xcodeproj/
-Quorra.xcworkspace/               opens the .xcodeproj + Packages/QuorraCore/
-```
+Review the codebase and ask questions when needed.
 
 ## Distribution
 
@@ -73,7 +45,11 @@ On first launch the app has no security-scoped bookmark yet, so it shows `SetupV
 
 - `AppModel` methods are the only way to mutate `phase` — `phase` is `private(set)`. Methods: `resolveStoredBookmark()`, `completeSetup(selectedFolder:)`, `resetToSetup()`. All `async`.
 - Views read model via `@Environment(AppModel.self)`. No prop-drilling.
-- `SetupView` orchestrates the picker: calls `FolderPicker.pickAWSFolder()`, then `appModel.completeSetup(selectedFolder:)`. View drives; model stores.
+- `SetupView` orchestrates the picker: calls `FolderPicker.pickAWSFolder()`, then `appModel.completeSetup(selectedFolder:, mode:)`. View drives; model stores.
+- `SetupView` also hosts a mode card (Edit & Manage vs Read Only). Default is Edit & Manage. The user's selection is persisted by `AppModel` via `ModePreferenceStorage` into `UserDefaults.standard`.
+- `ProfilesModel` is a separate `@Observable` model injected alongside `AppModel`. It owns load/save of `~/.aws/config` and `~/.aws/credentials` and exposes `groups: SidebarGroups`, `loadState`, `findProfile(named:)`, `findSession(named:)`.
+- `AppModel.mode` (`ManagedMode`) is readable by all views. Edit fields are disabled when `mode == .readOnly`; a Read Only banner is shown in `ProfileDetailView` and `SessionDetailView`.
+- Settings window is reachable via ⌘, (standard macOS shortcut); opened with `@Environment(\.openSettings)`.
 - `BookmarkStorage` has no SwiftUI dependency and is the primary test target for v1.
 - Every view file ships with at least one `#Preview`. Use named previews for different states (e.g. `#Preview("Setup")`, `#Preview("Error – folderMissing")`).
 
@@ -137,7 +113,7 @@ Read https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.md for
 
 ### INI Parser
 
-Swift Foundation has no INI parser. Generic Swift packages do not handle the AWS-specific quirks (section asymmetry, indented sub-sections under `services`, comment round-trip preservation). Quorra ships its own parser modeled on `github.com/aws/aws-sdk-go-v2/config/internal/ini`.
+Swift Foundation has no INI parser. Quorra includes a full INI pacakge with a layer specific to AWS config semantic. Complete documentation is here: ./docs/AWSConfigINI.html
 
 ## Keychain Storage
 

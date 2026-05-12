@@ -14,6 +14,7 @@ struct AboutSettingsTab: View {
                 .scaledToFit()
                 .frame(width: 64, height: 64)
                 .foregroundStyle(Theme.accent)
+                .accessibilityHidden(true)
 
             Text("Quorra")
                 .font(.system(size: 18, weight: .semibold))

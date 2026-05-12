@@ -87,6 +87,7 @@ struct SessionDetailView: View {
             HStack(spacing: 10) {
                 Image(systemName: "lock.fill")
                     .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Read Only mode").font(.callout.weight(.semibold))
                     Text("Quorra won't write to your AWS files.")
