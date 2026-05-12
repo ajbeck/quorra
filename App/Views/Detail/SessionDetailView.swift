@@ -4,6 +4,8 @@ import AWSConfigINI
 struct SessionDetailView: View {
     let node: SSOSessionNode
     @Environment(AppModel.self) private var appModel
+    @Environment(ProfilesModel.self) private var profilesModel
+    @Environment(EditorState.self) private var editorState
     @Environment(\.openSettings) private var openSettings
     @State private var draft: SSOSession
     @State private var isPresentingSaveError = false
@@ -27,8 +29,56 @@ struct SessionDetailView: View {
         .formStyle(.grouped)
         .navigationTitle(node.id)
         .navigationSubtitle(isDirty ? "Edited" : "")
+        .toolbar { editorToolbar }
         .onChange(of: node) { _, newValue in
             draft = newValue.session ?? SSOSession()
+        }
+        .onChange(of: isDirty) { _, newValue in
+            editorState.dirtyDescription = newValue ? "changes to SSO session \(node.id)" : nil
+        }
+        .onDisappear {
+            editorState.dirtyDescription = nil
+        }
+        .alert(
+            "Couldn't save",
+            isPresented: $isPresentingSaveError,
+            presenting: saveError
+        ) { _ in
+            Button("Retry") { Task { await save() } }
+            Button("OK", role: .cancel) { }
+        } message: { error in
+            Text([error.errorDescription, error.recoverySuggestion]
+                .compactMap { $0 }.joined(separator: "\n\n"))
+        }
+    }
+
+    @ToolbarContentBuilder private var editorToolbar: some ToolbarContent {
+        if !isReadOnly {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Discard", role: .destructive) {
+                    draft = node.session ?? SSOSession()
+                }
+                .disabled(!isDirty)
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Save") {
+                    Task { await save() }
+                }
+                .disabled(!isDirty)
+                .keyboardShortcut(.defaultAction)
+            }
+        }
+    }
+
+    private func save() async {
+        do {
+            try await profilesModel.save(draft, for: node)
+        } catch let err as AWSConfigINIError {
+            saveError = err
+            isPresentingSaveError = true
+        } catch {
+            saveError = .malformedInput(error.localizedDescription)
+            isPresentingSaveError = true
         }
     }
 
@@ -99,6 +149,7 @@ private struct SessionDetailPreviewHarness: View {
     let mode: ManagedMode
     @State private var appModel: AppModel
     @State private var profilesModel = ProfilesModel()
+    @State private var editorState = EditorState()
 
     init(mode: ManagedMode) {
         self.mode = mode
@@ -112,6 +163,8 @@ private struct SessionDetailPreviewHarness: View {
                let node = profilesModel.findSession(named: "acme") {
                 SessionDetailView(node: node)
                     .environment(appModel)
+                    .environment(profilesModel)
+                    .environment(editorState)
             } else {
                 ProgressView().controlSize(.small)
             }
