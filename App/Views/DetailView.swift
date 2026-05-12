@@ -17,7 +17,15 @@ struct DetailView: View {
                 description: Text(err.localizedDescription)
             )
         case (.loaded, .none):
-            ContentUnavailableView("Select a profile or session", systemImage: "sidebar.leading")
+            if profilesModel.groups == .empty {
+                ContentUnavailableView {
+                    Label("No profiles yet", systemImage: "folder")
+                } description: {
+                    Text("Quorra will read profiles from ~/.aws/config and ~/.aws/credentials. Add profiles using the AWS CLI to see them here.")
+                }
+            } else {
+                ContentUnavailableView("Select a profile or session", systemImage: "sidebar.leading")
+            }
         case (.loaded, .profile(let name)):
             if let node = profilesModel.findProfile(named: name) {
                 ProfileDetailView(node: node, sidebarSelection: $selection)
@@ -49,17 +57,23 @@ struct DetailView: View {
     )
 }
 
+#Preview("Detail – no profiles yet") {
+    DetailViewPreviewHarness(selection: nil, forceEmpty: true)
+}
+
 private struct DetailViewPreviewHarness: View {
     let initialSelection: SidebarSelection?
     let mode: ManagedMode
+    let forceEmpty: Bool
     @State private var selection: SidebarSelection?
     @State private var appModel: AppModel
     @State private var profilesModel = ProfilesModel()
     @State private var editorState = EditorState()
 
-    init(selection: SidebarSelection?, mode: ManagedMode = .managed) {
+    init(selection: SidebarSelection?, mode: ManagedMode = .managed, forceEmpty: Bool = false) {
         self.initialSelection = selection
         self.mode = mode
+        self.forceEmpty = forceEmpty
         let tmp = URL(filePath: "/nonexistent/aws-folder")
         _appModel = State(initialValue: AppModel(initialPhase: .ready(tmp), initialMode: mode))
         _selection = State(initialValue: selection)
@@ -74,11 +88,13 @@ private struct DetailViewPreviewHarness: View {
                 let tmp = FileManager.default.temporaryDirectory
                     .appending(path: UUID().uuidString, directoryHint: .isDirectory)
                 try? FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
-                try? sampleConfig.write(
-                    to: tmp.appending(path: "config", directoryHint: .notDirectory),
-                    atomically: true,
-                    encoding: .utf8
-                )
+                if !forceEmpty {
+                    try? sampleConfig.write(
+                        to: tmp.appending(path: "config", directoryHint: .notDirectory),
+                        atomically: true,
+                        encoding: .utf8
+                    )
+                }
                 appModel = AppModel(initialPhase: .ready(tmp), initialMode: mode)
                 await profilesModel.load(folder: tmp)
                 if let initialSelection {
