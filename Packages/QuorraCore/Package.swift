@@ -9,6 +9,7 @@ let package = Package(
     ],
     products: [
         .library(name: "AWSConfigINI", targets: ["AWSConfigINI"]),
+        .library(name: "IAMIdentityCenter", targets: ["IAMIdentityCenter"]),
     ],
     targets: [
         .target(name: "AWSConfigINI"),
@@ -18,6 +19,11 @@ let package = Package(
             resources: [
                 .copy("Resources"),
             ]
+        ),
+        .target(name: "IAMIdentityCenter"),
+        .testTarget(
+            name: "IAMIdentityCenterTests",
+            dependencies: ["IAMIdentityCenter"]
         ),
     ]
 )
