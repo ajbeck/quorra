@@ -1,10 +1,13 @@
 import SwiftUI
 import AWSConfigINI
+import IAMIdentityCenter
+import AppKit
 
 struct SessionDetailView: View {
     let node: SSOSessionNode
     @Environment(AppModel.self) private var appModel
     @Environment(ProfilesModel.self) private var profilesModel
+    @Environment(CredentialsModel.self) private var credentialsModel
     @Environment(EditorState.self) private var editorState
     @Environment(\.openSettings) private var openSettings
     @State private var draft: SSOSession
@@ -38,6 +41,11 @@ struct SessionDetailView: View {
         }
         .onDisappear {
             editorState.dirtyDescription = nil
+        }
+        .onChange(of: credentialsModel.inFlight[node.id]) { _, newValue in
+            if let progress = newValue {
+                NSWorkspace.shared.open(progress.verificationUriComplete)
+            }
         }
         .alert(
             "Couldn't save",
@@ -131,31 +139,88 @@ struct SessionDetailView: View {
 
     @ViewBuilder private var statusSection: some View {
         Section("Status") {
-            Text("Sign-in not yet implemented in this build")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            SignInPanel(
+                sessionName: node.id,
+                startUrl: draft.ssoStartUrl.flatMap { URL(string: $0) },
+                region: draft.ssoRegion,
+                scopes: draft.ssoRegistrationScopes,
+                progress: credentialsModel.inFlight[node.id],
+                error: credentialsModel.lastError[node.id],
+                isReadOnly: isReadOnly,
+                onSignIn: {
+                    guard let startUrlString = draft.ssoStartUrl,
+                          let startUrl = URL(string: startUrlString),
+                          let region = draft.ssoRegion else {
+                        return
+                    }
+                    let scopes = draft.ssoRegistrationScopes ?? ["sso:account:access"]
+                    Task {
+                        await credentialsModel.signIn(
+                            sessionName: node.id,
+                            startUrl: startUrl,
+                            region: region,
+                            scopes: scopes
+                        )
+                    }
+                },
+                onCancel: {
+                    Task {
+                        await credentialsModel.cancelSignIn(sessionName: node.id)
+                    }
+                },
+                onRetry: {
+                    guard let startUrlString = draft.ssoStartUrl,
+                          let startUrl = URL(string: startUrlString),
+                          let region = draft.ssoRegion else {
+                        return
+                    }
+                    let scopes = draft.ssoRegistrationScopes ?? ["sso:account:access"]
+                    Task {
+                        await credentialsModel.signIn(
+                            sessionName: node.id,
+                            startUrl: startUrl,
+                            region: region,
+                            scopes: scopes
+                        )
+                    }
+                }
+            )
         }
     }
 }
 
-#Preview("Edit mode") {
-    SessionDetailPreviewHarness(mode: .managed)
+#Preview("Idle") {
+    SessionDetailPreviewHarness(mode: .managed, previewState: .idle)
 }
 
-#Preview("Read Only") {
-    SessionDetailPreviewHarness(mode: .readOnly)
+#Preview("Signing in") {
+    SessionDetailPreviewHarness(mode: .managed, previewState: .signingIn)
+}
+
+#Preview("Sign-in failed") {
+    SessionDetailPreviewHarness(mode: .managed, previewState: .failed)
+}
+
+private enum PreviewState {
+    case idle
+    case signingIn
+    case failed
 }
 
 private struct SessionDetailPreviewHarness: View {
     let mode: ManagedMode
+    let previewState: PreviewState
     @State private var appModel: AppModel
     @State private var profilesModel = ProfilesModel()
+    @State private var credentialsModel: CredentialsModel
     @State private var editorState = EditorState()
 
-    init(mode: ManagedMode) {
+    init(mode: ManagedMode, previewState: PreviewState) {
         self.mode = mode
+        self.previewState = previewState
         let tmp = URL(filePath: "/nonexistent/aws-folder")
         _appModel = State(initialValue: AppModel(initialPhase: .ready(tmp), initialMode: mode))
+        _credentialsModel = State(initialValue: CredentialsModel(service: StubIdentityCenterService()))
     }
 
     var body: some View {
@@ -165,6 +230,7 @@ private struct SessionDetailPreviewHarness: View {
                 SessionDetailView(node: node)
                     .environment(appModel)
                     .environment(profilesModel)
+                    .environment(credentialsModel)
                     .environment(editorState)
             } else {
                 ProgressView().controlSize(.small)
@@ -181,6 +247,25 @@ private struct SessionDetailPreviewHarness: View {
             )
             appModel = AppModel(initialPhase: .ready(tmp), initialMode: mode)
             await profilesModel.load(folder: tmp)
+            
+            switch previewState {
+            case .idle:
+                break
+            case .signingIn:
+                let progress = SignInProgress(
+                    sessionName: "acme",
+                    verification: DeviceVerification(
+                        userCode: "ABCD-EFGH",
+                        verificationUri: URL(string: "https://device.sso.us-east-1.amazonaws.com")!,
+                        verificationUriComplete: URL(string: "https://device.sso.us-east-1.amazonaws.com?user_code=ABCD-EFGH")!,
+                        expiresAt: Date(timeIntervalSinceNow: 600),
+                        interval: 5
+                    )
+                )
+                credentialsModel.seedInFlightForTesting(progress, sessionName: "acme")
+            case .failed:
+                credentialsModel.seedLastErrorForTesting(.expiredDeviceCode, sessionName: "acme")
+            }
         }
     }
 
@@ -198,5 +283,22 @@ private struct SessionDetailPreviewHarness: View {
         region = us-east-1
         output = json
         """
+    }
+}
+
+private struct StubIdentityCenterService: IdentityCenterServicing {
+    @concurrent
+    func signIn(
+        sessionName: String,
+        startUrl: URL,
+        region: String,
+        scopes: [String],
+        clientName: String,
+        verificationHandler: @escaping @concurrent @Sendable (DeviceVerification) async -> Void
+    ) async throws -> StoredSSOToken {
+        fatalError("Stub: signIn should not be called in previews")
+    }
+    
+    func cancelSignIn(sessionName: String) async {
     }
 }
