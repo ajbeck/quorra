@@ -43,6 +43,9 @@ public enum IAMIdentityCenterError: Error, Sendable {
     /// Wall clock since StartDeviceAuthorization exceeded expiresIn.
     case deviceFlowTimedOut
 
+    /// Another sign-in is already in flight for this session.
+    case signInAlreadyInProgress(sessionName: String)
+
     // MARK: - AWS Service
 
     /// Forward-compat fallback for AWS error codes we don't have a typed case for.

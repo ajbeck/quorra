@@ -40,6 +40,9 @@ extension IAMIdentityCenterError: LocalizedError {
         case .deviceFlowTimedOut:
             return "Sign-in timed out. Please try again."
 
+        case .signInAlreadyInProgress(let sessionName):
+            return "A sign-in is already in progress for session \(sessionName)."
+
         case .awsError(let code, let description):
             if let description = description {
                 return "AWS error \(code): \(description)"

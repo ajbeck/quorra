@@ -14,6 +14,7 @@ internal final class StubURLProtocol: URLProtocol {
     internal enum StubResponse {
         case success(Data, HTTPURLResponse)
         case failure(Error)
+        case custom((URLRequest) -> (Data, HTTPURLResponse))
     }
 
     /// Registers a stubbed response for URLs containing the given substring.
@@ -71,6 +72,11 @@ internal final class StubURLProtocol: URLProtocol {
             client?.urlProtocolDidFinishLoading(self)
         case .failure(let error):
             client?.urlProtocol(self, didFailWithError: error)
+        case .custom(let handler):
+            let (data, response) = handler(request)
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: data)
+            client?.urlProtocolDidFinishLoading(self)
         }
     }
 
@@ -144,5 +150,13 @@ extension StubURLProtocol {
     /// Convenience: register a network failure.
     static func registerNetworkFailure(urlSubstring: String) {
         register(urlSubstring: urlSubstring, response: .failure(URLError(.notConnectedToInternet)))
+    }
+
+    /// Convenience: register a custom handler for dynamic per-call responses.
+    static func registerCustom(
+        urlSubstring: String,
+        handler: @escaping (URLRequest) -> (Data, HTTPURLResponse)
+    ) {
+        register(urlSubstring: urlSubstring, response: .custom(handler))
     }
 }
