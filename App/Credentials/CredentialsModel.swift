@@ -72,5 +72,11 @@ final class CredentialsModel {
     func seedLastErrorForTesting(_ error: IAMIdentityCenterError, sessionName: String) {
         lastError[sessionName] = error
     }
+    
+    /// Test seam: write-access to `inFlight` for setting up "signing in" preconditions.
+    /// Not callable from production code paths.
+    func seedInFlightForTesting(_ progress: SignInProgress, sessionName: String) {
+        inFlight[sessionName] = progress
+    }
     #endif
 }

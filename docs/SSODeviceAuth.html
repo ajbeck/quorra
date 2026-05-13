@@ -1,0 +1,1507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SSO Device Authorization — Quorra</title>
+<style>
+  /* ================================================================
+     Color tokens (palette you supplied)
+     ================================================================ */
+  :root {
+    color-scheme: light dark;
+
+    --coral-50:  #FFF0ED; --coral-100: #FFDDD6; --coral-200: #FFB3A3; --coral-300: #FF8A6F;
+    --coral-400: #FF6347; --coral-500: #E8452C; --coral-600: #C43420; --coral-700: #9A2718;
+    --coral-800: #741D12; --coral-900: #50130D; --coral-950: #300B07;
+
+    --sunshine-50:  #FFFCE5; --sunshine-100: #FFF8BF; --sunshine-200: #FFF080; --sunshine-300: #FFE433;
+    --sunshine-400: #FFD700; --sunshine-500: #E5BF00; --sunshine-600: #BF9F00; --sunshine-700: #997F00;
+    --sunshine-800: #736000; --sunshine-900: #4D4000; --sunshine-950: #2E2600;
+
+    --sky-50:  #E8F4FF; --sky-100: #CCE7FF; --sky-200: #99CFFF; --sky-300: #5CB3FF;
+    --sky-400: #2196F5; --sky-500: #0A7EDB; --sky-600: #0066B8; --sky-700: #004F8F;
+    --sky-800: #003B6B; --sky-900: #002949; --sky-950: #00182B;
+
+    --mint-50:  #E6FFF3; --mint-100: #C0FFE0; --mint-200: #80FFC2; --mint-300: #33F59A;
+    --mint-400: #00D97F; --mint-500: #00B86B; --mint-600: #009959; --mint-700: #007A47;
+    --mint-800: #005C35; --mint-900: #003D24; --mint-950: #002415;
+
+    --violet-50:  #F3EDFF; --violet-100: #E2D5FF; --violet-200: #C6ABFF; --violet-300: #A47DFF;
+    --violet-400: #8B5CF6; --violet-500: #7342DB; --violet-600: #5E33B8; --violet-700: #49278F;
+    --violet-800: #371D6B; --violet-900: #251349; --violet-950: #160B2B;
+
+    --tangerine-50:  #FFF4E5; --tangerine-100: #FFE4BF; --tangerine-200: #FFC880; --tangerine-300: #FFA833;
+    --tangerine-400: #FF9500; --tangerine-500: #E58000; --tangerine-600: #BF6A00; --tangerine-700: #995500;
+    --tangerine-800: #733F00; --tangerine-900: #4D2A00; --tangerine-950: #2E1900;
+
+    --bubblegum-50:  #FFF0F8; --bubblegum-100: #FFDBEE; --bubblegum-200: #FFB3DB; --bubblegum-300: #FF80C5;
+    --bubblegum-400: #FF47AE; --bubblegum-500: #E52D94; --bubblegum-600: #BF2079; --bubblegum-700: #991661;
+    --bubblegum-800: #731049; --bubblegum-900: #4D0B31; --bubblegum-950: #2E061D;
+
+    --lagoon-50:  #E5FFFC; --lagoon-100: #B3FFF5; --lagoon-200: #66FFEB; --lagoon-300: #1AE8D5;
+    --lagoon-400: #00CCB8; --lagoon-500: #00AD9E; --lagoon-600: #008F83; --lagoon-700: #007068;
+    --lagoon-800: #00544E; --lagoon-900: #003935; --lagoon-950: #002220;
+
+    --slate-50:  #F8F9FA; --slate-100: #F1F3F5; --slate-200: #E2E5E9; --slate-300: #C8CDD3;
+    --slate-400: #A1A9B3; --slate-500: #6C757D; --slate-600: #545B62; --slate-700: #40464C;
+    --slate-800: #2D3238; --slate-900: #1A1E23; --slate-950: #0D0F12;
+
+    --success-300: #5CF58A; --success-500: #10B845; --success-700: #07742A;
+    --warning-300: #FCBF3C; --warning-500: #D4920B; --warning-700: #8C6007;
+    --error-300:   #FF6B6B; --error-500:   #D42020; --error-700:   #881212;
+  }
+
+  /* ================================================================
+     Theme: dark default ("Terminal Garden"), light variant via @media
+     ================================================================ */
+  :root {
+    --bg:            var(--slate-950);
+    --bg-elev:       var(--slate-900);
+    --bg-code:       #0a0d10;
+    --bg-card:       rgba(45, 50, 56, 0.35);
+    --fg:            var(--slate-100);
+    --fg-mute:       var(--slate-400);
+    --fg-dim:        var(--slate-500);
+    --rule:          var(--slate-800);
+    --rule-soft:     #1c2026;
+    --primary:       var(--coral-400);
+    --primary-deep:  var(--coral-500);
+    --primary-soft:  rgba(255, 99, 71, 0.12);
+    --type:          var(--sky-300);
+    --keyword:       var(--violet-300);
+    --string:        var(--mint-300);
+    --number:        var(--tangerine-300);
+    --comment:       var(--slate-500);
+    --aws-accent:    var(--tangerine-400);
+    --decision:      var(--sunshine-300);
+    --success:       var(--success-300);
+    --warning:       var(--warning-300);
+    --error:         var(--error-300);
+    --grid-tint:     rgba(255, 99, 71, 0.04);
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg:            var(--slate-50);
+      --bg-elev:       #ffffff;
+      --bg-code:       var(--slate-900);
+      --bg-card:       #ffffff;
+      --fg:            var(--slate-900);
+      --fg-mute:       var(--slate-600);
+      --fg-dim:        var(--slate-500);
+      --rule:          var(--slate-200);
+      --rule-soft:     var(--slate-100);
+      --primary:       var(--coral-500);
+      --primary-deep:  var(--coral-700);
+      --primary-soft:  var(--coral-50);
+      --type:          var(--sky-700);
+      --keyword:       var(--violet-700);
+      --string:        var(--mint-700);
+      --number:        var(--tangerine-700);
+      --comment:       var(--slate-500);
+      --aws-accent:    var(--tangerine-600);
+      --decision:      var(--sunshine-700);
+      --success:       var(--success-700);
+      --warning:       var(--warning-700);
+      --error:         var(--error-700);
+      --grid-tint:     rgba(232, 69, 44, 0.04);
+    }
+    /* Code blocks stay dark in light mode — first-class citizens */
+    :root pre, :root .code-frame { color: var(--slate-100) !important; }
+  }
+
+  /* ================================================================
+     Base
+     ================================================================ */
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    background-image:
+      linear-gradient(var(--grid-tint) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-tint) 1px, transparent 1px);
+    background-size: 64px 64px, 64px 64px;
+    color: var(--fg);
+    font-family: ui-serif, "Iowan Old Style", "Charter", "Source Serif Pro", "Hoefler Text", "Palatino", Georgia, serif;
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "kern", "liga", "onum";
+  }
+  ::selection { background: var(--primary-soft); color: var(--fg); }
+
+  a { color: var(--primary); text-decoration: none; border-bottom: 1px solid transparent; transition: border-color 120ms ease, color 120ms ease; }
+  a:hover { border-bottom-color: var(--primary); color: var(--primary-deep); }
+
+  /* Mono everywhere code happens */
+  code, pre, kbd, samp,
+  .mono, .term-prompt, .badge, .tag,
+  .moniker, .section-anchor, .toc-link, .toc-num,
+  .tok-key, .tok-string, .tok-number, .tok-comment, .tok-keyword, .tok-type,
+  .signature, .field, .ini-section, .ini-key, .ini-value, .err-case {
+    font-family: "Berkeley Mono", "JetBrains Mono", "IBM Plex Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+    font-feature-settings: "ss01", "ss02", "calt", "zero";
+  }
+
+  /* ================================================================
+     Layout
+     ================================================================ */
+  .layout {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: 0;
+    max-width: 1400px;
+    margin: 0 auto;
+    min-height: 100vh;
+  }
+
+  /* TOC rail */
+  aside.rail {
+    border-right: 1px solid var(--rule);
+    padding: 2.5rem 1.75rem 4rem 2rem;
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100vh;
+    overflow-y: auto;
+    background: linear-gradient(180deg, transparent 0%, var(--bg) 8%, var(--bg) 92%, transparent 100%);
+  }
+  aside.rail::-webkit-scrollbar { width: 6px; }
+  aside.rail::-webkit-scrollbar-track { background: transparent; }
+  aside.rail::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 3px; }
+
+  .rail-title {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--fg-dim);
+    margin: 0 0 0.4rem;
+  }
+  .rail-product {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.95rem;
+    color: var(--fg);
+    margin: 0 0 1.6rem;
+    display: flex; align-items: baseline; gap: 0.5rem;
+  }
+  .rail-product .live-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 12px var(--success), 0 0 0 3px rgba(92, 245, 138, 0.12);
+    animation: pulse 2.4s ease-in-out infinite;
+    flex: 0 0 auto;
+    transform: translateY(-1px);
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+  }
+
+  .toc { list-style: none; padding: 0; margin: 0; }
+  .toc-section { margin: 0 0 1.5rem; }
+  .toc-section-label {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--fg-dim);
+    margin: 0 0 0.45rem;
+    display: flex; align-items: center; gap: 0.55rem;
+  }
+  .toc-section-label::before {
+    content: ""; flex: 0 0 8px; height: 1px; background: var(--primary);
+  }
+  .toc-link {
+    display: flex;
+    align-items: baseline;
+    gap: 0.65rem;
+    padding: 0.28rem 0;
+    color: var(--fg-mute);
+    font-size: 0.85rem;
+    border-bottom: none;
+    transition: color 120ms ease, transform 120ms ease;
+  }
+  .toc-link:hover { color: var(--primary); transform: translateX(2px); border-bottom: none; }
+  .toc-num {
+    color: var(--fg-dim);
+    font-size: 0.7rem;
+    flex: 0 0 auto;
+  }
+
+  /* Main column */
+  main {
+    padding: 4rem 4rem 8rem;
+    max-width: 920px;
+    min-width: 0;
+  }
+  @media (max-width: 1100px) {
+    .layout { grid-template-columns: 1fr; }
+    aside.rail {
+      position: static;
+      height: auto;
+      border-right: none;
+      border-bottom: 1px solid var(--rule);
+      padding: 2rem 1.5rem;
+    }
+    main { padding: 2.5rem 1.5rem 5rem; }
+  }
+  @media (max-width: 720px) {
+    main { padding: 2rem 1rem 4rem; }
+    body { background-size: 32px 32px, 32px 32px; }
+  }
+
+  /* ================================================================
+     Hero
+     ================================================================ */
+  .hero {
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 2.5rem 2.25rem;
+    margin: 0 0 3.5rem;
+    background:
+      radial-gradient(at 8% 0%, rgba(255, 99, 71, 0.10) 0, transparent 38%),
+      radial-gradient(at 100% 100%, rgba(115, 66, 219, 0.07) 0, transparent 42%),
+      var(--bg-card);
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--primary) 30%, var(--primary) 70%, transparent);
+    opacity: 0.6;
+  }
+  .hero-meta {
+    display: flex; flex-wrap: wrap; gap: 0.5rem;
+    margin: 0 0 1.5rem;
+  }
+  .badge {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    padding: 0.3rem 0.6rem;
+    border-radius: 3px;
+    border: 1px solid currentColor;
+    text-transform: lowercase;
+  }
+  .badge.primary { color: var(--primary); }
+  .badge.swift   { color: var(--tangerine-400); }
+  .badge.macos   { color: var(--sky-300); }
+  .badge.tests   { color: var(--success); }
+  @media (prefers-color-scheme: light) {
+    .badge.primary { color: var(--coral-700); }
+    .badge.swift   { color: var(--tangerine-700); }
+    .badge.macos   { color: var(--sky-700); }
+    .badge.tests   { color: var(--success-700); }
+  }
+
+  h1 {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-weight: 600;
+    font-size: clamp(2rem, 5.5vw, 3.5rem);
+    line-height: 1;
+    letter-spacing: -0.025em;
+    margin: 0 0 1rem;
+    color: var(--fg);
+  }
+  h1 .moniker {
+    color: var(--primary);
+    font-weight: 600;
+  }
+  h1 .moniker-bracket {
+    color: var(--fg-dim);
+    font-weight: 400;
+  }
+  .lede {
+    font-size: 1.15rem;
+    line-height: 1.55;
+    color: var(--fg-mute);
+    max-width: 56ch;
+    margin: 0 0 1.5rem;
+    font-style: italic;
+  }
+  .hero-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1rem 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px dashed var(--rule);
+  }
+  .stat .num {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 1.5rem;
+    color: var(--primary);
+    font-weight: 600;
+    display: block;
+  }
+  .stat .label {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--fg-dim);
+    margin-top: 0.15rem;
+    display: block;
+  }
+
+  /* ================================================================
+     Headings
+     ================================================================ */
+  h2 {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 1.45rem;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    margin: 4.5rem 0 1.2rem;
+    padding-top: 1.2rem;
+    border-top: 1px solid var(--rule);
+    position: relative;
+    color: var(--fg);
+  }
+  h2 .section-anchor {
+    color: var(--primary);
+    margin-right: 0.6rem;
+    font-size: 0.85rem;
+    letter-spacing: 0;
+    vertical-align: 0.15em;
+  }
+  h3 {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 2.4rem 0 0.7rem;
+    color: var(--fg);
+  }
+  h3::before {
+    content: "▸";
+    color: var(--primary);
+    margin-right: 0.4rem;
+    font-size: 0.85em;
+  }
+  h4 {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--fg-mute);
+    margin: 1.8rem 0 0.5rem;
+    font-weight: 600;
+  }
+  p { margin: 0 0 1.05rem; }
+  ul, ol { margin: 0 0 1.1rem; padding-left: 1.4rem; }
+  li { margin: 0.3rem 0; }
+  li::marker { color: var(--primary); }
+  strong { font-weight: 600; color: var(--fg); }
+  em { font-style: italic; color: var(--fg-mute); }
+
+  /* Inline code */
+  p code, li code, td code, h2 code, h3 code, h4 code {
+    background: var(--primary-soft);
+    color: var(--primary);
+    padding: 0.1em 0.4em;
+    border-radius: 3px;
+    font-size: 0.86em;
+    border: 1px solid transparent;
+  }
+  @media (prefers-color-scheme: light) {
+    p code, li code, td code, h2 code, h3 code, h4 code {
+      background: var(--coral-50);
+      color: var(--coral-700);
+      border: 1px solid var(--coral-100);
+    }
+  }
+
+  /* ================================================================
+     Code frames — first-class citizens
+     ================================================================ */
+  .code-frame {
+    margin: 1.4rem 0;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--bg-code);
+    border: 1px solid #1d2228;
+    box-shadow: 0 8px 28px -16px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 99, 71, 0.04) inset;
+  }
+  .code-titlebar {
+    display: flex; align-items: center; gap: 0.6rem;
+    padding: 0.6rem 0.9rem;
+    background: linear-gradient(180deg, #14181d 0%, #0d1014 100%);
+    border-bottom: 1px solid #1d2228;
+  }
+  .lights { display: flex; gap: 0.4rem; }
+  .lights span {
+    width: 11px; height: 11px; border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.35);
+  }
+  .lights .l1 { background: var(--coral-400); }
+  .lights .l2 { background: var(--sunshine-400); }
+  .lights .l3 { background: var(--mint-400); }
+  .code-titlebar .filename {
+    color: var(--slate-400);
+    font-size: 0.78rem;
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    margin-left: 0.4rem;
+  }
+  .code-titlebar .filename .ext { color: var(--primary); }
+  .code-titlebar .langtag {
+    margin-left: auto;
+    color: var(--slate-500);
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 0.18rem 0.5rem;
+    border: 1px solid #1d2228;
+    border-radius: 3px;
+  }
+  pre {
+    margin: 0;
+    padding: 1.1rem 1.2rem;
+    overflow-x: auto;
+    color: var(--slate-100);
+    font-size: 0.82rem;
+    line-height: 1.6;
+    font-family: "Berkeley Mono", "JetBrains Mono", "IBM Plex Mono", "SF Mono", ui-monospace, monospace;
+    font-feature-settings: "ss01", "ss02";
+    tab-size: 4;
+  }
+  pre code { background: transparent; color: inherit; padding: 0; border: none; font-size: inherit; }
+
+  /* Hand-tinted Swift / INI tokens */
+  .tok-keyword { color: var(--keyword); }
+  .tok-type    { color: var(--type); }
+  .tok-string  { color: var(--string); }
+  .tok-number  { color: var(--number); }
+  .tok-comment { color: var(--comment); font-style: italic; }
+  .ini-section { color: var(--aws-accent); font-weight: 600; }
+  .ini-key     { color: var(--sky-300); }
+  .ini-value   { color: var(--mint-300); }
+  .term-prompt { color: var(--success); user-select: none; }
+
+  /* ================================================================
+     Cards / Callouts
+     ================================================================ */
+  .callout {
+    margin: 1.4rem 0;
+    border-left: 3px solid var(--primary);
+    padding: 0.95rem 1.15rem;
+    background: var(--primary-soft);
+    border-radius: 0 4px 4px 0;
+    font-size: 0.95rem;
+  }
+  .callout.note    { border-color: var(--type);    background: rgba(92, 179, 255, 0.08); }
+  .callout.warn    { border-color: var(--warning); background: rgba(252, 191, 60, 0.08); }
+  .callout.success { border-color: var(--success); background: rgba(92, 245, 138, 0.08); }
+  .callout.danger  { border-color: var(--error);   background: rgba(255, 107, 107, 0.08); }
+  @media (prefers-color-scheme: light) {
+    .callout         { background: var(--coral-50); }
+    .callout.note    { background: var(--sky-50); }
+    .callout.warn    { background: var(--warning-50, #FFF8EB); }
+    .callout.success { background: #EDFFF0; }
+    .callout.danger  { background: #FFF0F0; }
+  }
+  .callout strong {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--primary);
+    margin-right: 0.4rem;
+    display: inline-block;
+  }
+  .callout.note strong    { color: var(--type); }
+  .callout.warn strong    { color: var(--warning); }
+  .callout.success strong { color: var(--success); }
+  .callout.danger strong  { color: var(--error); }
+
+  /* ================================================================
+     API entries (Swift signatures)
+     ================================================================ */
+  .api {
+    margin: 1.5rem 0 2rem;
+    padding: 0 0 0 1rem;
+    border-left: 2px solid var(--rule);
+  }
+  .api-title {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.95rem;
+    color: var(--fg);
+    margin: 0 0 0.35rem;
+    display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.5rem;
+  }
+  .api-title .kind {
+    color: var(--keyword);
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-right: 0.3rem;
+  }
+  .api-title .name { color: var(--primary); font-weight: 600; }
+  .api-desc { color: var(--fg-mute); font-size: 0.95rem; margin: 0.35rem 0 0.65rem; }
+
+  /* Compact signature snippets */
+  .signature {
+    display: block;
+    background: var(--bg-code);
+    color: var(--slate-100);
+    padding: 0.7rem 0.95rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    line-height: 1.55;
+    margin: 0.5rem 0 0.6rem;
+    overflow-x: auto;
+    border: 1px solid #1d2228;
+  }
+
+  /* Field tables for structs */
+  table.fields {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.6rem 0 1rem;
+    font-size: 0.88rem;
+  }
+  table.fields th, table.fields td {
+    text-align: left;
+    padding: 0.5rem 0.7rem;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: top;
+  }
+  table.fields th {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--fg-dim);
+    font-weight: 600;
+    border-bottom: 1px solid var(--rule);
+  }
+  table.fields td.field {
+    color: var(--primary);
+  }
+  table.fields td.type {
+    color: var(--type);
+  }
+  table.fields td.note {
+    color: var(--fg-mute);
+    font-family: ui-serif, Georgia, serif;
+  }
+
+  /* Error list */
+  .errors {
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0;
+    display: grid;
+    gap: 0.5rem;
+  }
+  .errors li {
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--error);
+    border-radius: 4px;
+    padding: 0.7rem 0.9rem;
+    background: var(--bg-card);
+    display: grid;
+    grid-template-columns: minmax(180px, max-content) 1fr;
+    gap: 0.9rem;
+    align-items: baseline;
+  }
+  .errors li .err-case {
+    color: var(--error);
+    font-size: 0.86rem;
+  }
+  .errors li .err-desc {
+    color: var(--fg-mute);
+    font-size: 0.92rem;
+    font-family: ui-serif, Georgia, serif;
+  }
+
+  /* Quickstart steps */
+  .steps { counter-reset: step; padding: 0; list-style: none; }
+  .steps > li {
+    counter-increment: step;
+    margin: 0 0 1.5rem;
+    padding-left: 2.4rem;
+    position: relative;
+  }
+  .steps > li::before {
+    content: counter(step, decimal-leading-zero);
+    position: absolute;
+    left: 0;
+    top: 0;
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.85rem;
+    color: var(--primary);
+    background: var(--primary-soft);
+    border: 1px solid var(--primary);
+    border-radius: 4px;
+    padding: 0.18rem 0.45rem;
+    line-height: 1;
+  }
+
+  /* Decision pills */
+  .pills {
+    display: flex; flex-wrap: wrap; gap: 0.45rem;
+    margin: 0.8rem 0 1.4rem;
+  }
+  .pill {
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.72rem;
+    padding: 0.32rem 0.6rem;
+    border-radius: 3px;
+    color: var(--fg);
+    border: 1px solid var(--rule);
+    background: var(--bg-card);
+  }
+  .pill .dot { color: var(--primary); margin-right: 0.3rem; }
+
+  /* Footer */
+  footer {
+    margin: 6rem 0 0;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--rule);
+    color: var(--fg-dim);
+    font-size: 0.85rem;
+    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
+    display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem;
+  }
+  footer .blink::after { content: "_"; animation: blink 1s steps(1) infinite; color: var(--primary); }
+  @keyframes blink { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
+
+  h2[id], h3[id] { scroll-margin-top: 1.5rem; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <aside class="rail">
+    <p class="rail-title">// quorra · plan</p>
+    <p class="rail-product"><span class="live-dot" aria-hidden="true"></span>SSO Device Auth</p>
+
+    <nav class="toc">
+      <div class="toc-section">
+        <p class="toc-section-label">Start</p>
+        <a class="toc-link" href="#overview"><span class="toc-num">01</span><span>Overview</span></a>
+        <a class="toc-link" href="#background"><span class="toc-num">02</span><span>Background</span></a>
+      </div>
+
+      <div class="toc-section">
+        <p class="toc-section-label">Protocol</p>
+        <a class="toc-link" href="#oidc-ops"><span class="toc-num">03</span><span>SSO OIDC ops</span></a>
+        <a class="toc-link" href="#portal-ops"><span class="toc-num">04</span><span>SSO Portal ops</span></a>
+        <a class="toc-link" href="#browser"><span class="toc-num">05</span><span>Browser handoff</span></a>
+      </div>
+
+      <div class="toc-section">
+        <p class="toc-section-label">Implementation</p>
+        <a class="toc-link" href="#sdk"><span class="toc-num">06</span><span>AWS SDK for Swift</span></a>
+        <a class="toc-link" href="#keychain"><span class="toc-num">07</span><span>Keychain schema</span></a>
+        <a class="toc-link" href="#ui"><span class="toc-num">08</span><span>UI design</span></a>
+        <a class="toc-link" href="#phases"><span class="toc-num">09</span><span>Phases</span></a>
+      </div>
+
+      <div class="toc-section">
+        <p class="toc-section-label">Notes</p>
+        <a class="toc-link" href="#decisions"><span class="toc-num">10</span><span>Decisions</span></a>
+        <a class="toc-link" href="#references"><span class="toc-num">11</span><span>References</span></a>
+      </div>
+    </nav>
+  </aside>
+
+  <main>
+
+    <header class="hero">
+      <div class="hero-meta">
+        <span class="badge primary">v0 plan</span>
+        <span class="badge swift">swift 6.2</span>
+        <span class="badge macos">macos 26+</span>
+        <span class="badge tests">design doc</span>
+      </div>
+      <h1><span class="moniker-bracket">[</span><span class="moniker">SSODeviceAuth</span><span class="moniker-bracket">]</span></h1>
+      <p class="lede">Quorra owns the AWS SSO device-authorization flow end-to-end: register an OIDC client, start a device-authorization grant, hand the user a browser to approve it, poll for the access token, exchange it for short-lived role credentials, and persist everything in the macOS Keychain.</p>
+
+      <div class="hero-stats">
+        <div class="stat"><span class="num">2</span><span class="label">aws services</span></div>
+        <div class="stat"><span class="num">5</span><span class="label">protocol ops</span></div>
+        <div class="stat"><span class="num">3</span><span class="label">keychain items</span></div>
+        <div class="stat"><span class="num">0</span><span class="label">aws-cli shellouts</span></div>
+      </div>
+    </header>
+
+    <section id="overview">
+      <h2><span class="section-anchor">// 01</span>Overview</h2>
+
+      <p>Quorra is a developer-machine credential manager for AWS. SSO is the most common way developers authenticate to AWS today, and the AWS CLI implements it as the OAuth 2.0 <em>Device Authorization Grant</em> against the AWS SSO OIDC service. Quorra implements the same flow natively in Swift so the user never has to install or shell out to the AWS CLI just to log in.</p>
+
+      <p>This document describes how the flow works, which AWS services are involved, the exact requests and responses Quorra makes, where state is stored, and how it is surfaced in the UI. It is the design doc for the work that lands in the <code>SSO</code> module of the app and the <code>quorra-cli</code> binary.</p>
+
+      <div class="callout note"><strong>scope</strong>End-to-end SSO sign-in for an existing IAM Identity Center start URL configured by the user. Out of scope here: provisioning the start URL itself, IAM-user long-lived keys, <code>credential_process</code> wiring (handled by a separate doc), and IMDS-side credential serving (also separate).</div>
+
+      <h3>Flow at a glance</h3>
+      <ol>
+        <li><strong>Register</strong> — Quorra calls <code>RegisterClient</code> on AWS SSO OIDC and gets back a <code>clientId</code> and <code>clientSecret</code> valid for ~90 days. These are persisted in Keychain so we don't re-register on every login.</li>
+        <li><strong>Start device auth</strong> — Quorra calls <code>StartDeviceAuthorization</code> with the user's start URL. AWS returns a <code>deviceCode</code>, a <code>userCode</code>, a <code>verificationUri</code>, a <code>verificationUriComplete</code>, an <code>expiresIn</code>, and a polling <code>interval</code>.</li>
+        <li><strong>Open browser</strong> — Quorra opens <code>verificationUriComplete</code> in the user's default browser. The user signs in to their identity provider and approves the device.</li>
+        <li><strong>Poll for token</strong> — In parallel Quorra polls <code>CreateToken</code> with <code>grant_type=urn:ietf:params:oauth:grant-type:device_code</code>, respecting <code>authorization_pending</code>, <code>slow_down</code>, and the server-supplied <code>interval</code>. On success it gets back an <code>accessToken</code>, an <code>expiresIn</code>, and (with the <code>sso:account:access</code> scope) a <code>refreshToken</code>.</li>
+        <li><strong>List accounts &amp; roles</strong> — Quorra calls SSO Portal's <code>ListAccounts</code> and <code>ListAccountRoles</code> to populate the in-app picker.</li>
+        <li><strong>Get role credentials</strong> — When a role is selected, Quorra calls <code>GetRoleCredentials</code> and returns short-lived <code>AccessKeyId</code> / <code>SecretAccessKey</code> / <code>SessionToken</code> / <code>Expiration</code>. These are what the IMDS server, <code>credential_process</code>, and config exporters return to consuming AWS SDKs.</li>
+      </ol>
+
+      <h3>Two AWS services</h3>
+      <p>The flow touches exactly two AWS services. Both are unauthenticated for the bootstrap calls (the device flow itself does not require existing AWS credentials):</p>
+      <table class="fields">
+        <thead><tr><th>Service</th><th>Endpoint pattern</th><th>What we call</th></tr></thead>
+        <tbody>
+          <tr><td class="field">SSO OIDC</td><td class="type">oidc.&lt;region&gt;.amazonaws.com</td><td class="note">RegisterClient, StartDeviceAuthorization, CreateToken</td></tr>
+          <tr><td class="field">SSO Portal</td><td class="type">portal.sso.&lt;region&gt;.amazonaws.com</td><td class="note">ListAccounts, ListAccountRoles, GetRoleCredentials, Logout</td></tr>
+        </tbody>
+      </table>
+
+      <p>The region is the SSO instance's region — taken from the <code>sso_region</code> key in the user's config — not the per-profile <code>region</code> for AWS API calls. They are usually different.</p>
+    </section>
+
+    <section id="background">
+      <h2><span class="section-anchor">// 02</span>Background</h2>
+
+      <h3>What "AWS SSO" is, in 2026</h3>
+      <p>What everyone still calls "AWS SSO" was renamed to <strong>IAM Identity Center</strong> in 2022. The protocol surface — the OIDC and Portal endpoints — kept their original <code>sso</code> / <code>oidc</code> hostnames and API shapes, so the practical flow is identical. The user-facing names changed (start URL, permission set, account assignment); the wire protocol did not.</p>
+
+      <h3>Device Authorization Grant — the OAuth bit</h3>
+      <p>The flow is RFC 8628 <em>OAuth 2.0 Device Authorization Grant</em>, with AWS-specific request and response shapes layered on top. The grant exists for clients that can't conveniently host a redirect URI — TVs, CLIs, headless tools, and desktop apps that don't want to embed a browser. The user is shown a short verification URL and (optionally) a short user code; they complete authentication on a phone or laptop browser; the device polls a token endpoint until the user finishes.</p>
+
+      <p>Two things make AWS's variant slightly non-vanilla:</p>
+      <ul>
+        <li><strong>Dynamic client registration.</strong> There is no pre-issued <code>clientId</code>. The first thing every new client does is call <code>RegisterClient</code> with a self-chosen <code>clientName</code> and an array of <code>scopes</code>. The response includes a <code>clientId</code> and <code>clientSecret</code> with an explicit <code>clientSecretExpiresAt</code> (Unix seconds, typically ~90 days out).</li>
+        <li><strong>Two-stage credentials.</strong> The OIDC <code>accessToken</code> is not an AWS credential — you can't sign SigV4 requests with it. It's a bearer token that authorizes calls to the SSO Portal API, which in turn exchanges role assignments for short-lived <code>AccessKeyId</code> / <code>SecretAccessKey</code> / <code>SessionToken</code> tuples. Those <em>are</em> AWS credentials. The role credentials are what eventually need to land in front of the consuming SDK.</li>
+      </ul>
+
+      <h3>What the AWS CLI does today</h3>
+      <p>For reference, when a user runs <code>aws sso login --profile my-profile</code>:</p>
+      <ol>
+        <li>It looks up the profile's <code>sso_session</code> (or legacy <code>sso_start_url</code>) in <code>~/.aws/config</code>.</li>
+        <li>It checks <code>~/.aws/sso/cache/&lt;sha1(start_url)&gt;.json</code> for a cached, unexpired access token. If present, it skips the browser dance.</li>
+        <li>Otherwise it walks the device-authorization flow above, opens the URL with <code>webbrowser.open()</code> in Python, polls until the token comes back, and writes the JSON cache file with <code>0o600</code> permissions.</li>
+        <li>Subsequent SDK calls under that profile go through the AWS CLI's <code>credentials.providers.SSOProvider</code>, which reads the cache, calls <code>GetRoleCredentials</code>, and returns a refreshed credential tuple.</li>
+      </ol>
+
+      <p>Quorra implements the same protocol but stores the access token and refresh token in the macOS Keychain instead of a flat JSON file, and surfaces the flow in a native UI instead of stdout.</p>
+
+      <div class="callout warn"><strong>compat</strong>Quorra still reads and writes the <code>~/.aws/sso/cache/*.json</code> files in addition to its own Keychain copy, so a user running <code>aws sso login</code> and a user running Quorra leave the same machine in the same state for any non-Quorra tool. The Keychain is the source of truth; the JSON is a mirror written under the same lock as <code>~/.aws/config</code>.</div>
+
+      <h3>Glossary</h3>
+      <table class="fields">
+        <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td class="field">start URL</td><td class="note">The HTTPS URL of an IAM Identity Center instance, e.g. <code>https://my-org.awsapps.com/start</code>. Identifies which directory the user is logging in to.</td></tr>
+          <tr><td class="field">sso_session</td><td class="note">Modern way to share SSO settings across profiles in <code>~/.aws/config</code>. A <code>[sso-session foo]</code> stanza holds <code>sso_start_url</code>, <code>sso_region</code>, <code>sso_registration_scopes</code>; profiles refer to it by name.</td></tr>
+          <tr><td class="field">scope</td><td class="note">OIDC scope string. The two we care about are <code>sso:account:access</code> (required for refresh tokens and Portal API access) and <code>codecatalyst:read_write</code> (CodeCatalyst, irrelevant here).</td></tr>
+          <tr><td class="field">device code</td><td class="note">Long opaque string (server-side handle) the device polls with. Never shown to the user.</td></tr>
+          <tr><td class="field">user code</td><td class="note">Short human-readable code (e.g. <code>WDJB-MJHT</code>). With <code>verificationUriComplete</code> the user almost never has to type it; we still show it as a fallback.</td></tr>
+          <tr><td class="field">access token</td><td class="note">Bearer token returned by <code>CreateToken</code>. Authorizes Portal API. Typically valid 8 hours.</td></tr>
+          <tr><td class="field">refresh token</td><td class="note">Returned only when the registration scope includes <code>sso:account:access</code>. Lets us mint a new access token without re-running device flow. Typically valid 90 days.</td></tr>
+          <tr><td class="field">role credentials</td><td class="note">Short-lived <code>AccessKeyId</code> + <code>SecretAccessKey</code> + <code>SessionToken</code>, valid ~1 hour. Returned by Portal <code>GetRoleCredentials</code>. These are the actual AWS credentials.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="oidc-ops">
+      <h2><span class="section-anchor">// 03</span>SSO OIDC operations</h2>
+
+      <p>Three operations on <code>oidc.&lt;region&gt;.amazonaws.com</code>. All are JSON over HTTPS, all are unauthenticated (the bootstrapping flow has, by definition, no credentials yet).</p>
+
+      <h3>RegisterClient</h3>
+      <p class="api-desc">Performs OAuth 2.0 Dynamic Client Registration. Quorra calls this once per (start URL, scope set) and caches the result for the lifetime of <code>clientSecretExpiresAt</code>.</p>
+
+      <div class="code-frame">
+        <div class="code-titlebar"><div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div><span class="filename">RegisterClient<span class="ext">.http</span></span><span class="langtag">http</span></div>
+<pre><span class="tok-keyword">POST</span> /client/register <span class="tok-keyword">HTTP/1.1</span>
+<span class="ini-key">Host</span>: oidc.eu-west-1.amazonaws.com
+<span class="ini-key">Content-Type</span>: application/json
+
+{
+  <span class="tok-string">"clientName"</span>: <span class="tok-string">"quorra"</span>,
+  <span class="tok-string">"clientType"</span>: <span class="tok-string">"public"</span>,
+  <span class="tok-string">"scopes"</span>: [<span class="tok-string">"sso:account:access"</span>]
+}</pre>
+      </div>
+
+      <div class="code-frame">
+        <div class="code-titlebar"><div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div><span class="filename">200<span class="ext">.json</span></span><span class="langtag">response</span></div>
+<pre>{
+  <span class="tok-string">"clientId"</span>:               <span class="tok-string">"abc123..."</span>,
+  <span class="tok-string">"clientSecret"</span>:           <span class="tok-string">"def456..."</span>,
+  <span class="tok-string">"clientIdIssuedAt"</span>:       <span class="tok-number">1715520000</span>,
+  <span class="tok-string">"clientSecretExpiresAt"</span>:  <span class="tok-number">1723296000</span>
+}</pre>
+      </div>
+
+      <table class="fields">
+        <thead><tr><th>Request field</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td class="field">clientName</td><td class="note">Free-form, shown nowhere user-visible. Quorra uses literal <code>"quorra"</code>.</td></tr>
+          <tr><td class="field">clientType</td><td class="note">Always <code>"public"</code> for desktop apps — we cannot meaningfully keep a client secret.</td></tr>
+          <tr><td class="field">scopes</td><td class="note">Must include <code>sso:account:access</code> for the Portal API and refresh tokens.</td></tr>
+        </tbody>
+      </table>
+
+      <p>Quorra refreshes the registration when <code>clientSecretExpiresAt - now &lt; 7 days</code> to avoid the "secret expired mid-poll" race. Registration is keyed in Keychain by SSO region (the registration only works for the region it was created in).</p>
+
+      <h3>StartDeviceAuthorization</h3>
+      <p class="api-desc">Begins a device-authorization grant. Quorra calls this every time the user clicks <em>Sign in</em>, regardless of whether a previous access token exists.</p>
+
+      <div class="code-frame">
+        <div class="code-titlebar"><div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div><span class="filename">StartDeviceAuthorization<span class="ext">.http</span></span><span class="langtag">http</span></div>
+<pre><span class="tok-keyword">POST</span> /device_authorization <span class="tok-keyword">HTTP/1.1</span>
+<span class="ini-key">Host</span>: oidc.eu-west-1.amazonaws.com
+<span class="ini-key">Content-Type</span>: application/json
+
+{
+  <span class="tok-string">"clientId"</span>:     <span class="tok-string">"abc123..."</span>,
+  <span class="tok-string">"clientSecret"</span>: <span class="tok-string">"def456..."</span>,
+  <span class="tok-string">"startUrl"</span>:     <span class="tok-string">"https://my-org.awsapps.com/start"</span>
+}</pre>
+      </div>
+
+      <div class="code-frame">
+        <div class="code-titlebar"><div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div><span class="filename">200<span class="ext">.json</span></span><span class="langtag">response</span></div>
+<pre>{
+  <span class="tok-string">"deviceCode"</span>:              <span class="tok-string">"AAAA-very-long-opaque-string"</span>,
+  <span class="tok-string">"userCode"</span>:                <span class="tok-string">"WDJB-MJHT"</span>,
+  <span class="tok-string">"verificationUri"</span>:         <span class="tok-string">"https://device.sso.eu-west-1.amazonaws.com/"</span>,
+  <span class="tok-string">"verificationUriComplete"</span>: <span class="tok-string">"https://device.sso.eu-west-1.amazonaws.com/?user_code=WDJB-MJHT"</span>,
+  <span class="tok-string">"expiresIn"</span>:               <span class="tok-number">600</span>,
+  <span class="tok-string">"interval"</span>:                <span class="tok-number">5</span>
+}</pre>
+      </div>
+
+      <table class="fields">
+        <thead><tr><th>Field</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td class="field">deviceCode</td><td class="note">Server-side handle. Sent on every <code>CreateToken</code> poll. Treat as opaque.</td></tr>
+          <tr><td class="field">userCode</td><td class="note">8-char human code shown in UI as a fallback if the user has to paste it.</td></tr>
+          <tr><td class="field">verificationUriComplete</td><td class="note">URL pre-filled with <code>userCode</code>. This is what we open in the browser.</td></tr>
+          <tr><td class="field">expiresIn</td><td class="note">Hard deadline in seconds (typically 600). After this, the device code is dead and we must restart from <code>StartDeviceAuthorization</code>.</td></tr>
+          <tr><td class="field">interval</td><td class="note">Minimum seconds between polls. We respect this and back off on <code>slow_down</code>.</td></tr>
+        </tbody>
+      </table>
+
+      <h3>CreateToken</h3>
+      <p class="api-desc">Polled by Quorra during device flow, and also called with <code>grant_type=refresh_token</code> when an access token expires.</p>
+
+      <h4>Device-code grant</h4>
+      <div class="code-frame">
+        <div class="code-titlebar"><div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div><span class="filename">CreateToken<span class="ext">.http</span></span><span class="langtag">http</span></div>
+<pre><span class="tok-keyword">POST</span> /token <span class="tok-keyword">HTTP/1.1</span>
+<span class="ini-key">Host</span>: oidc.eu-west-1.amazonaws.com
+<span class="ini-key">Content-Type</span>: application/json
+
+{
+  <span class="tok-string">"clientId"</span>:     <span class="tok-string">"abc123..."</span>,
+  <span class="tok-string">"clientSecret"</span>: <span class="tok-string">"def456..."</span>,
+  <span class="tok-string">"grantType"</span>:    <span class="tok-string">"urn:ietf:params:oauth:grant-type:device_code"</span>,
+  <span class="tok-string">"deviceCode"</span>:   <span class="tok-string">"AAAA-very-long-opaque-string"</span>
+}</pre>
+      </div>
+
+      <div class="code-frame">
+        <div class="code-titlebar"><div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div><span class="filename">200<span class="ext">.json</span></span><span class="langtag">response</span></div>
+<pre>{
+  <span class="tok-string">"accessToken"</span>:  <span class="tok-string">"eyJ..."</span>,
+  <span class="tok-string">"tokenType"</span>:    <span class="tok-string">"Bearer"</span>,
+  <span class="tok-string">"expiresIn"</span>:    <span class="tok-number">28800</span>,
+  <span class="tok-string">"refreshToken"</span>: <span class="tok-string">"eyJ..."</span>
+}</pre>
+      </div>
+
+      <h4>Polling errors</h4>
+      <p>Until the user finishes, <code>CreateToken</code> returns HTTP 400 with an error code in the body. Quorra distinguishes:</p>
+      <ul>
+        <li><code>authorization_pending</code> — keep polling, sleep <code>interval</code> seconds.</li>
+        <li><code>slow_down</code> — increase <code>interval</code> by 5 seconds and keep polling.</li>
+        <li><code>expired_token</code> — the device code is past <code>expiresIn</code>; restart from <code>StartDeviceAuthorization</code>.</li>
+        <li><code>access_denied</code> — user clicked <em>Deny</em>; surface as a hard failure.</li>
+        <li><code>invalid_grant</code> — programmer error or stale device code; surface as bug.</li>
+      </ul>
+
+      <h4>Refresh-token grant</h4>
+      <div class="code-frame">
+        <div class="code-titlebar"><div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div><span class="filename">CreateToken-refresh<span class="ext">.http</span></span><span class="langtag">http</span></div>
+<pre><span class="tok-keyword">POST</span> /token <span class="tok-keyword">HTTP/1.1</span>
+<span class="ini-key">Host</span>: oidc.eu-west-1.amazonaws.com
+<span class="ini-key">Content-Type</span>: application/json
+
+{
+  <span class="tok-string">"clientId"</span>:     <span class="tok-string">"abc123..."</span>,
+  <span class="tok-string">"clientSecret"</span>: <span class="tok-string">"def456..."</span>,
+  <span class="tok-string">"grantType"</span>:    <span class="tok-string">"refresh_token"</span>,
+  <span class="tok-string">"refreshToken"</span>: <span class="tok-string">"eyJ..."</span>
+}</pre>
+      </div>
+
+      <p>Refresh returns the same shape as the device grant. AWS sometimes rotates the refresh token in the response — Quorra always overwrites the stored value with whatever comes back, never re-using the old one.</p>
+
+      <div class="callout warn"><strong>retry</strong>Quorra wraps <code>CreateToken</code> with a deterministic poll loop driven by the server's <code>interval</code>. No exponential backoff beyond <code>slow_down</code>. The hard cap is <code>expiresIn</code> seconds from <code>StartDeviceAuthorization</code> — past that, fail and restart.</div>
+    </section>
+
+    <section id="portal-ops">
+      <h2><span class="section-anchor">// 04</span>SSO Portal operations</h2>
+
+      <p>Once Quorra has an access token, it stops talking to <code>oidc.&lt;region&gt;</code> and starts talking to <code>portal.sso.&lt;region&gt;</code>. The Portal API is bearer-token authorized — every request carries an <code>x-amz-sso_bearer_token</code> header containing the access token.</p>
+
+      <h3>ListAccounts</h3>
+      <p class="api-desc">Returns the AWS accounts the signed-in user can see. Paginated with <code>nextToken</code>.</p>
+
+      <div class="code-frame">
+        <div class="code-titlebar"><div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div><span class="filename">ListAccounts<span class="ext">.http</span></span><span class="langtag">http</span></div>
+<pre><span class="tok-keyword">GET</span> /assignment/accounts?max_result=100 <span class="tok-keyword">HTTP/1.1</span>
+<span class="ini-key">Host</span>: portal.sso.eu-west-1.amazonaws.com
+<span class="ini-key">x-amz-sso_bearer_token</span>: eyJ...</pre>
+      </div>
+
+      <div class="code-frame">
+        <div class="code-titlebar"><div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div><span class="filename">200<span class="ext">.json</span></span><span class="langtag">response</span></div>
+<pre>{
+  <span class="tok-string">"accountList"</span>: [
+    {
+      <span class="tok-string">"accountId"</span>:    <span class="tok-string">"123456789012"</span>,
+      <span class="tok-string">"accountName"</span>:  <span class="tok-string">"prod-platform"</span>,
+      <span class="tok-string">"emailAddress"</span>: <span class="tok-string">"aws-prod-platform@example.com"</span>
+    },
+    ...
+  ],
+  <span class="tok-string">"nextToken"</span>: <span class="tok-string">null</span>
+}</pre>
+      </div>
+
+      <h3>ListAccountRoles</h3>
+      <p class="api-desc">Per-account, returns the permission sets (roles) the user can assume. Also paginated.</p>
+
+      <div class="code-frame">
+        <div class="code-titlebar"><div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div><span class="filename">ListAccountRoles<span class="ext">.http</span></span><span class="langtag">http</span></div>
+<pre><span class="tok-keyword">GET</span> /assignment/roles?account_id=123456789012&amp;max_result=100 <span class="tok-keyword">HTTP/1.1</span>
+<span class="ini-key">Host</span>: portal.sso.eu-west-1.amazonaws.com
+<span class="ini-key">x-amz-sso_bearer_token</span>: eyJ...</pre>
+      </div>
+
+      <div class="code-frame">
+        <div class="code-titlebar"><div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div><span class="filename">200<span class="ext">.json</span></span><span class="langtag">response</span></div>
+<pre>{
+  <span class="tok-string">"roleList"</span>: [
+    { <span class="tok-string">"roleName"</span>: <span class="tok-string">"AdministratorAccess"</span>, <span class="tok-string">"accountId"</span>: <span class="tok-string">"123456789012"</span> },
+    { <span class="tok-string">"roleName"</span>: <span class="tok-string">"ReadOnly"</span>,            <span class="tok-string">"accountId"</span>: <span class="tok-string">"123456789012"</span> }
+  ],
+  <span class="tok-string">"nextToken"</span>: <span class="tok-string">null</span>
+}</pre>
+      </div>
+
+      <h3>GetRoleCredentials</h3>
+      <p class="api-desc">Exchanges an account/role pair for short-lived AWS credentials. This is the call that produces something an SDK can actually sign requests with.</p>
+
+      <div class="code-frame">
+        <div class="code-titlebar"><div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div><span class="filename">GetRoleCredentials<span class="ext">.http</span></span><span class="langtag">http</span></div>
+<pre><span class="tok-keyword">GET</span> /federation/credentials?role_name=AdministratorAccess&amp;account_id=123456789012 <span class="tok-keyword">HTTP/1.1</span>
+<span class="ini-key">Host</span>: portal.sso.eu-west-1.amazonaws.com
+<span class="ini-key">x-amz-sso_bearer_token</span>: eyJ...</pre>
+      </div>
+
+      <div class="code-frame">
+        <div class="code-titlebar"><div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div><span class="filename">200<span class="ext">.json</span></span><span class="langtag">response</span></div>
+<pre>{
+  <span class="tok-string">"roleCredentials"</span>: {
+    <span class="tok-string">"accessKeyId"</span>:     <span class="tok-string">"ASIA..."</span>,
+    <span class="tok-string">"secretAccessKey"</span>: <span class="tok-string">"..."</span>,
+    <span class="tok-string">"sessionToken"</span>:    <span class="tok-string">"FwoGZXIvYXdzE..."</span>,
+    <span class="tok-string">"expiration"</span>:      <span class="tok-number">1715548800000</span>
+  }
+}</pre>
+      </div>
+
+      <p>Note that <code>expiration</code> is <em>milliseconds</em> since epoch — not seconds, not ISO 8601. This trips people up. Quorra normalizes to <code>Date</code> (which stores seconds-since-2001 internally) at the parser boundary so nothing downstream has to remember.</p>
+
+      <h3>Logout</h3>
+      <p class="api-desc">Invalidates the access token server-side. Quorra calls this when the user explicitly signs out.</p>
+
+      <div class="code-frame">
+        <div class="code-titlebar"><div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div><span class="filename">Logout<span class="ext">.http</span></span><span class="langtag">http</span></div>
+<pre><span class="tok-keyword">POST</span> /logout <span class="tok-keyword">HTTP/1.1</span>
+<span class="ini-key">Host</span>: portal.sso.eu-west-1.amazonaws.com
+<span class="ini-key">x-amz-sso_bearer_token</span>: eyJ...</pre>
+      </div>
+
+      <p>Logout is best-effort. We always delete local Keychain copies regardless of whether the server call succeeds. The reverse — server-side invalidation without local cleanup — would leave a stale Keychain item lying around.</p>
+
+      <div class="callout note"><strong>cache</strong>Quorra caches <code>ListAccounts</code>/<code>ListAccountRoles</code> results in memory for the lifetime of the access token. Calling them every time the user expands the account picker would cost a network round-trip per click for no benefit — assignments don't change inside an 8-hour session.</div>
+    </section>
+
+    <section id="browser">
+      <h2><span class="section-anchor">// 05</span>Browser handoff</h2>
+
+      <p>The device-authorization flow only works because the user can complete authentication in a browser they already trust. Quorra never embeds a webview, never proxies the IdP, and never asks the user for their identity-provider credentials directly.</p>
+
+      <h3>Opening the verification URL</h3>
+      <p>Quorra uses <code>NSWorkspace.shared.open(_:)</code> to launch the user's default browser at <code>verificationUriComplete</code>. Since the URL already contains the <code>user_code</code> query parameter, the user lands on a pre-confirmed approval page and only has to click <em>Allow</em>.</p>
+
+      <div class="code-frame">
+        <div class="code-titlebar"><div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div><span class="filename">SSOFlow<span class="ext">.swift</span></span><span class="langtag">swift</span></div>
+<pre><span class="tok-keyword">import</span> <span class="tok-type">AppKit</span>
+
+<span class="tok-keyword">func</span> openVerificationURL(<span class="tok-keyword">_</span> url: <span class="tok-type">URL</span>) <span class="tok-keyword">throws</span> {
+    <span class="tok-keyword">guard</span> <span class="tok-type">NSWorkspace</span>.shared.open(url) <span class="tok-keyword">else</span> {
+        <span class="tok-keyword">throw</span> <span class="tok-type">SSOError</span>.browserLaunchFailed(url)
+    }
+}</pre>
+      </div>
+
+      <h3>Polling while the user is in the browser</h3>
+      <p>The poll loop is independent of the browser launch. We do not wait for any callback from the browser — there is none. The browser is purely the user's interaction surface; the device polls AWS directly.</p>
+
+      <p>The loop is implemented as an <code>async</code> function that uses <code>Task.sleep(for:)</code> between polls. It respects cooperative cancellation, so if the user closes the sign-in sheet we stop polling and free the device code.</p>
+
+      <div class="code-frame">
+        <div class="code-titlebar"><div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div><span class="filename">SSOFlow+Poll<span class="ext">.swift</span></span><span class="langtag">swift</span></div>
+<pre><span class="tok-keyword">func</span> pollForToken(deviceAuth: <span class="tok-type">DeviceAuthorization</span>) <span class="tok-keyword">async throws</span> -&gt; <span class="tok-type">SSOAccessToken</span> {
+    <span class="tok-keyword">var</span> interval: <span class="tok-type">Duration</span> = .seconds(deviceAuth.interval)
+    <span class="tok-keyword">let</span> deadline = <span class="tok-type">ContinuousClock</span>.now + .seconds(deviceAuth.expiresIn)
+
+    <span class="tok-keyword">while</span> <span class="tok-type">ContinuousClock</span>.now &lt; deadline {
+        <span class="tok-keyword">try</span> <span class="tok-type">Task</span>.checkCancellation()
+        <span class="tok-keyword">try</span> <span class="tok-keyword">await</span> <span class="tok-type">Task</span>.sleep(for: interval)
+
+        <span class="tok-keyword">do</span> {
+            <span class="tok-keyword">return</span> <span class="tok-keyword">try</span> <span class="tok-keyword">await</span> oidc.createToken(deviceAuth: deviceAuth)
+        } <span class="tok-keyword">catch</span> <span class="tok-type">SSOError</span>.authorizationPending {
+            <span class="tok-keyword">continue</span>
+        } <span class="tok-keyword">catch</span> <span class="tok-type">SSOError</span>.slowDown {
+            interval += .seconds(5)
+        }
+    }
+    <span class="tok-keyword">throw</span> <span class="tok-type">SSOError</span>.deviceCodeExpired
+}</pre>
+      </div>
+
+      <h3>Sandbox considerations</h3>
+      <p>Quorra is sandboxed. Opening external URLs is allowed by default — no entitlement needed for <code>NSWorkspace.shared.open(_:)</code>. The browser process runs entirely outside Quorra's sandbox; we hand off the URL and forget about it.</p>
+
+      <div class="callout warn"><strong>fallback</strong>If <code>NSWorkspace.shared.open(_:)</code> returns <code>false</code> we surface the URL and the <code>userCode</code> in the UI as copyable text so the user can manually paste it into a browser. This covers the rare "no default browser configured" edge case and the slightly less rare "the user is on a remote/SSH'd machine" case.</div>
+
+      <h3>Why not <code>ASWebAuthenticationSession</code>?</h3>
+      <p><code>ASWebAuthenticationSession</code> is the right tool for OAuth flows that use a <em>redirect</em> to deliver the authorization code back to the app via a custom URL scheme. The device-authorization grant doesn't redirect anywhere — the device polls the token endpoint instead. So the framework's value (intercepting the redirect) does not apply, and using it would just give us a worse browser (no extensions, no saved passwords, no SSO cookies the user already has).</p>
+    </section>
+
+    <section id="sdk">
+      <h2><span class="section-anchor">// 06</span>AWS SDK for Swift</h2>
+
+      <p>Quorra uses the official <a href="https://github.com/awslabs/aws-sdk-swift">AWS SDK for Swift</a> for both SSO OIDC and SSO Portal operations. We do not hand-roll JSON HTTP clients — the SDK provides typed request/response models, retry policy, signing (where needed), and consistent error handling, all maintained by AWS.</p>
+
+      <h3>Why the SDK</h3>
+      <ul>
+        <li><strong>Typed models.</strong> <code>RegisterClientInput</code>, <code>StartDeviceAuthorizationOutput</code>, etc. are real Swift types with correctly-named fields. No string-keyed dictionaries.</li>
+        <li><strong>Error mapping.</strong> Polling errors (<code>AuthorizationPendingException</code>, <code>SlowDownException</code>, <code>ExpiredTokenException</code>) come back as distinct typed exceptions we can <code>catch</code> by type, not parsed strings.</li>
+        <li><strong>Retry &amp; signing.</strong> The Portal API uses bearer-token auth (no SigV4), but the SDK still handles connection reuse, timeouts, and retry on 5xx for us.</li>
+        <li><strong>Future-proof.</strong> When AWS adds new fields or endpoints (as they have repeatedly with SSO since 2019), an <code>swift package update</code> picks them up.</li>
+      </ul>
+
+      <h3>Package dependencies</h3>
+      <p>Two SDK products, added as Swift Package dependencies on the app and CLI targets:</p>
+
+      <div class="code-frame">
+        <div class="code-titlebar"><div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div><span class="filename">Package<span class="ext">.swift</span></span><span class="langtag">swift</span></div>
+<pre>.package(
+    url: <span class="tok-string">"https://github.com/awslabs/aws-sdk-swift.git"</span>,
+    from: <span class="tok-string">"1.0.0"</span>
+),
+
+<span class="tok-comment">// In each target.dependencies:</span>
+.product(name: <span class="tok-string">"AWSSSOOIDC"</span>, package: <span class="tok-string">"aws-sdk-swift"</span>),
+.product(name: <span class="tok-string">"AWSSSO"</span>,     package: <span class="tok-string">"aws-sdk-swift"</span>),</pre>
+      </div>
+
+      <p>We deliberately do <em>not</em> depend on <code>AWSClientRuntime</code> or <code>ClientRuntime</code> directly — those come transitively. We also do not depend on any other service SDK at this layer (no STS, no IAM). Quorra's own consumers use the credentials Quorra produces; they can pull in whatever service SDKs they want.</p>
+
+      <h3>SSOOIDCClient</h3>
+      <p>One client per SSO region. Constructed with no credentials — every operation we call is unauthenticated except <code>CreateToken</code> with a refresh token, which AWS treats as the "credential" for that one call.</p>
+
+      <div class="code-frame">
+        <div class="code-titlebar"><div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div><span class="filename">SSOOIDCClient<span class="ext">.swift</span></span><span class="langtag">swift</span></div>
+<pre><span class="tok-keyword">import</span> <span class="tok-type">AWSSSOOIDC</span>
+
+<span class="tok-keyword">let</span> oidc = <span class="tok-keyword">try</span> <span class="tok-type">SSOOIDCClient</span>(region: ssoRegion)
+
+<span class="tok-comment">// RegisterClient</span>
+<span class="tok-keyword">let</span> reg = <span class="tok-keyword">try</span> <span class="tok-keyword">await</span> oidc.registerClient(input: .init(
+    clientName: <span class="tok-string">"quorra"</span>,
+    clientType: <span class="tok-string">"public"</span>,
+    scopes:     [<span class="tok-string">"sso:account:access"</span>]
+))
+
+<span class="tok-comment">// StartDeviceAuthorization</span>
+<span class="tok-keyword">let</span> dev = <span class="tok-keyword">try</span> <span class="tok-keyword">await</span> oidc.startDeviceAuthorization(input: .init(
+    clientId:     reg.clientId,
+    clientSecret: reg.clientSecret,
+    startUrl:     startURL.absoluteString
+))
+
+<span class="tok-comment">// CreateToken (device code)</span>
+<span class="tok-keyword">let</span> tok = <span class="tok-keyword">try</span> <span class="tok-keyword">await</span> oidc.createToken(input: .init(
+    clientId:     reg.clientId,
+    clientSecret: reg.clientSecret,
+    deviceCode:   dev.deviceCode,
+    grantType:    <span class="tok-string">"urn:ietf:params:oauth:grant-type:device_code"</span>
+))</pre>
+      </div>
+
+      <h4>Polling-error mapping</h4>
+      <p>The SDK throws typed exceptions per AWS error code. Quorra maps them to its own <code>SSOError</code> enum so the rest of the app doesn't depend on SDK types:</p>
+
+      <div class="code-frame">
+        <div class="code-titlebar"><div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div><span class="filename">SSOError+SDK<span class="ext">.swift</span></span><span class="langtag">swift</span></div>
+<pre><span class="tok-keyword">do</span> {
+    <span class="tok-keyword">let</span> tok = <span class="tok-keyword">try</span> <span class="tok-keyword">await</span> oidc.createToken(input: input)
+    <span class="tok-keyword">return</span> tok
+} <span class="tok-keyword">catch</span> <span class="tok-keyword">let</span> e <span class="tok-keyword">as</span> <span class="tok-type">AuthorizationPendingException</span> {
+    <span class="tok-keyword">throw</span> <span class="tok-type">SSOError</span>.authorizationPending
+} <span class="tok-keyword">catch</span> <span class="tok-keyword">let</span> e <span class="tok-keyword">as</span> <span class="tok-type">SlowDownException</span> {
+    <span class="tok-keyword">throw</span> <span class="tok-type">SSOError</span>.slowDown
+} <span class="tok-keyword">catch</span> <span class="tok-keyword">let</span> e <span class="tok-keyword">as</span> <span class="tok-type">ExpiredTokenException</span> {
+    <span class="tok-keyword">throw</span> <span class="tok-type">SSOError</span>.deviceCodeExpired
+} <span class="tok-keyword">catch</span> <span class="tok-keyword">let</span> e <span class="tok-keyword">as</span> <span class="tok-type">AccessDeniedException</span> {
+    <span class="tok-keyword">throw</span> <span class="tok-type">SSOError</span>.userDenied
+} <span class="tok-keyword">catch</span> {
+    <span class="tok-keyword">throw</span> <span class="tok-type">SSOError</span>.transport(error)
+}</pre>
+      </div>
+
+      <h3>SSOClient</h3>
+      <p>Same shape, different module: <code>AWSSSO</code>. One client per region. The bearer token is passed per-call, not per-client, so we don't reconstruct the client when the token rotates.</p>
+
+      <div class="code-frame">
+        <div class="code-titlebar"><div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div><span class="filename">SSOClient<span class="ext">.swift</span></span><span class="langtag">swift</span></div>
+<pre><span class="tok-keyword">import</span> <span class="tok-type">AWSSSO</span>
+
+<span class="tok-keyword">let</span> sso = <span class="tok-keyword">try</span> <span class="tok-type">SSOClient</span>(region: ssoRegion)
+
+<span class="tok-keyword">let</span> accounts = <span class="tok-keyword">try</span> <span class="tok-keyword">await</span> sso.listAccounts(input: .init(
+    accessToken: token.accessToken,
+    maxResults:  100
+))
+
+<span class="tok-keyword">let</span> roles = <span class="tok-keyword">try</span> <span class="tok-keyword">await</span> sso.listAccountRoles(input: .init(
+    accessToken: token.accessToken,
+    accountId:   accountId,
+    maxResults:  100
+))
+
+<span class="tok-keyword">let</span> creds = <span class="tok-keyword">try</span> <span class="tok-keyword">await</span> sso.getRoleCredentials(input: .init(
+    accessToken: token.accessToken,
+    accountId:   accountId,
+    roleName:    roleName
+))</pre>
+      </div>
+
+      <h3>Pagination</h3>
+      <p>Both <code>ListAccounts</code> and <code>ListAccountRoles</code> are paginated. The SDK exposes paginated APIs as <code>AsyncSequence</code>s; Quorra wraps them in helpers that collect into <code>[SSOAccount]</code> / <code>[SSORole]</code> arrays. The full list almost always fits in one page (very few orgs have &gt;100 accounts assigned to one user), but the helper handles the multi-page case for free.</p>
+
+      <h3>Module boundary</h3>
+      <p>Only one Swift type — <code>SSOService</code> — actually imports <code>AWSSSOOIDC</code> and <code>AWSSSO</code>. Everything else in Quorra talks to <code>SSOService</code> through plain Swift value types (<code>SSOAccount</code>, <code>SSORole</code>, <code>SSORoleCredentials</code>, <code>SSOAccessToken</code>). This keeps the SDK as a leaf dependency, makes <code>SSOService</code> easy to mock for tests, and means an SDK breaking-change ripples through one file, not the whole app.</p>
+
+      <div class="callout note"><strong>versioning</strong>The AWS SDK for Swift hit 1.0 in 2024 and follows semver. We pin to <code>from: "1.0.0"</code>, accepting minor and patch updates automatically and gating major bumps behind a manual review.</div>
+    </section>
+
+    <section id="keychain">
+      <h2><span class="section-anchor">// 07</span>Keychain schema</h2>
+
+      <p>Quorra stores three classes of secret in the macOS Keychain. All items live in the shared access group <code>$(AppIdentifierPrefix)dev.ajbeck.quorra.shared</code> so the app and the CLI both read and write them. Accessibility is <code>kSecAttrAccessibleWhenUnlockedThisDeviceOnly</code> — credentials never leave this Mac via iCloud Keychain sync.</p>
+
+      <h3>Item types</h3>
+      <table class="fields">
+        <thead><tr><th>Item</th><th>service</th><th>account</th><th>generic data (JSON)</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="field">Client registration</td>
+            <td class="type">dev.ajbeck.quorra.sso.client</td>
+            <td class="note">&lt;sso_region&gt;</td>
+            <td class="note">{ clientId, clientSecret, issuedAt, expiresAt }</td>
+          </tr>
+          <tr>
+            <td class="field">Access &amp; refresh tokens</td>
+            <td class="type">dev.ajbeck.quorra.sso.token</td>
+            <td class="note">&lt;start_url&gt;</td>
+            <td class="note">{ accessToken, refreshToken, region, registrationScopes, startUrl, expiresAt }</td>
+          </tr>
+          <tr>
+            <td class="field">Role credentials cache</td>
+            <td class="type">dev.ajbeck.quorra.sso.role</td>
+            <td class="note">&lt;account_id&gt;:&lt;role_name&gt;:&lt;start_url&gt;</td>
+            <td class="note">{ accessKeyId, secretAccessKey, sessionToken, expiration }</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Why three items, not one</h3>
+      <p>Three different lifetimes, three different cache keys, three different consumers:</p>
+      <ul>
+        <li><strong>Client registration</strong> rotates every ~90 days, is keyed by region, and is shared across every <em>start URL</em> in that region.</li>
+        <li><strong>Tokens</strong> rotate every 8 hours (access) / 90 days (refresh), are keyed by start URL, and are shared across every <em>account/role</em> under that start URL.</li>
+        <li><strong>Role credentials</strong> rotate every hour, are keyed by account+role+start_url, and are consumed by IMDS / <code>credential_process</code> / config exporters.</li>
+      </ul>
+
+      <h3>Item shape</h3>
+      <p>Quorra wraps every Keychain item in the same Swift type: <code>KeychainItem&lt;Payload: Codable&gt;</code>. The payload is JSON-encoded into the item's <code>kSecValueData</code>. Metadata (region, start URL, account ID) lives in <code>kSecAttrAccount</code> / <code>kSecAttrService</code> so a Keychain Access listing shows enough to identify each item without decrypting it.</p>
+
+      <div class="code-frame">
+        <div class="code-titlebar"><div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div><span class="filename">KeychainSchema<span class="ext">.swift</span></span><span class="langtag">swift</span></div>
+<pre><span class="tok-keyword">struct</span> <span class="tok-type">SSOClientRegistration</span>: <span class="tok-type">Codable</span> {
+    <span class="tok-keyword">let</span> clientId:     <span class="tok-type">String</span>
+    <span class="tok-keyword">let</span> clientSecret: <span class="tok-type">String</span>
+    <span class="tok-keyword">let</span> issuedAt:     <span class="tok-type">Date</span>
+    <span class="tok-keyword">let</span> expiresAt:    <span class="tok-type">Date</span>
+    <span class="tok-keyword">let</span> scopes:       [<span class="tok-type">String</span>]
+}
+
+<span class="tok-keyword">struct</span> <span class="tok-type">SSOAccessToken</span>: <span class="tok-type">Codable</span> {
+    <span class="tok-keyword">let</span> accessToken:        <span class="tok-type">String</span>
+    <span class="tok-keyword">let</span> refreshToken:       <span class="tok-type">String</span>?
+    <span class="tok-keyword">let</span> startUrl:           <span class="tok-type">URL</span>
+    <span class="tok-keyword">let</span> region:             <span class="tok-type">String</span>
+    <span class="tok-keyword">let</span> registrationScopes: [<span class="tok-type">String</span>]
+    <span class="tok-keyword">let</span> expiresAt:          <span class="tok-type">Date</span>
+}
+
+<span class="tok-keyword">struct</span> <span class="tok-type">SSORoleCredentials</span>: <span class="tok-type">Codable</span> {
+    <span class="tok-keyword">let</span> accessKeyId:     <span class="tok-type">String</span>
+    <span class="tok-keyword">let</span> secretAccessKey: <span class="tok-type">String</span>
+    <span class="tok-keyword">let</span> sessionToken:    <span class="tok-type">String</span>
+    <span class="tok-keyword">let</span> expiration:      <span class="tok-type">Date</span>
+    <span class="tok-keyword">let</span> accountId:       <span class="tok-type">String</span>
+    <span class="tok-keyword">let</span> roleName:        <span class="tok-type">String</span>
+    <span class="tok-keyword">let</span> startUrl:        <span class="tok-type">URL</span>
+}</pre>
+      </div>
+
+      <h3>Mirror: <code>~/.aws/sso/cache</code></h3>
+      <p>For ecosystem compatibility, every time Quorra writes a token to Keychain it also writes <code>~/.aws/sso/cache/&lt;sha1(start_url)&gt;.json</code> with the AWS-CLI-compatible shape. The fields and naming are dictated by AWS — we mirror, we don't invent.</p>
+
+      <div class="code-frame">
+        <div class="code-titlebar"><div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div><span class="filename">cache-file<span class="ext">.json</span></span><span class="langtag">aws-cli mirror</span></div>
+<pre>{
+  <span class="tok-string">"startUrl"</span>:           <span class="tok-string">"https://my-org.awsapps.com/start"</span>,
+  <span class="tok-string">"region"</span>:             <span class="tok-string">"eu-west-1"</span>,
+  <span class="tok-string">"accessToken"</span>:        <span class="tok-string">"eyJ..."</span>,
+  <span class="tok-string">"expiresAt"</span>:          <span class="tok-string">"2026-05-12T20:00:00Z"</span>,
+  <span class="tok-string">"clientId"</span>:           <span class="tok-string">"abc123..."</span>,
+  <span class="tok-string">"clientSecret"</span>:       <span class="tok-string">"def456..."</span>,
+  <span class="tok-string">"registrationExpiresAt"</span>: <span class="tok-string">"2026-08-10T00:00:00Z"</span>,
+  <span class="tok-string">"refreshToken"</span>:       <span class="tok-string">"eyJ..."</span>
+}</pre>
+      </div>
+
+      <p>The mirror file is written through the same fcntl-locked I/O path as <code>~/.aws/config</code>, with mode <code>0o600</code>. The Keychain copy is the source of truth — if the two ever disagree, Quorra trusts Keychain and rewrites the file.</p>
+
+      <div class="callout warn"><strong>secret discipline</strong>The role-credentials Keychain item is technically an optimization — given a fresh access token we can always re-derive role credentials by calling <code>GetRoleCredentials</code>. We cache them anyway because IMDS clients hit us on a hot path and can't tolerate an extra Portal API round-trip on every request. The cache is invalidated 5 minutes before <code>expiration</code> to leave headroom.</div>
+    </section>
+
+    <section id="ui">
+      <h2><span class="section-anchor">// 08</span>UI design</h2>
+
+      <p>SSO sign-in is presented as a <em>sheet</em> attached to the main window, not a separate window. Sheets feel like a transient task — the user starts a flow, completes it, and returns to where they were. SwiftUI's <code>.sheet(isPresented:)</code> with a custom <code>SSOSignInView</code> is the surface.</p>
+
+      <h3>States</h3>
+      <p>The sheet is a finite state machine driven by an <code>@Observable</code> model:</p>
+
+      <div class="code-frame">
+        <div class="code-titlebar"><div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div><span class="filename">SSOSignInModel<span class="ext">.swift</span></span><span class="langtag">swift</span></div>
+<pre><span class="tok-keyword">@Observable</span>
+<span class="tok-keyword">final class</span> <span class="tok-type">SSOSignInModel</span> {
+    <span class="tok-keyword">enum</span> <span class="tok-type">Phase</span> {
+        <span class="tok-keyword">case</span> idle
+        <span class="tok-keyword">case</span> registering
+        <span class="tok-keyword">case</span> awaitingApproval(<span class="tok-type">DeviceAuthorization</span>)
+        <span class="tok-keyword">case</span> signedIn(<span class="tok-type">SSOAccessToken</span>)
+        <span class="tok-keyword">case</span> failed(<span class="tok-type">SSOError</span>)
+    }
+    <span class="tok-keyword">private(set) var</span> phase: <span class="tok-type">Phase</span> = .idle
+}</pre>
+      </div>
+
+      <h3>Idle</h3>
+      <p>Default. Shows the SSO session name, the start URL, and a single <em>Sign in</em> button. Below the button, a faint description: <em>"Quorra will open your default browser. Approve the request to continue."</em></p>
+
+      <h3>Registering</h3>
+      <p>Brief — usually under a second. Shows a spinner with the label <em>"Registering with AWS…"</em>. This phase is skipped if a valid client registration is already cached.</p>
+
+      <h3>Awaiting approval</h3>
+      <p>The sheet's primary state during the flow. The browser has been launched. The sheet shows:</p>
+      <ul>
+        <li>A large monospaced render of the user code (<code>WDJB-MJHT</code>) with a <em>Copy</em> button.</li>
+        <li>The verification URL as copyable text, with an <em>Open in Browser</em> button next to it (in case the auto-open failed).</li>
+        <li>A countdown timer: <em>"Code expires in 9:42"</em>, derived from <code>expiresIn</code>.</li>
+        <li>A <em>Cancel</em> button which cancels the polling task.</li>
+      </ul>
+
+      <h3>Signed in</h3>
+      <p>Shown for 1 second then dismissed automatically. A green check, the start URL, the user's email (from the first <code>ListAccounts</code> result), and an <em>OK</em> button for users who want to dismiss explicitly.</p>
+
+      <h3>Failed</h3>
+      <p>Error-specific copy. The two cases worth dedicated copy are:</p>
+      <ul>
+        <li><strong>User denied.</strong> "You declined the sign-in request in your browser. Try again, or close this sheet."</li>
+        <li><strong>Code expired.</strong> "The sign-in code expired before it was approved. Click <em>Sign in</em> to start again."</li>
+      </ul>
+      <p>Everything else falls back to a generic error with the underlying message in a disclosure triangle.</p>
+
+      <h3>Account &amp; role picker</h3>
+      <p>Once signed in, the main window's sidebar populates a tree:</p>
+
+      <div class="code-frame">
+        <div class="code-titlebar"><div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div><span class="filename">sidebar<span class="ext">.txt</span></span><span class="langtag">tree</span></div>
+<pre>my-org (eu-west-1)
+├── prod-platform (123456789012)
+│   ├── AdministratorAccess
+│   └── ReadOnly
+├── dev-platform (210987654321)
+│   ├── AdministratorAccess
+│   └── DeveloperAccess
+└── ...</pre>
+      </div>
+
+      <p>Selecting a role triggers <code>GetRoleCredentials</code> in the background, surfaces a green dot once credentials are cached, and exposes the role to all credential exporters (config writeback, IMDS server, <code>credential_process</code>).</p>
+
+      <h3>Settings</h3>
+      <p>The Settings window grows an <em>SSO</em> tab listing all configured SSO sessions. Each session shows its start URL, region, scopes, registration expiry, last sign-in time, and a <em>Sign out</em> button that calls <code>Logout</code> and deletes the local Keychain copies.</p>
+
+      <h3>Menu bar</h3>
+      <p>A future iteration adds a menu-bar item showing the currently-selected role and its credential expiry, with quick actions to switch role or re-sign-in. Out of scope for the first cut.</p>
+
+      <div class="callout note"><strong>accessibility</strong>The user code is announced by VoiceOver as a sequence of letters with hyphens, not as a word. The countdown timer has <code>.accessibilityValue("9 minutes 42 seconds remaining")</code> updates throttled to once per second.</div>
+    </section>
+
+    <section id="phases">
+      <h2><span class="section-anchor">// 09</span>Implementation phases</h2>
+
+      <p>SSO ships in five phases. Each phase is independently mergeable and adds a visible capability to the app. None of them touches IMDS or <code>credential_process</code> wiring — those live in their own plans and consume the credentials this work produces.</p>
+
+      <ol class="steps">
+        <li>
+          <h4>Phase 1 — package wiring &amp; SDK clients</h4>
+          <p>Add <code>aws-sdk-swift</code> as a Swift Package dependency. Add <code>AWSSSOOIDC</code> and <code>AWSSSO</code> products to the app and CLI targets. Build green on both targets. Wire one no-op call (e.g., construct an <code>SSOOIDCClient</code> for <code>eu-west-1</code>) to verify imports and entitlements. Tests: build success.</p>
+        </li>
+        <li>
+          <h4>Phase 2 — Keychain schema &amp; helpers</h4>
+          <p>Implement <code>KeychainItem&lt;Payload&gt;</code> wrapper, the three concrete payload types, and the access-group plumbing. Add a CLI subcommand <code>quorra-cli keychain dump</code> for dev visibility. Tests: round-trip save/load/delete in a test access group; isolation between regions and start URLs.</p>
+        </li>
+        <li>
+          <h4>Phase 3 — OIDC flow (no UI)</h4>
+          <p>Implement <code>SSOService</code> with <code>register()</code>, <code>startDeviceAuthorization()</code>, <code>pollForToken(deviceAuth:)</code>, and <code>refresh(token:)</code>. Wire the polling loop. Map SDK exceptions to <code>SSOError</code>. Add an integration-test target gated behind an <code>SSO_INTEGRATION=1</code> environment variable that runs the live flow against a real start URL. Tests: unit tests for error mapping with mocked clients.</p>
+        </li>
+        <li>
+          <h4>Phase 4 — Portal flow + role credential cache</h4>
+          <p>Implement <code>listAccounts()</code>, <code>listAccountRoles(accountId:)</code>, <code>getRoleCredentials(accountId:roleName:)</code>, and the role-credentials Keychain cache. Add the <code>~/.aws/sso/cache</code> mirror writer behind the existing fcntl lock. Tests: paginated list helpers; cache invalidation 5 minutes before expiration; mirror file written atomically.</p>
+        </li>
+        <li>
+          <h4>Phase 5 — UI &amp; settings</h4>
+          <p>Add <code>SSOSignInView</code> sheet driven by <code>SSOSignInModel</code>. Wire to the main window. Populate the sidebar tree from cached <code>ListAccounts</code>/<code>ListAccountRoles</code> output. Add the Settings → SSO tab with sign-out. Tests: <code>#Preview</code>s for every phase of the sheet.</p>
+        </li>
+      </ol>
+
+      <h3>Phases out of scope</h3>
+      <ul>
+        <li><strong>Menu-bar role switcher</strong> — future, after Phase 5 has shipped and we have real usage data.</li>
+        <li><strong>SSO start-URL provisioning</strong> — Quorra will, in a later doc, walk users through entering a new start URL. For now we read whatever the user has already configured in <code>~/.aws/config</code>.</li>
+        <li><strong>Sub-account assume-role chains</strong> — <code>role_arn</code>/<code>source_profile</code> support is its own design; SSO + STS chains are the most common combo and will share the credential pipeline once both are independently solid.</li>
+      </ul>
+    </section>
+
+    <section id="decisions">
+      <h2><span class="section-anchor">// 10</span>Decisions</h2>
+
+      <div class="pills">
+        <span class="pill"><span class="dot">●</span>device flow, not auth-code</span>
+        <span class="pill"><span class="dot">●</span>aws-sdk-swift, not hand-rolled http</span>
+        <span class="pill"><span class="dot">●</span>nsworkspace, not aswebauthsession</span>
+        <span class="pill"><span class="dot">●</span>keychain primary, json mirror</span>
+        <span class="pill"><span class="dot">●</span>three keychain items, not one</span>
+        <span class="pill"><span class="dot">●</span>cache role credentials</span>
+        <span class="pill"><span class="dot">●</span>refresh tokens always rotated</span>
+        <span class="pill"><span class="dot">●</span>per-region oidc client</span>
+      </div>
+
+      <h3>Device authorization grant, not authorization-code</h3>
+      <p>The auth-code flow with PKCE would require a redirect URI. Desktop apps can register custom URL schemes but the UX (browser → switch to app via scheme) is consistently buggier than the device-code flow's "leave the browser open, come back when ready" pattern. The AWS CLI also uses device flow, so we get protocol parity with the most common other client for free.</p>
+
+      <h3>AWS SDK for Swift, not hand-rolled HTTP</h3>
+      <p>The OIDC and Portal APIs are small enough that we could hand-roll them — but only if we also wanted to hand-roll error mapping, retry, connection reuse, and ongoing maintenance for AWS API additions. The SDK is a leaf dependency on one Swift file in our codebase; that is cheap. A custom HTTP layer would be expensive to keep correct.</p>
+
+      <h3>NSWorkspace, not ASWebAuthenticationSession</h3>
+      <p>Already covered in <a href="#browser">Browser handoff</a>. The TL;DR: <code>ASWebAuthenticationSession</code> exists to capture redirect URIs, which the device flow doesn't use. Using the user's actual default browser also reuses any IdP session cookies they already have, which is a much smoother UX.</p>
+
+      <h3>Keychain as source of truth, JSON as mirror</h3>
+      <p>The Keychain has access control, hardware-backed protection, and survives app reinstalls. JSON files don't. But ecosystem tools (the AWS CLI, the AWS SDKs in other languages, third-party tools) only know how to read the JSON cache. So Keychain is canonical, and we write the JSON as a derived view of it. If they ever disagree (e.g. the user wiped <code>~/.aws/sso/cache</code> manually), Keychain wins and we rewrite the JSON.</p>
+
+      <h3>Three Keychain items, not one bundle</h3>
+      <p>One bundle would be simpler to read but conflates three different secret lifetimes. Splitting them lets us delete role credentials independently of the access token, rotate the access token without rewriting the registration, and identify items at a glance in <em>Keychain Access</em> without decrypting them. The cost — three round-trips on a cold sign-in — is paid once per 8 hours.</p>
+
+      <h3>Cache role credentials</h3>
+      <p>Strictly speaking, role credentials are derived data. We could re-derive them on every call to <code>GetRoleCredentials</code> and never store them. We don't, because the IMDS server has to respond to credential requests in milliseconds and a Portal API round-trip on every request would blow that budget. The cache is invalidated 5 minutes before expiration; the trade-off is an at-most-five-minute window of staleness, which is well within AWS's clock-skew tolerance for SigV4.</p>
+
+      <h3>Refresh tokens always rotated</h3>
+      <p>AWS sometimes returns a new refresh token on a refresh call, sometimes returns the same one. Quorra always overwrites the stored value with whatever the response contains, even if it's identical. Treating "the response is the new state" as a uniform rule eliminates a class of "did it rotate?" bugs.</p>
+
+      <h3>Per-region OIDC client</h3>
+      <p>An <code>SSOOIDCClient</code> is bound to a region at construction time. Quorra builds one per <code>sso_region</code> seen in <code>~/.aws/config</code> and caches them for the app's lifetime. Cheap to create, but reusing them lets HTTP/2 connection pooling kick in across multiple sign-ins.</p>
+
+      <h3>What we considered and rejected</h3>
+      <ul>
+        <li><strong>Embedded WKWebView for sign-in.</strong> Rejected: defeats the user's password manager, breaks SSO cookies, and gives Quorra access to credentials it has no business seeing.</li>
+        <li><strong>Storing tokens in <code>UserDefaults</code> instead of Keychain.</strong> Rejected: <code>UserDefaults</code> is plaintext, world-readable for any process that can attach to our container, and not encrypted at rest in any meaningful sense.</li>
+        <li><strong>Skipping the JSON mirror.</strong> Rejected: breaks <code>aws sso login</code> interop and any consumer that goes through the AWS CLI's credential provider chain. The compatibility cost of writing the file is trivial.</li>
+        <li><strong>Polling on a fixed 5s interval.</strong> Rejected: AWS reserves the right to ask us to slow down, and ignoring <code>slow_down</code> is the fastest way to get a client throttled.</li>
+      </ul>
+    </section>
+
+    <section id="references">
+      <h2><span class="section-anchor">// 11</span>References</h2>
+
+      <h3>Specifications</h3>
+      <ul>
+        <li><a href="https://datatracker.ietf.org/doc/html/rfc8628">RFC 8628 — OAuth 2.0 Device Authorization Grant</a></li>
+        <li><a href="https://datatracker.ietf.org/doc/html/rfc7591">RFC 7591 — OAuth 2.0 Dynamic Client Registration</a></li>
+        <li><a href="https://datatracker.ietf.org/doc/html/rfc6749">RFC 6749 — The OAuth 2.0 Authorization Framework</a></li>
+      </ul>
+
+      <h3>AWS documentation</h3>
+      <ul>
+        <li><a href="https://docs.aws.amazon.com/singlesignon/latest/OIDCAPIReference/Welcome.html">AWS SSO OIDC API Reference</a> — RegisterClient, StartDeviceAuthorization, CreateToken</li>
+        <li><a href="https://docs.aws.amazon.com/singlesignon/latest/PortalAPIReference/Welcome.html">AWS SSO Portal API Reference</a> — ListAccounts, ListAccountRoles, GetRoleCredentials, Logout</li>
+        <li><a href="https://docs.aws.amazon.com/sdkref/latest/guide/feature-sso-credentials.html">AWS SDKs and Tools — SSO credentials</a> — config-file shape, cache file format</li>
+        <li><a href="https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sso.html">AWS CLI v2 — Configuring IAM Identity Center authentication</a></li>
+      </ul>
+
+      <h3>Apple documentation</h3>
+      <ul>
+        <li><a href="https://developer.apple.com/documentation/security/keychain_services">Security framework — Keychain Services</a></li>
+        <li><a href="https://developer.apple.com/documentation/appkit/nsworkspace">AppKit — NSWorkspace</a></li>
+        <li><a href="https://developer.apple.com/documentation/swift/swift-concurrency">Swift Concurrency</a></li>
+      </ul>
+
+      <h3>Implementation references</h3>
+      <ul>
+        <li><a href="https://github.com/awslabs/aws-sdk-swift">awslabs/aws-sdk-swift</a> — official SDK, <code>AWSSSOOIDC</code> and <code>AWSSSO</code> products</li>
+        <li><a href="https://github.com/aws/aws-cli/tree/v2/awscli/customizations/sso">aws/aws-cli v2 SSO customization</a> — Python reference for the canonical flow</li>
+        <li><a href="https://github.com/benkehoe/aws-sso-util">benkehoe/aws-sso-util</a> — third-party Python tool, useful for cache-file shape and edge cases</li>
+        <li>Internal: <code>/Users/aj.beck/Developer/repos/smartpension/ludwig</code> — prior-art Go CLI</li>
+        <li>Internal: <code>./docs/AWSConfigINI.html</code> — Quorra's INI parser, the file-IO layer this work writes through</li>
+      </ul>
+    </section>
+
+    <footer>
+      <span>quorra · sso device authorization</span>
+      <span class="blink">design doc</span>
+    </footer>
+
+  </main>
+</div>
+
+</body>
+</html>

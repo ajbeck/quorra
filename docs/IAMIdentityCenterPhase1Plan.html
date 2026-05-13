@@ -660,6 +660,7 @@
     <nav class="toc">
       <div class="toc-section">
         <p class="toc-section-label">Context</p>
+        <a class="toc-link" href="#status"><span class="toc-num">★</span><span>Current status</span></a>
         <a class="toc-link" href="#overview"><span class="toc-num">01</span><span>Overview</span></a>
         <a class="toc-link" href="#scope"><span class="toc-num">02</span><span>Scope &amp; non-goals</span></a>
         <a class="toc-link" href="#decisions"><span class="toc-num">03</span><span>Decisions log</span></a>
@@ -700,21 +701,53 @@
 
     <header class="hero">
       <div class="hero-meta">
-        <span class="badge primary">phase 1</span>
+        <span class="badge primary">phase 1 · in progress</span>
         <span class="badge swift">swift 6.2</span>
         <span class="badge macos">macos 26+</span>
-        <span class="badge tests">5 subagent passes</span>
+        <span class="badge tests">279 tests passing</span>
       </div>
       <h1><span class="moniker-bracket">[</span><span class="moniker">SignIn</span><span class="moniker-bracket">]</span></h1>
       <p class="lede">End-to-end OAuth 2.0 device-authorization sign-in for AWS IAM Identity Center, executed as five Sonnet-sized scopes-of-work that ship as one PR. Every secret in the macOS Keychain; every doc citation grounded in the official Apple HIG, SwiftUI reference, and AWS API docs.</p>
 
       <div class="hero-stats">
-        <div class="stat"><span class="num">5</span><span class="label">subagent phases</span></div>
-        <div class="stat"><span class="num">1</span><span class="label">pull request</span></div>
-        <div class="stat"><span class="num">~1100</span><span class="label">lines · target</span></div>
+        <div class="stat"><span class="num">4 / 5</span><span class="label">phases shipped</span></div>
+        <div class="stat"><span class="num">~2.2k</span><span class="label">lines · landed</span></div>
+        <div class="stat"><span class="num">279</span><span class="label">tests passing</span></div>
         <div class="stat"><span class="num">0</span><span class="label">secrets on disk</span></div>
       </div>
     </header>
+
+    <section id="status">
+      <h2><span class="section-anchor">★</span>Current status</h2>
+
+      <div class="callout success"><strong>shipped</strong>Phases A–D are committed. Phase E (the inline sign-in panel + browser hop in <code>SessionDetailView</code>) is the only remaining work. A keychain hotfix landed mid-flight after real-app testing surfaced legacy-keychain ACL prompts — see "Keychain hotfix" below.</div>
+
+      <table class="fields">
+        <thead><tr><th>Phase</th><th>Status</th><th>Commit</th><th>Tests</th></tr></thead>
+        <tbody>
+          <tr><td class="field">A — Skeleton + Keychain</td><td class="type">✅ shipped</td><td class="note"><code>0ca0562</code></td><td class="note">22 tests</td></tr>
+          <tr><td class="field">B — OIDCClient + Wire types</td><td class="type">✅ shipped</td><td class="note"><code>b817111</code></td><td class="note">+17 tests</td></tr>
+          <tr><td class="field">C — IdentityCenterService.signIn</td><td class="type">✅ shipped</td><td class="note"><code>7bb4bd4</code></td><td class="note">+6 tests</td></tr>
+          <tr><td class="field">D — CredentialsModel + app integration</td><td class="type">✅ shipped</td><td class="note"><code>663d2c2</code></td><td class="note">+5 tests</td></tr>
+          <tr><td class="field">Keychain hotfix (data-protection keychain)</td><td class="type">🟡 uncommitted</td><td class="note">on disk in <code>Keychain.swift</code></td><td class="note">existing tests still pass</td></tr>
+          <tr><td class="field">E — SessionDetailView + browser hop</td><td class="type">⬜ pending</td><td class="note">—</td><td class="note">—</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Keychain hotfix — what and why</h3>
+      <p>During real-app testing of Phase D, every Keychain read/write triggered a user-facing approval prompt. Diagnosis: <code>SecItemAdd</code> on macOS defaults to the <strong>legacy login keychain</strong>, whose per-item ACL model prompts on access — <code>kSecAttrAccessGroup</code> only takes effect in the <strong>data-protection keychain</strong>. Apple's <code>kSecUseDataProtectionKeychain</code> reference: <em>"highly recommended… for all keychain operations."</em></p>
+      <p>Fix: every <code>SecItem*</code> query in the <code>Keychain</code> actor now sets <code>kSecUseDataProtectionKeychain: true</code>. Items move to the data-protection keychain (silent same-team-ID sharing, no ACL prompts). Pre-existing items in the legacy keychain were cleared with <code>security delete-generic-password</code>. Awaiting build/test verification then commit.</p>
+
+      <h3>Refinements vs original plan</h3>
+      <ul>
+        <li><strong>Phase A:</strong> shipped with one-row-per-record Keychain layout (atomic per write) instead of the field-per-row design originally specified — simpler, strictly safer, no real size pressure for our payloads. Plan §07 was updated to match.</li>
+        <li><strong>Phase C:</strong> the actor's init takes a constructed <code>OIDCClient</code> + a <code>Sleeper</code> protocol (production: <code>WallClockSleeper</code>; test: <code>MockSleeper</code> actor) instead of <code>any Clock&lt;Duration&gt;</code> as originally drafted. The <code>Clock</code> existential made test-driven time deterministic in name only; the small <code>Sleeper</code> protocol works directly. Added a <code>signInAlreadyInProgress</code> error case for overlap protection.</li>
+        <li><strong>Phase D:</strong> introduced an internal <code>IdentityCenterServicing</code> protocol (Phase A's actor conforms) so the app-side <code>CredentialsModel</code> can inject a stub for tests. The protocol's docstring records the Swift 6.2 <code>@concurrent</code> annotation requirement that bit during stub authoring.</li>
+      </ul>
+
+      <h3>Next action</h3>
+      <p>Verify the keychain hotfix builds and tests clean via the Xcode MCP server (<code>mcp__xcode__BuildProject</code>, <code>mcp__xcode__RunAllTests</code>), commit it, then begin Phase E. Phase E is described in §"Phase E" below — the substantive scope hasn't changed.</p>
+    </section>
 
     <section id="overview">
       <h2><span class="section-anchor">01</span>Overview</h2>
@@ -760,12 +793,14 @@
       <div class="pills">
         <span class="pill"><span class="dot">●</span>Two-layer architecture</span>
         <span class="pill"><span class="dot">●</span>Single Keychain actor</span>
-        <span class="pill"><span class="dot">●</span>Field-per-row records</span>
-        <span class="pill"><span class="dot">●</span>kSecAttrAccessibleWhenUnlockedThisDeviceOnly</span>
+        <span class="pill"><span class="dot">●</span>One-row-per-record (atomic)</span>
+        <span class="pill"><span class="dot">●</span>kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly</span>
+        <span class="pill"><span class="dot">●</span>kSecUseDataProtectionKeychain: true</span>
         <span class="pill"><span class="dot">●</span>URLSession (no SDK)</span>
         <span class="pill"><span class="dot">●</span>Untyped throws (TSPL §Specifying the Error Type)</span>
         <span class="pill"><span class="dot">●</span>Error + Sendable + LocalizedError only</span>
         <span class="pill"><span class="dot">●</span>High-level operations service</span>
+        <span class="pill"><span class="dot">●</span>Sleeper protocol (not Clock existential)</span>
         <span class="pill"><span class="dot">●</span>NSWorkspace.open over ASWebAuthenticationSession</span>
         <span class="pill"><span class="dot">●</span>Inline sign-in panel (HIG Loading + Sheets)</span>
         <span class="pill"><span class="dot">●</span>Date for stored timestamps</span>
@@ -784,8 +819,9 @@
           <tr><td class="field">"Sign in with IAM Identity Center"</td><td class="note">HIG Managing Accounts: <em>"Always identify the authentication method you offer."</em></td><td class="type">Button labels</td></tr>
           <tr><td class="field">"Waiting for browser sign-in…"</td><td class="note">HIG Progress Indicators: <em>"avoid vague terms like loading or authenticating."</em></td><td class="type">ProgressView caption</td></tr>
           <tr><td class="field">Indeterminate spinner + determinate countdown</td><td class="note">HIG Progress Indicators: prefer determinate when duration known; combining is permitted.</td><td class="type">SessionDetailView sign-in panel</td></tr>
-          <tr><td class="field">Field-per-row Keychain records</td><td class="note">Keychain item size limits + atomicity boundary; partial writes treated as missing record.</td><td class="type">Keychain actor schema</td></tr>
-          <tr><td class="field">kSecAttrAccessibleWhenUnlockedThisDeviceOnly</td><td class="note">Apple Security: most-restrictive accessibility appropriate for credential material; ThisDeviceOnly prevents Migration Assistant copy.</td><td class="type">All Keychain rows</td></tr>
+          <tr><td class="field">One-row-per-record Keychain layout <em>(refined from "field-per-row")</em></td><td class="note">Atomic writes; partial-write recovery becomes automatic. Phase A review concluded the size pressure that motivated field-per-row doesn't apply to our payloads (typical SSO bearer JWT + refresh ≈ 4 KB, well under <code>kSecValueData</code> limits).</td><td class="type">Keychain actor schema</td></tr>
+          <tr><td class="field">kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly</td><td class="note">Apple Security: usable after first unlock since boot; ThisDeviceOnly prevents Migration Assistant copy. Loosened from <em>WhenUnlocked</em> so background CLI / IMDS reads work while the screen is locked.</td><td class="type">All Keychain rows</td></tr>
+          <tr><td class="field">kSecUseDataProtectionKeychain: true <em>(post-launch hotfix)</em></td><td class="note">Apple <code>kSecUseDataProtectionKeychain</code> reference: <em>"highly recommended… for all keychain operations."</em> Routes items to the data-protection keychain (silent same-team-ID sharing) instead of the legacy login keychain (per-item ACL prompts).</td><td class="type">All <code>SecItem*</code> queries in <code>Keychain</code> actor</td></tr>
         </tbody>
       </table>
     </section>
@@ -970,7 +1006,7 @@
     </section>
 
     <section id="phase-a">
-      <h2><span class="section-anchor">A</span>Phase A — Skeleton + Keychain</h2>
+      <h2><span class="section-anchor">A</span>Phase A — Skeleton + Keychain <span style="color: var(--success); font-size: 0.7em; vertical-align: 0.2em;">✅ shipped · 0ca0562</span></h2>
 
       <div class="phase-card">
         <span class="phase-tag">Subagent · Sonnet</span>
@@ -1019,7 +1055,7 @@
     </section>
 
     <section id="phase-b">
-      <h2><span class="section-anchor">B</span>Phase B — OIDCClient</h2>
+      <h2><span class="section-anchor">B</span>Phase B — OIDCClient <span style="color: var(--success); font-size: 0.7em; vertical-align: 0.2em;">✅ shipped · b817111</span></h2>
 
       <div class="phase-card">
         <span class="phase-tag">Subagent · Sonnet</span>
@@ -1061,7 +1097,7 @@
     </section>
 
     <section id="phase-c">
-      <h2><span class="section-anchor">C</span>Phase C — IdentityCenterService.signIn</h2>
+      <h2><span class="section-anchor">C</span>Phase C — IdentityCenterService.signIn <span style="color: var(--success); font-size: 0.7em; vertical-align: 0.2em;">✅ shipped · 7bb4bd4</span></h2>
 
       <div class="phase-card">
         <span class="phase-tag">Subagent · Sonnet</span>
@@ -1102,7 +1138,7 @@
     </section>
 
     <section id="phase-d">
-      <h2><span class="section-anchor">D</span>Phase D — CredentialsModel + app integration</h2>
+      <h2><span class="section-anchor">D</span>Phase D — CredentialsModel + app integration <span style="color: var(--success); font-size: 0.7em; vertical-align: 0.2em;">✅ shipped · 663d2c2</span></h2>
 
       <div class="phase-card">
         <span class="phase-tag">Subagent · Sonnet</span>
@@ -1140,7 +1176,7 @@
     </section>
 
     <section id="phase-e">
-      <h2><span class="section-anchor">E</span>Phase E — SessionDetailView + browser hop</h2>
+      <h2><span class="section-anchor">E</span>Phase E — SessionDetailView + browser hop <span style="color: var(--warning); font-size: 0.7em; vertical-align: 0.2em;">⬜ pending</span></h2>
 
       <div class="phase-card">
         <span class="phase-tag">Subagent · Sonnet</span>
