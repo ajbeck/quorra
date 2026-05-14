@@ -27,5 +27,15 @@ struct PreviewIdentityCenterService: IdentityCenterServicing {
 
     @concurrent
     func signOut(sessionName: String) async throws {}
+
+    @concurrent
+    func liveToken(forSession sessionName: String) async throws -> StoredSSOToken {
+        throw IAMIdentityCenterError.notSignedIn
+    }
+
+    @concurrent
+    func refreshNow(sessionName: String) async throws -> StoredSSOToken {
+        throw IAMIdentityCenterError.notSignedIn
+    }
 }
 #endif

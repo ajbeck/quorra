@@ -20,6 +20,16 @@ actor EventCounter {
     }
 }
 
+// MARK: - Test-only IdentityCenterService helpers
+
+extension IdentityCenterService {
+    /// Test-only: directly injects a task into `inFlightRefresh` without going through the
+    /// real refresh code path. Used to set up the precondition for `handleRefresh` no-op tests.
+    func _test_setInFlightRefresh(_ task: Task<StoredSSOToken, Error>, for sessionName: String) {
+        inFlightRefresh[sessionName] = task
+    }
+}
+
 // MARK: - StubURLProtocol wire helpers
 
 /// Registers a successful `RegisterClient` response for the test's stubbed URLSession.

@@ -10,7 +10,7 @@ private let logger = Logger(subsystem: "dev.ajbeck.quorra", category: "IAMIdenti
 /// cooperative via `cancelSignIn(sessionName:)`.
 public actor IdentityCenterService: IdentityCenterServicing {
     internal let keychain: any KeychainStore
-    internal let oidcClient: OIDCClient
+    internal let oidcClient: any OIDCRequesting
     internal let sleeper: any Sleeper
     /// URLSession for Portal /logout calls. Injectable for tests.
     internal let urlSession: URLSession
@@ -18,8 +18,17 @@ public actor IdentityCenterService: IdentityCenterServicing {
     /// Map of in-flight sign-in tasks keyed by session name.
     private var inFlight: [String: Task<StoredSSOToken, Error>] = [:]
 
-    /// Expiration timers keyed by session name (D8).
+    /// Expiration timers keyed by session name (D8 / D11).
     var expirationTimers: [String: Task<Void, Never>] = [:]
+
+    /// Refresh timers keyed by session name — fires at `expiresAt − refreshSkew` (D11 / A2).
+    var refreshTimers: [String: Task<Void, Never>] = [:]
+
+    /// In-flight refresh tasks keyed by session name. Single-flight coalescing (D12 / A2).
+    var inFlightRefresh: [String: Task<StoredSSOToken, Error>] = [:]
+
+    /// Per-session Task chain for async serialization (D21 / A2).
+    var sessionLocks: [String: Task<Void, Never>] = [:]
 
     /// Service constants (Keychain service attributes + timing constants).
     enum ServiceConstants {
@@ -27,6 +36,10 @@ public actor IdentityCenterService: IdentityCenterServicing {
         static let ssoTokenService = "dev.ajbeck.quorra.sso-token"
         static let oidcClientReregistrationLeadTime: TimeInterval = 7 * 24 * 60 * 60
         static let slowDownIncrementSeconds: TimeInterval = 5
+        /// Refresh skew: trigger refresh this many seconds before `expiresAt` (D11 / D12).
+        /// Matches the AWS SDKs' SSO credential provider skew so Quorra's behavior is
+        /// consistent with `aws` CLI on the same machine.
+        static let refreshSkew: TimeInterval = 5 * 60
     }
 
     // MARK: - Events stream (D2)
@@ -51,7 +64,7 @@ public actor IdentityCenterService: IdentityCenterServicing {
     ///   - sleeper: Time source for sleep/timeout (injectable for testing)
     public init(
         keychain: any KeychainStore,
-        oidcClient: OIDCClient,
+        oidcClient: any OIDCRequesting,
         sleeper: any Sleeper = WallClockSleeper(),
         urlSession: URLSession = .shared
     ) {
@@ -100,18 +113,28 @@ public actor IdentityCenterService: IdentityCenterServicing {
             throw IAMIdentityCenterError.signInAlreadyInProgress(sessionName: sessionName)
         }
 
+        // D21 cancel-then-queue: cancel any in-flight refresh before taking the session lock
+        // so its network call unwinds quickly and the lock becomes available without delay.
+        inFlightRefresh[sessionName]?.cancel()
+        cancelRefresh(forSession: sessionName)
+
         eventContinuation.yield(.signInStarted(sessionName: sessionName))
 
+        // D21: take the session lock around runSignIn so a concurrent refresh or signOut
+        // cannot interleave at actor suspension points. The cancel-then-queue lines above
+        // ensure the lock becomes available quickly by cancelling any in-flight refresh.
         let task = Task<StoredSSOToken, Error> { [weak self] in
             guard let self else { throw CancellationError() }
-            return try await self.runSignIn(
-                sessionName: sessionName,
-                startUrl: startUrl,
-                region: region,
-                scopes: scopes,
-                clientName: clientName,
-                verificationHandler: verificationHandler
-            )
+            return try await self.withSessionLock(sessionName) {
+                try await self.runSignIn(
+                    sessionName: sessionName,
+                    startUrl: startUrl,
+                    region: region,
+                    scopes: scopes,
+                    clientName: clientName,
+                    verificationHandler: verificationHandler
+                )
+            }
         }
         inFlight[sessionName] = task
 
@@ -121,7 +144,11 @@ public actor IdentityCenterService: IdentityCenterServicing {
             let token = try await task.value
             // Clear any sign-out advisory flag by re-using the same session name on success
             eventContinuation.yield(.signedIn(sessionName: sessionName))
+            // D11: schedule both T_expire and T_refresh on successful sign-in
             scheduleExpiration(forSession: sessionName, expiresAt: token.expiresAt)
+            if token.refreshToken != nil {
+                scheduleRefresh(forSession: sessionName, expiresAt: token.expiresAt)
+            }
             return token
         } catch is CancellationError {
             eventContinuation.yield(.signInCancelled(sessionName: sessionName))

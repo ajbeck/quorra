@@ -61,4 +61,23 @@ public enum IAMIdentityCenterError: Error, Equatable, Sendable {
 
     /// Stored payload didn't decode (e.g. partial-write recovery).
     case keychainMalformed(reason: String)
+
+    // MARK: - A2 — Live token / refresh
+
+    /// `liveToken` was called but the access token has expired and `canRefresh` is false.
+    /// The caller must prompt the user to sign in again (D12).
+    case tokenExpired
+
+    /// `liveToken` was called but the session has no token in the Keychain — the user
+    /// has never signed in, or has signed out (D12).
+    case notSignedIn
+
+    /// The refresh token was rejected by AWS Identity Center (`invalid_grant`). Terminal —
+    /// the refresh token must be removed from the Keychain; the user will need to sign in again
+    /// once the current access token expires (D14).
+    case refreshTokenRejected
+
+    /// The OIDC client registration was rejected (`invalid_client`). Terminal —
+    /// the client must re-register on the next sign-in (D14).
+    case refreshClientInvalid
 }

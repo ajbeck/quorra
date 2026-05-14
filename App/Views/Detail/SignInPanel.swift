@@ -10,6 +10,11 @@ import AppKit
 /// - `inProgress`: signingIn — user code + countdown + Cancel
 /// - `ready`: signedIn / expired(canRefresh: true) — success badge + countdown + [Sign out] [Sign in again]
 ///
+/// **A2 (D16/D17):** `ready` mode gains two optional sections driven by the A2 overlay flags:
+/// - `isRefreshing: true` — subtle "Refreshing…" caption
+/// - `hasRefreshFailure: true` — advisory "Couldn't refresh your session. [Refresh now]" + Refresh now button
+/// - `canRefresh: false` in `signedIn` — caption "Token will expire at HH:mm — sign in again to keep working"
+///
 /// `lastError` and `signOutFailed` overlay the appropriate mode with additional context.
 struct SignInPanel: View {
     let sessionName: String
@@ -21,9 +26,15 @@ struct SignInPanel: View {
     let lastError: IAMIdentityCenterError?
     let signOutFailed: Bool
     let isReadOnly: Bool
+    /// A2: true when `CredentialsModel.refreshingNow.contains(sessionName)` (D17)
+    var isRefreshing: Bool = false
+    /// A2: true when `CredentialsModel.refreshFailure.contains(sessionName)` (D16)
+    var hasRefreshFailure: Bool = false
     let onSignIn: () -> Void
     let onCancel: () -> Void
     let onSignOut: () -> Void
+    /// A2: invoked when the user taps "Refresh now" in the transient-failure advisory (D16)
+    var onRefreshNow: (() -> Void)? = nil
 
     var body: some View {
         switch authStatus {
@@ -39,7 +50,7 @@ struct SignInPanel: View {
         case .signedIn(let expiresAt, _), .expired(let expiresAt, canRefresh: true):
             readyView(expiresAt: expiresAt)
 
-        case .signedOut, .expired(_, canRefresh: false), .refreshing:
+        case .signedOut, .expired(_, canRefresh: false):
             needsActionView
         }
     }
@@ -142,34 +153,72 @@ struct SignInPanel: View {
 
     @ViewBuilder
     private func readyView(expiresAt: Date) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Signed in.").font(.callout.weight(.semibold))
-                HStack(spacing: 4) {
-                    Text("Token expires in")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    // Apple: SwiftUI/Text/init(timerInterval:pauseTime:countsDown:showsHours:)
-                    Text(timerInterval: Date.now...expiresAt, countsDown: true)
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Signed in.").font(.callout.weight(.semibold))
+                    // A2 D17: refreshing caption
+                    if isRefreshing {
+                        Text("Refreshing…")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else if case .signedIn(_, canRefresh: false) = authStatus {
+                        // D16: canRefresh: false caption — no refresh token, expiry is final
+                        Text("Token will expire at \(expiresAt, format: .dateTime.hour().minute()) — sign in again to keep working.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        HStack(spacing: 4) {
+                            Text("Token expires in")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            // Apple: SwiftUI/Text/init(timerInterval:pauseTime:countsDown:showsHours:)
+                            Text(timerInterval: Date.now...expiresAt, countsDown: true)
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                Spacer(minLength: 0)
+                // D5: Sign out first (no confirmation needed — deletes refreshable credential, not user data)
+                Button("Sign out") {
+                    onSignOut()
+                }
+                .controlSize(.small)
+                // Read-only mode permits sign-out per D5 — auth state is orthogonal to file-write gating
+                Button("Sign in again") {
+                    onSignIn()
+                }
+                .controlSize(.small)
+                .disabled(isReadOnly)
+            }
+
+            // A2 D16: transient refresh-failure advisory with [Refresh now] button.
+            // Only shown when hasRefreshFailure is true (set by CredentialsModel on .refreshFailed
+            // for transient errors; cleared by .refreshed / new .signedIn / .signedOut).
+            // HIG Identity → SSO: surface controls only when intervention is required.
+            if hasRefreshFailure {
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .foregroundStyle(.orange)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Couldn't refresh your session.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        if let onRefreshNow {
+                            Button("Refresh now") {
+                                onRefreshNow()
+                            }
+                            .controlSize(.small)
+                            .accessibilityLabel("Refresh session token now")
+                        }
+                    }
                 }
             }
-            Spacer(minLength: 0)
-            // D5: Sign out first (no confirmation needed — deletes refreshable credential, not user data)
-            Button("Sign out") {
-                onSignOut()
-            }
-            .controlSize(.small)
-            // Read-only mode permits sign-out per D5 — auth state is orthogonal to file-write gating
-            Button("Sign in again") {
-                onSignIn()
-            }
-            .controlSize(.small)
-            .disabled(isReadOnly)
         }
     }
 

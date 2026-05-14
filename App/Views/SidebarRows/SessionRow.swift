@@ -12,8 +12,12 @@ struct SessionRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            // SessionStatusIcon is accessibility-hidden; the row label carries the phrase
-            SessionStatusIcon(authStatus: authStatus)
+            // SessionStatusIcon is accessibility-hidden; the row label carries the phrase.
+            // D17: isRefreshing drives the pulse overlay independently of auth status.
+            SessionStatusIcon(
+                authStatus: authStatus,
+                isRefreshing: credentialsModel.refreshingNow.contains(session.id)
+            )
             Text(session.id)
                 .lineLimit(1)
             Spacer(minLength: 0)
@@ -84,6 +88,21 @@ struct SessionRow: View {
         .environment(model)
         .task {
             model.seedStatusForTesting(.signingIn, sessionName: "signing-session")
+        }
+        .padding()
+}
+
+#Preview("SessionRow – refreshing overlay") {
+    let node = SSOSessionNode(id: "refresh-session", session: nil, profiles: [])
+    let model = CredentialsModel(service: PreviewIdentityCenterService())
+    SessionRow(session: node)
+        .environment(model)
+        .task {
+            model.seedStatusForTesting(
+                .signedIn(expiresAt: Date().addingTimeInterval(3600), canRefresh: true),
+                sessionName: "refresh-session"
+            )
+            model.seedRefreshingNowForTesting(sessionName: "refresh-session")
         }
         .padding()
 }
