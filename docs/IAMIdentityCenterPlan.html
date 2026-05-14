@@ -71,6 +71,9 @@
 
       <h3>What's just shipped (Scope A1)</h3>
       <p>Sign-out, <code>SessionAuthStatus</code> enum, <code>AsyncStream&lt;AuthEvent&gt;</code> on the actor, event-driven expiration via <code>Task.sleep(until:)</code>, sidebar status icon (recolored <code>key.icloud</code>), Portal <code>POST /logout</code>. 357 tests passing (+42).</p>
+
+      <h3>What's design-settled (Scope A2)</h3>
+      <p>Silent refresh — twelve decisions (<a href="#decisions">D10–D21</a>) taken in the planning interview. Dual-timer model (<code>T_refresh</code> at <code>expiresAt − 5min</code> + <code>T_expire</code> at <code>expiresAt</code>), <code>liveToken(forSession:)</code> as the single read path with single-flight refresh, terminal-vs-transient failure split, per-session async serialization via Task chain (Apple's recommended primitive over <code>Synchronization.Mutex</code>, which is sync/blocking and wrong for async code). File map and acceptance criteria below in <a href="#scope-a2">A2</a>.</p>
     </section>
 
     <section id="scope-map">
@@ -94,14 +97,16 @@
       </div>
 
       <div class="phase-card">
-        <span class="phase-tag">Scope A2</span>
+        <span class="phase-tag">Scope A2 · design settled</span>
         <h3>Silent refresh + live token</h3>
         <ul>
-          <li><code>refresh_token</code> grant added to <code>OIDCClient.createToken</code></li>
-          <li><code>liveToken(forSession:)</code> — lazy refresh on read, 5-min pre-expiry skew (per <a href="IAMIdentityCenterDeviceAuth.html#lifetimes">§09 Refresh windows</a>)</li>
-          <li><code>refreshNow(sessionName:)</code> — user-initiated, always mutating</li>
-          <li><code>AsyncStream</code> activates <code>refreshing</code>, <code>refreshed</code>, <code>refreshFailed</code> events (already in <code>AuthEvent</code> from A1)</li>
-          <li>Sidebar icon reflects refresh state without flicker (A1's colors were chosen to remain stable)</li>
+          <li>New <code>OIDCClient.refreshToken(client:refreshToken:sessionName:)</code> — separate verb, not an overload of <code>createToken</code> (<a href="#decisions">D15</a>)</li>
+          <li><code>liveToken(forSession:) -&gt; StoredSSOToken</code> — single read path; in-skew triggers inline refresh; single-flight via <code>inFlightRefresh</code> map (<a href="#decisions">D12</a>)</li>
+          <li><code>refreshNow(sessionName:) -&gt; StoredSSOToken</code> — programmatic verb; UI button surfaces only on transient <code>.refreshFailed</code> (<a href="#decisions">D16</a>)</li>
+          <li>Two independent timers per signed-in session: <code>T_refresh</code> at <code>expiresAt − 5min</code>, <code>T_expire</code> at <code>expiresAt</code> (<a href="#decisions">D11</a>)</li>
+          <li>Terminal vs transient failure split: <code>invalid_grant</code> nils out the refresh token in Keychain, keeps the still-valid access token (<a href="#decisions">D14</a>)</li>
+          <li>Per-session async serialization via <code>sessionLocks: [String: Task&lt;Void, Never&gt;]</code>; user-driven actions cancel-then-queue (<a href="#decisions">D21</a>)</li>
+          <li><code>case refreshing</code> dropped from <code>SessionAuthStatus</code>; replaced by <code>CredentialsModel.refreshingNow: Set&lt;String&gt;</code> overlay (<a href="#decisions">D17</a>)</li>
         </ul>
       </div>
 
@@ -244,6 +249,191 @@
         <li><strong>Confirmation:</strong> none. Per HIG <em>Alerts → Buttons</em>: <em>"When people deliberately choose a destructive action… the convenience of pressing Return to confirm the deliberately chosen action outweighs the benefit of reaffirming."</em> Sign-out isn't truly destructive — it deletes a refreshable credential, not user data. Plain <code>Button("Sign out") { … }</code>, no <code>role: .destructive</code>.</li>
         <li><strong>Read-only mode:</strong> sign-out is permitted. Read-only gates writes to <code>~/.aws/config</code> and <code>~/.aws/credentials</code>; auth state lives in the Keychain, which is orthogonal.</li>
       </ul>
+
+      <h3 style="margin-top: 2.5em;">A2 decisions — silent refresh</h3>
+      <p>Twelve decisions taken during the A2 design interview. Each is grounded in Apple documentation, AWS API documentation, RFC 6749, or the research docs.</p>
+
+      <h3>D10 — Trigger model: proactive timer + lazy defensive read</h3>
+      <p>Silent refresh runs from a proactive timer (<code>T_refresh</code> at <code>expiresAt − 5min</code>) and emits events via the actor's existing <code>AsyncStream</code>. <code>liveToken(forSession:)</code> additionally performs a defensive inline refresh if it's called inside the skew window or past expiry — covers cold-start with a token already inside the skew window and rare cases where <code>T_refresh</code> didn't fire on time. The model never sees time; it only reacts to events (preserves A1's event-driven architecture).</p>
+      <p><strong>Rejected alternatives:</strong></p>
+      <ul>
+        <li><em>Proactive only.</em> Loses the defensive guarantee that <code>liveToken</code>'s contract — "valid for at least skew seconds" — requires for Scope B's role-cred mint path.</li>
+        <li><em>Lazy only.</em> Sidebar icon would stay <code>.green</code> for hours after token went stale, because nothing triggered a status re-pull. Breaks the event-driven posture.</li>
+      </ul>
+      <p>Apple precedent: <code>URLCredentialStorage</code>'s renewal-window pattern (background renewal task + defensive check at point-of-use).</p>
+
+      <h3>D11 — Two independent timers per signed-in session</h3>
+      <p>One timer per job. <code>T_refresh</code> at <code>expiresAt − 5min</code> drives refresh and emits <code>.refreshing</code>/<code>.refreshed</code>/<code>.refreshFailed</code>. <code>T_expire</code> at <code>expiresAt</code> remains unchanged from A1 and fires <code>.expired</code>. On refresh success: cancel both, reschedule both for the new <code>expiresAt</code>. On refresh failure: leave <code>T_expire</code> running so <code>.expired</code> still fires at the original deadline — the user gets a real 5-minute grace window. When <code>canRefresh: false</code>, only <code>T_expire</code> is scheduled (A1 behavior).</p>
+      <p><strong>Rejected alternatives:</strong></p>
+      <ul>
+        <li><em>Single timer at <code>expiresAt − 5min</code>; <code>.expired</code> only fires on refresh failure.</em> Failure handler has to schedule a fresh timer at the original deadline. More branching, same end-state.</li>
+        <li><em>Single timer that does both jobs (fires <code>.expired</code> immediately on refresh failure).</em> Lies to the user — token is still valid for 5 more minutes.</li>
+      </ul>
+      <p>Apple precedent: <code>URLSessionConfiguration.timeoutIntervalForRequest</code> and <code>timeoutIntervalForResource</code> are two independent deadlines with separate jobs — they don't share a timer.</p>
+
+      <h3>D12 — <code>liveToken(forSession:)</code> contract</h3>
+      <p>Returns <code>StoredSSOToken</code> (full record — same shape <code>signIn</code> returns). The contract is "the returned token is valid for at least <code>refreshSkew</code> seconds." Single-flight via <code>inFlightRefresh: [String: Task&lt;StoredSSOToken, Error&gt;]</code>.</p>
+
+      <table class="fields">
+        <thead><tr><th>Situation</th><th>Behavior</th></tr></thead>
+        <tbody>
+          <tr><td class="field">now &lt; expiresAt − skew, no in-flight refresh</td><td class="note">Return current token from Keychain. No work.</td></tr>
+          <tr><td class="field">now ≥ expiresAt − skew, now &lt; expiresAt (inside skew)</td><td class="note">Trigger refresh inline and await; return refreshed token.</td></tr>
+          <tr><td class="field">now ≥ expiresAt, canRefresh: true</td><td class="note">Same — trigger refresh inline (timer was late: cold start, sleep edge).</td></tr>
+          <tr><td class="field">now ≥ expiresAt, canRefresh: false</td><td class="note">Throw <code>.tokenExpired</code>.</td></tr>
+          <tr><td class="field">Refresh already in flight</td><td class="note">Await <code>inFlightRefresh[name]</code>; return shared result.</td></tr>
+          <tr><td class="field">Keychain says signedOut</td><td class="note">Throw <code>.notSignedIn</code>.</td></tr>
+        </tbody>
+      </table>
+
+      <p>Skew constant: <code>ServiceConstants.refreshSkew = 5 * 60</code>, grounded in research <a href="IAMIdentityCenterDeviceAuth.html#lifetimes">§09</a>. Same skew the AWS SDKs' SSO credential provider uses, so Quorra's behavior matches AWS CLI on the same machine.</p>
+
+      <h3>D13 — No actor-side token cache</h3>
+      <p>Reaffirms A1 <a href="#data-flow">D6</a>. Keychain stays the single source of truth. The App ↔ CLI architecture (<code>CLAUDE.md</code>: <em>"Any mutation of AWS config/credentials files, Keychain items, or SSO tokens may happen from either binary. Both must treat the filesystem and Keychain as shared mutable state."</em>) is load-bearing — an actor-side cache in the app would diverge from Keychain whenever the CLI refreshes or signs out, and there's no notification mechanism by design.</p>
+      <p>The hot-path cache that matters already exists at <code>CredentialsModel.status: [String: SessionAuthStatus]</code>. <code>liveToken</code> is called ~hourly per active profile (Scope B role-cred mint cadence), not per render. Keychain reads cost microseconds. The single-flight <code>inFlightRefresh</code> Task gives the in-memory benefit during the only window it matters — multiple callers awaiting one refresh share the in-memory result.</p>
+
+      <h3>D14 — Refresh failure handling: terminal vs transient</h3>
+      <table class="fields">
+        <thead><tr><th>Failure</th><th>Bucket</th></tr></thead>
+        <tbody>
+          <tr><td class="field">invalid_grant (refresh token rejected)</td><td class="note">terminal</td></tr>
+          <tr><td class="field">invalid_client (client registration expired)</td><td class="note">terminal</td></tr>
+          <tr><td class="field">URLError / timeout / DNS</td><td class="note">transient</td></tr>
+          <tr><td class="field">5xx from AWS</td><td class="note">transient</td></tr>
+        </tbody>
+      </table>
+      <p><strong>Terminal:</strong> emit <code>.refreshFailed</code>; update Keychain row to <code>refreshToken = nil</code> (keep <code>accessToken</code> and <code>expiresAt</code> — the access token may still be valid for minutes); cancel <code>T_refresh</code>; leave <code>T_expire</code>. Status becomes <code>signedIn(_, canRefresh: false)</code> until <code>expiresAt</code>, then <code>expired(_, canRefresh: false)</code> — both A1 already renders correctly.</p>
+      <p><strong>Transient:</strong> emit <code>.refreshFailed</code>; don't mutate Keychain; cancel <code>T_refresh</code> (one-shot, no auto-retry); leave <code>T_expire</code>. Status stays <code>signedIn(_, canRefresh: true)</code>. User can retry via <code>refreshNow</code>; next <code>liveToken</code> inside skew will retry inline (<a href="#decisions">D12</a>).</p>
+      <p><strong>No auto-retry inside the skew window.</strong> The 5-minute window already <em>is</em> the retry window. AWS Identity Center's <code>/token</code> refresh doesn't issue <code>slow_down</code>; <code>URLSession</code> already does some retry at the connection layer.</p>
+
+      <h3>D15 — <code>OIDCClient.refreshToken</code> is a separate method</h3>
+      <p>Parallel to the existing public verbs (<code>registerClient</code>, <code>startDeviceAuthorization</code>, <code>createToken</code>) — one Swift method per AWS operation, even though both grant types hit the same <code>/token</code> URL.</p>
+
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">OIDCClient<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
+        </div>
+<pre><code><span class="tok-keyword">public func</span> refreshToken(
+    client: <span class="tok-type">StoredOIDCClient</span>,
+    refreshToken: <span class="tok-type">String</span>,
+    sessionName: <span class="tok-type">String</span>
+) <span class="tok-keyword">async throws</span> -&gt; <span class="tok-type">StoredSSOToken</span></code></pre>
+      </div>
+
+      <p>New <code>Wire.RefreshTokenRequest</code> with <code>refreshToken: String</code> and <code>grantType = "refresh_token"</code>; no <code>deviceCode</code> field. The existing <code>CreateTokenRequest</code> is untouched — illegal states (both grant fields set / neither set) remain impossible at the type level. Error handling stays local: <code>createToken</code> still maps <code>authorization_pending</code>/<code>slow_down</code> in the polling loop; <code>refreshToken</code> maps the <a href="#decisions">D14</a> error buckets.</p>
+      <p>Apple precedent: <code>URLSession.data(for:)</code> and <code>URLSession.upload(for:from:)</code> are separate methods, not one method with a <code>Mode</code> enum.</p>
+
+      <h3>D16 — <code>refreshNow</code> UI surfaces only on transient <code>.refreshFailed</code></h3>
+      <p>The actor verb <code>refreshNow(sessionName:) async throws -&gt; StoredSSOToken</code> is always available programmatically (Scope B can call it). The UI surface is gated: a "Refresh now" button appears in <code>SignInPanel</code>'s inline advisory only when <code>.refreshFailed</code> fired transiently. Terminal failure routes to the existing "Sign in again" button.</p>
+      <p>Concrete panel matrix:</p>
+      <table class="fields">
+        <thead><tr><th>Model state</th><th>UI</th></tr></thead>
+        <tbody>
+          <tr><td class="field">signedIn(_, canRefresh: true), no overlays</td><td class="note">[Sign out] [Sign in again]</td></tr>
+          <tr><td class="field">signedIn(_, canRefresh: true), refreshFailure set</td><td class="note">[Sign out] [Sign in again] + advisory <em>"Couldn't refresh your session. [Refresh now]"</em></td></tr>
+          <tr><td class="field">signedIn(_, canRefresh: false)</td><td class="note">[Sign out] [Sign in again] + caption <em>"Token will expire at HH:mm"</em></td></tr>
+        </tbody>
+      </table>
+      <p>Apple HIG (Identity → SSO): <em>"The system manages credentials in the background; surface controls only when intervention is required."</em> A persistent "Refresh now" button whose primary state is "does nothing" is noise. Mirrors A1's <code>signOutFailure</code> advisory shape (<a href="#runtime-edges">D7</a>).</p>
+
+      <h3>D17 — <code>case refreshing</code> removed from <code>SessionAuthStatus</code></h3>
+      <p>A1 reserved <code>case refreshing</code> with no associated values. A2 removes it. The actor's source-of-truth status during refresh remains <code>signedIn(expiresAt:, canRefresh:)</code> — the session <em>is</em> still signed in until either refresh completes or <code>T_expire</code> fires. "Refreshing" is a transient activity overlay, not a session-auth state.</p>
+      <p>New model property mirrors A1's <code>signOutFailure</code> shape:</p>
+      <ul>
+        <li><code>CredentialsModel.refreshingNow: Set&lt;String&gt;</code> — populated on <code>.refreshing</code>, cleared on <code>.refreshed</code>/<code>.refreshFailed</code>. Drives the panel's "refreshing" caption and the sidebar icon's optional <code>.pulse</code> effect.</li>
+        <li><code>CredentialsModel.refreshFailure: Set&lt;String&gt;</code> — populated on <code>.refreshFailed</code>, cleared on next <code>.refreshed</code> / new sign-in / sign-out. Drives the <a href="#decisions">D16</a> advisory.</li>
+      </ul>
+      <p>Updated <code>SessionAuthStatus</code>:</p>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">SessionAuthStatus<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
+        </div>
+<pre><code><span class="tok-keyword">public enum</span> <span class="tok-type">SessionAuthStatus</span>: <span class="tok-type">Sendable</span>, <span class="tok-type">Hashable</span> {
+    <span class="tok-keyword">case</span> signedOut
+    <span class="tok-keyword">case</span> signedIn(expiresAt: <span class="tok-type">Date</span>, canRefresh: <span class="tok-type">Bool</span>)
+    <span class="tok-keyword">case</span> expired(expiredAt: <span class="tok-type">Date</span>, canRefresh: <span class="tok-type">Bool</span>)
+    <span class="tok-keyword">case</span> signingIn
+    <span class="tok-comment">// case refreshing — removed; lives in CredentialsModel.refreshingNow</span>
+}</code></pre>
+      </div>
+
+      <h3>D18 — Refresh-token rotation per RFC 6749 §6 + §10.4</h3>
+      <p>On successful refresh, build the new <code>StoredSSOToken</code> with <code>refreshToken: response.refreshToken ?? old.refreshToken</code> — replace when AWS rotates, keep old when AWS doesn't. Then overwrite the Keychain row atomically. Don't preserve the old refresh token "in case the new one is bad" — RFC 6749 §10.4 requires invalidating the old one, and keeping it for fallback enables replay if it's stolen.</p>
+
+      <h3>D19 — Test seam: extend <code>Sleeper</code> with <code>sleep(until: Date)</code></h3>
+      <p>A1 already invested in the <code>Sleeper</code> protocol for the device-flow polling loop. A2 extends it rather than introducing a parallel mechanism:</p>
+
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">Sleeper<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
+        </div>
+<pre><code><span class="tok-keyword">public protocol</span> <span class="tok-type">Sleeper</span>: <span class="tok-type">Sendable</span> {
+    <span class="tok-keyword">var</span> now: <span class="tok-type">Date</span> { <span class="tok-keyword">get async</span> }
+    <span class="tok-keyword">func</span> sleep(for interval: <span class="tok-type">TimeInterval</span>) <span class="tok-keyword">async throws</span>
+    <span class="tok-keyword">func</span> sleep(until deadline: <span class="tok-type">Date</span>) <span class="tok-keyword">async throws</span>  <span class="tok-comment">// A2</span>
+}</code></pre>
+      </div>
+
+      <p><code>IdentityCenterService+Expiration.swift</code>'s <code>Task.sleep(until: deadline, clock: .continuous)</code> becomes <code>sleeper.sleep(until: expiresAt)</code>. Production <code>WallClockSleeper.sleep(until:)</code> delegates to <code>Task.sleep(for:)</code> (which uses <code>ContinuousClock</code> under the hood — sleep-through-system-sleep preserved). <code>MockSleeper</code> auto-advances synthetic time to the deadline and signals <code>nextSleepWaiters</code>.</p>
+      <p><strong>Considered and rejected:</strong></p>
+      <ul>
+        <li><em>Adopt Apple's <code>Clock</code> protocol (SE-0329) directly.</em> Documented seam, but <code>any Clock&lt;Duration&gt;.Instant</code> existential math is rough under Swift 6.2 strict concurrency. A generic actor (<code>actor IdentityCenterService&lt;C: Clock&gt;</code>) propagates the type parameter everywhere. Sleeper's <code>Date</code>/<code>TimeInterval</code> shape is what <code>Clock</code> users end up writing for wall-clock-tied logic anyway.</li>
+        <li><em>Adopt <code>swift-clocks</code> (Point-Free).</em> Battle-tested <code>TestClock&lt;Duration&gt;</code>, but adds a third-party dependency for what is ~10 lines of protocol extension. <code>CLAUDE.md</code> tech stack section is conservative about external deps.</li>
+      </ul>
+      <p>Tests can now write: <em>"schedule for expiresAt = now + 8h, advance the synthetic clock to now + 7h 55min, assert <code>.refreshing</code> fires"</em> — using the production skew value of 5 minutes, not a test-only short value.</p>
+
+      <h3>D20 — Cross-operation cancellation semantics</h3>
+      <table class="fields">
+        <thead><tr><th>Scenario</th><th>Behavior</th></tr></thead>
+        <tbody>
+          <tr><td class="field">signOut during refresh</td><td class="note">Cancel <code>inFlightRefresh</code> + both timers; proceed with sign-out. <code>.signedOut</code> supersedes; no <code>.refreshFailed</code>.</td></tr>
+          <tr><td class="field">signIn during refresh</td><td class="note">Cancel <code>inFlightRefresh</code> + both timers; new device flow proceeds; fresh <code>.signedIn</code> + new timer pair on success.</td></tr>
+          <tr><td class="field">refreshNow during refresh</td><td class="note">Coalesce — await <code>inFlightRefresh[name]</code>. No second <code>.refreshing</code>.</td></tr>
+          <tr><td class="field"><code>T_refresh</code> fires during refresh</td><td class="note">Defensive guard — if <code>inFlightRefresh[name] != nil</code>, no-op. Saves against clock-jitter / sleep-edge double-fires.</td></tr>
+          <tr><td class="field">refresh succeeds, signOut during network call</td><td class="note">Handled by <a href="#decisions">D21</a>'s session lock — see below.</td></tr>
+        </tbody>
+      </table>
+
+      <h3>D21 — Per-session async serialization via Task chain</h3>
+      <p><strong>The problem:</strong> Apple's <code>actor</code> only guarantees serialization between suspension points. When <code>signOut</code> calls <code>await urlSession.data(for:)</code>, the actor releases its lock and a <code>refresh</code> task can interleave — actor reentrancy. WWDC21 <em>"Protect mutable state with Swift actors"</em> covers this directly.</p>
+      <p><strong>Why <code>Synchronization.Mutex</code> is wrong here:</strong> <code>Mutex.withLock</code> is synchronous and blocking — it blocks the calling OS thread. Apple's docs and the Swift Forums concurrency thread are explicit: <em>"You should never call blocking primitives on an actor or in async code"</em> (WWDC21). The cooperative thread pool has ~N threads; blocking even one risks deadlock. <code>Mutex</code> is for synchronous multi-thread state — ours is asynchronous.</p>
+      <p><strong>The fix:</strong> per-session async serialization via a Task chain.</p>
+
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">IdentityCenterService+SessionLock<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
+        </div>
+<pre><code><span class="tok-keyword">private var</span> sessionLocks: [<span class="tok-type">String</span>: <span class="tok-type">Task</span>&lt;<span class="tok-type">Void</span>, <span class="tok-type">Never</span>&gt;] = [:]
+
+<span class="tok-keyword">private func</span> withSessionLock&lt;T: <span class="tok-type">Sendable</span>&gt;(
+    _ sessionName: <span class="tok-type">String</span>,
+    _ body: @<span class="tok-type">Sendable</span> @escaping () <span class="tok-keyword">async throws</span> -&gt; <span class="tok-type">T</span>
+) <span class="tok-keyword">async throws</span> -&gt; <span class="tok-type">T</span> {
+    <span class="tok-keyword">let</span> prior = sessionLocks[sessionName]
+    <span class="tok-keyword">let</span> work = <span class="tok-type">Task</span>&lt;<span class="tok-type">T</span>, <span class="tok-type">Error</span>&gt; {
+        _ = <span class="tok-keyword">await</span> prior?.value
+        <span class="tok-keyword">return try await</span> body()
+    }
+    sessionLocks[sessionName] = <span class="tok-type">Task</span> { _ = <span class="tok-keyword">try</span>? <span class="tok-keyword">await</span> work.value }
+    <span class="tok-keyword">return try await</span> work.value
+}</code></pre>
+      </div>
+
+      <p>Every public operation on a session (<code>signIn</code>, <code>signOut</code>, internal <code>runRefresh</code>, <code>refreshNow</code>, <code>liveToken</code>'s inline-refresh branch) wraps its body in <code>withSessionLock</code>. Operations on different sessions don't block each other. Operations on the same session queue and run sequentially.</p>
+
+      <p><strong>Cancel-then-queue on user gestures:</strong> <code>signOut</code> and <code>signIn</code> first call <code>inFlightRefresh[name]?.cancel()</code> <em>before</em> taking the lock. <code>URLSession</code> honors Task cancellation — the refresh's network call unwinds quickly with <code>CancellationError</code>. The lock then becomes available and the user's gesture runs. User-driven actions don't wait for doomed network calls; serial semantics still hold.</p>
+
+      <p>This simplifies <a href="#decisions">D20</a>'s scenario 10e dramatically: refresh succeeds, signOut queued behind it. Refresh writes the new token, signOut runs next and deletes it. End state: signed out. No "discard if Keychain row missing" defensive check anywhere.</p>
+
+      <div class="callout note"><strong>apple-canonical primitive</strong>The Swift Forums thread on <em>"concurrency-safe-lock"</em> and WWDC21 both arrive at the same place: actor + Task chain for async serialization. Apple does not ship a built-in <code>AsyncMutex</code>; the documented pattern is what's implemented above.</div>
     </section>
 
     <section id="data-flow">
@@ -477,15 +667,83 @@
     </section>
 
     <section id="scope-a2">
-      <h2><span class="section-anchor">A2</span>Silent refresh + live token</h2>
-      <div class="callout warn"><strong>TBD</strong>Detailed file map and acceptance criteria land here once A2 design interview opens.</div>
+      <h2><span class="section-anchor">A2</span>Silent refresh + live token <span style="color: var(--accent); font-size: 0.7em; vertical-align: 0.2em;">⚡ design settled · ready to implement</span></h2>
 
-      <h3>Surface preview</h3>
+      <p>Completes the session-auth lifecycle's <em>liveness</em> side. The actor silently refreshes tokens 5 minutes before expiry, the model surfaces refresh state via overlay flags, and <code>liveToken(forSession:)</code> becomes the single read path Scopes B and C will build on. Per-session Task-chain serialization makes all session operations atomic without falling into actor-reentrancy traps.</p>
+
+      <h3>File map</h3>
+
+      <h4>New files — <code>Packages/QuorraCore/Sources/IAMIdentityCenter/</code></h4>
+      <table class="fields">
+        <thead><tr><th>Path</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td class="field">OIDCClient+Refresh.swift</td><td class="note">Extension implementing <code>refreshToken(client:refreshToken:sessionName:)</code> per <a href="#decisions">D15</a>. Reuses the existing <code>post</code> HTTP helper.</td></tr>
+          <tr><td class="field">Wire/RefreshToken.swift</td><td class="note"><code>Wire.RefreshTokenRequest</code> body type (<code>refreshToken</code>, <code>grantType = "refresh_token"</code>, <code>clientId</code>, <code>clientSecret</code>). Re-uses existing <code>CreateTokenResponse</code>.</td></tr>
+          <tr><td class="field">IdentityCenterService+Refresh.swift</td><td class="note">Extension implementing <code>liveToken(forSession:)</code>, <code>refreshNow(sessionName:)</code>, internal <code>runRefresh</code> body, and <code>T_refresh</code> scheduling per <a href="#decisions">D10</a>–<a href="#decisions">D14</a>, <a href="#decisions">D16</a>, <a href="#decisions">D18</a>.</td></tr>
+          <tr><td class="field">IdentityCenterService+SessionLock.swift</td><td class="note">Per-session Task-chain serialization (<code>sessionLocks</code> dict + <code>withSessionLock</code> helper) per <a href="#decisions">D21</a>.</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Modified files</h4>
+      <table class="fields">
+        <thead><tr><th>Path</th><th>Change</th></tr></thead>
+        <tbody>
+          <tr><td class="field">IdentityCenterService.swift</td><td class="note">Add actor state: <code>inFlightRefresh: [String: Task&lt;StoredSSOToken, Error&gt;]</code>, <code>refreshTimers: [String: Task&lt;Void, Never&gt;]</code>, <code>sessionLocks: [String: Task&lt;Void, Never&gt;]</code>. Wrap <code>signIn</code> / <code>signOut</code> bodies in <code>withSessionLock</code> with cancel-then-queue (<a href="#decisions">D21</a>). Add <code>refreshSkew</code> to <code>ServiceConstants</code>.</td></tr>
+          <tr><td class="field">IdentityCenterService+Expiration.swift</td><td class="note">Route <code>Task.sleep(until:clock:)</code> through <code>sleeper.sleep(until:)</code> per <a href="#decisions">D19</a>. Add <code>scheduleRefresh</code> / <code>cancelRefresh</code> / <code>handleRefresh</code> mirroring the expiration machinery.</td></tr>
+          <tr><td class="field">IdentityCenterService+Status.swift</td><td class="note">Opportunistically schedule both <code>T_refresh</code> <em>and</em> <code>T_expire</code> on app restart when token exists and <code>canRefresh: true</code>. Status never returns <code>.refreshing</code> anymore (<a href="#decisions">D17</a>).</td></tr>
+          <tr><td class="field">IdentityCenterServicing.swift</td><td class="note">Add <code>liveToken(forSession:) async throws -&gt; StoredSSOToken</code> and <code>refreshNow(sessionName:) async throws -&gt; StoredSSOToken</code> to the protocol.</td></tr>
+          <tr><td class="field">Sleeper.swift</td><td class="note">Add <code>sleep(until: Date) async throws</code> to protocol; implement on <code>WallClockSleeper</code> per <a href="#decisions">D19</a>.</td></tr>
+          <tr><td class="field">SessionAuthStatus.swift</td><td class="note">Remove <code>case refreshing</code> per <a href="#decisions">D17</a>. Update <code>symbolName</code> / <code>foregroundRole</code> / <code>statusEffect</code> / <code>accessibilityPhrase</code> helpers — the refreshing visual moves into <code>SessionRow</code> / <code>SessionStatusIcon</code> via the <code>refreshingNow</code> overlay.</td></tr>
+          <tr><td class="field">Errors.swift</td><td class="note">Add cases: <code>.tokenExpired</code>, <code>.notSignedIn</code>, <code>.refreshTokenRejected</code> (terminal), <code>.refreshClientInvalid</code> (terminal). Update <code>Errors+LocalizedError.swift</code> accordingly.</td></tr>
+          <tr><td class="field">Credentials/CredentialsModel.swift</td><td class="note">Add <code>refreshingNow: Set&lt;String&gt;</code> and <code>refreshFailure: Set&lt;String&gt;</code>. Wire <code>.refreshing</code>, <code>.refreshed</code>, <code>.refreshFailed</code> events into these sets (<a href="#decisions">D17</a>). Add <code>refreshNow(sessionName:)</code> model verb wrapping the actor call. Status cache: no schema change — <code>SessionAuthStatus</code> already covers all states.</td></tr>
+          <tr><td class="field">Views/SidebarRows/SessionStatusIcon.swift</td><td class="note">Add an <code>isRefreshing: Bool</code> overlay parameter. When true, apply <code>.symbolEffect(.pulse)</code> on the existing icon shape — no color change (A1 colors were chosen to remain stable during refresh).</td></tr>
+          <tr><td class="field">Views/SidebarRows/SessionRow.swift</td><td class="note">Pass <code>model.refreshingNow.contains(session.id)</code> into <code>SessionStatusIcon</code>.</td></tr>
+          <tr><td class="field">Views/Detail/SignInPanel.swift</td><td class="note">Add the transient-failure advisory section per <a href="#decisions">D16</a> with [Refresh now] button. Add canRefresh-false caption ("Token will expire at HH:mm — sign in again to keep working"). Wire <code>onRefreshNow</code> closure parameter.</td></tr>
+          <tr><td class="field">Views/Detail/SessionDetailView.swift</td><td class="note">Pass <code>model.refreshNow</code> as <code>onRefreshNow</code>. New previews for transient-failure and canRefresh-false states.</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Tests — <code>Packages/QuorraCore/Tests/IAMIdentityCenterTests/</code></h4>
+      <table class="fields">
+        <thead><tr><th>Path</th><th>Coverage</th></tr></thead>
+        <tbody>
+          <tr><td class="field">LiveTokenTests.swift</td><td class="note">Full behavior matrix from <a href="#decisions">D12</a>. Outside skew → no work; inside skew → inline refresh + return refreshed; past expiresAt with canRefresh: true → inline refresh; past expiresAt with canRefresh: false → throws <code>.tokenExpired</code>; concurrent calls coalesce via <code>inFlightRefresh</code>; signedOut → throws <code>.notSignedIn</code>.</td></tr>
+          <tr><td class="field">RefreshTimerTests.swift</td><td class="note"><code>T_refresh</code> fires at <code>expiresAt − refreshSkew</code>; both timers cancelled on signOut; new pair scheduled after refresh success; <code>T_expire</code> left running on transient failure; <code>T_refresh</code> cancelled on terminal failure; opportunistic schedule on app restart.</td></tr>
+          <tr><td class="field">RefreshFailureTests.swift</td><td class="note">Terminal bucket (<code>invalid_grant</code>, <code>invalid_client</code>) nils-out refreshToken in Keychain, keeps accessToken, emits <code>.refreshFailed</code>. Transient bucket (URLError, 5xx) leaves Keychain alone, emits <code>.refreshFailed</code>. No auto-retry.</td></tr>
+          <tr><td class="field">OIDCClientRefreshTests.swift</td><td class="note">Wire request encoding (<code>grantType = "refresh_token"</code>, refreshToken field present, no deviceCode). Response decoding. Error mapping (<code>invalid_grant</code> → <code>.refreshTokenRejected</code>, etc.).</td></tr>
+          <tr><td class="field">TokenRotationTests.swift</td><td class="note">Response with new refresh_token rotates the row; response without rotation falls back to old refresh_token (<a href="#decisions">D18</a>); Keychain row overwrites atomically.</td></tr>
+          <tr><td class="field">SessionLockTests.swift</td><td class="note">Operations serialize per session — concurrent <code>refreshNow</code> + <code>signOut</code> on the same session run sequentially; operations on different sessions run concurrently; cancel-then-queue on user-driven actions (refresh's URLSession call gets <code>CancellationError</code> when signOut arrives). Scenario 10e: refresh + signOut interleave deterministically — signed-out end state.</td></tr>
+          <tr><td class="field">AuthEventStreamTests.swift (extended)</td><td class="note">Each refresh path emits exactly the documented events: successful refresh → <code>.refreshing</code> then <code>.refreshed</code>; transient failure → <code>.refreshing</code> then <code>.refreshFailed</code>; coalesced caller doesn't see a second <code>.refreshing</code>.</td></tr>
+          <tr><td class="field">CredentialsModelTests.swift (extended)</td><td class="note"><code>refreshingNow</code> populated on <code>.refreshing</code>, cleared on <code>.refreshed</code>/<code>.refreshFailed</code>. <code>refreshFailure</code> set on <code>.refreshFailed</code>, cleared on next <code>.refreshed</code> / new <code>.signedIn</code> / <code>.signedOut</code>.</td></tr>
+          <tr><td class="field">Stubs/MockSleeper.swift (extended)</td><td class="note">Add <code>sleep(until:)</code>: jump <code>currentTime</code> to deadline, signal <code>nextSleepWaiters</code>, yield. Same shape as existing <code>sleep(for:)</code>.</td></tr>
+          <tr><td class="field">SignInPanelTests.swift (new)</td><td class="note">Each (status × refreshingNow × refreshFailure × signOutFailure) tuple maps to the documented panel state per <a href="#decisions">D16</a>'s table.</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Acceptance criteria</h3>
+      <ol>
+        <li>Signed-in, valid token, 7h 55m elapsed. At <code>T = expiresAt − 5min</code>: <code>.refreshing</code> emitted, refresh runs, <code>.refreshed</code> emitted, new token in Keychain, new <code>T_refresh</code> + <code>T_expire</code> scheduled for the new <code>expiresAt</code>. No <code>.expired</code> ever fires.</li>
+        <li>Signed-in with no refresh token: only <code>T_expire</code> scheduled; <code>.expired</code> fires at <code>expiresAt</code>; <code>.refreshing</code> never emitted.</li>
+        <li>Network down at <code>T = expiresAt − 5min</code>: <code>.refreshing</code> then <code>.refreshFailed</code> (transient). Keychain unchanged. <code>T_expire</code> still fires at <code>expiresAt</code>. <code>SignInPanel</code> shows the transient-failure advisory with <strong>[Refresh now]</strong>. Clicking it triggers a fresh refresh attempt.</li>
+        <li>Admin revokes refresh token mid-lifetime; refresh hits <code>invalid_grant</code>: Keychain row updated (refreshToken nil, accessToken kept), status becomes <code>signedIn(_, canRefresh: false)</code>, <code>T_refresh</code> cancelled, <code>T_expire</code> continues. <code>SignInPanel</code> shows caption <em>"Token will expire at HH:mm — sign in again to keep working."</em></li>
+        <li><code>liveToken</code> called inside skew, no in-flight refresh: triggers inline refresh, awaits, returns refreshed token. Single Keychain write.</li>
+        <li><code>liveToken</code> called when refresh is in flight: awaits <code>inFlightRefresh[name]</code>, returns shared result. No second Keychain write.</li>
+        <li>User clicks "Sign out" while refresh is in flight: pending refresh task cancelled via <code>URLSession</code> cancellation; sign-out queued behind via <code>sessionLocks</code>; sign-out runs; Keychain purged; <code>.signedOut</code> emitted; no <code>.refreshFailed</code> or <code>.refreshed</code>. End state: signed out within ~100ms despite refresh's pending network call.</li>
+        <li>App restart with token already inside skew window: <code>status(forSession:)</code> opportunistically schedules <code>T_refresh</code> (fires immediately), refresh runs, fresh token persists.</li>
+        <li>Two sessions, both refreshing concurrently: operations don't block each other (per-session lock, not global).</li>
+        <li>Two operations on the <em>same</em> session (e.g., user fires refreshNow then immediately signs out): run sequentially per <code>sessionLocks</code>.</li>
+        <li>Token rotation: when AWS returns a new <code>refresh_token</code> in the refresh response, Keychain row gets the new one and the old one is discarded (RFC 6749 §10.4).</li>
+        <li>Strict concurrency clean under Swift 6.2.</li>
+        <li>All existing A1 tests still pass (357 from A1, plus new A2 tests).</li>
+        <li>VoiceOver reads the refresh advisory text correctly.</li>
+      </ol>
+
+      <h3>Out of scope</h3>
       <ul>
-        <li><code>refresh_token</code> grant added to <code>OIDCClient.createToken</code></li>
-        <li><code>liveToken(forSession:)</code> — lazy refresh on read, 5-min pre-expiry skew per <a href="IAMIdentityCenterDeviceAuth.html#lifetimes">research §09</a></li>
-        <li><code>refreshNow(sessionName:)</code> — always-mutating, user-initiated</li>
-        <li>The actor's expiration timer becomes a <em>refresh</em> timer at <code>expiresAt - 5min</code> instead of firing <code>.expired</code>; emits <code>.refreshing</code> / <code>.refreshed</code> / <code>.refreshFailed</code> events that the model already knows how to handle (A1 reserved the events)</li>
+        <li><strong>Role credentials</strong> (Scope B) — <code>liveToken</code> becomes Scope B's read path, but the role-cred actor / Keychain row / profile-row UI come later.</li>
+        <li><strong>IMDS endpoint</strong> (Scope C) — same story for the HTTP layer.</li>
+        <li><strong>App↔CLI shared bookmark</strong> — separate concern; Keychain coherence works regardless.</li>
+        <li><strong>Force-refresh on user gesture from <code>SessionRow</code>'s context menu</strong> — could land later; not part of A2 since <code>refreshNow</code> already has a surface via the transient-failure advisory.</li>
       </ul>
     </section>
 
