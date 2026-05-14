@@ -4,118 +4,97 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AWSConfigINI — Quorra</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<script>
-  tailwind.config = {
-    darkMode: 'media',
-    theme: { extend: {
-      fontFamily: {
-        mono: ['Berkeley Mono','JetBrains Mono','IBM Plex Mono','SF Mono','ui-monospace','Menlo','Consolas','monospace'],
-        serif: ['ui-serif','Iowan Old Style','Charter','Source Serif Pro','Hoefler Text','Palatino','Georgia','serif'],
-      },
-      colors: {
-        coral:{50:'#FFF0ED',100:'#FFDDD6',200:'#FFB3A3',300:'#FF8A6F',400:'#FF6347',500:'#E8452C',600:'#C43420',700:'#9A2718',800:'#741D12',900:'#50130D',950:'#300B07'},
-        sunshine:{50:'#FFFCE5',100:'#FFF8BF',200:'#FFF080',300:'#FFE433',400:'#FFD700',500:'#E5BF00',600:'#BF9F00',700:'#997F00',800:'#736000',900:'#4D4000',950:'#2E2600'},
-        sky:{50:'#E8F4FF',100:'#CCE7FF',200:'#99CFFF',300:'#5CB3FF',400:'#2196F5',500:'#0A7EDB',600:'#0066B8',700:'#004F8F',800:'#003B6B',900:'#002949',950:'#00182B'},
-        mint:{50:'#E6FFF3',100:'#C0FFE0',200:'#80FFC2',300:'#33F59A',400:'#00D97F',500:'#00B86B',600:'#009959',700:'#007A47',800:'#005C35',900:'#003D24',950:'#002415'},
-        violet:{50:'#F3EDFF',100:'#E2D5FF',200:'#C6ABFF',300:'#A47DFF',400:'#8B5CF6',500:'#7342DB',600:'#5E33B8',700:'#49278F',800:'#371D6B',900:'#251349',950:'#160B2B'},
-        tangerine:{50:'#FFF4E5',100:'#FFE4BF',200:'#FFC880',300:'#FFA833',400:'#FF9500',500:'#E58000',600:'#BF6A00',700:'#995500',800:'#733F00',900:'#4D2A00',950:'#2E1900'},
-        bubblegum:{50:'#FFF0F8',100:'#FFDBEE',200:'#FFB3DB',300:'#FF80C5',400:'#FF47AE',500:'#E52D94',600:'#BF2079',700:'#991661',800:'#731049',900:'#4D0B31',950:'#2E061D'},
-        lagoon:{50:'#E5FFFC',100:'#B3FFF5',200:'#66FFEB',300:'#1AE8D5',400:'#00CCB8',500:'#00AD9E',600:'#008F83',700:'#007068',800:'#00544E',900:'#003935',950:'#002220'},
-        slate:{50:'#F8F9FA',100:'#F1F3F5',200:'#E2E5E9',300:'#C8CDD3',400:'#A1A9B3',500:'#6C757D',600:'#545B62',700:'#40464C',800:'#2D3238',900:'#1A1E23',950:'#0D0F12'},
-        success:{300:'#5CF58A',500:'#10B845',700:'#07742A'},
-        warning:{300:'#FCBF3C',500:'#D4920B',700:'#8C6007'},
-        error:{300:'#FF6B6B',500:'#D42020',700:'#881212'},
-      },
-    }},
-  }
-</script>
-<style>
-  body { background-image: linear-gradient(rgba(255,99,71,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,99,71,0.04) 1px, transparent 1px); background-size: 64px 64px; }
-  @keyframes pulse-dot { 0%,100% { opacity: 1 } 50% { opacity: .55 } }
-  .live-dot { animation: pulse-dot 2.4s ease-in-out infinite; }
-  @keyframes blink { 0%,50% { opacity: 1 } 50.01%,100% { opacity: 0 } }
-  .blink::after { content: "_"; animation: blink 1s steps(1) infinite; color: #FF6347; }
-  .tok-keyword { color: #A47DFF; } .tok-type { color: #5CB3FF; } .tok-string { color: #33F59A; }
-  .tok-number { color: #FFA833; } .tok-comment { color: #6C757D; font-style: italic; }
-  .ini-section { color: #FF9500; font-weight: 600; } .ini-key { color: #5CB3FF; } .ini-value { color: #33F59A; }
-  .term-prompt { color: #5CF58A; user-select: none; } .err-case { color: #FF6B6B; }
-  @media (prefers-color-scheme: light) {
-    .tok-keyword { color: #49278F; } .tok-type { color: #004F8F; } .tok-string { color: #007A47; }
-    .tok-number { color: #995500; } .ini-section { color: #BF6A00; } .ini-key { color: #004F8F; }
-    .ini-value { color: #007A47; } .term-prompt { color: #07742A; } .err-case { color: #881212; }
-  }
-</style>
+<link rel="stylesheet" href="quorra-docs.css">
 </head>
-<body class="font-serif bg-slate-950 text-slate-100 antialiased leading-relaxed">
+<body>
 
-<div class="grid grid-cols-1 min-[1100px]:grid-cols-[280px_minmax(0,1fr)] max-w-[1400px] mx-auto min-h-screen">
+<div class="layout">
 
-  <aside class="border-b border-slate-800 px-6 py-8 min-[1100px]:border-b-0 min-[1100px]:border-r min-[1100px]:px-7 min-[1100px]:py-10 min-[1100px]:sticky min-[1100px]:top-0 min-[1100px]:self-start min-[1100px]:h-screen min-[1100px]:overflow-y-auto">
-    <p class="font-mono text-[0.7rem] tracking-[0.18em] uppercase text-slate-500 mb-1">// quorra · package</p>
-    <p class="font-mono text-sm text-slate-100 mb-6 flex items-baseline gap-2">
-      <span class="live-dot inline-block w-2 h-2 rounded-full bg-success-300 shadow-[0_0_12px_#5CF58A,0_0_0_3px_rgba(92,245,138,0.12)] -translate-y-px" aria-hidden="true"></span>
-      AWSConfigINI
-    </p>
-    <nav class="text-sm">
-      <p class="font-mono text-[0.65rem] tracking-[0.18em] uppercase text-slate-500 mb-2 flex items-center gap-2"><span class="flex-none w-2 h-px bg-coral-400"></span>Contents</p>
-      <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#overview"><span class="text-[0.7rem] text-slate-500">01</span><span>Overview</span></a>
-      <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#install"><span class="text-[0.7rem] text-slate-500">02</span><span>Install</span></a>
-      <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#quickstart"><span class="text-[0.7rem] text-slate-500">03</span><span>Quickstart</span></a>
-      <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#concepts"><span class="text-[0.7rem] text-slate-500">04</span><span>Concepts</span></a>
-      <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#document"><span class="text-[0.7rem] text-slate-500">05</span><span>AWSConfigINIDocument</span></a>
-      <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#section"><span class="text-[0.7rem] text-slate-500">06</span><span>Section</span></a>
-      <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#key"><span class="text-[0.7rem] text-slate-500">07</span><span>Key</span></a>
-      <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#codable"><span class="text-[0.7rem] text-slate-500">08</span><span>Codable</span></a>
-      <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#aws-overlay"><span class="text-[0.7rem] text-slate-500">09</span><span>AWS overlay</span></a>
-      <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#mode"><span class="text-[0.7rem] text-slate-500">10</span><span>Modes &amp; locking</span></a>
-      <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#errors"><span class="text-[0.7rem] text-slate-500">11</span><span>Errors</span></a>
-      <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#recipes"><span class="text-[0.7rem] text-slate-500">12</span><span>Recipes</span></a>
-      <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#decisions"><span class="text-[0.7rem] text-slate-500">13</span><span>Design notes</span></a>
+  <!-- ================================================================
+       TOC RAIL
+       ================================================================ -->
+  <aside class="rail">
+    <p class="rail-title">// quorra · package</p>
+    <p class="rail-product"><span class="live-dot" aria-hidden="true"></span>AWSConfigINI</p>
+
+    <nav class="toc">
+      <div class="toc-section">
+        <p class="toc-section-label">Start</p>
+        <a class="toc-link" href="#overview"><span class="toc-num">01</span><span>Overview</span></a>
+        <a class="toc-link" href="#install"><span class="toc-num">02</span><span>Install</span></a>
+        <a class="toc-link" href="#quickstart"><span class="toc-num">03</span><span>Quickstart</span></a>
+        <a class="toc-link" href="#concepts"><span class="toc-num">04</span><span>Concepts</span></a>
+      </div>
+
+      <div class="toc-section">
+        <p class="toc-section-label">Reference</p>
+        <a class="toc-link" href="#document"><span class="toc-num">05</span><span>Document</span></a>
+        <a class="toc-link" href="#section"><span class="toc-num">06</span><span>Section</span></a>
+        <a class="toc-link" href="#key"><span class="toc-num">07</span><span>Key</span></a>
+        <a class="toc-link" href="#codable"><span class="toc-num">08</span><span>Codable</span></a>
+        <a class="toc-link" href="#aws-overlay"><span class="toc-num">09</span><span>AWS overlay</span></a>
+        <a class="toc-link" href="#mode"><span class="toc-num">10</span><span>Modes &amp; locking</span></a>
+        <a class="toc-link" href="#errors"><span class="toc-num">11</span><span>Errors</span></a>
+      </div>
+
+      <div class="toc-section">
+        <p class="toc-section-label">Recipes</p>
+        <a class="toc-link" href="#recipes"><span class="toc-num">12</span><span>Common tasks</span></a>
+        <a class="toc-link" href="#decisions"><span class="toc-num">13</span><span>Design notes</span></a>
+      </div>
     </nav>
   </aside>
 
-  <main class="px-6 py-10 pb-24 max-w-[920px] min-w-0 min-[1100px]:px-16 min-[1100px]:py-16 min-[1100px]:pb-32">
+  <!-- ================================================================
+       MAIN
+       ================================================================ -->
+  <main>
 
-    <header class="border border-slate-800 rounded-lg p-9 mb-14 relative overflow-hidden bg-slate-800/30">
-      <div class="flex flex-wrap gap-2 mb-6">
-        <span class="font-mono inline-flex items-center gap-1.5 text-[0.7rem] tracking-wider px-2.5 py-1 rounded-sm border lowercase border-coral-400 text-coral-400">v1.0</span>
-        <span class="font-mono inline-flex items-center gap-1.5 text-[0.7rem] tracking-wider px-2.5 py-1 rounded-sm border lowercase border-tangerine-400 text-tangerine-400">swift 6.2</span>
-        <span class="font-mono inline-flex items-center gap-1.5 text-[0.7rem] tracking-wider px-2.5 py-1 rounded-sm border lowercase border-sky-300 text-sky-300">macos 26+</span>
-        <span class="font-mono inline-flex items-center gap-1.5 text-[0.7rem] tracking-wider px-2.5 py-1 rounded-sm border lowercase border-success-300 text-success-300">228 tests passing</span>
+    <!-- HERO -->
+    <header class="hero">
+      <div class="hero-meta">
+        <span class="badge primary">v1.0</span>
+        <span class="badge swift">swift 6.2</span>
+        <span class="badge macos">macos 26+</span>
+        <span class="badge tests">228 tests passing</span>
       </div>
-      <h1 class="font-mono font-semibold text-[clamp(2rem,5.5vw,3.5rem)] leading-none tracking-tight mb-4 text-slate-100"><span class="text-slate-500 font-normal">[</span><span class="text-coral-400">AWSConfigINI</span><span class="text-slate-500 font-normal">]</span></h1>
-      <p class="text-lg leading-snug text-slate-400 max-w-[56ch] mb-6 italic">A Swift package for reading, editing, and writing AWS shared-config files (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">~/.aws/config</code> and <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">~/.aws/credentials</code>) with parser parity against the AWS Go SDK, fcntl-locked concurrent writes, and a lean Codable layer for the AWS schema.</p>
+      <h1><span class="moniker-bracket">[</span><span class="moniker">AWSConfigINI</span><span class="moniker-bracket">]</span></h1>
+      <p class="lede">A Swift package for reading, editing, and writing AWS shared-config files (<code>~/.aws/config</code> and <code>~/.aws/credentials</code>) with parser parity against the AWS Go SDK, fcntl-locked concurrent writes, and a lean Codable layer for the AWS schema.</p>
 
-      <div class="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-4 pt-6 border-t border-dashed border-slate-800">
-        <div><span class="font-mono text-2xl text-coral-400 font-semibold block">~1.9k</span><span class="font-mono text-[0.7rem] tracking-wider uppercase text-slate-500 mt-0.5 block">lines · source</span></div>
-        <div><span class="font-mono text-2xl text-coral-400 font-semibold block">~2.3k</span><span class="font-mono text-[0.7rem] tracking-wider uppercase text-slate-500 mt-0.5 block">lines · tests</span></div>
-        <div><span class="font-mono text-2xl text-coral-400 font-semibold block">8</span><span class="font-mono text-[0.7rem] tracking-wider uppercase text-slate-500 mt-0.5 block">public types</span></div>
-        <div><span class="font-mono text-2xl text-coral-400 font-semibold block">0</span><span class="font-mono text-[0.7rem] tracking-wider uppercase text-slate-500 mt-0.5 block">dependencies</span></div>
+      <div class="hero-stats">
+        <div class="stat"><span class="num">~1.9k</span><span class="label">lines · source</span></div>
+        <div class="stat"><span class="num">~2.3k</span><span class="label">lines · tests</span></div>
+        <div class="stat"><span class="num">8</span><span class="label">public types</span></div>
+        <div class="stat"><span class="num">0</span><span class="label">dependencies</span></div>
       </div>
     </header>
 
-    <section id="overview"><h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">01</span>Overview</h2>
-      <p class="mb-4"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">AWSConfigINI</code> is the engine behind Quorra's profile management. It does four things:</p>
-      <ul class="ml-6 mb-4">
-        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Parses</strong> AWS INI files matching the AWS Go SDK reference parser exactly — including the awkward bits (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">[default]</code> vs <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">[profile foo]</code> vs <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">[foo]</code>, sub-property maps under <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">services</code>, the <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">=</code>-or-<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">:</code> separator, comment-trim asymmetry, BOM detection).</li>
-        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Edits</strong> documents in memory through a value-typed API (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Document</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Section</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Key</code>) with deterministic key/section ordering on write.</li>
-        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Writes</strong> atomically with an fcntl advisory lock so the Quorra app and CLI can both touch the same file without losing updates.</li>
-        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Maps</strong> AWS structures onto Swift via a <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Codable</code> encoder/decoder plus three opinionated structs (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Profile</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SSOSession</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">ServicesEntry</code>).</li>
+    <!-- 01 OVERVIEW -->
+    <section id="overview">
+      <h2><span class="section-anchor">01</span>Overview</h2>
+      <p><code>AWSConfigINI</code> is the engine behind Quorra's profile management. It does four things:</p>
+      <ul>
+        <li><strong>Parses</strong> AWS INI files matching the AWS Go SDK reference parser exactly — including the awkward bits (<code>[default]</code> vs <code>[profile foo]</code> vs <code>[foo]</code>, sub-property maps under <code>services</code>, the <code>=</code>-or-<code>:</code> separator, comment-trim asymmetry, BOM detection).</li>
+        <li><strong>Edits</strong> documents in memory through a value-typed API (<code>Document</code>, <code>Section</code>, <code>Key</code>) with deterministic key/section ordering on write.</li>
+        <li><strong>Writes</strong> atomically with an fcntl advisory lock so the Quorra app and CLI can both touch the same file without losing updates.</li>
+        <li><strong>Maps</strong> AWS structures onto Swift via a <code>Codable</code> encoder/decoder plus three opinionated structs (<code>Profile</code>, <code>SSOSession</code>, <code>ServicesEntry</code>).</li>
       </ul>
 
-      <div class="my-6 border-l-[3px] border-sky-300 pl-4 py-3 pr-5 bg-sky-300/[0.08] rounded-r text-[0.95rem]"><strong class="font-mono text-[0.7rem] tracking-wider uppercase mr-2 text-sky-300">scope</strong>This package is AWS-aware on purpose — section-name projection (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">[profile foo]</code> ↔ <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">[foo]</code>) lives inside the module. It is not a general-purpose INI library.</div>
+      <div class="callout note"><strong>scope</strong>This package is AWS-aware on purpose — section-name projection (<code>[profile foo]</code> ↔ <code>[foo]</code>) lives inside the module. It is not a general-purpose INI library.</div>
     </section>
-    <section id="install"><h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">02</span>Install</h2>
-      <p class="mb-4">The package lives at <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Packages/QuorraCore</code> and exposes the <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">AWSConfigINI</code> library product. Inside Quorra, depend on it via the local SwiftPM package:</p>
 
-      <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
-        <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
-          <div class="flex gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-coral-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-sunshine-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-mint-400 border border-black/35"></span></div>
-          <span class="text-slate-400 text-xs font-mono ml-1.5">Package<span class="text-coral-400">.swift</span></span>
-          <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">swift</span>
+    <!-- 02 INSTALL -->
+    <section id="install">
+      <h2><span class="section-anchor">02</span>Install</h2>
+      <p>The package lives at <code>Packages/QuorraCore</code> and exposes the <code>AWSConfigINI</code> library product. Inside Quorra, depend on it via the local SwiftPM package:</p>
+
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">Package<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
         </div>
-<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code><span class="tok-keyword">import</span> <span class="tok-type">PackageDescription</span>
+<pre><code><span class="tok-keyword">import</span> <span class="tok-type">PackageDescription</span>
 
 <span class="tok-keyword">let</span> package = <span class="tok-type">Package</span>(
     name: <span class="tok-string">"YourTarget"</span>,
@@ -133,29 +112,32 @@
 )</code></pre>
       </div>
 
-      <p class="mb-4">Then, in any file:</p>
-      <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
-        <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
-          <div class="flex gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-coral-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-sunshine-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-mint-400 border border-black/35"></span></div>
-          <span class="text-slate-400 text-xs font-mono ml-1.5">YourFile<span class="text-coral-400">.swift</span></span>
-          <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">swift</span>
+      <p>Then, in any file:</p>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">YourFile<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
         </div>
-<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code><span class="tok-keyword">import</span> <span class="tok-type">AWSConfigINI</span></code></pre>
+<pre><code><span class="tok-keyword">import</span> <span class="tok-type">AWSConfigINI</span></code></pre>
       </div>
     </section>
-    <section id="quickstart"><h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">03</span>Quickstart</h2>
 
-      <ol class="list-none p-0 [counter-reset:step]">
-        <li class="[counter-increment:step] mb-6 pl-10 relative before:content-[counter(step,decimal-leading-zero)] before:absolute before:left-0 before:top-0 before:font-mono before:text-sm before:text-coral-400 before:bg-coral-400/10 before:border before:border-coral-400 before:rounded before:px-1.5 before:py-0.5 before:leading-none">
-          <h3 class="font-mono text-base font-semibold mt-0 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Read a file</h3>
-          <p class="mb-4">Pass the URL explicitly. The flavor (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.config</code> or <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.credentials</code>) tells the AWS overlay how to project profile names.</p>
-          <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
-            <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
-              <div class="flex gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-coral-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-sunshine-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-mint-400 border border-black/35"></span></div>
-              <span class="text-slate-400 text-xs font-mono ml-1.5">read<span class="text-coral-400">.swift</span></span>
-              <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">swift</span>
+    <!-- 03 QUICKSTART -->
+    <section id="quickstart">
+      <h2><span class="section-anchor">03</span>Quickstart</h2>
+
+      <ol class="steps">
+        <li>
+          <h3 style="margin-top:0">Read a file</h3>
+          <p>Pass the URL explicitly. The flavor (<code>.config</code> or <code>.credentials</code>) tells the AWS overlay how to project profile names.</p>
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">read<span class="ext">.swift</span></span>
+              <span class="langtag">swift</span>
             </div>
-<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code><span class="tok-keyword">let</span> url  = <span class="tok-type">URL</span>(filePath: <span class="tok-string">"~/.aws/config"</span>).resolvingSymlinksInPath()
+<pre><code><span class="tok-keyword">let</span> url  = <span class="tok-type">URL</span>(filePath: <span class="tok-string">"~/.aws/config"</span>).resolvingSymlinksInPath()
 <span class="tok-keyword">let</span> doc  = <span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIDocument</span>(contentsOf: url, flavor: .config)
 
 <span class="tok-keyword">let</span> region = doc.section(<span class="tok-string">"profile dev"</span>)?.key(<span class="tok-string">"region"</span>)?.stringValue
@@ -163,16 +145,16 @@
           </div>
         </li>
 
-        <li class="[counter-increment:step] mb-6 pl-10 relative before:content-[counter(step,decimal-leading-zero)] before:absolute before:left-0 before:top-0 before:font-mono before:text-sm before:text-coral-400 before:bg-coral-400/10 before:border before:border-coral-400 before:rounded before:px-1.5 before:py-0.5 before:leading-none">
-          <h3 class="font-mono text-base font-semibold mt-0 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Edit a value</h3>
-          <p class="mb-4"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Section</code> is a value type. Mutations route through <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Document.update(_:_:)</code> which mutates in place.</p>
-          <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
-            <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
-              <div class="flex gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-coral-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-sunshine-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-mint-400 border border-black/35"></span></div>
-              <span class="text-slate-400 text-xs font-mono ml-1.5">edit<span class="text-coral-400">.swift</span></span>
-              <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">swift</span>
+        <li>
+          <h3 style="margin-top:0">Edit a value</h3>
+          <p><code>Section</code> is a value type. Mutations route through <code>Document.update(_:_:)</code> which mutates in place.</p>
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">edit<span class="ext">.swift</span></span>
+              <span class="langtag">swift</span>
             </div>
-<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code><span class="tok-keyword">var</span> doc = <span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIDocument</span>(contentsOf: url, flavor: .config)
+<pre><code><span class="tok-keyword">var</span> doc = <span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIDocument</span>(contentsOf: url, flavor: .config)
 
 doc.update(<span class="tok-string">"profile dev"</span>) { section <span class="tok-keyword">in</span>
     section.setKey(<span class="tok-string">"region"</span>, value: <span class="tok-string">"eu-west-1"</span>)
@@ -181,16 +163,16 @@ doc.update(<span class="tok-string">"profile dev"</span>) { section <span class=
           </div>
         </li>
 
-        <li class="[counter-increment:step] mb-6 pl-10 relative before:content-[counter(step,decimal-leading-zero)] before:absolute before:left-0 before:top-0 before:font-mono before:text-sm before:text-coral-400 before:bg-coral-400/10 before:border before:border-coral-400 before:rounded before:px-1.5 before:py-0.5 before:leading-none">
-          <h3 class="font-mono text-base font-semibold mt-0 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Save with locking</h3>
-          <p class="mb-4"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Document.update(at:flavor:_:)</code> is the safe entry point. It acquires an fcntl lock around the read-modify-write cycle, atomically replaces the file, and prepends the managed-mode header on first write.</p>
-          <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
-            <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
-              <div class="flex gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-coral-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-sunshine-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-mint-400 border border-black/35"></span></div>
-              <span class="text-slate-400 text-xs font-mono ml-1.5">save<span class="text-coral-400">.swift</span></span>
-              <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">swift</span>
+        <li>
+          <h3 style="margin-top:0">Save with locking</h3>
+          <p><code>Document.update(at:flavor:_:)</code> is the safe entry point. It acquires an fcntl lock around the read-modify-write cycle, atomically replaces the file, and prepends the managed-mode header on first write.</p>
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">save<span class="ext">.swift</span></span>
+              <span class="langtag">swift</span>
             </div>
-<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code><span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIDocument</span>.update(at: url, flavor: .config) { doc <span class="tok-keyword">in</span>
+<pre><code><span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIDocument</span>.update(at: url, flavor: .config) { doc <span class="tok-keyword">in</span>
     doc.update(<span class="tok-string">"profile dev"</span>) { s <span class="tok-keyword">in</span>
         s.setKey(<span class="tok-string">"region"</span>, value: <span class="tok-string">"eu-west-1"</span>)
     }
@@ -198,16 +180,16 @@ doc.update(<span class="tok-string">"profile dev"</span>) { section <span class=
           </div>
         </li>
 
-        <li class="[counter-increment:step] mb-6 pl-10 relative before:content-[counter(step,decimal-leading-zero)] before:absolute before:left-0 before:top-0 before:font-mono before:text-sm before:text-coral-400 before:bg-coral-400/10 before:border before:border-coral-400 before:rounded before:px-1.5 before:py-0.5 before:leading-none">
-          <h3 class="font-mono text-base font-semibold mt-0 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Use a typed model</h3>
-          <p class="mb-4">The <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Profile</code> struct decodes a profile section directly. The default snake-case strategy maps Swift camelCase to AWS snake_case (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">ssoSession</code> ↔ <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">sso_session</code>).</p>
-          <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
-            <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
-              <div class="flex gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-coral-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-sunshine-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-mint-400 border border-black/35"></span></div>
-              <span class="text-slate-400 text-xs font-mono ml-1.5">decode<span class="text-coral-400">.swift</span></span>
-              <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">swift</span>
+        <li>
+          <h3 style="margin-top:0">Use a typed model</h3>
+          <p>The <code>Profile</code> struct decodes a profile section directly. The default snake-case strategy maps Swift camelCase to AWS snake_case (<code>ssoSession</code> ↔ <code>sso_session</code>).</p>
+          <div class="code-frame">
+            <div class="code-titlebar">
+              <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+              <span class="filename">decode<span class="ext">.swift</span></span>
+              <span class="langtag">swift</span>
             </div>
-<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code><span class="tok-keyword">let</span> dev = <span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIDecoder</span>()
+<pre><code><span class="tok-keyword">let</span> dev = <span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIDecoder</span>()
     .decodeProfile(<span class="tok-type">Profile</span>.self, named: <span class="tok-string">"dev"</span>, from: doc)
 
 <span class="tok-keyword">print</span>(dev.region, dev.ssoSession <span class="tok-keyword">as</span> <span class="tok-type">Any</span>)</code></pre>
@@ -215,18 +197,21 @@ doc.update(<span class="tok-string">"profile dev"</span>) { section <span class=
         </li>
       </ol>
     </section>
-    <section id="concepts"><h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">04</span>Concepts</h2>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>The data model is three layers</h3>
-      <p class="mb-4">A parsed INI file becomes an <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">AWSConfigINIDocument</code>, which is an ordered list of <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Section</code>s, each an ordered list of <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Key</code>s. Every <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Key</code>'s value is either a plain string or a sub-property map — there's no third case.</p>
+    <!-- 04 CONCEPTS -->
+    <section id="concepts">
+      <h2><span class="section-anchor">04</span>Concepts</h2>
 
-      <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
-        <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
-          <div class="flex gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-coral-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-sunshine-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-mint-400 border border-black/35"></span></div>
-          <span class="text-slate-400 text-xs font-mono ml-1.5">~/.aws/config</span>
-          <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">ini</span>
+      <h3>The data model is three layers</h3>
+      <p>A parsed INI file becomes an <code>AWSConfigINIDocument</code>, which is an ordered list of <code>Section</code>s, each an ordered list of <code>Key</code>s. Every <code>Key</code>'s value is either a plain string or a sub-property map — there's no third case.</p>
+
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">~/.aws/config</span>
+          <span class="langtag">ini</span>
         </div>
-<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code><span class="tok-comment"># default credentials</span>
+<pre><code><span class="tok-comment"># default credentials</span>
 <span class="ini-section">[default]</span>
 <span class="ini-key">region</span> = <span class="ini-value">us-east-1</span>
 <span class="ini-key">output</span> = <span class="ini-value">json</span>
@@ -247,129 +232,141 @@ doc.update(<span class="tok-string">"profile dev"</span>) { section <span class=
   <span class="ini-key">endpoint_url</span> = <span class="ini-value">http://localhost:1234</span></code></pre>
       </div>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Profile vs section</h3>
-      <p class="mb-4">Profile names are not the same as section names. AWS encodes the same profile differently in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">config</code> and <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">credentials</code>:</p>
-      <table class="w-full text-sm border-collapse my-4">
-        <thead><tr><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">file flavor</th><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">default profile</th><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">named profile</th></tr></thead>
+      <h3>Profile vs section</h3>
+      <p>Profile names are not the same as section names. AWS encodes the same profile differently in <code>config</code> and <code>credentials</code>:</p>
+      <table class="fields">
+        <thead><tr><th>file flavor</th><th>default profile</th><th>named profile</th></tr></thead>
         <tbody>
-          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">.config</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">[default]</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">[profile NAME]</td></tr>
-          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">.credentials</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">[default]</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">[NAME]</td></tr>
+          <tr><td class="field">.config</td><td class="type">[default]</td><td class="type">[profile NAME]</td></tr>
+          <tr><td class="field">.credentials</td><td class="type">[default]</td><td class="type">[NAME]</td></tr>
         </tbody>
       </table>
-      <p class="mb-4">Use <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">document.profileSection(named:)</code> or the <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">encodeProfile</code> / <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">decodeProfile</code> convenience methods to let the projection happen automatically. Or call <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">flavor.profileSectionName(for: name)</code> if you want the raw section name.</p>
+      <p>Use <code>document.profileSection(named:)</code> or the <code>encodeProfile</code> / <code>decodeProfile</code> convenience methods to let the projection happen automatically. Or call <code>flavor.profileSectionName(for: name)</code> if you want the raw section name.</p>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Two write paths</h3>
-      <p class="mb-4">There are exactly two ways to persist a document:</p>
-      <ul class="ml-6 mb-4">
-        <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">doc.write(to: url, mode:)</code> — atomic-rename only. Use when nothing else writes the file concurrently.</li>
-        <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">AWSConfigINIDocument.update(at: url, flavor:, mode:, _:)</code> — fcntl advisory lock + atomic rename. <strong class="font-semibold text-slate-100">Use this between processes</strong> (the Quorra app and CLI both call this).</li>
+      <h3>Two write paths</h3>
+      <p>There are exactly two ways to persist a document:</p>
+      <ul>
+        <li><code>doc.write(to: url, mode:)</code> — atomic-rename only. Use when nothing else writes the file concurrently.</li>
+        <li><code>AWSConfigINIDocument.update(at: url, flavor:, mode:, _:)</code> — fcntl advisory lock + atomic rename. <strong>Use this between processes</strong> (the Quorra app and CLI both call this).</li>
       </ul>
 
-      <div class="my-6 border-l-[3px] border-warning-300 pl-4 py-3 pr-5 bg-warning-300/[0.08] rounded-r text-[0.95rem]"><strong class="font-mono text-[0.7rem] tracking-wider uppercase mr-2 text-warning-300">per-process</strong>The fcntl lock serializes <em class="italic text-slate-400">between processes</em> but not between threads in the same process. If multiple threads in your app could call <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">update(at:_:)</code> concurrently, wrap with an <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">actor</code> or <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">NSLock</code>.</div>
+      <div class="callout warn"><strong>per-process</strong>The fcntl lock serializes <em>between processes</em> but not between threads in the same process. If multiple threads in your app could call <code>update(at:_:)</code> concurrently, wrap with an <code>actor</code> or <code>NSLock</code>.</div>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Managed vs read-only mode</h3>
-      <p class="mb-4">Every write call takes a <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">ManagedMode</code>. In <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.managed</code> (the default) Quorra owns the file and may canonicalize formatting; in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.readOnly</code> any write throws <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.readOnly(URL)</code> immediately, before any IO. The mode itself is a caller-supplied parameter — this module doesn't store the user's preference (the app/CLI persist that in shared Keychain).</p>
+      <h3>Managed vs read-only mode</h3>
+      <p>Every write call takes a <code>ManagedMode</code>. In <code>.managed</code> (the default) Quorra owns the file and may canonicalize formatting; in <code>.readOnly</code> any write throws <code>.readOnly(URL)</code> immediately, before any IO. The mode itself is a caller-supplied parameter — this module doesn't store the user's preference (the app/CLI persist that in shared Keychain).</p>
     </section>
-    <section id="document"><h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">05</span>AWSConfigINIDocument</h2>
-      <p class="mb-4">Top-level value type. Holds an ordered set of sections, the BOM kind, the document-level leading comments, and any global parser warnings.</p>
 
-      <h4 class="font-mono text-[0.78rem] tracking-wider uppercase text-slate-400 mt-7 mb-2 font-semibold">Construct</h4>
-      <div class="my-6 pl-4 border-l-2 border-slate-800">
-        <p class="font-mono text-sm text-slate-100 mb-1.5 flex items-baseline flex-wrap gap-2"><span class="text-violet-300 font-mono text-[0.7rem] tracking-wider uppercase mr-1">init</span><span class="text-coral-400 font-semibold">AWSConfigINIDocument(_:flavor:options:)</span></p>
-        <code class="block bg-[#0a0d10] text-slate-100 px-4 py-3 rounded text-[0.8rem] leading-relaxed my-2 overflow-x-auto border border-slate-800 font-mono"><span class="tok-keyword">public init</span>(_ string: <span class="tok-type">String</span>, flavor: <span class="tok-type">FileFlavor</span> = .config, options: <span class="tok-type">AWSConfigINIDocumentOptions</span> = .default) <span class="tok-keyword">throws</span>(<span class="tok-type">AWSConfigINIError</span>)</code>
-        <p class="text-slate-400 mb-3">Parse a string. Almost never throws (the parser is silent-tolerant) but the typed signature reserves the right to.</p>
+    <!-- 05 DOCUMENT -->
+    <section id="document">
+      <h2><span class="section-anchor">05</span>AWSConfigINIDocument</h2>
+      <p>Top-level value type. Holds an ordered set of sections, the BOM kind, the document-level leading comments, and any global parser warnings.</p>
+
+      <h4>Construct</h4>
+      <div class="api">
+        <p class="api-title"><span class="kind">init</span><span class="name">AWSConfigINIDocument(_:flavor:options:)</span></p>
+        <code class="signature"><span class="tok-keyword">public init</span>(_ string: <span class="tok-type">String</span>, flavor: <span class="tok-type">FileFlavor</span> = .config, options: <span class="tok-type">AWSConfigINIDocumentOptions</span> = .default) <span class="tok-keyword">throws</span>(<span class="tok-type">AWSConfigINIError</span>)</code>
+        <p class="api-desc">Parse a string. Almost never throws (the parser is silent-tolerant) but the typed signature reserves the right to.</p>
       </div>
-      <div class="my-6 pl-4 border-l-2 border-slate-800">
-        <p class="font-mono text-sm text-slate-100 mb-1.5 flex items-baseline flex-wrap gap-2"><span class="text-violet-300 font-mono text-[0.7rem] tracking-wider uppercase mr-1">init</span><span class="text-coral-400 font-semibold">AWSConfigINIDocument(contentsOf:flavor:options:)</span></p>
-        <code class="block bg-[#0a0d10] text-slate-100 px-4 py-3 rounded text-[0.8rem] leading-relaxed my-2 overflow-x-auto border border-slate-800 font-mono"><span class="tok-keyword">public init</span>(contentsOf url: <span class="tok-type">URL</span>, flavor: <span class="tok-type">FileFlavor</span> = .config, options: <span class="tok-type">AWSConfigINIDocumentOptions</span> = .default) <span class="tok-keyword">throws</span></code>
-        <p class="text-slate-400 mb-3">Read and parse from disk. Throws <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.fileNotFound</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.ioError</code>, or <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.malformedInput</code> for non-UTF-8 content.</p>
+      <div class="api">
+        <p class="api-title"><span class="kind">init</span><span class="name">AWSConfigINIDocument(contentsOf:flavor:options:)</span></p>
+        <code class="signature"><span class="tok-keyword">public init</span>(contentsOf url: <span class="tok-type">URL</span>, flavor: <span class="tok-type">FileFlavor</span> = .config, options: <span class="tok-type">AWSConfigINIDocumentOptions</span> = .default) <span class="tok-keyword">throws</span></code>
+        <p class="api-desc">Read and parse from disk. Throws <code>.fileNotFound</code>, <code>.ioError</code>, or <code>.malformedInput</code> for non-UTF-8 content.</p>
       </div>
-      <div class="my-6 pl-4 border-l-2 border-slate-800">
-        <p class="font-mono text-sm text-slate-100 mb-1.5 flex items-baseline flex-wrap gap-2"><span class="text-violet-300 font-mono text-[0.7rem] tracking-wider uppercase mr-1">init</span><span class="text-coral-400 font-semibold">AWSConfigINIDocument(empty:)</span></p>
-        <code class="block bg-[#0a0d10] text-slate-100 px-4 py-3 rounded text-[0.8rem] leading-relaxed my-2 overflow-x-auto border border-slate-800 font-mono"><span class="tok-keyword">public init</span>(empty flavor: <span class="tok-type">FileFlavor</span>)</code>
-        <p class="text-slate-400 mb-3">A blank document of the given flavor. Useful when generating a fresh file.</p>
+      <div class="api">
+        <p class="api-title"><span class="kind">init</span><span class="name">AWSConfigINIDocument(empty:)</span></p>
+        <code class="signature"><span class="tok-keyword">public init</span>(empty flavor: <span class="tok-type">FileFlavor</span>)</code>
+        <p class="api-desc">A blank document of the given flavor. Useful when generating a fresh file.</p>
       </div>
 
-      <h4 class="font-mono text-[0.78rem] tracking-wider uppercase text-slate-400 mt-7 mb-2 font-semibold">Section access</h4>
-      <div class="my-6 pl-4 border-l-2 border-slate-800">
-        <p class="font-mono text-sm text-slate-100 mb-1.5 flex items-baseline flex-wrap gap-2"><span class="text-coral-400 font-semibold">sections</span> · <span class="text-coral-400 font-semibold">section(_:)</span> · <span class="text-coral-400 font-semibold">profileSection(named:)</span></p>
-        <code class="block bg-[#0a0d10] text-slate-100 px-4 py-3 rounded text-[0.8rem] leading-relaxed my-2 overflow-x-auto border border-slate-800 font-mono"><span class="tok-keyword">public var</span> sections: [<span class="tok-type">Section</span>] { <span class="tok-keyword">get</span> }
+      <h4>Section access</h4>
+      <div class="api">
+        <p class="api-title"><span class="name">sections</span> · <span class="name">section(_:)</span> · <span class="name">profileSection(named:)</span></p>
+        <code class="signature"><span class="tok-keyword">public var</span> sections: [<span class="tok-type">Section</span>] { <span class="tok-keyword">get</span> }
 <span class="tok-keyword">public func</span> section(_ name: <span class="tok-type">String</span>) -> <span class="tok-type">Section</span>?
 <span class="tok-keyword">public func</span> profileSection(named name: <span class="tok-type">String</span>) -> <span class="tok-type">Section</span>?</code>
-        <p class="text-slate-400 mb-3"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">section(_:)</code> takes the verbatim header (e.g. <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">"profile dev"</code>); <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">profileSection(named:)</code> applies the flavor-aware projection so you can pass <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">"dev"</code>.</p>
+        <p class="api-desc"><code>section(_:)</code> takes the verbatim header (e.g. <code>"profile dev"</code>); <code>profileSection(named:)</code> applies the flavor-aware projection so you can pass <code>"dev"</code>.</p>
       </div>
 
-      <h4 class="font-mono text-[0.78rem] tracking-wider uppercase text-slate-400 mt-7 mb-2 font-semibold">Mutate</h4>
-      <div class="my-6 pl-4 border-l-2 border-slate-800">
-        <p class="font-mono text-sm text-slate-100 mb-1.5 flex items-baseline flex-wrap gap-2"><span class="text-coral-400 font-semibold">ensureSection(_:)</span> · <span class="text-coral-400 font-semibold">deleteSection(_:)</span> · <span class="text-coral-400 font-semibold">update(_:_:)</span></p>
-        <code class="block bg-[#0a0d10] text-slate-100 px-4 py-3 rounded text-[0.8rem] leading-relaxed my-2 overflow-x-auto border border-slate-800 font-mono"><span class="tok-keyword">public mutating func</span> ensureSection(_ name: <span class="tok-type">String</span>) -> <span class="tok-type">Section</span>
+      <h4>Mutate</h4>
+      <div class="api">
+        <p class="api-title"><span class="name">ensureSection(_:)</span> · <span class="name">deleteSection(_:)</span> · <span class="name">update(_:_:)</span></p>
+        <code class="signature"><span class="tok-keyword">public mutating func</span> ensureSection(_ name: <span class="tok-type">String</span>) -> <span class="tok-type">Section</span>
 <span class="tok-keyword">public mutating func</span> deleteSection(_ name: <span class="tok-type">String</span>)
 <span class="tok-keyword">public mutating func</span> update(_ name: <span class="tok-type">String</span>, _ block: (<span class="tok-keyword">inout</span> <span class="tok-type">Section</span>) -> <span class="tok-type">Void</span>)</code>
-        <p class="text-slate-400 mb-3"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">ensureSection</code> returns a snapshot — mutating it does not affect the document. To change a section, route through <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">update(_:_:)</code>.</p>
+        <p class="api-desc"><code>ensureSection</code> returns a snapshot — mutating it does not affect the document. To change a section, route through <code>update(_:_:)</code>.</p>
       </div>
 
-      <h4 class="font-mono text-[0.78rem] tracking-wider uppercase text-slate-400 mt-7 mb-2 font-semibold">Persist</h4>
-      <div class="my-6 pl-4 border-l-2 border-slate-800">
-        <p class="font-mono text-sm text-slate-100 mb-1.5 flex items-baseline flex-wrap gap-2"><span class="text-violet-300 font-mono text-[0.7rem] tracking-wider uppercase mr-1">func</span><span class="text-coral-400 font-semibold">write()</span> · <span class="text-coral-400 font-semibold">write(to:mode:options:)</span></p>
-        <code class="block bg-[#0a0d10] text-slate-100 px-4 py-3 rounded text-[0.8rem] leading-relaxed my-2 overflow-x-auto border border-slate-800 font-mono"><span class="tok-keyword">public func</span> write() <span class="tok-keyword">throws</span>(<span class="tok-type">AWSConfigINIError</span>) -> <span class="tok-type">String</span>
+      <h4>Persist</h4>
+      <div class="api">
+        <p class="api-title"><span class="kind">func</span><span class="name">write()</span> · <span class="name">write(to:mode:options:)</span></p>
+        <code class="signature"><span class="tok-keyword">public func</span> write() <span class="tok-keyword">throws</span>(<span class="tok-type">AWSConfigINIError</span>) -> <span class="tok-type">String</span>
 <span class="tok-keyword">public func</span> write(to url: <span class="tok-type">URL</span>, mode: <span class="tok-type">ManagedMode</span> = .managed, options: <span class="tok-type">AWSConfigINIDocumentOptions</span> = .default) <span class="tok-keyword">throws</span>(<span class="tok-type">AWSConfigINIError</span>)</code>
-        <p class="text-slate-400 mb-3">Serializes deterministically: <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">[default]</code> hoisted first, other sections in parse order, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">" = "</code> separator, all string values double-quoted. Atomic-rename only — for cross-process safety use <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">update(at:_:)</code>.</p>
+        <p class="api-desc">Serializes deterministically: <code>[default]</code> hoisted first, other sections in parse order, <code>" = "</code> separator, all string values double-quoted. Atomic-rename only — for cross-process safety use <code>update(at:_:)</code>.</p>
       </div>
 
-      <div class="my-6 pl-4 border-l-2 border-slate-800">
-        <p class="font-mono text-sm text-slate-100 mb-1.5 flex items-baseline flex-wrap gap-2"><span class="text-violet-300 font-mono text-[0.7rem] tracking-wider uppercase mr-1">static func</span><span class="text-coral-400 font-semibold">update(at:flavor:options:mode:_:)</span></p>
-        <code class="block bg-[#0a0d10] text-slate-100 px-4 py-3 rounded text-[0.8rem] leading-relaxed my-2 overflow-x-auto border border-slate-800 font-mono"><span class="tok-keyword">public static func</span> update(
+      <div class="api">
+        <p class="api-title"><span class="kind">static func</span><span class="name">update(at:flavor:options:mode:_:)</span></p>
+        <code class="signature"><span class="tok-keyword">public static func</span> update(
     at url: <span class="tok-type">URL</span>,
     flavor: <span class="tok-type">FileFlavor</span>,
     options: <span class="tok-type">AWSConfigINIDocumentOptions</span> = .default,
     mode: <span class="tok-type">ManagedMode</span> = .managed,
     _ block: (<span class="tok-keyword">inout</span> <span class="tok-type">AWSConfigINIDocument</span>) <span class="tok-keyword">throws</span>(<span class="tok-type">AWSConfigINIError</span>) -> <span class="tok-type">Void</span>
 ) <span class="tok-keyword">throws</span>(<span class="tok-type">AWSConfigINIError</span>)</code>
-        <p class="text-slate-400 mb-3">The safe entry point for shared files. Acquires <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">&lt;url&gt;.lock</code> via fcntl, reads the current contents (treating a missing file as an empty document), hands the mutable document to <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">block</code>, then atomically writes. <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.readOnly</code> mode short-circuits before any IO.</p>
+        <p class="api-desc">The safe entry point for shared files. Acquires <code>&lt;url&gt;.lock</code> via fcntl, reads the current contents (treating a missing file as an empty document), hands the mutable document to <code>block</code>, then atomically writes. <code>.readOnly</code> mode short-circuits before any IO.</p>
       </div>
     </section>
-    <section id="section"><h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">06</span>Section</h2>
-      <p class="mb-4">A named bag of <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Key</code>s. Names are case-sensitive; keys inside are stored lowercased. <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Section</code> is a value type — pass it through <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Document.update(_:_:)</code> for in-place mutation.</p>
 
-      <table class="w-full text-sm border-collapse my-4">
-        <thead><tr><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">member</th><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">type</th><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700"></th></tr></thead>
+    <!-- 06 SECTION -->
+    <section id="section">
+      <h2><span class="section-anchor">06</span>Section</h2>
+      <p>A named bag of <code>Key</code>s. Names are case-sensitive; keys inside are stored lowercased. <code>Section</code> is a value type — pass it through <code>Document.update(_:_:)</code> for in-place mutation.</p>
+
+      <table class="fields">
+        <thead><tr><th>member</th><th>type</th><th></th></tr></thead>
         <tbody>
-          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">name</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">String</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">verbatim header, e.g. <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">"profile dev"</code></td></tr>
-          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">leadingComments</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">[String]</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">comments above the <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">[name]</code> line, with their <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">#</code> or <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">;</code> prefix preserved</td></tr>
-          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">warnings</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">[Warning]</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">parser tolerances surfaced as diagnostics (duplicate keys, unrecognized lines)</td></tr>
-          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">keys</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">[Key]</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">ordered, insertion order preserved</td></tr>
-          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">key(_:)</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">(String) -> Key?</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">case-insensitive lookup; input is lowercased before matching</td></tr>
-          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">setKey(_:value:)</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">mutating</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">update existing or append new; preserves leading comments on update</td></tr>
-          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">setKey(_:map:)</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">mutating</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">same, but for sub-property maps (services-section style)</td></tr>
-          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">deleteKey(_:)</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">mutating</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">remove by name; no-op if absent</td></tr>
+          <tr><td class="field">name</td><td class="type">String</td><td class="note">verbatim header, e.g. <code>"profile dev"</code></td></tr>
+          <tr><td class="field">leadingComments</td><td class="type">[String]</td><td class="note">comments above the <code>[name]</code> line, with their <code>#</code> or <code>;</code> prefix preserved</td></tr>
+          <tr><td class="field">warnings</td><td class="type">[Warning]</td><td class="note">parser tolerances surfaced as diagnostics (duplicate keys, unrecognized lines)</td></tr>
+          <tr><td class="field">keys</td><td class="type">[Key]</td><td class="note">ordered, insertion order preserved</td></tr>
+          <tr><td class="field">key(_:)</td><td class="type">(String) -> Key?</td><td class="note">case-insensitive lookup; input is lowercased before matching</td></tr>
+          <tr><td class="field">setKey(_:value:)</td><td class="type">mutating</td><td class="note">update existing or append new; preserves leading comments on update</td></tr>
+          <tr><td class="field">setKey(_:map:)</td><td class="type">mutating</td><td class="note">same, but for sub-property maps (services-section style)</td></tr>
+          <tr><td class="field">deleteKey(_:)</td><td class="type">mutating</td><td class="note">remove by name; no-op if absent</td></tr>
         </tbody>
       </table>
     </section>
-    <section id="key"><h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">07</span>Key</h2>
-      <p class="mb-4">A name + a value. The value is either a string or a <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">[String: String]</code> sub-property map. Coercion to numeric/Boolean is on demand.</p>
 
-      <h4 class="font-mono text-[0.78rem] tracking-wider uppercase text-slate-400 mt-7 mb-2 font-semibold">Members</h4>
-      <table class="w-full text-sm border-collapse my-4">
-        <thead><tr><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">member</th><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">type</th><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700"></th></tr></thead>
+    <!-- 07 KEY -->
+    <section id="key">
+      <h2><span class="section-anchor">07</span>Key</h2>
+      <p>A name + a value. The value is either a string or a <code>[String: String]</code> sub-property map. Coercion to numeric/Boolean is on demand.</p>
+
+      <h4>Members</h4>
+      <table class="fields">
+        <thead><tr><th>member</th><th>type</th><th></th></tr></thead>
         <tbody>
-          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">name</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">String</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">always lowercased on parse</td></tr>
-          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">stringValue</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">String</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">unquoted raw value; returns <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">""</code> for map-typed keys</td></tr>
-          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">intValue()</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">Int64?</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">accepts decimal, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">0x</code>/<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">0o</code>/<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">0b</code>, signed; <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">nil</code> on overflow or non-numeric</td></tr>
-          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">doubleValue()</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">Double?</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">scientific notation supported; rejects hex floats</td></tr>
-          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">boolValue()</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">Bool?</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">strict — case-insensitive <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">"true"</code>/<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">"false"</code> only</td></tr>
-          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">mapValue()</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">[String: String]?</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">non-nil only for sub-property keys</td></tr>
-          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">leadingComments</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">[String]</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">comments above this key in the source file</td></tr>
+          <tr><td class="field">name</td><td class="type">String</td><td class="note">always lowercased on parse</td></tr>
+          <tr><td class="field">stringValue</td><td class="type">String</td><td class="note">unquoted raw value; returns <code>""</code> for map-typed keys</td></tr>
+          <tr><td class="field">intValue()</td><td class="type">Int64?</td><td class="note">accepts decimal, <code>0x</code>/<code>0o</code>/<code>0b</code>, signed; <code>nil</code> on overflow or non-numeric</td></tr>
+          <tr><td class="field">doubleValue()</td><td class="type">Double?</td><td class="note">scientific notation supported; rejects hex floats</td></tr>
+          <tr><td class="field">boolValue()</td><td class="type">Bool?</td><td class="note">strict — case-insensitive <code>"true"</code>/<code>"false"</code> only</td></tr>
+          <tr><td class="field">mapValue()</td><td class="type">[String: String]?</td><td class="note">non-nil only for sub-property keys</td></tr>
+          <tr><td class="field">leadingComments</td><td class="type">[String]</td><td class="note">comments above this key in the source file</td></tr>
         </tbody>
       </table>
 
-      <div class="my-6 border-l-[3px] border-sky-300 pl-4 py-3 pr-5 bg-sky-300/[0.08] rounded-r text-[0.95rem]"><strong class="font-mono text-[0.7rem] tracking-wider uppercase mr-2 text-sky-300">strict bool</strong>The bool grammar matches the AWS Go SDK: only <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">"true"</code> and <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">"false"</code> (any case) decode as Booleans. <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">"yes"</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">"on"</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">"1"</code> all return <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">nil</code>. The Codable layer can opt into a lenient grammar for non-AWS use cases.</div>
+      <div class="callout note"><strong>strict bool</strong>The bool grammar matches the AWS Go SDK: only <code>"true"</code> and <code>"false"</code> (any case) decode as Booleans. <code>"yes"</code>, <code>"on"</code>, <code>"1"</code> all return <code>nil</code>. The Codable layer can opt into a lenient grammar for non-AWS use cases.</div>
     </section>
-    <section id="codable"><h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">08</span>Codable</h2>
-      <p class="mb-4">Two encoder/decoder types, modeled on Foundation's <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">JSONEncoder</code> / <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">JSONDecoder</code>. They operate on a <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Section</code> rather than raw bytes — so a single read-mutate-write cycle keeps the parsed document intact.</p>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>AWSConfigINIDecoder</h3>
-      <div class="my-6 pl-4 border-l-2 border-slate-800">
-        <code class="block bg-[#0a0d10] text-slate-100 px-4 py-3 rounded text-[0.8rem] leading-relaxed my-2 overflow-x-auto border border-slate-800 font-mono"><span class="tok-keyword">public struct</span> <span class="tok-type">AWSConfigINIDecoder</span>: <span class="tok-type">Sendable</span> {
+    <!-- 08 CODABLE -->
+    <section id="codable">
+      <h2><span class="section-anchor">08</span>Codable</h2>
+      <p>Two encoder/decoder types, modeled on Foundation's <code>JSONEncoder</code> / <code>JSONDecoder</code>. They operate on a <code>Section</code> rather than raw bytes — so a single read-mutate-write cycle keeps the parsed document intact.</p>
+
+      <h3>AWSConfigINIDecoder</h3>
+      <div class="api">
+        <code class="signature"><span class="tok-keyword">public struct</span> <span class="tok-type">AWSConfigINIDecoder</span>: <span class="tok-type">Sendable</span> {
     <span class="tok-keyword">public var</span> keyDecodingStrategy: <span class="tok-type">KeyDecodingStrategy</span> = .convertFromSnakeCase
     <span class="tok-keyword">public var</span> booleanLeniency: <span class="tok-type">BooleanLeniency</span> = .strict
 
@@ -378,9 +375,9 @@ doc.update(<span class="tok-string">"profile dev"</span>) { section <span class=
 }</code>
       </div>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>AWSConfigINIEncoder</h3>
-      <div class="my-6 pl-4 border-l-2 border-slate-800">
-        <code class="block bg-[#0a0d10] text-slate-100 px-4 py-3 rounded text-[0.8rem] leading-relaxed my-2 overflow-x-auto border border-slate-800 font-mono"><span class="tok-keyword">public struct</span> <span class="tok-type">AWSConfigINIEncoder</span>: <span class="tok-type">Sendable</span> {
+      <h3>AWSConfigINIEncoder</h3>
+      <div class="api">
+        <code class="signature"><span class="tok-keyword">public struct</span> <span class="tok-type">AWSConfigINIEncoder</span>: <span class="tok-type">Sendable</span> {
     <span class="tok-keyword">public var</span> keyEncodingStrategy: <span class="tok-type">KeyEncodingStrategy</span> = .convertToSnakeCase
     <span class="tok-keyword">public var</span> omitEmpty: <span class="tok-type">Bool</span> = <span class="tok-keyword">true</span>
 
@@ -389,46 +386,49 @@ doc.update(<span class="tok-string">"profile dev"</span>) { section <span class=
 }</code>
       </div>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>What it can encode</h3>
-      <table class="w-full text-sm border-collapse my-4">
-        <thead><tr><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">swift type</th><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">ini representation</th><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700"></th></tr></thead>
+      <h3>What it can encode</h3>
+      <table class="fields">
+        <thead><tr><th>swift type</th><th>ini representation</th><th></th></tr></thead>
         <tbody>
-          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">String, Int*, UInt*, Float, Double</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">"value"</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">always double-quoted on write</td></tr>
-          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">Bool</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">"true" / "false"</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">strict form regardless of leniency setting</td></tr>
-          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">[String]</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">"a, b, c"</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">comma-joined; the AWS list pattern (e.g. <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">sso_registration_scopes</code>)</td></tr>
-          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">[String: String]</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">empty parent + indented entries</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">the AWS sub-property map shape</td></tr>
-          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">Optional&lt;T&gt;</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">key omitted when nil</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">controlled by <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">omitEmpty</code> (default true)</td></tr>
-          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">nested struct / [T] of struct</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">— rejected —</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">throws <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.encodeError</code> / <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.decodeError</code></td></tr>
+          <tr><td class="field">String, Int*, UInt*, Float, Double</td><td class="type">"value"</td><td class="note">always double-quoted on write</td></tr>
+          <tr><td class="field">Bool</td><td class="type">"true" / "false"</td><td class="note">strict form regardless of leniency setting</td></tr>
+          <tr><td class="field">[String]</td><td class="type">"a, b, c"</td><td class="note">comma-joined; the AWS list pattern (e.g. <code>sso_registration_scopes</code>)</td></tr>
+          <tr><td class="field">[String: String]</td><td class="type">empty parent + indented entries</td><td class="note">the AWS sub-property map shape</td></tr>
+          <tr><td class="field">Optional&lt;T&gt;</td><td class="type">key omitted when nil</td><td class="note">controlled by <code>omitEmpty</code> (default true)</td></tr>
+          <tr><td class="field">nested struct / [T] of struct</td><td class="type">— rejected —</td><td class="note">throws <code>.encodeError</code> / <code>.decodeError</code></td></tr>
         </tbody>
       </table>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Snake-case strategy</h3>
-      <p class="mb-4">The default <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">convertToSnakeCase</code> / <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">convertFromSnakeCase</code> handles AWS field names without any explicit <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CodingKeys</code>:</p>
-      <table class="w-full text-sm border-collapse my-4">
-        <thead><tr><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">swift</th><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">ini</th></tr></thead>
+      <h3>Snake-case strategy</h3>
+      <p>The default <code>convertToSnakeCase</code> / <code>convertFromSnakeCase</code> handles AWS field names without any explicit <code>CodingKeys</code>:</p>
+      <table class="fields">
+        <thead><tr><th>swift</th><th>ini</th></tr></thead>
         <tbody>
-          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">ssoSession</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">sso_session</td></tr>
-          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">credentialProcess</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">credential_process</td></tr>
-          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">roleArn</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">role_arn</td></tr>
-          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">ssoRegistrationScopes</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">sso_registration_scopes</td></tr>
+          <tr><td class="field">ssoSession</td><td class="type">sso_session</td></tr>
+          <tr><td class="field">credentialProcess</td><td class="type">credential_process</td></tr>
+          <tr><td class="field">roleArn</td><td class="type">role_arn</td></tr>
+          <tr><td class="field">ssoRegistrationScopes</td><td class="type">sso_registration_scopes</td></tr>
         </tbody>
       </table>
-      <p class="mb-4">For non-AWS naming, set <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">keyEncodingStrategy = .useDefaultKeys</code> or <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.custom { ... }</code>.</p>
+      <p>For non-AWS naming, set <code>keyEncodingStrategy = .useDefaultKeys</code> or <code>.custom { ... }</code>.</p>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Section-replace semantics</h3>
-      <p class="mb-4">Encoding a value into a section <strong class="font-semibold text-slate-100">replaces every key</strong> in that section. The section's <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">leadingComments</code> survive; per-key comments inside the section are dropped. Other sections in the document are untouched.</p>
+      <h3>Section-replace semantics</h3>
+      <p>Encoding a value into a section <strong>replaces every key</strong> in that section. The section's <code>leadingComments</code> survive; per-key comments inside the section are dropped. Other sections in the document are untouched.</p>
     </section>
-    <section id="aws-overlay"><h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">09</span>AWS overlay</h2>
-      <p class="mb-4">Three opinionated <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Codable</code> structs cover Quorra's actual flows. Other AWS settings are accessible through the raw <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Section</code>/<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Key</code> API.</p>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Profile</h3>
-      <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
-        <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
-          <div class="flex gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-coral-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-sunshine-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-mint-400 border border-black/35"></span></div>
-          <span class="text-slate-400 text-xs font-mono ml-1.5">Profile<span class="text-coral-400">.swift</span></span>
-          <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">swift</span>
+    <!-- 09 AWS OVERLAY -->
+    <section id="aws-overlay">
+      <h2><span class="section-anchor">09</span>AWS overlay</h2>
+      <p>Three opinionated <code>Codable</code> structs cover Quorra's actual flows. Other AWS settings are accessible through the raw <code>Section</code>/<code>Key</code> API.</p>
+
+      <h3>Profile</h3>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">Profile<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
         </div>
-<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code><span class="tok-keyword">public struct</span> <span class="tok-type">Profile</span>: <span class="tok-type">Codable</span>, <span class="tok-type">Sendable</span>, <span class="tok-type">Hashable</span> {
+<pre><code><span class="tok-keyword">public struct</span> <span class="tok-type">Profile</span>: <span class="tok-type">Codable</span>, <span class="tok-type">Sendable</span>, <span class="tok-type">Hashable</span> {
     <span class="tok-keyword">public var</span> region:            <span class="tok-type">String</span>?
     <span class="tok-keyword">public var</span> output:            <span class="tok-type">String</span>?
     <span class="tok-keyword">public var</span> ssoSession:        <span class="tok-type">String</span>?  <span class="tok-comment">// sso_session</span>
@@ -442,29 +442,29 @@ doc.update(<span class="tok-string">"profile dev"</span>) { section <span class=
 }</code></pre>
       </div>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>SSOSession</h3>
-      <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
-        <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
-          <div class="flex gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-coral-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-sunshine-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-mint-400 border border-black/35"></span></div>
-          <span class="text-slate-400 text-xs font-mono ml-1.5">SSOSession<span class="text-coral-400">.swift</span></span>
-          <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">swift</span>
+      <h3>SSOSession</h3>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">SSOSession<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
         </div>
-<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code><span class="tok-keyword">public struct</span> <span class="tok-type">SSOSession</span>: <span class="tok-type">Codable</span>, <span class="tok-type">Sendable</span>, <span class="tok-type">Hashable</span> {
+<pre><code><span class="tok-keyword">public struct</span> <span class="tok-type">SSOSession</span>: <span class="tok-type">Codable</span>, <span class="tok-type">Sendable</span>, <span class="tok-type">Hashable</span> {
     <span class="tok-keyword">public var</span> ssoStartUrl:           <span class="tok-type">String</span>?
     <span class="tok-keyword">public var</span> ssoRegion:             <span class="tok-type">String</span>?
     <span class="tok-keyword">public var</span> ssoRegistrationScopes: [<span class="tok-type">String</span>]?  <span class="tok-comment">// comma-joined on write</span>
 }</code></pre>
       </div>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>ServicesEntry</h3>
-      <p class="mb-4">The <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">[services NAME]</code> shape is two layers of nesting. <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">ServicesEntry</code> wraps it as a <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">[String: [String: String]]</code>:</p>
-      <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
-        <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
-          <div class="flex gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-coral-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-sunshine-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-mint-400 border border-black/35"></span></div>
-          <span class="text-slate-400 text-xs font-mono ml-1.5">ServicesEntry<span class="text-coral-400">.swift</span></span>
-          <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">swift</span>
+      <h3>ServicesEntry</h3>
+      <p>The <code>[services NAME]</code> shape is two layers of nesting. <code>ServicesEntry</code> wraps it as a <code>[String: [String: String]]</code>:</p>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">ServicesEntry<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
         </div>
-<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code><span class="tok-keyword">public struct</span> <span class="tok-type">ServicesEntry</span>: <span class="tok-type">Codable</span>, <span class="tok-type">Sendable</span>, <span class="tok-type">Hashable</span> {
+<pre><code><span class="tok-keyword">public struct</span> <span class="tok-type">ServicesEntry</span>: <span class="tok-type">Codable</span>, <span class="tok-type">Sendable</span>, <span class="tok-type">Hashable</span> {
     <span class="tok-keyword">public var</span> entries: [<span class="tok-type">String</span>: [<span class="tok-type">String</span>: <span class="tok-type">String</span>]]
 }
 
@@ -478,15 +478,15 @@ services.entries[<span class="tok-string">"dynamodb"</span>]?[<span class="tok-s
 <span class="tok-comment">// "http://localhost:1234"</span></code></pre>
       </div>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>FileFlavor</h3>
-      <p class="mb-4">Drives the projection between profile names and section names.</p>
-      <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
-        <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
-          <div class="flex gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-coral-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-sunshine-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-mint-400 border border-black/35"></span></div>
-          <span class="text-slate-400 text-xs font-mono ml-1.5">FileFlavor<span class="text-coral-400">.swift</span></span>
-          <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">swift</span>
+      <h3>FileFlavor</h3>
+      <p>Drives the projection between profile names and section names.</p>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">FileFlavor<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
         </div>
-<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code><span class="tok-keyword">public enum</span> <span class="tok-type">FileFlavor</span>: <span class="tok-type">Sendable</span>, <span class="tok-type">Hashable</span> {
+<pre><code><span class="tok-keyword">public enum</span> <span class="tok-type">FileFlavor</span>: <span class="tok-type">Sendable</span>, <span class="tok-type">Hashable</span> {
     <span class="tok-keyword">case</span> config
     <span class="tok-keyword">case</span> credentials
 }
@@ -500,73 +500,82 @@ services.entries[<span class="tok-string">"dynamodb"</span>]?[<span class="tok-s
 <span class="tok-type">FileFlavor</span>.config.profileSectionName(for: <span class="tok-string">"default"</span>)    <span class="tok-comment">// "default"</span></code></pre>
       </div>
     </section>
-    <section id="mode"><h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">10</span>Modes &amp; locking</h2>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>ManagedMode</h3>
-      <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
-        <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
-          <div class="flex gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-coral-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-sunshine-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-mint-400 border border-black/35"></span></div>
-          <span class="text-slate-400 text-xs font-mono ml-1.5">Mode<span class="text-coral-400">.swift</span></span>
-          <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">swift</span>
+    <!-- 10 MODE -->
+    <section id="mode">
+      <h2><span class="section-anchor">10</span>Modes &amp; locking</h2>
+
+      <h3>ManagedMode</h3>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">Mode<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
         </div>
-<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code><span class="tok-keyword">public enum</span> <span class="tok-type">ManagedMode</span>: <span class="tok-type">Sendable</span>, <span class="tok-type">Hashable</span>, <span class="tok-type">Codable</span> {
+<pre><code><span class="tok-keyword">public enum</span> <span class="tok-type">ManagedMode</span>: <span class="tok-type">Sendable</span>, <span class="tok-type">Hashable</span>, <span class="tok-type">Codable</span> {
     <span class="tok-keyword">case</span> managed     <span class="tok-comment">// Quorra owns the file, may canonicalize, prepends header</span>
     <span class="tok-keyword">case</span> readOnly    <span class="tok-comment">// Any write throws .readOnly(URL) before any IO</span>
 }</code></pre>
       </div>
-      <p class="mb-4">Mode is a parameter on every write call. The user's preference (managed vs. read-only) is stored outside this module — the Quorra app and CLI persist it in shared Keychain and pass the resolved mode in.</p>
+      <p>Mode is a parameter on every write call. The user's preference (managed vs. read-only) is stored outside this module — the Quorra app and CLI persist it in shared Keychain and pass the resolved mode in.</p>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>The managed-mode header</h3>
-      <p class="mb-4">On the first managed-mode write, a comment is prepended at the top of the file:</p>
-      <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
-        <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
-          <div class="flex gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-coral-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-sunshine-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-mint-400 border border-black/35"></span></div>
-          <span class="text-slate-400 text-xs font-mono ml-1.5">~/.aws/config</span>
-          <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">ini</span>
+      <h3>The managed-mode header</h3>
+      <p>On the first managed-mode write, a comment is prepended at the top of the file:</p>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">~/.aws/config</span>
+          <span class="langtag">ini</span>
         </div>
-<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code><span class="tok-comment"># Managed by Quorra. Edits made outside Quorra may be reformatted.</span>
+<pre><code><span class="tok-comment"># Managed by Quorra. Edits made outside Quorra may be reformatted.</span>
 
 <span class="ini-section">[default]</span>
 <span class="ini-key">region</span> = <span class="ini-value">"us-east-1"</span></code></pre>
       </div>
-      <p class="mb-4">The header is content data — it lives in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Document.leadingComments</code> and round-trips through write→read. Subsequent writes are idempotent (no duplicates). Customize via <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">AWSConfigINIDocumentOptions.managedHeaderText</code>.</p>
+      <p>The header is content data — it lives in <code>Document.leadingComments</code> and round-trips through write→read. Subsequent writes are idempotent (no duplicates). Customize via <code>AWSConfigINIDocumentOptions.managedHeaderText</code>.</p>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>fcntl advisory lock</h3>
-      <p class="mb-4"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Document.update(at:flavor:_:)</code> opens a sibling <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">&lt;path&gt;.lock</code> file and acquires an exclusive fcntl write lock on it before reading the data file. The lock file is intentionally never cleaned up — it is a coordination point, not a data file.</p>
+      <h3>fcntl advisory lock</h3>
+      <p><code>Document.update(at:flavor:_:)</code> opens a sibling <code>&lt;path&gt;.lock</code> file and acquires an exclusive fcntl write lock on it before reading the data file. The lock file is intentionally never cleaned up — it is a coordination point, not a data file.</p>
 
-      <ul class="ml-6 mb-4">
-        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Polling.</strong> Acquisition uses <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">F_SETLK</code> with a 50&nbsp;ms poll loop, defaulting to a 5&nbsp;s timeout. Throws <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.lockTimeout(URL)</code> on expiry.</li>
-        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Per-process scope.</strong> Darwin fcntl locks are per-process. The same process always succeeds <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">F_SETLK</code> against itself — wrap with an in-process lock if you call <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">update(at:_:)</code> from multiple threads.</li>
-        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Synchronous.</strong> Wrap with <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Task.detached { ... }</code> if you need to call from a Swift Concurrency executor — <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Thread.sleep</code> would otherwise block the cooperative scheduler.</li>
+      <ul>
+        <li><strong>Polling.</strong> Acquisition uses <code>F_SETLK</code> with a 50&nbsp;ms poll loop, defaulting to a 5&nbsp;s timeout. Throws <code>.lockTimeout(URL)</code> on expiry.</li>
+        <li><strong>Per-process scope.</strong> Darwin fcntl locks are per-process. The same process always succeeds <code>F_SETLK</code> against itself — wrap with an in-process lock if you call <code>update(at:_:)</code> from multiple threads.</li>
+        <li><strong>Synchronous.</strong> Wrap with <code>Task.detached { ... }</code> if you need to call from a Swift Concurrency executor — <code>Thread.sleep</code> would otherwise block the cooperative scheduler.</li>
       </ul>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Atomic write</h3>
-      <p class="mb-4">Both <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">write(to:)</code> and <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">update(at:_:)</code> use <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Data.write(to:options:.atomic)</code>, which writes to a sibling temp file and renames it over the destination. The temp file is removed on success; readers never see a half-written file.</p>
+      <h3>Atomic write</h3>
+      <p>Both <code>write(to:)</code> and <code>update(at:_:)</code> use <code>Data.write(to:options:.atomic)</code>, which writes to a sibling temp file and renames it over the destination. The temp file is removed on success; readers never see a half-written file.</p>
     </section>
-    <section id="errors"><h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">11</span>Errors</h2>
-      <p class="mb-4">All public throws use Swift 6.2 typed throws against a single error enum:</p>
-      <ul class="list-none p-0 my-4 grid gap-2">
-        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">.fileNotFound(URL)</span><span class="text-slate-400">The file at <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">URL</code> does not exist. Thrown by <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">init(contentsOf:)</code>.</span></li>
-        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">.ioError(URL, underlying:)</span><span class="text-slate-400">A read or write failed for an OS-level reason. <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">underlying</code> carries the original <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">NSError</code>.</span></li>
-        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">.lockTimeout(URL)</span><span class="text-slate-400">Could not acquire <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">&lt;url&gt;.lock</code> within the configured timeout (default 5 seconds).</span></li>
-        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">.readOnly(URL)</span><span class="text-slate-400">A write was attempted with <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">mode == .readOnly</code>. Thrown immediately, before any IO.</span></li>
-        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">.decodeError(String)</span><span class="text-slate-400">Codable decoding failed — missing required field, type mismatch, nested struct, etc. The message names the offending key.</span></li>
-        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">.encodeError(String)</span><span class="text-slate-400">A value contains characters that cannot survive a write (an unescaped <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">"</code> or <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">\n</code>) or an unsupported container shape was used.</span></li>
-        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">.malformedInput(String)</span><span class="text-slate-400">A hard parse failure — rare; the parser is almost entirely silent-tolerant. Used for non-UTF-8 file contents.</span></li>
+
+    <!-- 11 ERRORS -->
+    <section id="errors">
+      <h2><span class="section-anchor">11</span>Errors</h2>
+      <p>All public throws use Swift 6.2 typed throws against a single error enum:</p>
+      <ul class="errors">
+        <li><span class="err-case">.fileNotFound(URL)</span><span class="err-desc">The file at <code>URL</code> does not exist. Thrown by <code>init(contentsOf:)</code>.</span></li>
+        <li><span class="err-case">.ioError(URL, underlying:)</span><span class="err-desc">A read or write failed for an OS-level reason. <code>underlying</code> carries the original <code>NSError</code>.</span></li>
+        <li><span class="err-case">.lockTimeout(URL)</span><span class="err-desc">Could not acquire <code>&lt;url&gt;.lock</code> within the configured timeout (default 5 seconds).</span></li>
+        <li><span class="err-case">.readOnly(URL)</span><span class="err-desc">A write was attempted with <code>mode == .readOnly</code>. Thrown immediately, before any IO.</span></li>
+        <li><span class="err-case">.decodeError(String)</span><span class="err-desc">Codable decoding failed — missing required field, type mismatch, nested struct, etc. The message names the offending key.</span></li>
+        <li><span class="err-case">.encodeError(String)</span><span class="err-desc">A value contains characters that cannot survive a write (an unescaped <code>"</code> or <code>\n</code>) or an unsupported container shape was used.</span></li>
+        <li><span class="err-case">.malformedInput(String)</span><span class="err-desc">A hard parse failure — rare; the parser is almost entirely silent-tolerant. Used for non-UTF-8 file contents.</span></li>
       </ul>
 
-      <div class="my-6 border-l-[3px] border-sky-300 pl-4 py-3 pr-5 bg-sky-300/[0.08] rounded-r text-[0.95rem]"><strong class="font-mono text-[0.7rem] tracking-wider uppercase mr-2 text-sky-300">typed throws</strong>You can <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">catch</code> exhaustively over <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">AWSConfigINIError</code>. Soft parser issues (duplicate keys, properties before any section, unrecognized lines) do not throw — they're collected on <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Section.warnings</code> and <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Document.globalWarnings</code> for inspection.</div>
+      <div class="callout note"><strong>typed throws</strong>You can <code>catch</code> exhaustively over <code>AWSConfigINIError</code>. Soft parser issues (duplicate keys, properties before any section, unrecognized lines) do not throw — they're collected on <code>Section.warnings</code> and <code>Document.globalWarnings</code> for inspection.</div>
     </section>
-    <section id="recipes"><h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">12</span>Recipes</h2>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Add a new profile from scratch</h3>
-      <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
-        <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
-          <div class="flex gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-coral-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-sunshine-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-mint-400 border border-black/35"></span></div>
-          <span class="text-slate-400 text-xs font-mono ml-1.5">add-profile<span class="text-coral-400">.swift</span></span>
-          <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">swift</span>
+    <!-- 12 RECIPES -->
+    <section id="recipes">
+      <h2><span class="section-anchor">12</span>Recipes</h2>
+
+      <h3>Add a new profile from scratch</h3>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">add-profile<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
         </div>
-<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code><span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIDocument</span>.update(at: configURL, flavor: .config) { doc <span class="tok-keyword">in</span>
+<pre><code><span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIDocument</span>.update(at: configURL, flavor: .config) { doc <span class="tok-keyword">in</span>
     <span class="tok-keyword">let</span> profile = <span class="tok-type">Profile</span>(
         region: <span class="tok-string">"us-east-1"</span>,
         output: <span class="tok-string">"json"</span>,
@@ -576,14 +585,14 @@ services.entries[<span class="tok-string">"dynamodb"</span>]?[<span class="tok-s
 }</code></pre>
       </div>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Read the SSO session for a profile</h3>
-      <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
-        <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
-          <div class="flex gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-coral-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-sunshine-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-mint-400 border border-black/35"></span></div>
-          <span class="text-slate-400 text-xs font-mono ml-1.5">resolve-sso<span class="text-coral-400">.swift</span></span>
-          <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">swift</span>
+      <h3>Read the SSO session for a profile</h3>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">resolve-sso<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
         </div>
-<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code><span class="tok-keyword">let</span> doc = <span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIDocument</span>(contentsOf: configURL, flavor: .config)
+<pre><code><span class="tok-keyword">let</span> doc = <span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIDocument</span>(contentsOf: configURL, flavor: .config)
 <span class="tok-keyword">let</span> dev = <span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIDecoder</span>().decodeProfile(<span class="tok-type">Profile</span>.self, named: <span class="tok-string">"dev"</span>, from: doc)
 
 <span class="tok-keyword">guard let</span> sessionName = dev.ssoSession <span class="tok-keyword">else</span> { <span class="tok-keyword">return nil</span> }
@@ -592,40 +601,40 @@ services.entries[<span class="tok-string">"dynamodb"</span>]?[<span class="tok-s
 )</code></pre>
       </div>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Delete a profile</h3>
-      <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
-        <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
-          <div class="flex gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-coral-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-sunshine-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-mint-400 border border-black/35"></span></div>
-          <span class="text-slate-400 text-xs font-mono ml-1.5">delete-profile<span class="text-coral-400">.swift</span></span>
-          <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">swift</span>
+      <h3>Delete a profile</h3>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">delete-profile<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
         </div>
-<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code><span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIDocument</span>.update(at: configURL, flavor: .config) { doc <span class="tok-keyword">in</span>
+<pre><code><span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIDocument</span>.update(at: configURL, flavor: .config) { doc <span class="tok-keyword">in</span>
     doc.deleteSection(.config.profileSectionName(for: <span class="tok-string">"old-profile"</span>))
 }</code></pre>
       </div>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Set a single key without Codable</h3>
-      <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
-        <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
-          <div class="flex gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-coral-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-sunshine-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-mint-400 border border-black/35"></span></div>
-          <span class="text-slate-400 text-xs font-mono ml-1.5">set-key<span class="text-coral-400">.swift</span></span>
-          <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">swift</span>
+      <h3>Set a single key without Codable</h3>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">set-key<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
         </div>
-<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code><span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIDocument</span>.update(at: configURL, flavor: .config) { doc <span class="tok-keyword">in</span>
+<pre><code><span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIDocument</span>.update(at: configURL, flavor: .config) { doc <span class="tok-keyword">in</span>
     doc.update(<span class="tok-string">"profile dev"</span>) { s <span class="tok-keyword">in</span>
         s.setKey(<span class="tok-string">"region"</span>, value: <span class="tok-string">"eu-west-1"</span>)
     }
 }</code></pre>
       </div>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Iterate every profile</h3>
-      <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
-        <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
-          <div class="flex gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-coral-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-sunshine-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-mint-400 border border-black/35"></span></div>
-          <span class="text-slate-400 text-xs font-mono ml-1.5">iterate<span class="text-coral-400">.swift</span></span>
-          <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">swift</span>
+      <h3>Iterate every profile</h3>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">iterate<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
         </div>
-<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code><span class="tok-keyword">let</span> doc = <span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIDocument</span>(contentsOf: configURL, flavor: .config)
+<pre><code><span class="tok-keyword">let</span> doc = <span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIDocument</span>(contentsOf: configURL, flavor: .config)
 
 <span class="tok-keyword">for</span> section <span class="tok-keyword">in</span> doc.sections <span class="tok-keyword">where</span> section.name == <span class="tok-string">"default"</span> || section.name.hasPrefix(<span class="tok-string">"profile "</span>) {
     <span class="tok-keyword">let</span> profileName = section.name == <span class="tok-string">"default"</span>
@@ -636,14 +645,14 @@ services.entries[<span class="tok-string">"dynamodb"</span>]?[<span class="tok-s
 }</code></pre>
       </div>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Read-only inspection (no writes possible)</h3>
-      <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
-        <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
-          <div class="flex gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-coral-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-sunshine-400 border border-black/35"></span><span class="w-2.5 h-2.5 rounded-full bg-mint-400 border border-black/35"></span></div>
-          <span class="text-slate-400 text-xs font-mono ml-1.5">readonly<span class="text-coral-400">.swift</span></span>
-          <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">swift</span>
+      <h3>Read-only inspection (no writes possible)</h3>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">readonly<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
         </div>
-<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code><span class="tok-keyword">let</span> doc = <span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIDocument</span>(contentsOf: configURL, flavor: .config)
+<pre><code><span class="tok-keyword">let</span> doc = <span class="tok-keyword">try</span> <span class="tok-type">AWSConfigINIDocument</span>(contentsOf: configURL, flavor: .config)
 
 <span class="tok-comment">// later, attempt a write — will throw .readOnly without touching disk</span>
 <span class="tok-keyword">do</span> {
@@ -653,41 +662,45 @@ services.entries[<span class="tok-string">"dynamodb"</span>]?[<span class="tok-s
 }</code></pre>
       </div>
     </section>
-    <section id="decisions"><h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">13</span>Design notes</h2>
-      <p class="mb-4">Some load-bearing choices worth knowing about, with citations to the parser spec and the AWS Go SDK reference parser:</p>
 
-      <div class="flex flex-wrap gap-2 my-3 mb-5">
-        <span class="font-mono text-[0.72rem] px-2.5 py-1.5 rounded-sm text-slate-100 border border-slate-800 bg-slate-800/30"><span class="text-coral-400 mr-1">●</span>Parser parity vs AWS Go SDK</span>
-        <span class="font-mono text-[0.72rem] px-2.5 py-1.5 rounded-sm text-slate-100 border border-slate-800 bg-slate-800/30"><span class="text-coral-400 mr-1">●</span>Canonical writer (D03)</span>
-        <span class="font-mono text-[0.72rem] px-2.5 py-1.5 rounded-sm text-slate-100 border border-slate-800 bg-slate-800/30"><span class="text-coral-400 mr-1">●</span><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">=</code> separator + <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">"value"</code> quoting (D14, D15)</span>
-        <span class="font-mono text-[0.72rem] px-2.5 py-1.5 rounded-sm text-slate-100 border border-slate-800 bg-slate-800/30"><span class="text-coral-400 mr-1">●</span><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">[default]</code> first (D16)</span>
-        <span class="font-mono text-[0.72rem] px-2.5 py-1.5 rounded-sm text-slate-100 border border-slate-800 bg-slate-800/30"><span class="text-coral-400 mr-1">●</span>Strict bool grammar (D11)</span>
-        <span class="font-mono text-[0.72rem] px-2.5 py-1.5 rounded-sm text-slate-100 border border-slate-800 bg-slate-800/30"><span class="text-coral-400 mr-1">●</span>fcntl advisory lock (D08)</span>
-        <span class="font-mono text-[0.72rem] px-2.5 py-1.5 rounded-sm text-slate-100 border border-slate-800 bg-slate-800/30"><span class="text-coral-400 mr-1">●</span>Section-replace Codable (D05)</span>
-        <span class="font-mono text-[0.72rem] px-2.5 py-1.5 rounded-sm text-slate-100 border border-slate-800 bg-slate-800/30"><span class="text-coral-400 mr-1">●</span>Caller-supplied mode (D02)</span>
-        <span class="font-mono text-[0.72rem] px-2.5 py-1.5 rounded-sm text-slate-100 border border-slate-800 bg-slate-800/30"><span class="text-coral-400 mr-1">●</span>Lean Codable surface (D10)</span>
-        <span class="font-mono text-[0.72rem] px-2.5 py-1.5 rounded-sm text-slate-100 border border-slate-800 bg-slate-800/30"><span class="text-coral-400 mr-1">●</span>Typed throws (D20)</span>
+    <!-- 13 DECISIONS -->
+    <section id="decisions">
+      <h2><span class="section-anchor">13</span>Design notes</h2>
+      <p>Some load-bearing choices worth knowing about, with citations to the parser spec and the AWS Go SDK reference parser:</p>
+
+      <div class="pills">
+        <span class="pill"><span class="dot">●</span>Parser parity vs AWS Go SDK</span>
+        <span class="pill"><span class="dot">●</span>Canonical writer (D03)</span>
+        <span class="pill"><span class="dot">●</span><code>=</code> separator + <code>"value"</code> quoting (D14, D15)</span>
+        <span class="pill"><span class="dot">●</span><code>[default]</code> first (D16)</span>
+        <span class="pill"><span class="dot">●</span>Strict bool grammar (D11)</span>
+        <span class="pill"><span class="dot">●</span>fcntl advisory lock (D08)</span>
+        <span class="pill"><span class="dot">●</span>Section-replace Codable (D05)</span>
+        <span class="pill"><span class="dot">●</span>Caller-supplied mode (D02)</span>
+        <span class="pill"><span class="dot">●</span>Lean Codable surface (D10)</span>
+        <span class="pill"><span class="dot">●</span>Typed throws (D20)</span>
       </div>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Parser tolerances, not errors</h3>
-      <p class="mb-4">The parser matches the AWS Go SDK's silent-tolerance behavior (parser spec §11): malformed lines are dropped, duplicate keys overwrite + emit a warning, properties before any section are dropped. Look at <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Section.warnings</code> and <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Document.globalWarnings</code> for the diagnostics — they don't bubble up as errors.</p>
+      <h3>Parser tolerances, not errors</h3>
+      <p>The parser matches the AWS Go SDK's silent-tolerance behavior (parser spec §11): malformed lines are dropped, duplicate keys overwrite + emit a warning, properties before any section are dropped. Look at <code>Section.warnings</code> and <code>Document.globalWarnings</code> for the diagnostics — they don't bubble up as errors.</p>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Why writes are not byte-exact</h3>
-      <p class="mb-4">The writer is canonical, not faithful. It preserves comments and section/key order, but normalizes alignment, separator spacing, and quoting on every write. This is a deliberate trade-off: byte-exact preservation would require a two-layer trivia AST and an order of magnitude more code. The managed/read-only mode pair gives the user explicit control over whether Quorra reformats their file.</p>
+      <h3>Why writes are not byte-exact</h3>
+      <p>The writer is canonical, not faithful. It preserves comments and section/key order, but normalizes alignment, separator spacing, and quoting on every write. This is a deliberate trade-off: byte-exact preservation would require a two-layer trivia AST and an order of magnitude more code. The managed/read-only mode pair gives the user explicit control over whether Quorra reformats their file.</p>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Why the encoder replaces sections wholesale</h3>
-      <p class="mb-4">Codable's natural shape is "serialize value → bytes." Mapping that onto field-level diffs against an existing section requires a secondary diffing engine and adds API surface for marginal gain. Section-replace is simple, predictable, and matches what users expect from <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">JSONEncoder</code>. Per-key comments inside a section are dropped on encode; section-level <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">leadingComments</code> survive.</p>
+      <h3>Why the encoder replaces sections wholesale</h3>
+      <p>Codable's natural shape is "serialize value → bytes." Mapping that onto field-level diffs against an existing section requires a secondary diffing engine and adds API surface for marginal gain. Section-replace is simple, predictable, and matches what users expect from <code>JSONEncoder</code>. Per-key comments inside a section are dropped on encode; section-level <code>leadingComments</code> survive.</p>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Why <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">init(contentsOf:)</code> uses untyped <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">throws</code></h3>
-      <p class="mb-4">Swift 6.2 (Xcode 26) crashes the SIL passes (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">OSSACompleteLifetime</code>) when typed throws is combined with <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">try Data(contentsOf:)</code> inside an init body. The thrown value is still always an <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">AWSConfigINIError</code> — callers can <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">catch let e as AWSConfigINIError</code> for exhaustive handling.</p>
+      <h3>Why <code>init(contentsOf:)</code> uses untyped <code>throws</code></h3>
+      <p>Swift 6.2 (Xcode 26) crashes the SIL passes (<code>OSSACompleteLifetime</code>) when typed throws is combined with <code>try Data(contentsOf:)</code> inside an init body. The thrown value is still always an <code>AWSConfigINIError</code> — callers can <code>catch let e as AWSConfigINIError</code> for exhaustive handling.</p>
     </section>
 
-    <footer class="mt-24 pt-6 border-t border-slate-800 text-slate-500 text-sm font-mono flex flex-wrap justify-between gap-4">
-      <span class="blink">$ aws-config-ini</span>
-      <span>quorra · AWSConfigINI · macOS 26 · swift 6.2</span>
+    <footer>
+      <span class="blink">$ aws-config-ini --help</span>
+      <span>quorra · macOS 26 · swift 6.2</span>
     </footer>
 
   </main>
 </div>
+
 </body>
 </html>
