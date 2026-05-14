@@ -2,63 +2,114 @@ import SwiftUI
 import IAMIdentityCenter
 import AppKit
 
-/// Four-state inline sign-in panel for SSO sessions.
+/// Inline sign-in panel for SSO sessions.
 ///
-/// Branches on the passed-in state in priority order:
-/// 1. in-flight — user code + progress + cancel
-/// 2. error — error message + retry
-/// 3. signed in — success badge + countdown timer + "Sign in again"
-/// 4. idle — sign-in button (or missing-field warning)
+/// Branches on `SessionAuthStatus` into three view modes per D8:
+/// - `needsAction`: signedOut / expired(canRefresh: false) — Sign in button
+///   (+ expired caption / sign-out server-side advisory when applicable)
+/// - `inProgress`: signingIn — user code + countdown + Cancel
+/// - `ready`: signedIn / expired(canRefresh: true) — success badge + countdown + [Sign out] [Sign in again]
+///
+/// `lastError` and `signOutFailed` overlay the appropriate mode with additional context.
 struct SignInPanel: View {
     let sessionName: String
     let startUrl: URL?
     let region: String?
     let scopes: [String]?
+    let authStatus: SessionAuthStatus
     let progress: SignInProgress?
-    let error: IAMIdentityCenterError?
-    let signedInToken: StoredSSOToken?
+    let lastError: IAMIdentityCenterError?
+    let signOutFailed: Bool
     let isReadOnly: Bool
     let onSignIn: () -> Void
     let onCancel: () -> Void
+    let onSignOut: () -> Void
 
     var body: some View {
-        if let progress = progress {
-            inFlightView(progress: progress)
-        } else if let error = error {
-            errorView(error: error)
-        } else if let signedInToken = signedInToken {
-            signedInView(token: signedInToken)
-        } else {
-            idleView
-        }
-    }
-    
-    @ViewBuilder
-    private var idleView: some View {
-        if let missingField = firstMissingRequiredField {
-            Text("Missing required field: \(missingField)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        } else {
-            Button("Sign in with IAM Identity Center") {
-                onSignIn()
+        switch authStatus {
+        case .signingIn:
+            if let progress = progress {
+                inProgressView(progress: progress)
+            } else {
+                // Transitioning — inFlight not yet populated
+                ProgressView()
+                    .controlSize(.small)
             }
-            .disabled(isReadOnly)
+
+        case .signedIn(let expiresAt, _), .expired(let expiresAt, canRefresh: true):
+            readyView(expiresAt: expiresAt)
+
+        case .signedOut, .expired(_, canRefresh: false), .refreshing:
+            needsActionView
         }
     }
-    
+
+    // MARK: - needsAction mode
+
     @ViewBuilder
-    private func inFlightView(progress: SignInProgress) -> some View {
+    private var needsActionView: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Sign-out server-side failure advisory (D7)
+            if signOutFailed {
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .foregroundStyle(.orange)
+                        .accessibilityHidden(true)
+                    Text("Local sign-out succeeded, but Quorra couldn't notify AWS. Your token will expire naturally within 8 hours.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            // Expired token caption
+            if case .expired(_, canRefresh: false) = authStatus {
+                Text("Token expired.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            // Last sign-in error
+            if let error = lastError {
+                VStack(alignment: .leading, spacing: 4) {
+                    if let description = error.errorDescription {
+                        Text(description)
+                            .foregroundStyle(.red)
+                    }
+                    if let suggestion = error.recoverySuggestion {
+                        Text(suggestion)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            if let missingField = firstMissingRequiredField {
+                Text("Missing required field: \(missingField)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Button(lastError != nil ? "Try again" : "Sign in with IAM Identity Center") {
+                    onSignIn()
+                }
+                .disabled(isReadOnly)
+            }
+        }
+    }
+
+    // MARK: - inProgress mode
+
+    @ViewBuilder
+    private func inProgressView(progress: SignInProgress) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             LabeledContent("User code") {
                 Text(progress.userCode)
                     .font(.system(.title3, design: .monospaced, weight: .semibold))
                     .textSelection(.enabled)
             }
-            
+
             Link("Open browser again", destination: progress.verificationUriComplete)
                 .controlSize(.small)
-            
+
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
                     ProgressView()
@@ -67,17 +118,18 @@ struct SignInPanel: View {
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
-                
+
                 HStack(spacing: 6) {
                     Text("Expires in:")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                    // Apple: SwiftUI/Text/init(timerInterval:pauseTime:countsDown:showsHours:)
                     Text(timerInterval: Date.now...progress.expiresAt, countsDown: true)
                         .font(.caption.monospacedDigit())
                         .foregroundStyle(.secondary)
                 }
             }
-            
+
             Button("Cancel", role: .cancel) {
                 onCancel()
             }
@@ -85,31 +137,11 @@ struct SignInPanel: View {
             .disabled(isReadOnly)
         }
     }
-    
+
+    // MARK: - ready mode
+
     @ViewBuilder
-    private func errorView(error: IAMIdentityCenterError) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if let description = error.errorDescription {
-                Text(description)
-                    .foregroundStyle(.red)
-            }
-            
-            if let suggestion = error.recoverySuggestion {
-                Text(suggestion)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            
-            Button("Try again") {
-                onSignIn()
-            }
-            .controlSize(.small)
-            .disabled(isReadOnly)
-        }
-    }
-    
-    @ViewBuilder
-    private func signedInView(token: StoredSSOToken) -> some View {
+    private func readyView(expiresAt: Date) -> some View {
         HStack(spacing: 8) {
             Image(systemName: "checkmark.circle.fill")
                 .foregroundStyle(.green)
@@ -121,25 +153,31 @@ struct SignInPanel: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     // Apple: SwiftUI/Text/init(timerInterval:pauseTime:countsDown:showsHours:)
-                    Text(timerInterval: Date.now...token.expiresAt, countsDown: true)
+                    Text(timerInterval: Date.now...expiresAt, countsDown: true)
                         .font(.caption.monospacedDigit())
                         .foregroundStyle(.secondary)
                 }
             }
             Spacer(minLength: 0)
-            Button("Sign in again") { onSignIn() }
-                .controlSize(.small)
-                .disabled(isReadOnly)
+            // D5: Sign out first (no confirmation needed — deletes refreshable credential, not user data)
+            Button("Sign out") {
+                onSignOut()
+            }
+            .controlSize(.small)
+            // Read-only mode permits sign-out per D5 — auth state is orthogonal to file-write gating
+            Button("Sign in again") {
+                onSignIn()
+            }
+            .controlSize(.small)
+            .disabled(isReadOnly)
         }
     }
 
+    // MARK: - Helpers
+
     private var firstMissingRequiredField: String? {
-        if startUrl == nil {
-            return "sso_start_url"
-        }
-        if region == nil {
-            return "sso_region"
-        }
+        if startUrl == nil { return "sso_start_url" }
+        if region == nil { return "sso_region" }
         return nil
     }
 }
