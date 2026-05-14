@@ -5,7 +5,7 @@ import Foundation
 /// Owns OIDC client caching, device-grant polling, and token persistence. Each sign-in operation runs
 /// in its own Task; cancellation is cooperative via `cancelSignIn(sessionName:)`.
 public actor IdentityCenterService: IdentityCenterServicing {
-    internal let keychain: Keychain
+    internal let keychain: any KeychainStore
     internal let oidcClient: OIDCClient
     internal let sleeper: any Sleeper
 
@@ -23,11 +23,11 @@ public actor IdentityCenterService: IdentityCenterServicing {
     /// Creates a service instance.
     ///
     /// - Parameters:
-    ///   - keychain: Keychain actor for persisting secrets
+    ///   - keychain: Keychain store for persisting secrets (production: `Keychain`; tests: an in-memory stub)
     ///   - oidcClient: Pre-configured OIDC client for the region
     ///   - sleeper: Time source for sleep/timeout (injectable for testing)
     public init(
-        keychain: Keychain,
+        keychain: any KeychainStore,
         oidcClient: OIDCClient,
         sleeper: any Sleeper = WallClockSleeper()
     ) {

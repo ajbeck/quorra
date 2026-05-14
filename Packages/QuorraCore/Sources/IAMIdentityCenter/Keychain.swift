@@ -16,21 +16,17 @@ import Security
 /// Per Apple's `kSecUseDataProtectionKeychain` reference: *"highly recommended… for all keychain
 /// operations."* Items stored with this flag don't appear in `Keychain Access.app`.
 ///
-/// The access group is passed at initialization — production code uses `$(AppIdentifierPrefix)dev.ajbeck.quorra.shared`;
-/// tests inject a per-test UUID to ensure hermeticity.
-public actor Keychain {
+/// The access group is passed at initialization — production code uses `$(AppIdentifierPrefix)dev.ajbeck.quorra.shared`.
+/// Tests do **not** construct this type directly; per Apple's testing guidance (*"Adding tests
+/// to your Xcode project"*) they inject a stub conforming to `KeychainStore` instead, because
+/// SwiftPM test bundles can't carry the keychain-access-groups entitlement that this concrete
+/// implementation requires.
+public actor Keychain: KeychainStore {
     /// Keychain access group (e.g. `TEAMID.dev.ajbeck.quorra.shared`).
     public let accessGroup: String
 
-    private let encoder: JSONEncoder
-    private let decoder: JSONDecoder
-
     public init(accessGroup: String) {
         self.accessGroup = accessGroup
-        self.encoder = JSONEncoder()
-        self.encoder.dateEncodingStrategy = .secondsSince1970
-        self.decoder = JSONDecoder()
-        self.decoder.dateDecodingStrategy = .secondsSince1970
     }
 
     /// Builds the shared attribute set used to identify a single item across all operations.
@@ -116,34 +112,6 @@ public actor Keychain {
         }
     }
 
-    // MARK: - High-level record operations
-
-    /// Read a record stored as a JSON-encoded row and decode it to `T`.
-    ///
-    /// - Throws: `.keychainItemMissing` if no row exists for `(service, account)`;
-    ///           `.keychainMalformed` if the row exists but won't decode.
-    public func readRecord<T: Decodable>(_ type: T.Type, service: String, account: String) throws -> T {
-        let data = try read(service: service, account: account)
-        do {
-            return try decoder.decode(T.self, from: data)
-        } catch {
-            throw IAMIdentityCenterError.keychainMalformed(reason: String(reflecting: error))
-        }
-    }
-
-    /// Encode `value` as JSON and write it as a single Keychain row.
-    public func writeRecord<T: Encodable>(_ value: T, service: String, account: String) throws {
-        let data: Data
-        do {
-            data = try encoder.encode(value)
-        } catch {
-            throw IAMIdentityCenterError.keychainMalformed(reason: String(reflecting: error))
-        }
-        try write(data, service: service, account: account)
-    }
-
-    /// Delete the record at `(service, account)`. Missing rows are not an error.
-    public func deleteRecord(service: String, account: String) throws {
-        try delete(service: service, account: account)
-    }
+    // Record verbs (`readRecord`/`writeRecord`/`deleteRecord`) are provided by the
+    // `KeychainStore` protocol extension in `KeychainStore.swift`.
 }

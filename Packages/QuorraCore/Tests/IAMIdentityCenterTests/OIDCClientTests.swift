@@ -2,6 +2,7 @@ import Testing
 import Foundation
 @testable import IAMIdentityCenter
 
+extension IAMIdentityCenterTestSuite {
 @Suite("OIDCClient", .serialized)
 struct OIDCClientTests {
     // Helper to make a fresh makeSession() for each test
@@ -515,3 +516,5 @@ struct OIDCClientTests {
         })
     }
 }
+}
+
