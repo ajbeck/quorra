@@ -1,4 +1,5 @@
 import SwiftUI
+import IAMIdentityCenter
 
 struct SidebarView: View {
     @Binding var selection: SidebarSelection?
@@ -81,15 +82,18 @@ struct SidebarView: View {
 #Preview("Sidebar – empty") {
     SidebarView(selection: .constant(nil))
         .environment(ProfilesModel())
+        .environment(CredentialsModel(service: PreviewIdentityCenterService()))
 }
 
 private struct SidebarPopulatedHarness: View {
     @State private var selection: SidebarSelection? = nil
     @State private var profilesModel = ProfilesModel()
+    @State private var credentialsModel = CredentialsModel(service: PreviewIdentityCenterService())
 
     var body: some View {
         SidebarView(selection: $selection)
             .environment(profilesModel)
+            .environment(credentialsModel)
             .task {
                 let tmp = FileManager.default.temporaryDirectory
                     .appending(path: UUID().uuidString, directoryHint: .isDirectory)
@@ -162,3 +166,4 @@ private struct SidebarPopulatedHarness: View {
         """
     }
 }
+

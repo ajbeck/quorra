@@ -3,7 +3,7 @@ import Foundation
 /// All errors that can be thrown by `IAMIdentityCenter` operations.
 ///
 /// Uses Swift 6.2 untyped throws per TSPL §"Specifying the Error Type": most Swift code doesn't specify the type for the errors it throws.
-public enum IAMIdentityCenterError: Error, Sendable {
+public enum IAMIdentityCenterError: Error, Equatable, Sendable {
     // MARK: - Network & Transport
 
     /// URLSession-level transport error.
