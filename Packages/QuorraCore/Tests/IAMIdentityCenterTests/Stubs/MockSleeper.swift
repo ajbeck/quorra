@@ -1,14 +1,16 @@
 import Foundation
 @testable import IAMIdentityCenter
 
-/// Deterministic sleeper. `sleep(for:)` auto-advances the synthetic clock and yields once;
-/// `waitForNextSleep()` is a sync point for tests that need to act between iterations.
+/// Deterministic sleeper. `sleep(for:)` and `sleep(until:)` auto-advance the synthetic
+/// clock and signal any `waitForNextSleep()` waiters; tests can act between timer firings
+/// by awaiting `waitForNextSleep()` before the next advance.
 ///
 /// `initialTime` defaults to `Date()` (not the Unix epoch) so synthetic `now` is comparable
 /// to `verification.expiresAt`, which production code computes from `Date()`.
 actor MockSleeper: Sleeper {
     private var currentTime: Date
     private(set) var recordedSleeps: [TimeInterval] = []
+    private(set) var recordedDeadlines: [Date] = []
     private var nextSleepWaiters: [CheckedContinuation<Void, Never>] = []
 
     init(initialTime: Date = Date()) {
@@ -33,7 +35,24 @@ actor MockSleeper: Sleeper {
         try Task.checkCancellation()
     }
 
-    /// Suspends until the next `sleep(for:)` is called.
+    /// Jumps `currentTime` to `deadline` (D19). Signal any `waitForNextSleep()` waiters,
+    /// then yield once so cooperatively-cancelled tasks and test-side continuations run.
+    func sleep(until deadline: Date) async throws {
+        recordedDeadlines.append(deadline)
+        // Jump synthetic time to the deadline so subsequent `now` reads reflect post-sleep state
+        if deadline > currentTime {
+            currentTime = deadline
+        }
+
+        let waiters = nextSleepWaiters
+        nextSleepWaiters.removeAll()
+        for waiter in waiters { waiter.resume() }
+
+        await Task.yield()
+        try Task.checkCancellation()
+    }
+
+    /// Suspends until the next `sleep(for:)` or `sleep(until:)` is called.
     func waitForNextSleep() async {
         await withCheckedContinuation { continuation in
             nextSleepWaiters.append(continuation)

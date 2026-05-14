@@ -10,13 +10,17 @@ extension IdentityCenterService {
     ///
     /// `@concurrent` satisfies the protocol's isolation requirement; immediately hops to the
     /// actor's isolated context via `self.computeStatus(forSession:)`.
+    ///
+    /// A2 (D17): never returns `.refreshing` — that case was removed from `SessionAuthStatus`.
+    /// During refresh the status remains `.signedIn(expiresAt:, canRefresh:)`; the `refreshingNow`
+    /// overlay in `CredentialsModel` drives the UI indication.
     @concurrent
     public func status(forSession sessionName: String) async -> SessionAuthStatus {
         await self.computeStatus(forSession: sessionName)
     }
 
     /// Actor-isolated body of status. Reads Keychain, absorbs errors per D7, opportunistically
-    /// schedules the expiration timer on app restart (D8 trigger #3).
+    /// schedules both timers on app restart (D8 trigger #3 / D11).
     func computeStatus(forSession sessionName: String) async -> SessionAuthStatus {
         // In-flight sign-in takes precedence — live status is `.signingIn`
         if inFlightTask(for: sessionName) != nil {
@@ -48,10 +52,14 @@ extension IdentityCenterService {
             return .expired(expiredAt: token.expiresAt, canRefresh: canRefresh)
         }
 
-        // Valid token found — opportunistically schedule the expiration timer if none exists (D8).
-        // This handles the "app restart with a valid stored token" case.
+        // Valid token found — opportunistically schedule both T_expire and T_refresh
+        // if they don't already exist. This handles the "app restart with a valid stored token"
+        // case (D8 trigger #3 / D11).
         if expirationTimers[sessionName] == nil {
             scheduleExpiration(forSession: sessionName, expiresAt: token.expiresAt)
+        }
+        if canRefresh && refreshTimers[sessionName] == nil && inFlightRefresh[sessionName] == nil {
+            scheduleRefresh(forSession: sessionName, expiresAt: token.expiresAt)
         }
 
         return .signedIn(expiresAt: token.expiresAt, canRefresh: canRefresh)

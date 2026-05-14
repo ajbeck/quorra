@@ -7,6 +7,10 @@ import IAMIdentityCenter
 /// Verifies that each status case maps to the expected `symbolName`, `statusEffect`,
 /// `foregroundRole`, and `accessibilityPhrase` values. These properties are the primary
 /// contract between the model layer and `SessionStatusIcon` / `SessionRow`.
+///
+/// **A2 (D17):** `case refreshing` was removed from `SessionAuthStatus`. The refreshing
+/// visual (pulse effect) now lives in `SessionStatusIcon`'s `isRefreshing: Bool` overlay
+/// parameter. Tests for the overlay behaviour belong to `SessionStatusIconOverlayTests`.
 @Suite("SessionAuthStatus icon properties (D4)")
 struct SessionStatusIconTests {
 
@@ -82,23 +86,11 @@ struct SessionStatusIconTests {
         #expect(status.accessibilityPhrase == "signing in")
     }
 
-    // MARK: - refreshing
-
-    @Test("refreshing: filled symbol, pulse effect, green color")
-    func refreshingProperties() {
-        let status = SessionAuthStatus.refreshing
-        #expect(status.symbolName == "key.icloud.fill")
-        #expect(status.statusEffect == .pulse)
-        #expect(status.foregroundRole == .green)
-        #expect(status.accessibilityPhrase == "refreshing")
-    }
-
-    // MARK: - Exhaustive symbol shape rule
+    // MARK: - Exhaustive symbol shape rule (A2: refreshing case removed per D17)
 
     @Test("Outline symbol = action needed; filled symbol = has token", arguments: [
         (SessionAuthStatus.signedOut, false),
         (SessionAuthStatus.signingIn, true),
-        (SessionAuthStatus.refreshing, true),
         (SessionAuthStatus.signedIn(expiresAt: Date().addingTimeInterval(3600), canRefresh: false), true),
         (SessionAuthStatus.expired(expiredAt: Date().addingTimeInterval(-60), canRefresh: true), true),
         (SessionAuthStatus.expired(expiredAt: Date().addingTimeInterval(-60), canRefresh: false), false),

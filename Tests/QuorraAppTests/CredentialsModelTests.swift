@@ -406,6 +406,16 @@ actor StubIdentityCenterService: IdentityCenterServicing {
         signOutCallCount += 1
     }
 
+    @concurrent
+    func liveToken(forSession sessionName: String) async throws -> StoredSSOToken {
+        throw IAMIdentityCenterError.notSignedIn
+    }
+
+    @concurrent
+    func refreshNow(sessionName: String) async throws -> StoredSSOToken {
+        throw IAMIdentityCenterError.notSignedIn
+    }
+
     /// Suspends until the verification handler has fired at least once.
     func awaitVerificationFired() async {
         if verificationHasFired { return }

@@ -58,6 +58,18 @@ extension IAMIdentityCenterError: LocalizedError {
 
         case .keychainMalformed(let reason):
             return "Stored credential is corrupt: \(reason)"
+
+        case .tokenExpired:
+            return "Your session token has expired."
+
+        case .notSignedIn:
+            return "Not signed in to this session."
+
+        case .refreshTokenRejected:
+            return "Session refresh was rejected by AWS. Please sign in again."
+
+        case .refreshClientInvalid:
+            return "Client registration expired during refresh. Please sign in again."
         }
     }
 
@@ -77,6 +89,15 @@ extension IAMIdentityCenterError: LocalizedError {
 
         case .keychainItemMissing, .keychainMalformed:
             return "Sign in again to refresh your credentials."
+
+        case .tokenExpired:
+            return "Sign in again to restore your session."
+
+        case .notSignedIn:
+            return "Sign in to get started."
+
+        case .refreshTokenRejected, .refreshClientInvalid:
+            return "Sign in again to restore your session."
 
         default:
             return nil
