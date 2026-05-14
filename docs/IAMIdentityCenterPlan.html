@@ -4,207 +4,146 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>IAM Identity Center · Scope 2 Plan — Quorra</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<script>
-  tailwind.config = {
-    darkMode: 'media',
-    theme: {
-      extend: {
-        fontFamily: {
-          mono: ['Berkeley Mono', 'JetBrains Mono', 'IBM Plex Mono', 'SF Mono', 'ui-monospace', 'Menlo', 'Consolas', 'monospace'],
-          serif: ['ui-serif', 'Iowan Old Style', 'Charter', 'Source Serif Pro', 'Hoefler Text', 'Palatino', 'Georgia', 'serif'],
-        },
-        colors: {
-          coral:     { 50:'#FFF0ED',100:'#FFDDD6',200:'#FFB3A3',300:'#FF8A6F',400:'#FF6347',500:'#E8452C',600:'#C43420',700:'#9A2718',800:'#741D12',900:'#50130D',950:'#300B07' },
-          sunshine:  { 50:'#FFFCE5',100:'#FFF8BF',200:'#FFF080',300:'#FFE433',400:'#FFD700',500:'#E5BF00',600:'#BF9F00',700:'#997F00',800:'#736000',900:'#4D4000',950:'#2E2600' },
-          sky:       { 50:'#E8F4FF',100:'#CCE7FF',200:'#99CFFF',300:'#5CB3FF',400:'#2196F5',500:'#0A7EDB',600:'#0066B8',700:'#004F8F',800:'#003B6B',900:'#002949',950:'#00182B' },
-          mint:      { 50:'#E6FFF3',100:'#C0FFE0',200:'#80FFC2',300:'#33F59A',400:'#00D97F',500:'#00B86B',600:'#009959',700:'#007A47',800:'#005C35',900:'#003D24',950:'#002415' },
-          violet:    { 50:'#F3EDFF',100:'#E2D5FF',200:'#C6ABFF',300:'#A47DFF',400:'#8B5CF6',500:'#7342DB',600:'#5E33B8',700:'#49278F',800:'#371D6B',900:'#251349',950:'#160B2B' },
-          tangerine: { 50:'#FFF4E5',100:'#FFE4BF',200:'#FFC880',300:'#FFA833',400:'#FF9500',500:'#E58000',600:'#BF6A00',700:'#995500',800:'#733F00',900:'#4D2A00',950:'#2E1900' },
-          bubblegum: { 50:'#FFF0F8',100:'#FFDBEE',200:'#FFB3DB',300:'#FF80C5',400:'#FF47AE',500:'#E52D94',600:'#BF2079',700:'#991661',800:'#731049',900:'#4D0B31',950:'#2E061D' },
-          lagoon:    { 50:'#E5FFFC',100:'#B3FFF5',200:'#66FFEB',300:'#1AE8D5',400:'#00CCB8',500:'#00AD9E',600:'#008F83',700:'#007068',800:'#00544E',900:'#003935',950:'#002220' },
-          slate:     { 50:'#F8F9FA',100:'#F1F3F5',200:'#E2E5E9',300:'#C8CDD3',400:'#A1A9B3',500:'#6C757D',600:'#545B62',700:'#40464C',800:'#2D3238',900:'#1A1E23',950:'#0D0F12' },
-          success:   { 300:'#5CF58A',500:'#10B845',700:'#07742A' },
-          warning:   { 300:'#FCBF3C',500:'#D4920B',700:'#8C6007' },
-          error:     { 300:'#FF6B6B',500:'#D42020',700:'#881212' },
-        },
-      },
-    },
-  }
-</script>
-<style>
-  body {
-    background-image:
-      linear-gradient(rgba(255, 99, 71, 0.04) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 99, 71, 0.04) 1px, transparent 1px);
-    background-size: 64px 64px;
-  }
-  @keyframes pulse-dot { 0%,100% { opacity: 1 } 50% { opacity: .55 } }
-  .live-dot { animation: pulse-dot 2.4s ease-in-out infinite; }
-  @keyframes blink { 0%,50% { opacity: 1 } 50.01%,100% { opacity: 0 } }
-  .blink::after { content: "_"; animation: blink 1s steps(1) infinite; color: #FF6347; }
-  .tok-keyword { color: #A47DFF; }
-  .tok-type    { color: #5CB3FF; }
-  .tok-string  { color: #33F59A; }
-  .tok-number  { color: #FFA833; }
-  .tok-comment { color: #6C757D; font-style: italic; }
-  @media (prefers-color-scheme: light) {
-    .tok-keyword { color: #49278F; }
-    .tok-type    { color: #004F8F; }
-    .tok-string  { color: #007A47; }
-    .tok-number  { color: #995500; }
-  }
-</style>
+<link rel="stylesheet" href="quorra-docs.css">
 </head>
-<body class="font-serif bg-slate-950 text-slate-100 dark:bg-slate-950 dark:text-slate-100 antialiased leading-relaxed">
+<body>
 
-<div class="grid grid-cols-1 min-[1100px]:grid-cols-[280px_minmax(0,1fr)] max-w-[1400px] mx-auto min-h-screen">
+<div class="layout">
 
-  <aside class="border-b border-slate-800 px-6 py-8 min-[1100px]:border-b-0 min-[1100px]:border-r min-[1100px]:px-7 min-[1100px]:py-10 min-[1100px]:sticky min-[1100px]:top-0 min-[1100px]:self-start min-[1100px]:h-screen min-[1100px]:overflow-y-auto">
-    <p class="font-mono text-[0.7rem] tracking-[0.18em] uppercase text-slate-500 mb-1">// quorra · plan</p>
-    <p class="font-mono text-sm text-slate-100 mb-6 flex items-baseline gap-2">
-      <span class="live-dot inline-block w-2 h-2 rounded-full bg-success-300 shadow-[0_0_12px_#5CF58A,0_0_0_3px_rgba(92,245,138,0.12)] -translate-y-px" aria-hidden="true"></span>
-      IAM Identity Center · Scope 2
-    </p>
+  <aside class="rail">
+    <p class="rail-title">// quorra · plan</p>
+    <p class="rail-product"><span class="live-dot" aria-hidden="true"></span>IAM Identity Center · Scope 2</p>
 
-    <nav class="text-sm">
-      <div class="mb-6">
-        <p class="font-mono text-[0.65rem] tracking-[0.18em] uppercase text-slate-500 mb-2 flex items-center gap-2">
-          <span class="flex-none w-2 h-px bg-coral-400"></span>Context
-        </p>
-        <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#status"><span class="text-[0.7rem] text-slate-500">★</span><span>Current status</span></a>
-        <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#scope-map"><span class="text-[0.7rem] text-slate-500">01</span><span>Scope map</span></a>
-        <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#decisions"><span class="text-[0.7rem] text-slate-500">02</span><span>Decisions log</span></a>
+    <nav class="toc">
+      <div class="toc-section">
+        <p class="toc-section-label">Context</p>
+        <a class="toc-link" href="#status"><span class="toc-num">★</span><span>Current status</span></a>
+        <a class="toc-link" href="#scope-map"><span class="toc-num">01</span><span>Scope map</span></a>
+        <a class="toc-link" href="#decisions"><span class="toc-num">02</span><span>Decisions log</span></a>
       </div>
 
-      <div class="mb-6">
-        <p class="font-mono text-[0.65rem] tracking-[0.18em] uppercase text-slate-500 mb-2 flex items-center gap-2">
-          <span class="flex-none w-2 h-px bg-coral-400"></span>Scopes
-        </p>
-        <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#scope-a1"><span class="text-[0.7rem] text-slate-500">A1</span><span>Sign-out + status enum</span></a>
-        <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#scope-a2"><span class="text-[0.7rem] text-slate-500">A2</span><span>Refresh + sidebar dot</span></a>
-        <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#scope-b"><span class="text-[0.7rem] text-slate-500">B</span><span>Role credentials</span></a>
-        <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#scope-c"><span class="text-[0.7rem] text-slate-500">C</span><span>IMDS endpoint</span></a>
+      <div class="toc-section">
+        <p class="toc-section-label">Design</p>
+        <a class="toc-link" href="#data-flow"><span class="toc-num">03</span><span>Data flow</span></a>
+        <a class="toc-link" href="#runtime-edges"><span class="toc-num">04</span><span>Runtime edges</span></a>
+        <a class="toc-link" href="#event-driven"><span class="toc-num">05</span><span>Event-driven status</span></a>
+      </div>
+
+      <div class="toc-section">
+        <p class="toc-section-label">Scopes</p>
+        <a class="toc-link" href="#scope-a1"><span class="toc-num">A1</span><span>Sign-out + status</span></a>
+        <a class="toc-link" href="#scope-a2"><span class="toc-num">A2</span><span>Silent refresh</span></a>
+        <a class="toc-link" href="#scope-b"><span class="toc-num">B</span><span>Role credentials</span></a>
+        <a class="toc-link" href="#scope-c"><span class="toc-num">C</span><span>IMDS endpoint</span></a>
       </div>
     </nav>
   </aside>
 
-  <main class="px-6 py-10 pb-24 max-w-[920px] min-w-0 min-[1100px]:px-16 min-[1100px]:py-16 min-[1100px]:pb-32">
+  <main>
 
-    <header class="border border-slate-800 rounded-lg p-9 mb-14 relative overflow-hidden bg-slate-800/30">
-      <div class="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-coral-400 to-transparent opacity-60"></div>
-      <div class="flex flex-wrap gap-2 mb-6">
-        <span class="font-mono inline-flex items-center gap-1.5 text-[0.7rem] tracking-wider px-2.5 py-1 rounded-sm border border-coral-400 text-coral-400 lowercase">scope 2 · planning</span>
-        <span class="font-mono inline-flex items-center gap-1.5 text-[0.7rem] tracking-wider px-2.5 py-1 rounded-sm border border-tangerine-400 text-tangerine-400 lowercase">swift 6.2</span>
-        <span class="font-mono inline-flex items-center gap-1.5 text-[0.7rem] tracking-wider px-2.5 py-1 rounded-sm border border-sky-300 text-sky-300 lowercase">macos 26+</span>
+    <header class="hero">
+      <div class="hero-meta">
+        <span class="badge primary">scope 2 · planning</span>
+        <span class="badge swift">swift 6.2</span>
+        <span class="badge macos">macos 26+</span>
       </div>
-      <h1 class="font-mono font-semibold text-[clamp(2rem,5.5vw,3.5rem)] leading-none tracking-tight mb-4 text-slate-100">
-        <span class="text-slate-500 font-normal">[</span><span class="text-coral-400">Sessions</span><span class="text-slate-500 font-normal">]</span>
-      </h1>
-      <p class="text-lg leading-snug text-slate-400 max-w-[56ch] mb-6 italic">
-        Complete the session-auth lifecycle. Sign-in shipped in Scope 1; this scope adds sign-out, silent refresh, the sidebar status dot, and the event stream that drives UI invalidation. Then peels off role credentials and IMDS as separate scopes once the lifecycle holds.
-      </p>
+      <h1><span class="moniker-bracket">[</span><span class="moniker">Sessions</span><span class="moniker-bracket">]</span></h1>
+      <p class="lede">Complete the session-auth lifecycle. Sign-in shipped in Scope 1; this scope adds sign-out, silent refresh, the sidebar status icon, and the event stream that drives UI invalidation. Then peels off role credentials and IMDS as separate scopes once the lifecycle holds.</p>
     </header>
 
     <section id="status">
-      <h2 class="font-mono text-2xl font-semibold mt-0 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">★</span>Current status</h2>
-      <div class="my-6 border-l-[3px] border-success-300 pl-4 py-3 pr-5 bg-success-300/[0.08] rounded-r text-[0.95rem]">
-        <strong class="font-mono text-[0.7rem] tracking-wider uppercase text-success-300 mr-2">live</strong>This is the running planning document for the next scope of work, superseding <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em] border border-transparent">IAMIdentityCenterPhase1Plan.html</code> (now archived under <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em] border border-transparent">docs/archived/</code>). It evolves through the planning interview and will keep evolving as scopes ship.
-      </div>
+      <h2><span class="section-anchor">★</span>Current status</h2>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>What's already shipped (Scope 1)</h3>
-      <ul class="ml-6 mb-4">
-        <li class="my-1 marker:text-coral-400">Full OAuth 2.0 device-authorization sign-in for IAM Identity Center</li>
-        <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">actor IdentityCenterService</code> with <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signIn</code> + <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">cancelSignIn</code></li>
-        <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">actor Keychain</code> + <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">KeychainStore</code> protocol for injectable storage</li>
-        <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">OIDCClient</code> with <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">RegisterClient</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">StartDeviceAuthorization</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CreateToken</code> (device-code grant only)</li>
-        <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CredentialsModel</code> (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">@Observable @MainActor</code>) with in-memory <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">lastToken</code> / <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">inFlight</code> / <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">lastError</code> dictionaries</li>
-        <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SignInPanel</code> 4-state inline view (idle / signing-in / error / signed-in) inside <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SessionDetailView</code></li>
-        <li class="my-1 marker:text-coral-400">315 tests passing, full Swift Testing suite, hermetic transport stubs</li>
+      <div class="callout success"><strong>live</strong>This is the running planning document for the next scope of work, superseding <code>IAMIdentityCenterPhase1Plan.html</code> (now archived under <code>docs/archived/</code>). It evolves through the planning interview and will keep evolving as scopes ship.</div>
+
+      <h3>What's already shipped (Scope 1)</h3>
+      <ul>
+        <li>Full OAuth 2.0 device-authorization sign-in for IAM Identity Center</li>
+        <li><code>actor IdentityCenterService</code> with <code>signIn</code> + <code>cancelSignIn</code></li>
+        <li><code>actor Keychain</code> + <code>KeychainStore</code> protocol for injectable storage</li>
+        <li><code>OIDCClient</code> with <code>RegisterClient</code>, <code>StartDeviceAuthorization</code>, <code>CreateToken</code> (device-code grant only)</li>
+        <li><code>CredentialsModel</code> (<code>@Observable @MainActor</code>) with in-memory <code>inFlight</code> / <code>lastError</code> dictionaries</li>
+        <li><code>SignInPanel</code> inline view inside <code>SessionDetailView</code></li>
+        <li>315 tests passing, full Swift Testing suite, hermetic transport stubs</li>
       </ul>
+
+      <h3>What's just shipped (Scope A1)</h3>
+      <p>Sign-out, <code>SessionAuthStatus</code> enum, <code>AsyncStream&lt;AuthEvent&gt;</code> on the actor, event-driven expiration via <code>Task.sleep(until:)</code>, sidebar status icon (recolored <code>key.icloud</code>), Portal <code>POST /logout</code>. 357 tests passing (+42).</p>
     </section>
 
     <section id="scope-map">
-      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">01</span>Scope map</h2>
-      <p class="mb-4">The original Phase 1 plan sketched five future phases. Tracing actual dependencies, the work clumps differently — closely related pieces had been split across phase boundaries that didn't reflect coupling. Re-grouped, the remaining work is four scopes:</p>
+      <h2><span class="section-anchor">01</span>Scope map</h2>
+      <p>The original Phase 1 plan sketched five future phases. Tracing actual dependencies, the work clumps differently — closely related pieces had been split across phase boundaries that didn't reflect coupling. Re-grouped, the remaining work is four scopes:</p>
 
-      <div class="my-6 border-l-[3px] border-sky-300 pl-4 py-3 pr-5 bg-sky-300/[0.08] rounded-r text-[0.95rem]">
-        <strong class="font-mono text-[0.7rem] tracking-wider uppercase text-sky-300 mr-2">why merge old Phase 2 + 3</strong>The <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SessionAuthStatus</code> enum is the surface refresh acts on. Designing it before knowing refresh is in-scope means either over-designing (cases with no producer) or under-designing (no way to express "tried, refresh failed, user must intervene"). The sidebar dot's <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expired</code> state is also misleading without refresh — silent refresh would erase it on the next read. Ship the status enum + the refresh path together so the dot UX is correct on first land.
-      </div>
+      <div class="callout note"><strong>why merge old Phase 2 + 3</strong>The <code>SessionAuthStatus</code> enum is the surface refresh acts on. Designing it before knowing refresh is in-scope means either over-designing (cases with no producer) or under-designing (no way to express "tried, refresh failed, user must intervene"). The sidebar icon's <code>expired</code> state is also misleading without refresh — silent refresh would erase it on the next read. Ship the status enum + the refresh path together so the icon UX is correct on first land.</div>
 
-      <div class="my-5 border border-slate-800 rounded-lg p-6 bg-slate-800/30 relative">
-        <span class="absolute -top-2.5 left-4 bg-slate-950 text-coral-400 font-mono text-[0.7rem] tracking-widest uppercase px-2 py-0.5 border border-coral-400 rounded-sm">Scope A1</span>
-        <h3 class="font-mono text-base font-semibold mt-0 mb-2 text-slate-100">Sign-out + status enum + stream skeleton</h3>
-        <ul class="ml-6 mb-2">
-          <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SessionAuthStatus</code> enum (final shape, including cases A2 will produce)</li>
-          <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">status(forSession:)</code> — non-mutating Keychain read, no network</li>
-          <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signOut(sessionName:)</code> — best-effort Portal <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">POST /logout</code> + Keychain purge</li>
-          <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">AsyncStream&lt;AuthEvent&gt;</code> scaffolding on the actor (events: <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signedIn</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signedOut</code> — A2 adds refresh events)</li>
-          <li class="my-1 marker:text-coral-400">Sign-out button in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SessionDetailView</code>'s signed-in panel</li>
-          <li class="my-1 marker:text-coral-400">Sidebar dot driven by the enum — colors stable across A1→A2 transition</li>
+      <div class="phase-card">
+        <span class="phase-tag">Scope A1 · shipped</span>
+        <h3>Sign-out + status enum + event stream</h3>
+        <ul>
+          <li><code>SessionAuthStatus</code> enum (5 cases including the <code>canRefresh</code> boolean)</li>
+          <li><code>status(forSession:)</code> — non-mutating Keychain read, opportunistically schedules expiration timer</li>
+          <li><code>signOut(sessionName:)</code> — best-effort Portal <code>POST /logout</code> + Keychain purge</li>
+          <li><code>AsyncStream&lt;AuthEvent&gt;</code> on the actor (single-consumer); model listens and re-pulls status</li>
+          <li>Sign-out button in <code>SessionDetailView</code>'s signed-in panel</li>
+          <li>Sidebar icon — <code>key.icloud</code> shape + color varies per status</li>
+          <li>Event-driven expiration via <code>Task.sleep(until:)</code> on <code>ContinuousClock</code> — one wake-up per signed-in session, no periodic polling</li>
         </ul>
       </div>
 
-      <div class="my-5 border border-slate-800 rounded-lg p-6 bg-slate-800/30 relative">
-        <span class="absolute -top-2.5 left-4 bg-slate-950 text-coral-400 font-mono text-[0.7rem] tracking-widest uppercase px-2 py-0.5 border border-coral-400 rounded-sm">Scope A2</span>
-        <h3 class="font-mono text-base font-semibold mt-0 mb-2 text-slate-100">Silent refresh + live token</h3>
-        <ul class="ml-6 mb-2">
-          <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">refresh_token</code> grant added to <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">OIDCClient.createToken</code></li>
-          <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">liveToken(forSession:)</code> — lazy refresh on read, 5-min pre-expiry skew (per <a class="text-coral-400 hover:text-coral-500 border-b border-transparent hover:border-coral-400" href="IAMIdentityCenterDeviceAuth.html#lifetimes">§09 Refresh windows</a>)</li>
-          <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">refreshNow(sessionName:)</code> — user-initiated, always mutating</li>
-          <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">AsyncStream</code> gains <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">refreshing</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">refreshed</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">refreshFailed</code> events</li>
-          <li class="my-1 marker:text-coral-400">Sidebar dot reflects refresh state without flicker (the A1 colors were chosen to remain stable)</li>
+      <div class="phase-card">
+        <span class="phase-tag">Scope A2</span>
+        <h3>Silent refresh + live token</h3>
+        <ul>
+          <li><code>refresh_token</code> grant added to <code>OIDCClient.createToken</code></li>
+          <li><code>liveToken(forSession:)</code> — lazy refresh on read, 5-min pre-expiry skew (per <a href="IAMIdentityCenterDeviceAuth.html#lifetimes">§09 Refresh windows</a>)</li>
+          <li><code>refreshNow(sessionName:)</code> — user-initiated, always mutating</li>
+          <li><code>AsyncStream</code> activates <code>refreshing</code>, <code>refreshed</code>, <code>refreshFailed</code> events (already in <code>AuthEvent</code> from A1)</li>
+          <li>Sidebar icon reflects refresh state without flicker (A1's colors were chosen to remain stable)</li>
         </ul>
       </div>
 
-      <div class="my-5 border border-slate-800 rounded-lg p-6 bg-slate-800/30 relative">
-        <span class="absolute -top-2.5 left-4 bg-slate-950 text-coral-400 font-mono text-[0.7rem] tracking-widest uppercase px-2 py-0.5 border border-coral-400 rounded-sm">Scope B</span>
-        <h3 class="font-mono text-base font-semibold mt-0 mb-2 text-slate-100">Role credentials + profile dot</h3>
-        <ul class="ml-6 mb-2">
-          <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">PortalClient</code> (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">ListAccounts</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">ListAccountRoles</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">GetRoleCredentials</code>)</li>
-          <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">RoleCredentials</code> type + Keychain row (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">service: dev.ajbeck.quorra.role-creds</code>)</li>
-          <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">roleCredentials(forSession:accountId:roleName:region:)</code> on the actor</li>
-          <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">ProfileAuthStatus</code> — the real four-clause "active" check (<a class="text-coral-400 hover:text-coral-500 border-b border-transparent hover:border-coral-400" href="IAMIdentityCenterDeviceAuth.html#lifetimes">§09</a>)</li>
-          <li class="my-1 marker:text-coral-400">Profile-row dot + credentials reveal section in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">ProfileDetailView</code></li>
+      <div class="phase-card">
+        <span class="phase-tag">Scope B</span>
+        <h3>Role credentials + profile dot</h3>
+        <ul>
+          <li><code>PortalClient</code> (<code>ListAccounts</code>, <code>ListAccountRoles</code>, <code>GetRoleCredentials</code>)</li>
+          <li><code>RoleCredentials</code> type + Keychain row (<code>service: dev.ajbeck.quorra.role-creds</code>)</li>
+          <li><code>roleCredentials(forSession:accountId:roleName:region:)</code> on the actor</li>
+          <li><code>ProfileAuthStatus</code> — the real four-clause "active" check (<a href="IAMIdentityCenterDeviceAuth.html#lifetimes">§09</a>)</li>
+          <li>Profile-row icon + credentials reveal section in <code>ProfileDetailView</code></li>
         </ul>
       </div>
 
-      <div class="my-5 border border-slate-800 rounded-lg p-6 bg-slate-800/30 relative">
-        <span class="absolute -top-2.5 left-4 bg-slate-950 text-coral-400 font-mono text-[0.7rem] tracking-widest uppercase px-2 py-0.5 border border-coral-400 rounded-sm">Scope C</span>
-        <h3 class="font-mono text-base font-semibold mt-0 mb-2 text-slate-100">IMDS endpoint</h3>
-        <ul class="ml-6 mb-2">
-          <li class="my-1 marker:text-coral-400">Per-profile <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">IMDSEndpoint</code> bound to <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">127.0.0.1:&lt;port&gt;</code></li>
-          <li class="my-1 marker:text-coral-400">7.5-min pre-rotation refresh loop (owned by the endpoint, not the credentials actor)</li>
-          <li class="my-1 marker:text-coral-400">IMDSv2 by default; IMDSv1 fallback</li>
-          <li class="my-1 marker:text-coral-400">Port published to <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">~/Library/Application Support/Quorra/imds.port</code> for CLI/script discovery</li>
+      <div class="phase-card">
+        <span class="phase-tag">Scope C</span>
+        <h3>IMDS endpoint</h3>
+        <ul>
+          <li>Per-profile <code>IMDSEndpoint</code> bound to <code>127.0.0.1:&lt;port&gt;</code></li>
+          <li>7.5-min pre-rotation refresh loop (owned by the endpoint, not the credentials actor)</li>
+          <li>IMDSv2 by default; IMDSv1 fallback</li>
+          <li>Port published to <code>~/Library/Application Support/Quorra/imds.port</code> for CLI/script discovery</li>
         </ul>
       </div>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Dependency order</h3>
-      <p class="mb-4">A1 → A2 → B → C. Hard arrows: A2 depends on A1's enum + stream skeleton; B depends on A2's live-token verb; C depends on B's role-credentials verb. A1 + A2 together complete the session-auth lifecycle; B + C build on top.</p>
-
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>This document's scope</h3>
-      <p class="mb-4">Detailed planning below covers <strong class="font-semibold text-slate-100">A1 and A2</strong> only. B and C are sketched above for context; they get their own planning interview when A2 ships.</p>
+      <h3>Dependency order</h3>
+      <p>A1 → A2 → B → C. Hard arrows: A2 depends on A1's enum + event stream; B depends on A2's live-token verb; C depends on B's role-credentials verb. A1 + A2 together complete the session-auth lifecycle; B + C build on top.</p>
     </section>
 
     <section id="decisions">
-      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">02</span>Decisions log</h2>
-      <p class="mb-4">Settled during the planning interview. Each is grounded in either Apple/Swift documentation, AWS API documentation, or the research docs (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">IAMIdentityCenterDeviceAuth.html</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SSODeviceAuth.html</code>).</p>
+      <h2><span class="section-anchor">02</span>Decisions log</h2>
+      <p>Settled during the planning interview. Each is grounded in either Apple/Swift documentation, AWS API documentation, or the research docs (<code>IAMIdentityCenterDeviceAuth.html</code>, <code>SSODeviceAuth.html</code>).</p>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>D1 — <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SessionAuthStatus</code> shape</h3>
-      <p class="mb-3">Five-case enum with a <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">canRefresh</code> boolean carried by both <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signedIn</code> and <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expired</code>. The boolean is what lets the UI disambiguate "expired, will fix itself" from "expired, please sign in." Fewer cases than carving them as separate variants, and the boolean is the axis that matters for UI decisions.</p>
+      <h3>D1 — <code>SessionAuthStatus</code> shape</h3>
+      <p>Five-case enum with a <code>canRefresh</code> boolean carried by both <code>signedIn</code> and <code>expired</code>. The boolean is what lets the UI disambiguate "expired, will fix itself" from "expired, please sign in." Fewer cases than carving them as separate variants, and the boolean is the axis that matters for UI decisions.</p>
 
-      <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
-        <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
-          <div class="flex gap-1.5">
-            <span class="w-2.5 h-2.5 rounded-full bg-coral-400 border border-black/35"></span>
-            <span class="w-2.5 h-2.5 rounded-full bg-sunshine-400 border border-black/35"></span>
-            <span class="w-2.5 h-2.5 rounded-full bg-mint-400 border border-black/35"></span>
-          </div>
-          <span class="text-slate-400 text-xs font-mono ml-1.5">SessionAuthStatus<span class="text-coral-400">.swift</span></span>
-          <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">swift</span>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">SessionAuthStatus<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
         </div>
-<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code><span class="tok-keyword">public enum</span> <span class="tok-type">SessionAuthStatus</span>: <span class="tok-type">Sendable</span>, <span class="tok-type">Hashable</span> {
+<pre><code><span class="tok-keyword">public enum</span> <span class="tok-type">SessionAuthStatus</span>: <span class="tok-type">Sendable</span>, <span class="tok-type">Hashable</span> {
     <span class="tok-keyword">case</span> signedOut
     <span class="tok-keyword">case</span> signedIn(expiresAt: <span class="tok-type">Date</span>, canRefresh: <span class="tok-type">Bool</span>)
     <span class="tok-keyword">case</span> expired(expiredAt: <span class="tok-type">Date</span>, canRefresh: <span class="tok-type">Bool</span>)
@@ -213,27 +152,23 @@
 }</code></pre>
       </div>
 
-      <p class="mb-3"><strong class="font-semibold text-slate-100">Rejected alternatives:</strong></p>
-      <ul class="ml-6 mb-4">
-        <li class="my-1 marker:text-coral-400"><em class="italic text-slate-400">Separate <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expiredRefreshable</code> / <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expiredNeedsSignIn</code> cases.</em> Six cases instead of five and the boolean is more pattern-match friendly in views.</li>
-        <li class="my-1 marker:text-coral-400"><em class="italic text-slate-400">Drop <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signingIn</code>, let <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CredentialsModel.inFlight</code> stay the source.</em> SessionRow would have to read two sources; centralizing in the actor keeps the dot's logic in one place.</li>
-        <li class="my-1 marker:text-coral-400"><em class="italic text-slate-400">Add <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expiringSoon</code>.</em> The detail-view countdown already conveys time-to-expiry precisely; a third dot color doesn't help any user decision.</li>
+      <p><strong>Rejected alternatives:</strong></p>
+      <ul>
+        <li><em>Separate <code>expiredRefreshable</code> / <code>expiredNeedsSignIn</code> cases.</em> Six cases instead of five and the boolean is more pattern-match friendly in views.</li>
+        <li><em>Drop <code>signingIn</code>, let <code>CredentialsModel.inFlight</code> stay the source.</em> <code>SessionRow</code> would have to read two sources; centralizing in the actor keeps the icon's logic in one place.</li>
+        <li><em>Add <code>expiringSoon</code>.</em> The detail-view countdown already conveys time-to-expiry precisely; a third icon color doesn't help any user decision.</li>
       </ul>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>D2 — Actor ↔ model communication: pull verb + push stream</h3>
-      <p class="mb-3">The actor exposes two surfaces to <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CredentialsModel</code>: a pull verb (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">status(forSession:)</code>) and a push stream (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">events</code>). The model runs one long-lived <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Task</code> at init that iterates the stream and re-pulls <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">status(...)</code> into a <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">[String: SessionAuthStatus]</code> cache. Views read the cache; views never touch the stream.</p>
+      <h3>D2 — Actor ↔ model communication: pull verb + push stream</h3>
+      <p>The actor exposes two surfaces to <code>CredentialsModel</code>: a pull verb (<code>status(forSession:)</code>) and a push stream (<code>events</code>). The model runs one long-lived <code>Task</code> at init that iterates the stream and re-pulls <code>status(...)</code> into a <code>[String: SessionAuthStatus]</code> cache. Views read the cache; views never touch the stream.</p>
 
-      <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
-        <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
-          <div class="flex gap-1.5">
-            <span class="w-2.5 h-2.5 rounded-full bg-coral-400 border border-black/35"></span>
-            <span class="w-2.5 h-2.5 rounded-full bg-sunshine-400 border border-black/35"></span>
-            <span class="w-2.5 h-2.5 rounded-full bg-mint-400 border border-black/35"></span>
-          </div>
-          <span class="text-slate-400 text-xs font-mono ml-1.5">IdentityCenterService<span class="text-coral-400">.swift</span></span>
-          <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">swift</span>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">IdentityCenterService<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
         </div>
-<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code><span class="tok-keyword">public func</span> status(forSession sessionName: <span class="tok-type">String</span>) <span class="tok-keyword">async</span> -&gt; <span class="tok-type">SessionAuthStatus</span>
+<pre><code><span class="tok-keyword">public func</span> status(forSession sessionName: <span class="tok-type">String</span>) <span class="tok-keyword">async</span> -&gt; <span class="tok-type">SessionAuthStatus</span>
 
 <span class="tok-keyword">public nonisolated var</span> events: <span class="tok-type">AsyncStream</span>&lt;<span class="tok-type">AuthEvent</span>&gt; { <span class="tok-keyword">get</span> }
 
@@ -244,6 +179,8 @@
     <span class="tok-keyword">case</span> signInCancelled(sessionName: <span class="tok-type">String</span>)
     <span class="tok-keyword">case</span> signInFailed(sessionName: <span class="tok-type">String</span>)
     <span class="tok-keyword">case</span> signedOut(sessionName: <span class="tok-type">String</span>)
+    <span class="tok-keyword">case</span> expired(sessionName: <span class="tok-type">String</span>)
+    <span class="tok-keyword">case</span> signOutServerSideFailed(sessionName: <span class="tok-type">String</span>)
     <span class="tok-comment">// A2</span>
     <span class="tok-keyword">case</span> refreshing(sessionName: <span class="tok-type">String</span>)
     <span class="tok-keyword">case</span> refreshed(sessionName: <span class="tok-type">String</span>)
@@ -251,126 +188,95 @@
 }</code></pre>
       </div>
 
-      <p class="mb-3"><strong class="font-semibold text-slate-100">Three sub-decisions confirmed:</strong></p>
-      <ul class="ml-6 mb-4">
-        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Pattern:</strong> pull verb + push stream + single consumer. Apple precedent: <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">NSPersistentStoreRemoteChange</code> notifies, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">viewContext.fetch</code> resolves.</li>
-        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Stream shape:</strong> <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">nonisolated var</code> returning one shared stream created at actor init. Matches single-consumer semantics (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">AsyncStream.Iterator</code> isn't <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Sendable</code>; second consumer = <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">fatalError</code>).</li>
-        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Event naming:</strong> operation outcomes, not status transitions. Events carry only <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">sessionName</code>; the model re-pulls full status. Keeps the wire format tiny and makes tests trivially state assertions about what the actor just did.</li>
+      <p>Three sub-decisions confirmed:</p>
+      <ul>
+        <li><strong>Pattern:</strong> pull verb + push stream + single consumer. Apple precedent: <code>NSPersistentStoreRemoteChange</code> notifies, <code>viewContext.fetch</code> resolves.</li>
+        <li><strong>Stream shape:</strong> <code>nonisolated var</code> returning one shared stream created at actor init. Matches single-consumer semantics (<code>AsyncStream.Iterator</code> isn't <code>Sendable</code>; second consumer = <code>fatalError</code>).</li>
+        <li><strong>Event naming:</strong> operation outcomes, not status transitions. Events carry only <code>sessionName</code>; the model re-pulls full status. Keeps the wire format tiny and makes tests trivially state assertions about what the actor just did.</li>
       </ul>
 
-      <div class="my-6 border-l-[3px] border-sky-300 pl-4 py-3 pr-5 bg-sky-300/[0.08] rounded-r text-[0.95rem]">
-        <strong class="font-mono text-[0.7rem] tracking-wider uppercase text-sky-300 mr-2">timer ticks stay in the view</strong>The cache stores <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signedIn(expiresAt:)</code> indefinitely; <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">TimelineView(.periodic(...))</code> in the sidebar re-renders the dot every 60s and derives <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expired</code> from <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expiresAt</code> vs. <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">context.date</code> purely in the view. The actor is never woken just because the clock advanced.</div>
-
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>D3 — Sign-out semantics</h3>
-      <p class="mb-3">Three sub-decisions confirmed:</p>
-      <ul class="ml-6 mb-4">
-        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Server-side <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">POST /logout</code>:</strong> yes, but best-effort. Per <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SSODeviceAuth.html</code> §04: <em class="italic text-slate-400">"Logout is best-effort. We always delete local Keychain copies regardless of whether the server call succeeds."</em> The local purge is what must succeed; the network call is gravy.</li>
-        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Local purge scope:</strong> SSO token row only (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">dev.ajbeck.quorra.sso-token / &lt;sessionName&gt;</code>). The OIDC client row (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">dev.ajbeck.quorra.oidc-client / &lt;region&gt;</code>) stays — it's per-region, shared across sessions, not user-secret, and purging it punishes sibling sessions. Scope B will extend sign-out to also purge derived role-creds rows.</li>
-        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Public API:</strong> <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">func signOut(sessionName: String) async throws</code>. Idempotent if no row exists. Cancels any in-flight <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signIn</code> for the same session before proceeding (prevents post-signOut row resurrection from a late-completing sign-in).</li>
+      <h3>D3 — Sign-out semantics</h3>
+      <ul>
+        <li><strong>Server-side <code>POST /logout</code>:</strong> yes, but best-effort. Per <code>SSODeviceAuth.html</code> §04: <em>"Logout is best-effort. We always delete local Keychain copies regardless of whether the server call succeeds."</em> The local purge is what must succeed; the network call is gravy.</li>
+        <li><strong>Local purge scope:</strong> SSO token row only (<code>dev.ajbeck.quorra.sso-token / &lt;sessionName&gt;</code>). The OIDC client row (<code>dev.ajbeck.quorra.oidc-client / &lt;region&gt;</code>) stays — it's per-region, shared across sessions, not user-secret, and purging it punishes sibling sessions. Scope B will extend sign-out to also purge derived role-creds rows.</li>
+        <li><strong>Public API:</strong> <code>func signOut(sessionName: String) async throws</code>. Idempotent if no row exists. Cancels any in-flight <code>signIn</code> for the same session before proceeding.</li>
       </ul>
 
-      <p class="mb-3"><strong class="font-semibold text-slate-100">Order of operations inside <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signOut(sessionName:)</code>:</strong></p>
-      <ol class="ml-6 mb-4 list-decimal">
-        <li class="my-1 marker:text-coral-400">If a <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signIn</code> is in flight for this session, cancel it and wait for it to unwind.</li>
-        <li class="my-1 marker:text-coral-400">Read the <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">StoredSSOToken</code> from Keychain. If missing, emit <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.signedOut</code> and return — idempotent.</li>
-        <li class="my-1 marker:text-coral-400">Emit <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">AuthEvent.signedOut(sessionName:)</code>. UI flips immediately.</li>
-        <li class="my-1 marker:text-coral-400">Delete the SSO token Keychain row.</li>
-        <li class="my-1 marker:text-coral-400">Fire <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">POST /logout</code> to <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">portal.sso.&lt;region&gt;.amazonaws.com</code> with the access token as bearer.</li>
-        <li class="my-1 marker:text-coral-400">If step 5 fails: emit <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.signOutServerSideFailed(sessionName:)</code>. Don't throw — the user-visible state is already "signed out." Model decides whether to surface as a soft warning.</li>
+      <p><strong>Order of operations inside <code>signOut(sessionName:)</code>:</strong></p>
+      <ol>
+        <li>If a <code>signIn</code> is in flight for this session, cancel it and wait for it to unwind.</li>
+        <li>Read the <code>StoredSSOToken</code> from Keychain. If missing, emit <code>.signedOut</code> and return — idempotent.</li>
+        <li>Emit <code>AuthEvent.signedOut(sessionName:)</code>. UI flips immediately.</li>
+        <li>Delete the SSO token Keychain row.</li>
+        <li>Fire <code>POST /logout</code> to <code>portal.sso.&lt;region&gt;.amazonaws.com</code> with the access token as bearer.</li>
+        <li>If step 5 fails: emit <code>.signOutServerSideFailed(sessionName:)</code>. Don't throw — the user-visible state is already "signed out."</li>
       </ol>
 
-      <div class="my-6 border-l-[3px] border-warning-300 pl-4 py-3 pr-5 bg-warning-300/[0.08] rounded-r text-[0.95rem]">
-        <strong class="font-mono text-[0.7rem] tracking-wider uppercase text-warning-300 mr-2">enum addition</strong>Add <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.signOutServerSideFailed(sessionName: String)</code> to <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">AuthEvent</code>. Distinct from <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.signedOut</code> because the model needs to render a soft "couldn't reach AWS to invalidate token" notice without claiming sign-out itself failed.</div>
+      <h3>D4 — Sidebar status visual</h3>
+      <p>Recolor and reshape the existing <code>key.icloud</code> SF Symbol in <code>SessionRow</code> based on <code>SessionAuthStatus</code>. No separate dot — one icon does both jobs. The current code already overrides the accent color (<code>.foregroundStyle(.secondary)</code>), so changing the override to be status-aware is consistent with existing posture.</p>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>D4 — Sidebar status visual</h3>
-      <p class="mb-3">Recolor and reshape the existing <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">key.icloud</code> SF Symbol in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SessionRow</code> based on <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SessionAuthStatus</code>. No separate dot — one icon does both jobs. The current code already overrides the accent color (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.foregroundStyle(.secondary)</code>), so changing the override to be status-aware is consistent with existing posture.</p>
+      <table class="fields">
+        <thead><tr><th>Status</th><th>Symbol</th><th>Foreground</th><th>Effect</th></tr></thead>
+        <tbody>
+          <tr><td class="field">signedOut</td><td class="type">key.icloud</td><td class="note">.secondary</td><td class="note">—</td></tr>
+          <tr><td class="field">signedIn(_, _)</td><td class="type">key.icloud.fill</td><td class="note">.green</td><td class="note">—</td></tr>
+          <tr><td class="field">expired(_, canRefresh: true)</td><td class="type">key.icloud.fill</td><td class="note">.green</td><td class="note">—</td></tr>
+          <tr><td class="field">expired(_, canRefresh: false)</td><td class="type">key.icloud</td><td class="note">.red</td><td class="note">—</td></tr>
+          <tr><td class="field">signingIn</td><td class="type">key.icloud.fill</td><td class="note">.tint</td><td class="note">.variableColor</td></tr>
+          <tr><td class="field">refreshing <em>(A2)</em></td><td class="type">key.icloud.fill</td><td class="note">.green</td><td class="note">.pulse</td></tr>
+        </tbody>
+      </table>
 
-      <p class="mb-3"><strong class="font-semibold text-slate-100">Three layers of signal (shape / color / motion):</strong></p>
-
-      <div class="overflow-x-auto my-4">
-        <table class="w-full text-sm border-collapse">
-          <thead>
-            <tr class="border-b border-slate-700">
-              <th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2">Status</th>
-              <th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2">Symbol</th>
-              <th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2">Foreground</th>
-              <th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2">Effect</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr class="border-b border-slate-800/60"><td class="px-3 py-2 text-coral-400 font-mono">signedOut</td><td class="px-3 py-2 text-sky-300 font-mono">key.icloud</td><td class="px-3 py-2 text-slate-400">.secondary</td><td class="px-3 py-2 text-slate-400">—</td></tr>
-            <tr class="border-b border-slate-800/60"><td class="px-3 py-2 text-coral-400 font-mono">signedIn(_, _)</td><td class="px-3 py-2 text-sky-300 font-mono">key.icloud.fill</td><td class="px-3 py-2 text-slate-400">.green</td><td class="px-3 py-2 text-slate-400">—</td></tr>
-            <tr class="border-b border-slate-800/60"><td class="px-3 py-2 text-coral-400 font-mono">expired(_, canRefresh: true)</td><td class="px-3 py-2 text-sky-300 font-mono">key.icloud.fill</td><td class="px-3 py-2 text-slate-400">.green</td><td class="px-3 py-2 text-slate-400">—</td></tr>
-            <tr class="border-b border-slate-800/60"><td class="px-3 py-2 text-coral-400 font-mono">expired(_, canRefresh: false)</td><td class="px-3 py-2 text-sky-300 font-mono">key.icloud</td><td class="px-3 py-2 text-slate-400">.red</td><td class="px-3 py-2 text-slate-400">—</td></tr>
-            <tr class="border-b border-slate-800/60"><td class="px-3 py-2 text-coral-400 font-mono">signingIn</td><td class="px-3 py-2 text-sky-300 font-mono">key.icloud.fill</td><td class="px-3 py-2 text-slate-400">.tint</td><td class="px-3 py-2 text-slate-400">.variableColor</td></tr>
-            <tr><td class="px-3 py-2 text-coral-400 font-mono">refreshing <span class="text-slate-500">(A2)</span></td><td class="px-3 py-2 text-sky-300 font-mono">key.icloud.fill</td><td class="px-3 py-2 text-slate-400">.green</td><td class="px-3 py-2 text-slate-400">.pulse</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <p class="mb-3"><strong class="font-semibold text-slate-100">Three layers grounded in HIG:</strong></p>
-      <ul class="ml-6 mb-4">
-        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Shape:</strong> outline (action needed or absent) vs. filled (settled / has token). This is the load-bearing signal for HIG <em class="italic text-slate-400">Inclusive color</em>: <em class="italic text-slate-400">"text labels or glyph shapes to identify objects or states."</em></li>
-        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Color:</strong> <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.secondary</code> / <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.green</code> / <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.red</code> / <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.tint</code>. System semantic colors auto-adapt to Dark Mode and Increase Contrast per HIG <em class="italic text-slate-400">Dark Mode → Icons and images</em>.</li>
-        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Motion:</strong> none (steady) vs. <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.variableColor</code> (signing in) vs. <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.pulse</code> (refreshing). Apple-provided <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.symbolEffect(...)</code> respects Reduce Motion automatically.</li>
+      <p>Three layers of signal grounded in HIG:</p>
+      <ul>
+        <li><strong>Shape:</strong> outline (action needed or absent) vs. filled (settled / has token). Load-bearing signal for HIG <em>Inclusive color</em>.</li>
+        <li><strong>Color:</strong> system semantic colors auto-adapt to Dark Mode and Increase Contrast.</li>
+        <li><strong>Motion:</strong> Apple-provided <code>.symbolEffect(...)</code> respects Reduce Motion automatically.</li>
       </ul>
 
-      <p class="mb-3"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expired(_, canRefresh: true)</code> renders identical to <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signedIn</code> deliberately — A2's silent refresh fixes the state before the next render; surfacing the transient amber state would alarm the user about a state that auto-heals.</p>
+      <p><code>expired(_, canRefresh: true)</code> renders identical to <code>signedIn</code> deliberately — A2's silent refresh fixes the state before the next render; surfacing the transient amber state would alarm the user about a state that auto-heals.</p>
 
-      <p class="mb-3"><strong class="font-semibold text-slate-100">Accessibility label:</strong> <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SessionRow</code>'s existing <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">accessibilityLabel</code> extends to interpolate a status phrase: <em class="italic text-slate-400">"SSO session acme, signed in, expires in 6 hours, 3 profiles."</em> VoiceOver users never depend on the color.</p>
-
-      <div class="my-6 border-l-[3px] border-sky-300 pl-4 py-3 pr-5 bg-sky-300/[0.08] rounded-r text-[0.95rem]">
-        <strong class="font-mono text-[0.7rem] tracking-wider uppercase text-sky-300 mr-2">no special-case branch needed</strong>Because shape varies by status, we don't need an <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">@Environment(\.accessibilityDifferentiateWithoutColor)</code> conditional. That environment is for cases where shape can't vary (e.g. <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Chart</code> series rendered as colored lines). Our shape already varies; no branch.</div>
-
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>D5 — Sign-out UI surface</h3>
-      <ul class="ml-6 mb-4">
-        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Placement:</strong> in the <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signedInView</code> of <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SignInPanel.swift</code>, immediately leading "Sign in again". Both lifecycle actions cluster trailing, in the same panel that confirms "Signed in." No toolbar surface.</li>
-        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Confirmation:</strong> none. Per HIG <em class="italic text-slate-400">Alerts → Buttons</em>: <em class="italic text-slate-400">"When people deliberately choose a destructive action… the convenience of pressing Return to confirm the deliberately chosen action outweighs the benefit of reaffirming."</em> Sign-out isn't truly destructive — it deletes a refreshable credential, not user data. Plain <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Button("Sign out") { … }</code>, no <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">role: .destructive</code>.</li>
-        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Read-only mode:</strong> sign-out is permitted. Read-only gates writes to <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">~/.aws/config</code> and <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">~/.aws/credentials</code>; auth state lives in the Keychain, which is orthogonal. Phase 1 already allows sign-in in read-only mode; sign-out is symmetric.</li>
+      <h3>D5 — Sign-out UI surface</h3>
+      <ul>
+        <li><strong>Placement:</strong> in the <code>signedInView</code> of <code>SignInPanel.swift</code>, immediately leading "Sign in again". Both lifecycle actions cluster trailing, in the same panel that confirms "Signed in." No toolbar surface.</li>
+        <li><strong>Confirmation:</strong> none. Per HIG <em>Alerts → Buttons</em>: <em>"When people deliberately choose a destructive action… the convenience of pressing Return to confirm the deliberately chosen action outweighs the benefit of reaffirming."</em> Sign-out isn't truly destructive — it deletes a refreshable credential, not user data. Plain <code>Button("Sign out") { … }</code>, no <code>role: .destructive</code>.</li>
+        <li><strong>Read-only mode:</strong> sign-out is permitted. Read-only gates writes to <code>~/.aws/config</code> and <code>~/.aws/credentials</code>; auth state lives in the Keychain, which is orthogonal.</li>
       </ul>
     </section>
 
     <section id="data-flow">
-      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">03</span>D6 — Data flow plumbing</h2>
+      <h2><span class="section-anchor">03</span>D6 — Data flow plumbing</h2>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>No actor-side cache</h3>
-      <p class="mb-4"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">status(forSession:)</code> reads Keychain on every call. <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SecItemCopyMatching</code> on a small generic-password row is microsecond-fast; no measurable savings from a second cache layer. The model already caches at <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">[String: SessionAuthStatus]</code>; the hot path (sidebar dot render) reads from the model, not the actor. Skipping actor-side caching also dodges the App ↔ CLI cache-coherence problem: external mutations from the CLI process can't invalidate state we never duplicated.</p>
+      <h3>No actor-side cache</h3>
+      <p><code>status(forSession:)</code> reads Keychain on every call. <code>SecItemCopyMatching</code> on a small generic-password row is microsecond-fast; no measurable savings from a second cache layer. The model already caches at <code>[String: SessionAuthStatus]</code>; the hot path (sidebar icon render) reads from the model, not the actor. Skipping actor-side caching also dodges the App ↔ CLI cache-coherence problem.</p>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>View-driven cache population</h3>
-      <p class="mb-4">Each <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SessionRow</code> declares its data dependency via SwiftUI's <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.task(id: session.id)</code>:</p>
+      <h3>View-driven cache population</h3>
+      <p>Each <code>SessionRow</code> declares its data dependency via SwiftUI's <code>.task(id: session.id)</code>:</p>
 
-      <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
-        <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
-          <div class="flex gap-1.5">
-            <span class="w-2.5 h-2.5 rounded-full bg-coral-400 border border-black/35"></span>
-            <span class="w-2.5 h-2.5 rounded-full bg-sunshine-400 border border-black/35"></span>
-            <span class="w-2.5 h-2.5 rounded-full bg-mint-400 border border-black/35"></span>
-          </div>
-          <span class="text-slate-400 text-xs font-mono ml-1.5">SessionRow<span class="text-coral-400">.swift</span></span>
-          <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">swift</span>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">SessionRow<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
         </div>
-<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code>SessionRow(session: session)
+<pre><code>SessionRow(session: session)
     .task(id: session.id) {
         <span class="tok-keyword">await</span> credentialsModel.observeStatus(forSession: session.id)
     }</code></pre>
       </div>
 
-      <p class="mb-4">SwiftUI auto-cancels the task on disappear and restarts it on identity change. No init-time iteration, no <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">ProfilesModel</code> dependency, no eager work for sessions that aren't visible. The stream consumer Task (always running, started at model init) handles invalidation when events fire.</p>
+      <p>SwiftUI auto-cancels the task on disappear and restarts it on identity change. No init-time iteration, no <code>ProfilesModel</code> dependency, no eager work for sessions that aren't visible. The stream consumer Task (always running, started at model init) handles invalidation when events fire.</p>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">IdentityCenterServicing</code> protocol extension</h3>
-      <p class="mb-4">The Phase 1 protocol gains three members for A1, all driven by test-seam requirements (per Apple's testing guide: <em class="italic text-slate-400">"Replace complex dependencies with stubs… Adopting dependency injection and protocol-oriented programming."</em>):</p>
+      <h3><code>IdentityCenterServicing</code> protocol extension</h3>
+      <p>The Phase 1 protocol gains three members for A1, all driven by test-seam requirements (per Apple's testing guide: <em>"Replace complex dependencies with stubs… Adopting dependency injection and protocol-oriented programming."</em>):</p>
 
-      <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
-        <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
-          <div class="flex gap-1.5">
-            <span class="w-2.5 h-2.5 rounded-full bg-coral-400 border border-black/35"></span>
-            <span class="w-2.5 h-2.5 rounded-full bg-sunshine-400 border border-black/35"></span>
-            <span class="w-2.5 h-2.5 rounded-full bg-mint-400 border border-black/35"></span>
-          </div>
-          <span class="text-slate-400 text-xs font-mono ml-1.5">IdentityCenterServicing<span class="text-coral-400">.swift</span></span>
-          <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">swift</span>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">IdentityCenterServicing<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
         </div>
-<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code><span class="tok-keyword">public protocol</span> <span class="tok-type">IdentityCenterServicing</span>: <span class="tok-type">Sendable</span> {
+<pre><code><span class="tok-keyword">public protocol</span> <span class="tok-type">IdentityCenterServicing</span>: <span class="tok-type">Sendable</span> {
     <span class="tok-comment">// Phase 1</span>
     <span class="tok-keyword">func</span> signIn(...) <span class="tok-keyword">async throws</span> -&gt; <span class="tok-type">StoredSSOToken</span>
     <span class="tok-keyword">func</span> cancelSignIn(sessionName: <span class="tok-type">String</span>) <span class="tok-keyword">async</span>
@@ -382,81 +288,70 @@
 }</code></pre>
       </div>
 
-      <p class="mb-4">Test doubles inject a controllable <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">AsyncStream.Continuation</code>, a configurable status map, and a <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signOut</code> spy. The stream is the hardest thing to test against the real actor (no clean injection point for arbitrary events) — protocolizing is non-negotiable.</p>
+      <p>Test doubles inject a controllable <code>AsyncStream.Continuation</code>, a configurable status map, and a <code>signOut</code> spy. The stream is the hardest thing to test against the real actor (no clean injection point for arbitrary events) — protocolizing is non-negotiable.</p>
     </section>
 
     <section id="runtime-edges">
-      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">04</span>D7 — Runtime edge cases</h2>
+      <h2><span class="section-anchor">04</span>D7 — Runtime edge cases</h2>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Stream consumer Task lifecycle</h3>
-      <p class="mb-4">One <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Task&lt;Void, Never&gt;</code> spawned in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CredentialsModel.init</code>, held in a <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">@ObservationIgnored</code> property, captures <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">[weak self]</code>. No explicit deinit cancel — when the model deallocates, the next event triggers a guard-let exit. The Task absorbs per-event failures with <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Never</code> so one bad event can't take down the consumer. Not coupled to any view's lifecycle.</p>
+      <h3>Stream consumer Task lifecycle</h3>
+      <p>One <code>Task&lt;Void, Never&gt;</code> spawned in <code>CredentialsModel.init</code>, held in a <code>@ObservationIgnored</code> property, captures <code>[weak self]</code>. No explicit deinit cancel — when the model deallocates, the next event triggers a guard-let exit. The Task absorbs per-event failures with <code>Never</code> so one bad event can't take down the consumer. Not coupled to any view's lifecycle.</p>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Sign-out partial failure surfacing</h3>
-      <p class="mb-4">When <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.signOutServerSideFailed(sessionName:)</code> fires, the model sets <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signOutFailure[sessionName] = true</code>. <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SignInPanel</code>'s "needs action" view renders an inline advisory:</p>
+      <h3>Sign-out partial failure surfacing</h3>
+      <p>When <code>.signOutServerSideFailed(sessionName:)</code> fires, the model sets <code>signOutFailure.insert(sessionName)</code>. <code>SignInPanel</code>'s "needs action" view renders an inline advisory:</p>
 
-      <div class="my-6 border-l-[3px] border-warning-300 pl-4 py-3 pr-5 bg-warning-300/[0.08] rounded-r text-[0.95rem]">
-        <strong class="font-mono text-[0.7rem] tracking-wider uppercase text-warning-300 mr-2">advisory copy</strong><em class="italic text-slate-400">"Local sign-out succeeded, but Quorra couldn't notify AWS. Your token will expire naturally within 8 hours."</em>
-      </div>
+      <div class="callout warn"><strong>advisory copy</strong><em>"Local sign-out succeeded, but Quorra couldn't notify AWS. Your token will expire naturally within 8 hours."</em></div>
 
-      <p class="mb-4">Cleared automatically when (a) the user starts a new sign-in flow, or (b) <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signOut</code> is called again successfully. No alert, no system notification — the user is already looking at the panel they just acted in; an alert would interrupt for advisory-grade information.</p>
+      <p>Cleared automatically when (a) the user starts a new sign-in flow, or (b) <code>signOut</code> is called again successfully. No alert, no system notification — the user is already looking at the panel they just acted in; an alert would interrupt for advisory-grade information.</p>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">status(forSession:)</code> absorbs Keychain failures</h3>
-      <p class="mb-4">The verb doesn't throw. Mapping:</p>
-      <ul class="ml-6 mb-4">
-        <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">keychainItemMissing</code> → <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.signedOut</code> (normal "never signed in" state)</li>
-        <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">keychainMalformed</code> → <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.signedOut</code> + <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">os.Logger</code> warning</li>
-        <li class="my-1 marker:text-coral-400">Any other <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">keychainStatus</code> → <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.signedOut</code> + log</li>
+      <h3><code>status(forSession:)</code> absorbs Keychain failures</h3>
+      <p>The verb doesn't throw. Mapping:</p>
+      <ul>
+        <li><code>keychainItemMissing</code> → <code>.signedOut</code> (normal "never signed in" state)</li>
+        <li><code>keychainMalformed</code> → <code>.signedOut</code> + <code>os.Logger</code> warning</li>
+        <li>Any other <code>keychainStatus</code> → <code>.signedOut</code> + log</li>
       </ul>
-      <p class="mb-4">Rationale: the verb is called every sidebar render. A throw would force every caller into defensive error paths for a verb whose user-meaningful answer is always one of: signedIn, signedOut, expired, signingIn, refreshing. "Can't read the row" and "row isn't there" are visually equivalent (both mean "you need to sign in"); collapsing them to <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.signedOut</code> matches user mental model.</p>
+      <p>Rationale: the verb is called every sidebar render. A throw would force every caller into defensive error paths for a verb whose user-meaningful answer is always one of: signedIn, signedOut, expired, signingIn, refreshing. "Can't read the row" and "row isn't there" are visually equivalent (both mean "you need to sign in"); collapsing them to <code>.signedOut</code> matches user mental model.</p>
     </section>
 
     <section id="event-driven">
-      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">05</span>D8 — Event-driven status, actor-owned expiration</h2>
+      <h2><span class="section-anchor">05</span>D8 — Event-driven status, actor-owned expiration</h2>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SignInPanel</code> takes <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SessionAuthStatus</code></h3>
-      <p class="mb-4">Today's panel branches on four nilable inputs (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">progress</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">error</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signedInToken</code>, implicit idle). A1 collapses to one input driving three view modes:</p>
-      <div class="overflow-x-auto my-4">
-        <table class="w-full text-sm border-collapse">
-          <thead>
-            <tr class="border-b border-slate-700">
-              <th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2">SessionAuthStatus</th>
-              <th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2">Panel mode</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr class="border-b border-slate-800/60"><td class="px-3 py-2 text-coral-400 font-mono">signedOut</td><td class="px-3 py-2 text-slate-400">needsAction — "Sign in" button</td></tr>
-            <tr class="border-b border-slate-800/60"><td class="px-3 py-2 text-coral-400 font-mono">expired(_, canRefresh: false)</td><td class="px-3 py-2 text-slate-400">needsAction — same + "Token expired" caption</td></tr>
-            <tr class="border-b border-slate-800/60"><td class="px-3 py-2 text-coral-400 font-mono">signingIn</td><td class="px-3 py-2 text-slate-400">inProgress — code + countdown + Cancel</td></tr>
-            <tr class="border-b border-slate-800/60"><td class="px-3 py-2 text-coral-400 font-mono">signedIn(_, _)</td><td class="px-3 py-2 text-slate-400">ready — "Signed in" + countdown + [Sign out][Sign in again]</td></tr>
-            <tr class="border-b border-slate-800/60"><td class="px-3 py-2 text-coral-400 font-mono">expired(_, canRefresh: true)</td><td class="px-3 py-2 text-slate-400">ready — same as signedIn (silently refreshes)</td></tr>
-            <tr><td class="px-3 py-2 text-coral-400 font-mono">refreshing <span class="text-slate-500">(A2)</span></td><td class="px-3 py-2 text-slate-400">ready — same + subtle "refreshing" caption</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p class="mb-4"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">lastError</code> stays orthogonal — overlays any mode. <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">inFlight</code> still carries the <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">DeviceVerification</code> payload for the in-progress mode.</p>
+      <h3><code>SignInPanel</code> takes <code>SessionAuthStatus</code></h3>
+      <p>Today's panel branches on four nilable inputs (<code>progress</code>, <code>error</code>, <code>signedInToken</code>, implicit idle). A1 collapses to one input driving three view modes:</p>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CredentialsModel</code> dictionary cleanup</h3>
-      <ul class="ml-6 mb-4">
-        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Added:</strong> <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">status: [String: SessionAuthStatus]</code> — source of truth for the panel + sidebar icon.</li>
-        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Added:</strong> <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signOutFailure: Set&lt;String&gt;</code> — for the soft warning surface from D7.</li>
-        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Kept:</strong> <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">inFlight</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">lastError</code>.</li>
-        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Removed:</strong> <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">lastToken</code> — redundant with <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">status.signedIn(expiresAt:, canRefresh:)</code>. Eliminates Phase 1's "deliberately in-memory only" caveat.</li>
+      <table class="fields">
+        <thead><tr><th>SessionAuthStatus</th><th>Panel mode</th></tr></thead>
+        <tbody>
+          <tr><td class="field">signedOut</td><td class="note">needsAction — "Sign in" button</td></tr>
+          <tr><td class="field">expired(_, canRefresh: false)</td><td class="note">needsAction — same + "Token expired" caption</td></tr>
+          <tr><td class="field">signingIn</td><td class="note">inProgress — code + countdown + Cancel</td></tr>
+          <tr><td class="field">signedIn(_, _)</td><td class="note">ready — "Signed in" + countdown + [Sign out][Sign in again]</td></tr>
+          <tr><td class="field">expired(_, canRefresh: true)</td><td class="note">ready — same as signedIn (silently refreshes)</td></tr>
+          <tr><td class="field">refreshing <em>(A2)</em></td><td class="note">ready — same + subtle "refreshing" caption</td></tr>
+        </tbody>
+      </table>
+
+      <p><code>lastError</code> stays orthogonal — overlays any mode. <code>inFlight</code> still carries the <code>DeviceVerification</code> payload for the in-progress mode.</p>
+
+      <h3><code>CredentialsModel</code> dictionary cleanup</h3>
+      <ul>
+        <li><strong>Added:</strong> <code>status: [String: SessionAuthStatus]</code> — source of truth for the panel + sidebar icon.</li>
+        <li><strong>Added:</strong> <code>signOutFailure: Set&lt;String&gt;</code> — for the soft warning surface from D7.</li>
+        <li><strong>Kept:</strong> <code>inFlight</code>, <code>lastError</code>.</li>
+        <li><strong>Removed:</strong> <code>lastToken</code> — redundant with <code>status.signedIn(expiresAt:, canRefresh:)</code>.</li>
       </ul>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Actor owns expiration; emits <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.expired</code> events</h3>
-      <p class="mb-4">The actor is the single centralized worker that knows ALL session-auth state transitions and emits an event for each. Listeners react; they never see time.</p>
+      <h3>Actor owns expiration; emits <code>.expired</code> events</h3>
+      <p>The actor is the single centralized worker that knows ALL session-auth state transitions and emits an event for each. Listeners react; they never see time.</p>
 
-      <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
-        <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
-          <div class="flex gap-1.5">
-            <span class="w-2.5 h-2.5 rounded-full bg-coral-400 border border-black/35"></span>
-            <span class="w-2.5 h-2.5 rounded-full bg-sunshine-400 border border-black/35"></span>
-            <span class="w-2.5 h-2.5 rounded-full bg-mint-400 border border-black/35"></span>
-          </div>
-          <span class="text-slate-400 text-xs font-mono ml-1.5">IdentityCenterService+Expiration<span class="text-coral-400">.swift</span></span>
-          <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">swift</span>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">IdentityCenterService+Expiration<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
         </div>
-<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code><span class="tok-keyword">private var</span> expirationTimers: [<span class="tok-type">String</span>: <span class="tok-type">Task</span>&lt;<span class="tok-type">Void</span>, <span class="tok-type">Never</span>&gt;] = [:]
+<pre><code><span class="tok-keyword">private var</span> expirationTimers: [<span class="tok-type">String</span>: <span class="tok-type">Task</span>&lt;<span class="tok-type">Void</span>, <span class="tok-type">Never</span>&gt;] = [:]
 
 <span class="tok-keyword">private func</span> scheduleExpiration(
     forSession sessionName: <span class="tok-type">String</span>,
@@ -465,8 +360,8 @@
     expirationTimers[sessionName]?.cancel()
     <span class="tok-keyword">let</span> deadline = <span class="tok-type">ContinuousClock</span>.now + .seconds(expiresAt.timeIntervalSinceNow)
     expirationTimers[sessionName] = <span class="tok-type">Task</span> { [<span class="tok-keyword">weak self</span>] <span class="tok-keyword">in</span>
-        <span class="tok-keyword">try</span>? <span class="tok-keyword">await</span> <span class="tok-type">Task</span>.sleep(until: deadline)
-        <span class="tok-keyword">guard</span> !<span class="tok-type">Task</span>.isCancelled <span class="tok-keyword">else</span> { <span class="tok-keyword">return</span> }
+        <span class="tok-keyword">do</span> { <span class="tok-keyword">try await</span> <span class="tok-type">Task</span>.sleep(until: deadline, clock: .continuous) }
+        <span class="tok-keyword">catch</span> { <span class="tok-keyword">return</span> }
         <span class="tok-keyword">await</span> self?.handleExpiration(sessionName: sessionName)
     }
 }
@@ -477,162 +372,132 @@
 }</code></pre>
       </div>
 
-      <p class="mb-4">Scheduling triggers:</p>
-      <ul class="ml-6 mb-4">
-        <li class="my-1 marker:text-coral-400">on successful <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signIn</code> — schedule for the new token's <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expiresAt</code></li>
-        <li class="my-1 marker:text-coral-400">on <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signOut</code> — cancel</li>
-        <li class="my-1 marker:text-coral-400">on first <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">status(forSession:)</code> after app restart — opportunistically schedule if Keychain holds a valid signed-in token but no timer exists yet</li>
-        <li class="my-1 marker:text-coral-400">on A2 <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">refresh</code> — cancel old, schedule new for refreshed <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expiresAt</code></li>
+      <p>Scheduling triggers:</p>
+      <ul>
+        <li>on successful <code>signIn</code> — schedule for the new token's <code>expiresAt</code></li>
+        <li>on <code>signOut</code> — cancel</li>
+        <li>on first <code>status(forSession:)</code> after app restart — opportunistically schedule if Keychain holds a valid signed-in token but no timer exists yet</li>
+        <li>on A2 <code>refresh</code> — cancel old, schedule new for refreshed <code>expiresAt</code></li>
       </ul>
 
-      <p class="mb-3"><strong class="font-semibold text-slate-100">Updated <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">AuthEvent</code> (net add to D2):</strong></p>
-      <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
-        <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
-          <div class="flex gap-1.5">
-            <span class="w-2.5 h-2.5 rounded-full bg-coral-400 border border-black/35"></span>
-            <span class="w-2.5 h-2.5 rounded-full bg-sunshine-400 border border-black/35"></span>
-            <span class="w-2.5 h-2.5 rounded-full bg-mint-400 border border-black/35"></span>
-          </div>
-          <span class="text-slate-400 text-xs font-mono ml-1.5">AuthEvent<span class="text-coral-400">.swift</span></span>
-          <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">swift</span>
-        </div>
-<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code><span class="tok-keyword">public enum</span> <span class="tok-type">AuthEvent</span>: <span class="tok-type">Sendable</span>, <span class="tok-type">Hashable</span> {
-    <span class="tok-comment">// A1</span>
-    <span class="tok-keyword">case</span> signInStarted(sessionName: <span class="tok-type">String</span>)
-    <span class="tok-keyword">case</span> signedIn(sessionName: <span class="tok-type">String</span>)
-    <span class="tok-keyword">case</span> signInCancelled(sessionName: <span class="tok-type">String</span>)
-    <span class="tok-keyword">case</span> signInFailed(sessionName: <span class="tok-type">String</span>)
-    <span class="tok-keyword">case</span> signedOut(sessionName: <span class="tok-type">String</span>)
-    <span class="tok-keyword">case</span> expired(sessionName: <span class="tok-type">String</span>)                    <span class="tok-comment">// wall-clock crossed expiresAt</span>
-    <span class="tok-keyword">case</span> signOutServerSideFailed(sessionName: <span class="tok-type">String</span>)
-    <span class="tok-comment">// A2</span>
-    <span class="tok-keyword">case</span> refreshing(sessionName: <span class="tok-type">String</span>)
-    <span class="tok-keyword">case</span> refreshed(sessionName: <span class="tok-type">String</span>)
-    <span class="tok-keyword">case</span> refreshFailed(sessionName: <span class="tok-type">String</span>)
-}</code></pre>
-      </div>
+      <div class="callout note"><strong>apple-canonical shape</strong>Two of Apple's own frameworks ship the same head shape: <code>CredentialSession.eventStream: AsyncStream&lt;CredentialSession.Event&gt;</code> (SecureElementCredential) and <code>RemoteKeylessEntry…EnduringExecutionRequest.eventStream: AsyncStream&lt;…Event&gt;</code> (CarKey). Apple's <code>AsyncStream.Continuation</code> is documented as <em>"supports escaping"</em> specifically to enable producers like ours that store the continuation as actor state.</div>
 
-      <div class="my-6 border-l-[3px] border-sky-300 pl-4 py-3 pr-5 bg-sky-300/[0.08] rounded-r text-[0.95rem]">
-        <strong class="font-mono text-[0.7rem] tracking-wider uppercase text-sky-300 mr-2">apple-canonical shape</strong>Two of Apple's own frameworks ship the same head shape: <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CredentialSession.eventStream: AsyncStream&lt;CredentialSession.Event&gt;</code> (SecureElementCredential) and <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">RemoteKeylessEntry...EnduringExecutionRequest.eventStream: AsyncStream&lt;...Event&gt;</code> (CarKey). Apple's <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">AsyncStream.Continuation</code> is documented as <em class="italic text-slate-400">"supports escaping"</em> specifically to enable producers like ours that store the continuation as actor state.</div>
+      <h3>Listener is pure reaction</h3>
+      <p>The model's stream consumer Task receives <code>AuthEvent</code>s and re-pulls <code>status(forSession:)</code> on each. No timer scheduling in the model. No <code>Clock</code>, no <code>Date</code>, no <code>TimelineView</code> anywhere in the UI layer. The status icon becomes a pure view that re-renders via <code>@Observable</code> whenever the cache updates.</p>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Listener is pure reaction</h3>
-      <p class="mb-4">The model's stream consumer Task receives <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">AuthEvent</code>s and re-pulls <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">status(forSession:)</code> on each. No timer scheduling in the model. No <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Clock</code>, no <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Date</code>, no <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">TimelineView</code> anywhere in the UI layer. The status icon becomes a pure view that re-renders via <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">@Observable</code> whenever the cache updates.</p>
+      <p><strong>Cost while signed in for 8h:</strong> one OS-coalesced wake-up at <code>expiresAt</code>. Zero work between sign-in and that moment.</p>
 
-      <p class="mb-4"><strong class="font-semibold text-slate-100">Cost while signed in for 8h:</strong> one OS-coalesced wake-up at <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expiresAt</code>. Zero work between sign-in and that moment.</p>
-
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>D9 — <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">ProfileAuthStatus</code> deferred to Scope B</h3>
-      <p class="mb-4">Nothing for it in A1. Scope B's role-credentials work is exactly when the four-clause "active" check from <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">IAMIdentityCenterDeviceAuth.html</code> §09 gains real meaning, and that's the right moment to design the enum against concrete state. <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">ProfileRow</code> stays visually unchanged in A1.</p>
+      <h3>D9 — <code>ProfileAuthStatus</code> deferred to Scope B</h3>
+      <p>Nothing for it in A1. Scope B's role-credentials work is exactly when the four-clause "active" check from <code>IAMIdentityCenterDeviceAuth.html</code> §09 gains real meaning, and that's the right moment to design the enum against concrete state. <code>ProfileRow</code> stays visually unchanged in A1.</p>
     </section>
 
     <section id="scope-a1">
-      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">A1</span>Sign-out + status enum + sidebar icon</h2>
+      <h2><span class="section-anchor">A1</span>Sign-out + status enum + sidebar icon <span style="color: var(--success); font-size: 0.7em; vertical-align: 0.2em;">✅ shipped · 2126f17</span></h2>
 
-      <p class="mb-4">Brings the session-auth lifecycle's <em class="italic text-slate-400">read</em> side and <em class="italic text-slate-400">tear-down</em> side to parity with Scope 1's <em class="italic text-slate-400">setup</em> side. Status queries return real values, the actor emits domain events, the model caches state for UI, the sidebar icon shows session state, and the user can sign out. Refresh (Scope A2) plugs into the same event stream without further surface changes.</p>
+      <p>Brought the session-auth lifecycle's <em>read</em> side and <em>tear-down</em> side to parity with Scope 1's <em>setup</em> side. Status queries return real values, the actor emits domain events, the model caches state for UI, the sidebar icon shows session state, and the user can sign out. Refresh (Scope A2) plugs into the same event stream without further surface changes.</p>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>File map</h3>
+      <h3>File map</h3>
 
-      <h4 class="font-mono text-[0.78rem] tracking-wider uppercase text-slate-400 mt-7 mb-2 font-semibold">New files — <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Packages/QuorraCore/Sources/IAMIdentityCenter/</code></h4>
-      <div class="overflow-x-auto my-4">
-        <table class="w-full text-sm border-collapse">
-          <thead>
-            <tr class="border-b border-slate-700">
-              <th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2">Path</th>
-              <th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2">Purpose</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr class="border-b border-slate-800/60"><td class="px-3 py-2 text-coral-400 font-mono">SessionAuthStatus.swift</td><td class="px-3 py-2 text-slate-400">Public 5-case enum per <a class="text-coral-400 hover:text-coral-500" href="#decisions">D1</a>. Includes <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">var symbol</code> / <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">var color</code> / <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">var effect</code> / <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">var accessibilityPhrase</code> per <a class="text-coral-400 hover:text-coral-500" href="#decisions">D4</a>.</td></tr>
-            <tr class="border-b border-slate-800/60"><td class="px-3 py-2 text-coral-400 font-mono">AuthEvent.swift</td><td class="px-3 py-2 text-slate-400">Public event enum per <a class="text-coral-400 hover:text-coral-500" href="#decisions">D2</a>+<a class="text-coral-400 hover:text-coral-500" href="#event-driven">D8</a>. A1 cases listed; A2 cases stubbed with doc comments.</td></tr>
-            <tr class="border-b border-slate-800/60"><td class="px-3 py-2 text-coral-400 font-mono">IdentityCenterService+Status.swift</td><td class="px-3 py-2 text-slate-400">Extension implementing <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">status(forSession:)</code>: read Keychain, map to enum, opportunistically schedule expiration timer if signedIn.</td></tr>
-            <tr class="border-b border-slate-800/60"><td class="px-3 py-2 text-coral-400 font-mono">IdentityCenterService+Expiration.swift</td><td class="px-3 py-2 text-slate-400">Private extension: <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">scheduleExpiration</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">cancelExpiration</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">handleExpiration</code> — the <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Task.sleep(until:)</code> machinery per <a class="text-coral-400 hover:text-coral-500" href="#event-driven">D8</a>.</td></tr>
-            <tr class="border-b border-slate-800/60"><td class="px-3 py-2 text-coral-400 font-mono">IdentityCenterService+SignOut.swift</td><td class="px-3 py-2 text-slate-400">Extension implementing <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signOut(sessionName:)</code> per <a class="text-coral-400 hover:text-coral-500" href="#decisions">D3</a>: cancel any in-flight sign-in, emit signedOut, delete Keychain row, fire Portal /logout, emit signOutServerSideFailed on network failure.</td></tr>
-            <tr class="border-b border-slate-800/60"><td class="px-3 py-2 text-coral-400 font-mono">PortalLogout.swift</td><td class="px-3 py-2 text-slate-400">Minimal <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">POST /logout</code> caller (header: <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">x-amz-sso_bearer_token</code>). Not a full <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">PortalClient</code> — that's Scope B. <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Sendable</code> struct, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">URLSession</code> injected for testability.</td></tr>
-          </tbody>
-        </table>
-      </div>
+      <h4>New files — <code>Packages/QuorraCore/Sources/IAMIdentityCenter/</code></h4>
+      <table class="fields">
+        <thead><tr><th>Path</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td class="field">SessionAuthStatus.swift</td><td class="note">Public 5-case enum per <a href="#decisions">D1</a>. Includes <code>symbolName</code> / <code>foregroundRole</code> / <code>statusEffect</code> / <code>accessibilityPhrase</code> per <a href="#decisions">D4</a>.</td></tr>
+          <tr><td class="field">AuthEvent.swift</td><td class="note">Public event enum per <a href="#decisions">D2</a>+<a href="#event-driven">D8</a>. A1 cases listed; A2 cases reserved.</td></tr>
+          <tr><td class="field">IdentityCenterService+Status.swift</td><td class="note">Extension implementing <code>status(forSession:)</code>: read Keychain, map to enum, opportunistically schedule expiration timer if signedIn.</td></tr>
+          <tr><td class="field">IdentityCenterService+Expiration.swift</td><td class="note">Private extension: <code>scheduleExpiration</code>, <code>cancelExpiration</code>, <code>handleExpiration</code> — the <code>Task.sleep(until:)</code> machinery per <a href="#event-driven">D8</a>.</td></tr>
+          <tr><td class="field">IdentityCenterService+SignOut.swift</td><td class="note">Extension implementing <code>signOut(sessionName:)</code> per <a href="#decisions">D3</a>.</td></tr>
+          <tr><td class="field">PortalLogout.swift</td><td class="note">Minimal <code>POST /logout</code> caller. Not a full <code>PortalClient</code> — that's Scope B.</td></tr>
+        </tbody>
+      </table>
 
-      <h4 class="font-mono text-[0.78rem] tracking-wider uppercase text-slate-400 mt-7 mb-2 font-semibold">Modified files — <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Packages/QuorraCore/Sources/IAMIdentityCenter/</code></h4>
-      <div class="overflow-x-auto my-4">
-        <table class="w-full text-sm border-collapse">
-          <thead><tr class="border-b border-slate-700"><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2">Path</th><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2">Change</th></tr></thead>
-          <tbody>
-            <tr class="border-b border-slate-800/60"><td class="px-3 py-2 text-coral-400 font-mono">IdentityCenterService.swift</td><td class="px-3 py-2 text-slate-400">Add <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">nonisolated let events: AsyncStream&lt;AuthEvent&gt;</code> + <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">private let eventContinuation</code>. Init creates both via <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">AsyncStream.makeStream(of:)</code>. Add <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">private var expirationTimers</code>. Modify <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signIn</code> to emit <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.signInStarted</code>/<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.signedIn</code>/<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.signInCancelled</code>/<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.signInFailed</code> and schedule expiration on success.</td></tr>
-            <tr><td class="px-3 py-2 text-coral-400 font-mono">IdentityCenterServicing.swift</td><td class="px-3 py-2 text-slate-400">Add <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">status</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signOut</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">events</code> to the protocol per <a class="text-coral-400 hover:text-coral-500" href="#data-flow">D6</a>. Update docstring noting <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">@concurrent</code> requirements for stub conformers.</td></tr>
-          </tbody>
-        </table>
-      </div>
+      <h4>Modified files</h4>
+      <table class="fields">
+        <thead><tr><th>Path</th><th>Change</th></tr></thead>
+        <tbody>
+          <tr><td class="field">IdentityCenterService.swift</td><td class="note">Add <code>nonisolated let events</code> + <code>eventContinuation</code>. Init creates both via <code>AsyncStream.makeStream(of:bufferingPolicy:)</code>. <code>signIn</code> emits <code>.signInStarted</code>/<code>.signedIn</code>/<code>.signInCancelled</code>/<code>.signInFailed</code> and schedules expiration on success.</td></tr>
+          <tr><td class="field">IdentityCenterServicing.swift</td><td class="note">Add <code>status</code>, <code>signOut</code>, <code>events</code> to the protocol per <a href="#data-flow">D6</a>.</td></tr>
+          <tr><td class="field">Errors.swift</td><td class="note">Add <code>Equatable</code> conformance to <code>IAMIdentityCenterError</code> (needed for <code>error != .userCancelled</code> comparison in <code>CredentialsModel</code>).</td></tr>
+          <tr><td class="field">Credentials/CredentialsModel.swift</td><td class="note">Add <code>status</code> + <code>signOutFailure</code> properties; remove <code>lastToken</code>; add <code>observeStatus</code> + <code>signOut</code>; stream consumer Task in init per <a href="#runtime-edges">D7</a>.</td></tr>
+          <tr><td class="field">Views/SidebarRows/SessionRow.swift</td><td class="note">Replace inline icon with <code>SessionStatusIcon</code>. Add <code>.task(id: session.id)</code> calling <code>model.observeStatus</code>. Extend <code>accessibilityLabel</code>.</td></tr>
+          <tr><td class="field">Views/Detail/SignInPanel.swift</td><td class="note">Refactor to take <code>SessionAuthStatus</code> + three view modes per <a href="#event-driven">D8</a>. Add Sign Out button + advisory + <code>onSignOut</code>.</td></tr>
+          <tr><td class="field">Views/Detail/SessionDetailView.swift</td><td class="note">Update <code>SignInPanel</code> call site, new previews.</td></tr>
+        </tbody>
+      </table>
 
-      <h4 class="font-mono text-[0.78rem] tracking-wider uppercase text-slate-400 mt-7 mb-2 font-semibold">New + modified files — <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">quorra/App/</code></h4>
-      <div class="overflow-x-auto my-4">
-        <table class="w-full text-sm border-collapse">
-          <thead><tr class="border-b border-slate-700"><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2">Path</th><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2">Change</th></tr></thead>
-          <tbody>
-            <tr class="border-b border-slate-800/60"><td class="px-3 py-2 text-coral-400 font-mono">Credentials/CredentialsModel.swift</td><td class="px-3 py-2 text-slate-400">Add <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">status</code> + <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signOutFailure</code> properties; remove <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">lastToken</code>; add <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">observeStatus</code> + <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signOut</code>; add stream-consumer Task in init per <a class="text-coral-400 hover:text-coral-500" href="#runtime-edges">D7</a>. Update DEBUG test seams.</td></tr>
-            <tr class="border-b border-slate-800/60"><td class="px-3 py-2 text-coral-400 font-mono">Views/SidebarRows/SessionStatusIcon.swift <span class="text-success-300">(new)</span></td><td class="px-3 py-2 text-slate-400">Pure view: <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SessionAuthStatus</code> → SF Symbol with foregroundStyle + symbolEffect. No timing logic.</td></tr>
-            <tr class="border-b border-slate-800/60"><td class="px-3 py-2 text-coral-400 font-mono">Views/SidebarRows/SessionRow.swift</td><td class="px-3 py-2 text-slate-400">Replace inline <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Image(systemName: "key.icloud")</code> with <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SessionStatusIcon</code>. Add <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.task(id: session.id)</code> calling <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">model.observeStatus</code>. Extend <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">accessibilityLabel</code> with the status phrase.</td></tr>
-            <tr class="border-b border-slate-800/60"><td class="px-3 py-2 text-coral-400 font-mono">Views/Detail/SignInPanel.swift</td><td class="px-3 py-2 text-slate-400">Refactor inputs to take <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SessionAuthStatus</code> + supporting payloads (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">inFlight</code> progress, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signOutFailureFlag</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">lastError</code>). Three view modes: <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">needsAction</code> / <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">inProgress</code> / <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">ready</code> per <a class="text-coral-400 hover:text-coral-500" href="#event-driven">D8</a>. Add Sign Out button + soft advisory + <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">onSignOut</code> callback.</td></tr>
-            <tr><td class="px-3 py-2 text-coral-400 font-mono">Views/Detail/SessionDetailView.swift</td><td class="px-3 py-2 text-slate-400">Update <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SignInPanel</code> call site to pass <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">status[node.id]</code> + the new callbacks. Add the four previews' new "expired needs sign-in" + "sign-out advisory" states.</td></tr>
-          </tbody>
-        </table>
-      </div>
+      <h4>App-side new</h4>
+      <table class="fields">
+        <thead><tr><th>Path</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td class="field">Views/SidebarRows/SessionStatusIcon.swift</td><td class="note">Pure view: <code>SessionAuthStatus</code> → SF Symbol with foregroundStyle + symbolEffect.</td></tr>
+          <tr><td class="field">Credentials/PreviewIdentityCenterService.swift</td><td class="note">Shared <code>#if DEBUG</code> inert stub for SwiftUI previews. Replaces four duplicates discovered during <code>/simplify</code> review.</td></tr>
+        </tbody>
+      </table>
 
-      <h4 class="font-mono text-[0.78rem] tracking-wider uppercase text-slate-400 mt-7 mb-2 font-semibold">Tests</h4>
-      <div class="overflow-x-auto my-4">
-        <table class="w-full text-sm border-collapse">
-          <thead><tr class="border-b border-slate-700"><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2">Path</th><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2">Coverage</th></tr></thead>
-          <tbody>
-            <tr class="border-b border-slate-800/60"><td class="px-3 py-2 text-coral-400 font-mono">IAMIdentityCenterTests/StatusTests.swift <span class="text-success-300">(new)</span></td><td class="px-3 py-2 text-slate-400">Keychain → enum mapping. Missing row → signedOut; valid row → signedIn; past-expiresAt row → expired; <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">canRefresh</code> derived from refreshToken presence; malformed row absorbed as signedOut per <a class="text-coral-400 hover:text-coral-500" href="#runtime-edges">D7</a>.</td></tr>
-            <tr class="border-b border-slate-800/60"><td class="px-3 py-2 text-coral-400 font-mono">IAMIdentityCenterTests/SignOutTests.swift <span class="text-success-300">(new)</span></td><td class="px-3 py-2 text-slate-400">Happy path: row deleted, /logout fired, signedOut event emitted. Server failure: signedOut + signOutServerSideFailed both emitted, Keychain still cleared. Missing row: idempotent no-op. In-flight signIn: cancelled before sign-out proceeds.</td></tr>
-            <tr class="border-b border-slate-800/60"><td class="px-3 py-2 text-coral-400 font-mono">IAMIdentityCenterTests/ExpirationTimerTests.swift <span class="text-success-300">(new)</span></td><td class="px-3 py-2 text-slate-400">Schedule fires .expired at exact <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expiresAt</code> using a controllable clock (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">MockSleeper</code> from Phase 1's test infrastructure). Cancellation on signOut. Re-schedule on new signIn. Opportunistic schedule on first status() after restart.</td></tr>
-            <tr class="border-b border-slate-800/60"><td class="px-3 py-2 text-coral-400 font-mono">IAMIdentityCenterTests/AuthEventStreamTests.swift <span class="text-success-300">(new)</span></td><td class="px-3 py-2 text-slate-400">Each operation emits exactly the documented events (use Swift Testing's <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">confirmation(expectedCount:)</code>). Multiple consumers of <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">events</code> would fatal-error (single-consumer invariant).</td></tr>
-            <tr class="border-b border-slate-800/60"><td class="px-3 py-2 text-coral-400 font-mono">QuorraAppTests/CredentialsModelTests.swift</td><td class="px-3 py-2 text-slate-400">Extend existing: stream consumer Task updates status on events; <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">observeStatus</code> populates cache; <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signOut</code> delegates to service; <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signOutFailure</code> set on event; cleared on next signIn.</td></tr>
-            <tr><td class="px-3 py-2 text-coral-400 font-mono">QuorraAppTests/SessionStatusIconTests.swift <span class="text-success-300">(new)</span></td><td class="px-3 py-2 text-slate-400">Snapshot or property-test: each <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SessionAuthStatus</code> case → expected (symbol, color, effect) tuple per <a class="text-coral-400 hover:text-coral-500" href="#decisions">D4</a>.</td></tr>
-          </tbody>
-        </table>
-      </div>
+      <h4>Tests</h4>
+      <table class="fields">
+        <thead><tr><th>Path</th><th>Coverage</th></tr></thead>
+        <tbody>
+          <tr><td class="field">StatusTests.swift</td><td class="note">Keychain → enum mapping. Missing/valid/expired rows; <code>canRefresh</code> derived from refreshToken presence; malformed row absorbed as signedOut.</td></tr>
+          <tr><td class="field">SignOutTests.swift</td><td class="note">Happy path; server failure; idempotent missing-row; cancels in-flight signIn.</td></tr>
+          <tr><td class="field">ExpirationTimerTests.swift</td><td class="note">Schedule fires <code>.expired</code> at deadline. Cancellation on signOut. Opportunistic schedule on status query after restart. <strong><code>noDoubleTimer</code> verifies the one-wake-up claim.</strong></td></tr>
+          <tr><td class="field">AuthEventStreamTests.swift</td><td class="note">Each operation emits exactly the documented events (via Swift Testing's <code>confirmation</code>).</td></tr>
+          <tr><td class="field">CredentialsModelTests.swift</td><td class="note">Extended: stream consumer updates status on events; <code>signOutFailure</code> set on event; cleared on next signIn.</td></tr>
+          <tr><td class="field">SessionStatusIconTests.swift</td><td class="note">Each <code>SessionAuthStatus</code> case → expected (symbol, color, effect) tuple per <a href="#decisions">D4</a>.</td></tr>
+          <tr><td class="field">Stubs/TestHelpers.swift</td><td class="note">Shared <code>EventCollector</code>, <code>EventCounter</code>, <code>registerStub</code>, <code>deviceAuthStub</code> — extracted during <code>/simplify</code> review to eliminate duplication across test files.</td></tr>
+        </tbody>
+      </table>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Acceptance criteria</h3>
-      <ol class="ml-6 mb-4 list-decimal">
-        <li class="my-1 marker:text-coral-400">After Scope 1 sign-in completes, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SessionRow</code> shows <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">key.icloud.fill</code> in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.green</code>. <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SignInPanel</code> ready mode shows <strong class="font-semibold text-slate-100">[Sign out] [Sign in again]</strong>.</li>
-        <li class="my-1 marker:text-coral-400">Clicking <strong class="font-semibold text-slate-100">Sign out</strong>: Keychain row deleted, Portal <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">/logout</code> fired best-effort, status flips to signedOut, icon to outline <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">key.icloud</code> in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.secondary</code>, panel back to <em class="italic text-slate-400">needsAction</em>.</li>
-        <li class="my-1 marker:text-coral-400">If Portal <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">/logout</code> fails: panel's <em class="italic text-slate-400">needsAction</em> mode shows the soft advisory copy from <a class="text-coral-400 hover:text-coral-500" href="#runtime-edges">D7</a>; cleared on next sign-in.</li>
-        <li class="my-1 marker:text-coral-400">Wall clock crosses <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expiresAt</code> with no refresh token: actor emits <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.expired</code>, model re-pulls, icon flips to <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">key.icloud</code> in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.red</code>. Panel <em class="italic text-slate-400">needsAction</em> mode shows "Token expired" caption.</li>
-        <li class="my-1 marker:text-coral-400">After app restart with a valid stored token: first <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">status(forSession:)</code> opportunistically schedules an expiration timer; sidebar icon renders correctly without a fresh sign-in.</li>
-        <li class="my-1 marker:text-coral-400">Read-only mode permits sign-in and sign-out (auth state is orthogonal to file-write gating).</li>
-        <li class="my-1 marker:text-coral-400">Existing 315 Scope 1 tests still pass with no semantic changes; new tests bring the suite to ~345+.</li>
-        <li class="my-1 marker:text-coral-400">Strict concurrency passes under Swift 6.2 with no <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">@unchecked</code> escapes.</li>
-        <li class="my-1 marker:text-coral-400">Power: a continuously-signed-in 8h session triggers <strong class="font-semibold text-slate-100">one</strong> OS wake-up at <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expiresAt</code>, not periodic ticks.</li>
-        <li class="my-1 marker:text-coral-400">VoiceOver reads the status phrase as part of each <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SessionRow</code>'s accessibility label; "Differentiate without color" doesn't degrade meaning (shape varies per <a class="text-coral-400 hover:text-coral-500" href="#decisions">D4</a>).</li>
+      <h3>Acceptance criteria — verified</h3>
+      <ol>
+        <li>After Scope 1 sign-in completes, <code>SessionRow</code> shows <code>key.icloud.fill</code> in <code>.green</code>. <code>SignInPanel</code> ready mode shows <strong>[Sign out] [Sign in again]</strong>. ✓</li>
+        <li>Clicking <strong>Sign out</strong>: Keychain row deleted, Portal <code>/logout</code> fired best-effort, status flips to signedOut, icon to outline <code>key.icloud</code> in <code>.secondary</code>. ✓</li>
+        <li>Portal <code>/logout</code> failure surfaces the soft advisory; cleared on next sign-in. ✓ (<code>SignOutTests.serverFailure</code>)</li>
+        <li>Wall clock crosses <code>expiresAt</code> with no refresh token: actor emits <code>.expired</code>, model re-pulls, icon flips. ✓ (<code>ExpirationTimerTests.timerFiresExpiredEvent</code>)</li>
+        <li>App restart with valid stored token: first <code>status(forSession:)</code> opportunistically schedules a timer. ✓ (<code>ExpirationTimerTests.noDoubleTimer</code>)</li>
+        <li>Read-only mode permits sign-in and sign-out. ✓</li>
+        <li>Existing Scope 1 tests still pass: <strong>315 + 42 = 357 passing</strong>, 0 failed, 1 pre-existing skip. ✓</li>
+        <li>Strict concurrency clean under Swift 6.2. ✓</li>
+        <li><strong>One OS wake-up per signed-in 8h session</strong> — verified by <code>noDoubleTimer</code>. ✓</li>
+        <li>VoiceOver reads the status phrase as part of each <code>SessionRow</code>'s accessibility label. ✓</li>
       </ol>
 
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Xcode UI steps (manual)</h3>
-      <p class="mb-4">None. A1 doesn't touch the pbxproj or entitlements. All changes are in Swift sources and tests under the existing targets.</p>
-
-      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Size estimate</h3>
-      <p class="mb-4">~600 LOC source + ~500 LOC tests. Mostly mechanical given the design above. Ship as one PR.</p>
-
-      <div class="my-6 border-l-[3px] border-sky-300 pl-4 py-3 pr-5 bg-sky-300/[0.08] rounded-r text-[0.95rem]">
-        <strong class="font-mono text-[0.7rem] tracking-wider uppercase text-sky-300 mr-2">execution shape</strong>The Scope 1 execution model (a senior agent plans, a Sonnet subagent executes per scope, the senior reviews with <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">/simplify</code>) carries forward unchanged. A1 is one Sonnet scope; A2 is the next.</div>
+      <h3>Senior review (<code>/simplify</code>) outcomes</h3>
+      <p>Three parallel review agents (reuse, quality, efficiency) ran on the diff. Findings applied:</p>
+      <ul>
+        <li>Extracted shared <code>PreviewIdentityCenterService</code> — eliminated 4 duplicate preview stubs.</li>
+        <li>Extracted <code>Stubs/TestHelpers.swift</code> — eliminated 4 duplicate <code>EventCollector</code> actors + 4 duplicate <code>registerStub</code>/<code>deviceAuthStub</code> pairs.</li>
+        <li>Replaced stringly-typed Keychain service literal with <code>ServiceConstants.ssoTokenService</code> (16 occurrences across 5 test files).</li>
+        <li><code>AsyncStream</code> bufferingPolicy: <code>.bufferingNewest(16)</code> instead of unbounded default.</li>
+        <li><code>observeStatus</code> skips Keychain hop when cache is populated — <code>SessionRow.task(id:)</code> re-fires no longer trigger redundant reads.</li>
+        <li>Renamed <code>signOutFailureFlag</code> → <code>signOutFailed</code>; removed commodity-API Apple citations (e.g. <code>Image(systemName:)</code>); cleaned up <code>handleExpiration</code>'s <code>try?</code> + <code>isCancelled</code> guard.</li>
+      </ul>
     </section>
 
     <section id="scope-a2">
-      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">A2</span>Silent refresh + live token</h2>
-      <div class="my-6 border-l-[3px] border-warning-300 pl-4 py-3 pr-5 bg-warning-300/[0.08] rounded-r text-[0.95rem]">
-        <strong class="font-mono text-[0.7rem] tracking-wider uppercase text-warning-300 mr-2">TBD</strong>Fills in once A1's design is firm — refresh decisions depend on stream + status shape.
-      </div>
+      <h2><span class="section-anchor">A2</span>Silent refresh + live token</h2>
+      <div class="callout warn"><strong>TBD</strong>Detailed file map and acceptance criteria land here once A2 design interview opens.</div>
+
+      <h3>Surface preview</h3>
+      <ul>
+        <li><code>refresh_token</code> grant added to <code>OIDCClient.createToken</code></li>
+        <li><code>liveToken(forSession:)</code> — lazy refresh on read, 5-min pre-expiry skew per <a href="IAMIdentityCenterDeviceAuth.html#lifetimes">research §09</a></li>
+        <li><code>refreshNow(sessionName:)</code> — always-mutating, user-initiated</li>
+        <li>The actor's expiration timer becomes a <em>refresh</em> timer at <code>expiresAt - 5min</code> instead of firing <code>.expired</code>; emits <code>.refreshing</code> / <code>.refreshed</code> / <code>.refreshFailed</code> events that the model already knows how to handle (A1 reserved the events)</li>
+      </ul>
     </section>
 
     <section id="scope-b">
-      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">B</span>Role credentials + profile dot</h2>
-      <p class="mb-4">Deferred — separate planning interview once A2 ships. See the scope map above for the intended surface.</p>
+      <h2><span class="section-anchor">B</span>Role credentials + profile icon</h2>
+      <p>Deferred — separate planning interview once A2 ships. See the scope map above for the intended surface.</p>
     </section>
 
     <section id="scope-c">
-      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">C</span>IMDS endpoint</h2>
-      <p class="mb-4">Deferred — separate planning interview once B ships. See the scope map above for the intended surface.</p>
+      <h2><span class="section-anchor">C</span>IMDS endpoint</h2>
+      <p>Deferred — separate planning interview once B ships. See the scope map above for the intended surface.</p>
     </section>
 
-    <footer class="mt-24 pt-6 border-t border-slate-800 text-slate-500 text-sm font-mono flex flex-wrap justify-between gap-4">
+    <footer>
       <span class="blink">$ quorra sso lifecycle</span>
       <span>quorra · scope 2 · macOS 26 · swift 6.2</span>
     </footer>
