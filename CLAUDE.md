@@ -126,6 +126,10 @@ Sensitive values (`aws_access_key_id`, `aws_secret_access_key`, `aws_session_tok
 
 ## Development Workflow
 
+- Always base recommendations on facts and documentation, not intuition or guesswork.
+- Always read the related Apple Documentation and Apple Human Interface Guidelines (HIG) via the XCode MCP server. Always do this before making a recommendation or implementing a feature. The documentation is the source of truth for how to use Apple APIs and design for macOS.
+- Always use conventional commit syntax in commit messages, read the [spec](https://www.conventionalcommits.org/en/v1.0.0/) for details. Quorra uses `chore`, `feat`, `patch`, `docs`, and `fix` types.
+
 ### Building
 
 Use the Xcode MCP server:
