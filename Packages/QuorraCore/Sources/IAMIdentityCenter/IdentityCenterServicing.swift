@@ -10,9 +10,9 @@ import Foundation
 /// with `@escaping @concurrent @Sendable` — otherwise the inferred isolation
 /// (`nonisolated(nonsending)`) won't match the protocol's `@concurrent` requirement.
 ///
-/// The same `@concurrent` annotation applies to `status` and `signOut`. The `events` property
-/// is `nonisolated` on the actor (stored at init time), so stubs should declare it as
-/// `nonisolated var`.
+/// The same `@concurrent` annotation applies to `status`, `signOut`, `liveToken`, and
+/// `refreshNow`. The `events` property is `nonisolated` on the actor (stored at init time),
+/// so stubs should declare it as `nonisolated var`.
 public protocol IdentityCenterServicing: Sendable {
     // MARK: - Scope 1
 
@@ -55,4 +55,24 @@ public protocol IdentityCenterServicing: Sendable {
     /// consumer should iterate this stream. The production consumer is `CredentialsModel`'s
     /// init-time Task. Declare `nonisolated` in conformers.
     nonisolated var events: AsyncStream<AuthEvent> { get }
+
+    // MARK: - A2 additions
+
+    /// Returns a `StoredSSOToken` guaranteed to be valid for at least `refreshSkew` seconds.
+    ///
+    /// Contract per D12:
+    /// - Outside skew window → return current token from Keychain (no work)
+    /// - Inside skew window or past expiry with canRefresh: true → trigger refresh inline
+    /// - Past expiry with canRefresh: false → throw `.tokenExpired`
+    /// - Refresh already in flight → coalesce (await shared result)
+    /// - Not signed in → throw `.notSignedIn`
+    @concurrent
+    func liveToken(forSession sessionName: String) async throws -> StoredSSOToken
+
+    /// Programmatically triggers a refresh attempt for the named session.
+    ///
+    /// Coalesces with any existing in-flight refresh (D12). UI surfaces this on transient
+    /// `.refreshFailed` only (D16).
+    @concurrent
+    func refreshNow(sessionName: String) async throws -> StoredSSOToken
 }

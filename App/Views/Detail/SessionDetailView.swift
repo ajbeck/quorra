@@ -150,6 +150,10 @@ struct SessionDetailView: View {
                 lastError: credentialsModel.lastError[node.id],
                 signOutFailed: credentialsModel.signOutFailure.contains(node.id),
                 isReadOnly: isReadOnly,
+                // A2 (D17): refreshing overlay from CredentialsModel
+                isRefreshing: credentialsModel.refreshingNow.contains(node.id),
+                // A2 (D16): transient failure advisory
+                hasRefreshFailure: credentialsModel.refreshFailure.contains(node.id),
                 onSignIn: { triggerSignIn() },
                 onCancel: {
                     Task {
@@ -159,6 +163,12 @@ struct SessionDetailView: View {
                 onSignOut: {
                     Task {
                         await credentialsModel.signOut(sessionName: node.id)
+                    }
+                },
+                // A2 (D16): "Refresh now" button in transient-failure advisory
+                onRefreshNow: {
+                    Task {
+                        await credentialsModel.refreshNow(sessionName: node.id)
                     }
                 }
             )
@@ -211,6 +221,19 @@ struct SessionDetailView: View {
     SessionDetailPreviewHarness(mode: .readOnly, previewState: .signedIn)
 }
 
+// A2 previews (D16, D17)
+#Preview("Refreshing overlay") {
+    SessionDetailPreviewHarness(mode: .managed, previewState: .refreshing)
+}
+
+#Preview("Refresh transient failure") {
+    SessionDetailPreviewHarness(mode: .managed, previewState: .refreshTransientFailure)
+}
+
+#Preview("Signed in – canRefresh false") {
+    SessionDetailPreviewHarness(mode: .managed, previewState: .signedInNoRefresh)
+}
+
 private enum PreviewState {
     case idle
     case signingIn
@@ -218,6 +241,10 @@ private enum PreviewState {
     case signedIn
     case expiredNeedsSignIn
     case signOutAdvisory
+    // A2
+    case refreshing
+    case refreshTransientFailure
+    case signedInNoRefresh
 }
 
 private struct SessionDetailPreviewHarness: View {
@@ -282,7 +309,7 @@ private struct SessionDetailPreviewHarness: View {
                 credentialsModel.seedStatusForTesting(.signedOut, sessionName: "acme")
             case .signedIn:
                 credentialsModel.seedStatusForTesting(
-                    .signedIn(expiresAt: Date(timeIntervalSinceNow: 8 * 3600), canRefresh: false),
+                    .signedIn(expiresAt: Date(timeIntervalSinceNow: 8 * 3600), canRefresh: true),
                     sessionName: "acme"
                 )
             case .expiredNeedsSignIn:
@@ -293,6 +320,23 @@ private struct SessionDetailPreviewHarness: View {
             case .signOutAdvisory:
                 credentialsModel.seedStatusForTesting(.signedOut, sessionName: "acme")
                 credentialsModel.seedSignOutFailureForTesting(sessionName: "acme")
+            case .refreshing:
+                credentialsModel.seedStatusForTesting(
+                    .signedIn(expiresAt: Date(timeIntervalSinceNow: 3600), canRefresh: true),
+                    sessionName: "acme"
+                )
+                credentialsModel.seedRefreshingNowForTesting(sessionName: "acme")
+            case .refreshTransientFailure:
+                credentialsModel.seedStatusForTesting(
+                    .signedIn(expiresAt: Date(timeIntervalSinceNow: 3600), canRefresh: true),
+                    sessionName: "acme"
+                )
+                credentialsModel.seedRefreshFailureForTesting(sessionName: "acme")
+            case .signedInNoRefresh:
+                credentialsModel.seedStatusForTesting(
+                    .signedIn(expiresAt: Date(timeIntervalSinceNow: 3600), canRefresh: false),
+                    sessionName: "acme"
+                )
             }
         }
     }
@@ -313,4 +357,3 @@ private struct SessionDetailPreviewHarness: View {
         """
     }
 }
-

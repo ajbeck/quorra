@@ -8,9 +8,15 @@ import IAMIdentityCenter
 /// Inclusive color. Color is semantic. Motion respects Reduce Motion automatically
 /// because `symbolEffect(_:options:isActive:)` is Apple-provided.
 ///
+/// **A2 (D17):** `isRefreshing: Bool` overlay parameter drives the `.pulse` effect.
+/// The pulse is independent of the auth status — the icon stays green/filled while
+/// refresh is in flight; only the motion changes. Callers pass
+/// `credentialsModel.refreshingNow.contains(session.id)`.
+///
 /// Apple: SwiftUI/View/symbolEffect(_:options:isActive:)
 struct SessionStatusIcon: View {
     let authStatus: SessionAuthStatus
+    var isRefreshing: Bool = false
 
     var body: some View {
         Image(systemName: authStatus.symbolName)
@@ -22,10 +28,11 @@ struct SessionStatusIcon: View {
                 options: .repeating,
                 isActive: authStatus.statusEffect == .variableColor
             )
+            // D17: refreshing overlay — pulse effect driven by CredentialsModel.refreshingNow
             .symbolEffect(
                 .pulse,
                 options: .repeating,
-                isActive: authStatus.statusEffect == .pulse
+                isActive: isRefreshing
             )
             .accessibilityHidden(true)  // Parent row carries the accessibility label
     }
@@ -71,7 +78,10 @@ struct SessionStatusIcon: View {
         .padding()
 }
 
-#Preview("refreshing") {
-    SessionStatusIcon(authStatus: .refreshing)
-        .padding()
+#Preview("refreshing overlay") {
+    SessionStatusIcon(
+        authStatus: .signedIn(expiresAt: Date().addingTimeInterval(3600), canRefresh: true),
+        isRefreshing: true
+    )
+    .padding()
 }

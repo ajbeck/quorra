@@ -7,6 +7,8 @@ import IAMIdentityCenter
 /// Wraps the actor's flows with UI-friendly state:
 /// - `status`: cached `SessionAuthStatus` per session (primary source of truth for views)
 /// - `signOutFailure`: sessions where /logout failed (soft advisory)
+/// - `refreshingNow`: sessions with an active silent refresh in flight (D17, A2)
+/// - `refreshFailure`: sessions that had a transient refresh failure (D16, A2)
 /// - `inFlight`: in-flight device-flow progress (for the inProgress panel mode)
 /// - `lastError`: last sign-in error per session
 ///
@@ -26,6 +28,16 @@ final class CredentialsModel {
     /// Sessions for which the Portal /logout network call failed.
     /// Drives the soft advisory copy in `SignInPanel`'s `needsAction` mode.
     private(set) var signOutFailure: Set<String> = []
+
+    /// Sessions with an active silent refresh in flight (D17).
+    /// Drives the `isRefreshing` overlay on `SessionStatusIcon` and the "refreshing" caption in `SignInPanel`.
+    /// Populated on `.refreshing`, cleared on `.refreshed` / `.refreshFailed`.
+    private(set) var refreshingNow: Set<String> = []
+
+    /// Sessions that had a transient refresh failure (D16).
+    /// Drives the "Couldn't refresh your session. [Refresh now]" advisory in `SignInPanel`.
+    /// Populated on `.refreshFailed`, cleared on `.refreshed` / next `.signedIn` / `.signedOut`.
+    private(set) var refreshFailure: Set<String> = []
 
     /// In-flight device-flow progress per session (for the `inProgress` panel mode).
     private(set) var inFlight: [String: SignInProgress] = [:]
@@ -61,9 +73,9 @@ final class CredentialsModel {
 
     /// Drives sign-in for the given SSO session.
     ///
-    /// Clears any prior `signOutFailure` and `lastError` for the session before starting.
-    /// On the verificationHandler callback, populates `inFlight[sessionName]`. On success or
-    /// failure, the event stream consumer updates `status` asynchronously.
+    /// Clears any prior `signOutFailure`, `refreshFailure`, and `lastError` for the session
+    /// before starting. On the verificationHandler callback, populates `inFlight[sessionName]`.
+    /// On success or failure, the event stream consumer updates `status` asynchronously.
     func signIn(
         sessionName: String,
         startUrl: URL,
@@ -73,6 +85,7 @@ final class CredentialsModel {
         // Clear stale state — guard against false invalidation on no-op assignment
         if lastError[sessionName] != nil { lastError[sessionName] = nil }
         if signOutFailure.contains(sessionName) { signOutFailure.remove(sessionName) }
+        if refreshFailure.contains(sessionName) { refreshFailure.remove(sessionName) }
 
         do {
             _ = try await service.signIn(
@@ -113,6 +126,22 @@ final class CredentialsModel {
         }
     }
 
+    /// Triggers a programmatic refresh for the named session (D16).
+    ///
+    /// Called by the "Refresh now" button in `SignInPanel`'s transient-failure advisory.
+    /// Clears `refreshFailure` before attempting so the UI returns to neutral immediately.
+    func refreshNow(sessionName: String) async {
+        // Optimistically clear the failure advisory — the new attempt will either succeed
+        // (refreshed event clears refreshingNow) or fail again (refreshFailed event re-sets it).
+        if refreshFailure.contains(sessionName) { refreshFailure.remove(sessionName) }
+
+        do {
+            _ = try await service.refreshNow(sessionName: sessionName)
+        } catch {
+            // Failure surfaces via the .refreshFailed event; nothing to do here.
+        }
+    }
+
     /// Populates `status[sessionName]` from the actor. Called by `SessionRow.task(id:)`.
     ///
     /// Per D6: each visible SessionRow calls this once; the stream consumer Task handles
@@ -138,8 +167,10 @@ final class CredentialsModel {
 
         case .signedIn(let name):
             if inFlight[name] != nil { inFlight[name] = nil }
-            // Clear sign-out advisory on successful re-sign-in
+            // Clear sign-out advisory and refresh failure on successful re-sign-in
             if signOutFailure.contains(name) { signOutFailure.remove(name) }
+            if refreshFailure.contains(name) { refreshFailure.remove(name) }
+            if refreshingNow.contains(name) { refreshingNow.remove(name) }
             await refreshStatus(for: name)
 
         case .signInCancelled(let name):
@@ -152,6 +183,8 @@ final class CredentialsModel {
 
         case .signedOut(let name):
             if signOutFailure.contains(name) { signOutFailure.remove(name) }
+            if refreshFailure.contains(name) { refreshFailure.remove(name) }
+            if refreshingNow.contains(name) { refreshingNow.remove(name) }
             await refreshStatus(for: name)
 
         case .expired(let name):
@@ -161,12 +194,21 @@ final class CredentialsModel {
             signOutFailure.insert(name)
 
         case .refreshing(let name):
+            // D17: populate the refreshingNow overlay; status stays signedIn
+            refreshingNow.insert(name)
+            // Still re-pull status in case Keychain was updated between events
             await refreshStatus(for: name)
 
         case .refreshed(let name):
+            // Clear both overlays; re-pull status (new token's expiresAt)
+            if refreshingNow.contains(name) { refreshingNow.remove(name) }
+            if refreshFailure.contains(name) { refreshFailure.remove(name) }
             await refreshStatus(for: name)
 
         case .refreshFailed(let name):
+            // D17: clear refreshingNow; D16: set refreshFailure for transient advisory
+            if refreshingNow.contains(name) { refreshingNow.remove(name) }
+            refreshFailure.insert(name)
             await refreshStatus(for: name)
         }
     }
@@ -207,6 +249,16 @@ final class CredentialsModel {
     /// Test seam: write-access to `signOutFailure` for setting up advisory preconditions.
     func seedSignOutFailureForTesting(sessionName: String) {
         signOutFailure.insert(sessionName)
+    }
+
+    /// Test seam: write-access to `refreshingNow` for setting up refreshing-overlay preconditions.
+    func seedRefreshingNowForTesting(sessionName: String) {
+        refreshingNow.insert(sessionName)
+    }
+
+    /// Test seam: write-access to `refreshFailure` for setting up refresh-failure advisory preconditions.
+    func seedRefreshFailureForTesting(sessionName: String) {
+        refreshFailure.insert(sessionName)
     }
     #endif
 }

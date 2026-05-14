@@ -5,8 +5,11 @@ import Foundation
 /// Produced by `IdentityCenterService.status(forSession:)` and cached in `CredentialsModel.status`.
 /// Views read the cache; the sidebar icon, panel mode, and VoiceOver label all derive from this one value.
 ///
-/// **D1:** Five-case enum with a `canRefresh` boolean on `signedIn` and `expired` so the UI can
+/// **D1 / D17:** Four-case enum with a `canRefresh` boolean on `signedIn` and `expired` so the UI can
 /// disambiguate "expired but will auto-heal" (A2 silent refresh) from "expired, please sign in."
+/// `case refreshing` was removed in A2 — "refreshing" is a transient activity overlay, not a session-auth
+/// state. The actor's source-of-truth status during refresh is `signedIn(expiresAt:, canRefresh:)`.
+/// The overlay lives in `CredentialsModel.refreshingNow: Set<String>`.
 public enum SessionAuthStatus: Sendable, Hashable {
     /// No token in the Keychain (never signed in, or after sign-out).
     case signedOut
@@ -21,9 +24,7 @@ public enum SessionAuthStatus: Sendable, Hashable {
 
     /// A device-authorization sign-in flow is in progress for this session.
     case signingIn
-
-    /// A silent refresh is in flight (A2).
-    case refreshing
+    // case refreshing — removed in A2 (D17); lives in CredentialsModel.refreshingNow
 }
 
 // MARK: - Sidebar icon properties (D4)
@@ -33,6 +34,7 @@ extension SessionAuthStatus {
     ///
     /// Shape (outline vs. filled) is the load-bearing signal per HIG Inclusive color:
     /// outline = action needed or absent; filled = settled / has token.
+    /// The refreshing overlay (A2) is applied by `SessionStatusIcon` via `isRefreshing: Bool`.
     public var symbolName: String {
         switch self {
         case .signedOut:
@@ -46,26 +48,26 @@ extension SessionAuthStatus {
             return "key.icloud"
         case .signingIn:
             return "key.icloud.fill"
-        case .refreshing:
-            return "key.icloud.fill"
         }
     }
 
     /// Whether to apply a symbol effect to this status icon. Nil means no effect.
+    ///
+    /// Note: `.pulse` for the refreshing state is now applied via `SessionStatusIcon`'s
+    /// `isRefreshing: Bool` overlay parameter (D17), not via this enum.
     public enum StatusEffect: Sendable, Hashable {
         /// `.variableColor` repeating — used for `signingIn`.
         case variableColor
-        /// `.pulse` repeating — used for `refreshing` (A2).
+        /// `.pulse` repeating — used when `isRefreshing` overlay is active in `SessionStatusIcon`.
         case pulse
     }
 
-    /// Effect to apply to the icon (nil = none).
+    /// Effect to apply to the icon (nil = none). Only `signingIn` applies an effect from
+    /// the status itself; the refreshing pulse is driven by the `isRefreshing` overlay.
     public var statusEffect: StatusEffect? {
         switch self {
         case .signingIn:
             return .variableColor
-        case .refreshing:
-            return .pulse
         default:
             return nil
         }
@@ -96,8 +98,6 @@ extension SessionAuthStatus {
             return "token expired, sign in required"
         case .signingIn:
             return "signing in"
-        case .refreshing:
-            return "refreshing"
         }
     }
 }
@@ -108,7 +108,7 @@ extension SessionAuthStatus {
     /// Semantic color role for `foregroundStyle`. The view layer maps this to a SwiftUI `Color`.
     public enum ForegroundRole: Sendable, Hashable {
         case secondary   // signedOut
-        case green       // signedIn / expired(canRefresh: true) / refreshing
+        case green       // signedIn / expired(canRefresh: true)
         case red         // expired(canRefresh: false)
         case tint        // signingIn
     }
@@ -126,8 +126,6 @@ extension SessionAuthStatus {
             return .red
         case .signingIn:
             return .tint
-        case .refreshing:
-            return .green
         }
     }
 }

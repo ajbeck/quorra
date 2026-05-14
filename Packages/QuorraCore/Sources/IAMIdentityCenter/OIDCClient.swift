@@ -139,7 +139,7 @@ public struct OIDCClient: Sendable {
 
     // MARK: - HTTP
 
-    private func post<Request: Encodable, Response: Decodable>(
+    internal func post<Request: Encodable, Response: Decodable>(
         path: String,
         body: Request
     ) async throws -> Response {
