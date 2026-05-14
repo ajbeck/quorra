@@ -2,11 +2,13 @@ import SwiftUI
 import IAMIdentityCenter
 import AppKit
 
-/// Three-state inline sign-in panel for SSO sessions.
+/// Four-state inline sign-in panel for SSO sessions.
 ///
-/// Branches on the passed-in state (idle, in-flight, or error) and renders the appropriate UI:
-/// idle shows the sign-in button, in-flight shows the user code + progress + cancel, error shows
-/// the error message + retry.
+/// Branches on the passed-in state in priority order:
+/// 1. in-flight — user code + progress + cancel
+/// 2. error — error message + retry
+/// 3. signed in — success badge + countdown timer + "Sign in again"
+/// 4. idle — sign-in button (or missing-field warning)
 struct SignInPanel: View {
     let sessionName: String
     let startUrl: URL?
@@ -14,16 +16,18 @@ struct SignInPanel: View {
     let scopes: [String]?
     let progress: SignInProgress?
     let error: IAMIdentityCenterError?
+    let signedInToken: StoredSSOToken?
     let isReadOnly: Bool
     let onSignIn: () -> Void
     let onCancel: () -> Void
-    let onRetry: () -> Void
-    
+
     var body: some View {
         if let progress = progress {
             inFlightView(progress: progress)
         } else if let error = error {
             errorView(error: error)
+        } else if let signedInToken = signedInToken {
+            signedInView(token: signedInToken)
         } else {
             idleView
         }
@@ -97,13 +101,38 @@ struct SignInPanel: View {
             }
             
             Button("Try again") {
-                onRetry()
+                onSignIn()
             }
             .controlSize(.small)
             .disabled(isReadOnly)
         }
     }
     
+    @ViewBuilder
+    private func signedInView(token: StoredSSOToken) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Signed in.").font(.callout.weight(.semibold))
+                HStack(spacing: 4) {
+                    Text("Token expires in")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    // Apple: SwiftUI/Text/init(timerInterval:pauseTime:countsDown:showsHours:)
+                    Text(timerInterval: Date.now...token.expiresAt, countsDown: true)
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer(minLength: 0)
+            Button("Sign in again") { onSignIn() }
+                .controlSize(.small)
+                .disabled(isReadOnly)
+        }
+    }
+
     private var firstMissingRequiredField: String? {
         if startUrl == nil {
             return "sso_start_url"
