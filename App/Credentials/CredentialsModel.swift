@@ -5,13 +5,15 @@ import IAMIdentityCenter
 /// Observable presenter for IAM Identity Center sign-in state.
 ///
 /// Wraps the actor's `signIn` flow with UI-friendly state: an in-flight dictionary the view
-/// reads to render progress, and a last-error dictionary the view reads to render failures.
+/// reads to render progress, a last-error dictionary the view reads to render failures, and a
+/// last-token dictionary the view reads to render the post-sign-in success state.
 /// All public mutations go through MainActor methods.
 @Observable
 @MainActor
 final class CredentialsModel {
     private(set) var inFlight: [String: SignInProgress] = [:]
     private(set) var lastError: [String: IAMIdentityCenterError] = [:]
+    private(set) var lastToken: [String: StoredSSOToken] = [:]
 
     @ObservationIgnored private let service: any IdentityCenterServicing
 
@@ -30,10 +32,13 @@ final class CredentialsModel {
         region: String,
         scopes: [String]
     ) async {
-        lastError[sessionName] = nil
+        // Guard against assigning nil onto an already-absent key — `Dictionary` subscript-set
+        // still triggers `@Observable` invalidation regardless of whether the value changed.
+        if lastError[sessionName] != nil { lastError[sessionName] = nil }
+        if lastToken[sessionName] != nil { lastToken[sessionName] = nil }
 
         do {
-            _ = try await service.signIn(
+            let token = try await service.signIn(
                 sessionName: sessionName,
                 startUrl: startUrl,
                 region: region,
@@ -44,12 +49,13 @@ final class CredentialsModel {
                     await self.recordVerification(sessionName: sessionName, verification: verification)
                 }
             )
-            inFlight[sessionName] = nil
+            lastToken[sessionName] = token
+            if inFlight[sessionName] != nil { inFlight[sessionName] = nil }
         } catch let error as IAMIdentityCenterError {
-            inFlight[sessionName] = nil
+            if inFlight[sessionName] != nil { inFlight[sessionName] = nil }
             lastError[sessionName] = error
         } catch {
-            inFlight[sessionName] = nil
+            if inFlight[sessionName] != nil { inFlight[sessionName] = nil }
             lastError[sessionName] = .malformedResponse(String(reflecting: error))
         }
     }
@@ -72,11 +78,17 @@ final class CredentialsModel {
     func seedLastErrorForTesting(_ error: IAMIdentityCenterError, sessionName: String) {
         lastError[sessionName] = error
     }
-    
+
     /// Test seam: write-access to `inFlight` for setting up "signing in" preconditions.
     /// Not callable from production code paths.
     func seedInFlightForTesting(_ progress: SignInProgress, sessionName: String) {
         inFlight[sessionName] = progress
+    }
+
+    /// Test seam: write-access to `lastToken` for setting up "signed in" preconditions.
+    /// Not callable from production code paths.
+    func seedLastTokenForTesting(_ token: StoredSSOToken, sessionName: String) {
+        lastToken[sessionName] = token
     }
     #endif
 }

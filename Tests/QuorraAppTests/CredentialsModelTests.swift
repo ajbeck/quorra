@@ -115,6 +115,115 @@ struct CredentialsModelTests {
         #expect(await stub.cancelCallCount == 1)
     }
 
+    @Test func lastTokenPopulatedOnSuccess() async throws {
+        let stub = StubIdentityCenterService()
+        let expectedExpiry = Date().addingTimeInterval(3600)
+        await stub.setVerificationToFire(DeviceVerification(
+            userCode: "ABCD-1234",
+            verificationUri: URL(string: "https://example.com/device")!,
+            verificationUriComplete: URL(string: "https://example.com/device?code=ABCD-1234")!,
+            expiresAt: Date().addingTimeInterval(300),
+            interval: 5
+        ))
+        await stub.setSignInResult(.success(StoredSSOToken(
+            accessToken: "token",
+            expiresAt: expectedExpiry,
+            refreshToken: nil,
+            issuedAt: Date(),
+            region: "us-east-1",
+            sessionName: "test-session"
+        )))
+
+        let model = CredentialsModel(service: stub)
+
+        await model.signIn(
+            sessionName: "test-session",
+            startUrl: URL(string: "https://example.com")!,
+            region: "us-east-1",
+            scopes: ["sso:account:access"]
+        )
+
+        #expect(model.lastToken["test-session"]?.accessToken == "token")
+        #expect(model.lastToken["test-session"]?.expiresAt == expectedExpiry)
+    }
+
+    @Test func startingNewSignInClearsPriorLastToken() async throws {
+        let stub = StubIdentityCenterService()
+        await stub.setVerificationToFire(DeviceVerification(
+            userCode: "ABCD-1234",
+            verificationUri: URL(string: "https://example.com/device")!,
+            verificationUriComplete: URL(string: "https://example.com/device?code=ABCD-1234")!,
+            expiresAt: Date().addingTimeInterval(300),
+            interval: 5
+        ))
+        await stub.setHoldAfterVerification(true)
+        await stub.setSignInResult(.success(StoredSSOToken(
+            accessToken: "token",
+            expiresAt: Date().addingTimeInterval(3600),
+            refreshToken: nil,
+            issuedAt: Date(),
+            region: "us-east-1",
+            sessionName: "test-session"
+        )))
+
+        let model = CredentialsModel(service: stub)
+        model.seedLastTokenForTesting(
+            StoredSSOToken(
+                accessToken: "old-token",
+                expiresAt: Date().addingTimeInterval(7200),
+                refreshToken: nil,
+                issuedAt: Date(),
+                region: "us-east-1",
+                sessionName: "test-session"
+            ),
+            sessionName: "test-session"
+        )
+
+        let signInTask = Task {
+            await model.signIn(
+                sessionName: "test-session",
+                startUrl: URL(string: "https://example.com")!,
+                region: "us-east-1",
+                scopes: ["sso:account:access"]
+            )
+        }
+
+        await stub.awaitVerificationFired()
+
+        #expect(model.lastToken["test-session"] == nil)
+
+        await stub.releaseHold()
+        await signInTask.value
+    }
+
+    @Test func failureDoesNotPopulateLastToken() async throws {
+        let stub = StubIdentityCenterService()
+        await stub.setVerificationToFire(DeviceVerification(
+            userCode: "ABCD-1234",
+            verificationUri: URL(string: "https://example.com/device")!,
+            verificationUriComplete: URL(string: "https://example.com/device?code=ABCD-1234")!,
+            expiresAt: Date().addingTimeInterval(300),
+            interval: 5
+        ))
+        await stub.setSignInResult(.failure(.userCancelled))
+
+        let model = CredentialsModel(service: stub)
+
+        await model.signIn(
+            sessionName: "test-session",
+            startUrl: URL(string: "https://example.com")!,
+            region: "us-east-1",
+            scopes: ["sso:account:access"]
+        )
+
+        #expect(model.lastToken["test-session"] == nil)
+        if case .userCancelled = model.lastError["test-session"] {
+            // expected
+        } else {
+            Issue.record("Expected .userCancelled, got \(String(describing: model.lastError["test-session"]))")
+        }
+    }
+
     @Test func startingNewSignInClearsPriorLastError() async throws {
         let stub = StubIdentityCenterService()
         await stub.setVerificationToFire(DeviceVerification(
