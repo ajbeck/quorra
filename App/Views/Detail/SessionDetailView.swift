@@ -42,10 +42,11 @@ struct SessionDetailView: View {
         .onDisappear {
             editorState.dirtyDescription = nil
         }
-        .onChange(of: credentialsModel.inFlight[node.id]) { _, newValue in
-            if let progress = newValue {
-                NSWorkspace.shared.open(progress.verificationUriComplete)
-            }
+        .onChange(of: credentialsModel.inFlight[node.id]) { oldValue, newValue in
+            // Only open the browser on the nil → non-nil transition. A non-nil → non-nil
+            // transition would double-open Safari if the model ever swaps progress in place.
+            guard oldValue == nil, let progress = newValue else { return }
+            NSWorkspace.shared.open(progress.verificationUriComplete)
         }
         .alert(
             "Couldn't save",
@@ -146,44 +147,31 @@ struct SessionDetailView: View {
                 scopes: draft.ssoRegistrationScopes,
                 progress: credentialsModel.inFlight[node.id],
                 error: credentialsModel.lastError[node.id],
+                signedInToken: credentialsModel.lastToken[node.id],
                 isReadOnly: isReadOnly,
-                onSignIn: {
-                    guard let startUrlString = draft.ssoStartUrl,
-                          let startUrl = URL(string: startUrlString),
-                          let region = draft.ssoRegion else {
-                        return
-                    }
-                    let scopes = draft.ssoRegistrationScopes ?? ["sso:account:access"]
-                    Task {
-                        await credentialsModel.signIn(
-                            sessionName: node.id,
-                            startUrl: startUrl,
-                            region: region,
-                            scopes: scopes
-                        )
-                    }
-                },
+                onSignIn: { triggerSignIn() },
                 onCancel: {
                     Task {
                         await credentialsModel.cancelSignIn(sessionName: node.id)
                     }
-                },
-                onRetry: {
-                    guard let startUrlString = draft.ssoStartUrl,
-                          let startUrl = URL(string: startUrlString),
-                          let region = draft.ssoRegion else {
-                        return
-                    }
-                    let scopes = draft.ssoRegistrationScopes ?? ["sso:account:access"]
-                    Task {
-                        await credentialsModel.signIn(
-                            sessionName: node.id,
-                            startUrl: startUrl,
-                            region: region,
-                            scopes: scopes
-                        )
-                    }
                 }
+            )
+        }
+    }
+
+    private func triggerSignIn() {
+        guard let startUrlString = draft.ssoStartUrl,
+              let startUrl = URL(string: startUrlString),
+              let region = draft.ssoRegion else {
+            return
+        }
+        let scopes = draft.ssoRegistrationScopes ?? ["sso:account:access"]
+        Task {
+            await credentialsModel.signIn(
+                sessionName: node.id,
+                startUrl: startUrl,
+                region: region,
+                scopes: scopes
             )
         }
     }
@@ -201,10 +189,15 @@ struct SessionDetailView: View {
     SessionDetailPreviewHarness(mode: .managed, previewState: .failed)
 }
 
+#Preview("Signed in") {
+    SessionDetailPreviewHarness(mode: .managed, previewState: .signedIn)
+}
+
 private enum PreviewState {
     case idle
     case signingIn
     case failed
+    case signedIn
 }
 
 private struct SessionDetailPreviewHarness: View {
@@ -265,6 +258,18 @@ private struct SessionDetailPreviewHarness: View {
                 credentialsModel.seedInFlightForTesting(progress, sessionName: "acme")
             case .failed:
                 credentialsModel.seedLastErrorForTesting(.expiredDeviceCode, sessionName: "acme")
+            case .signedIn:
+                credentialsModel.seedLastTokenForTesting(
+                    StoredSSOToken(
+                        accessToken: "preview-token",
+                        expiresAt: Date(timeIntervalSinceNow: 8 * 3600),
+                        refreshToken: nil,
+                        issuedAt: Date(),
+                        region: "us-east-1",
+                        sessionName: "acme"
+                    ),
+                    sessionName: "acme"
+                )
             }
         }
     }
