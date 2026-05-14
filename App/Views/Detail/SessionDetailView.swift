@@ -145,14 +145,20 @@ struct SessionDetailView: View {
                 startUrl: draft.ssoStartUrl.flatMap { URL(string: $0) },
                 region: draft.ssoRegion,
                 scopes: draft.ssoRegistrationScopes,
+                authStatus: credentialsModel.status[node.id] ?? .signedOut,
                 progress: credentialsModel.inFlight[node.id],
-                error: credentialsModel.lastError[node.id],
-                signedInToken: credentialsModel.lastToken[node.id],
+                lastError: credentialsModel.lastError[node.id],
+                signOutFailed: credentialsModel.signOutFailure.contains(node.id),
                 isReadOnly: isReadOnly,
                 onSignIn: { triggerSignIn() },
                 onCancel: {
                     Task {
                         await credentialsModel.cancelSignIn(sessionName: node.id)
+                    }
+                },
+                onSignOut: {
+                    Task {
+                        await credentialsModel.signOut(sessionName: node.id)
                     }
                 }
             )
@@ -193,11 +199,25 @@ struct SessionDetailView: View {
     SessionDetailPreviewHarness(mode: .managed, previewState: .signedIn)
 }
 
+#Preview("Expired – needs sign in") {
+    SessionDetailPreviewHarness(mode: .managed, previewState: .expiredNeedsSignIn)
+}
+
+#Preview("Sign-out advisory") {
+    SessionDetailPreviewHarness(mode: .managed, previewState: .signOutAdvisory)
+}
+
+#Preview("Read Only – signed in") {
+    SessionDetailPreviewHarness(mode: .readOnly, previewState: .signedIn)
+}
+
 private enum PreviewState {
     case idle
     case signingIn
     case failed
     case signedIn
+    case expiredNeedsSignIn
+    case signOutAdvisory
 }
 
 private struct SessionDetailPreviewHarness: View {
@@ -213,7 +233,7 @@ private struct SessionDetailPreviewHarness: View {
         self.previewState = previewState
         let tmp = URL(filePath: "/nonexistent/aws-folder")
         _appModel = State(initialValue: AppModel(initialPhase: .ready(tmp), initialMode: mode))
-        _credentialsModel = State(initialValue: CredentialsModel(service: StubIdentityCenterService()))
+        _credentialsModel = State(initialValue: CredentialsModel(service: PreviewIdentityCenterService()))
     }
 
     var body: some View {
@@ -240,7 +260,7 @@ private struct SessionDetailPreviewHarness: View {
             )
             appModel = AppModel(initialPhase: .ready(tmp), initialMode: mode)
             await profilesModel.load(folder: tmp)
-            
+
             switch previewState {
             case .idle:
                 break
@@ -256,20 +276,23 @@ private struct SessionDetailPreviewHarness: View {
                     )
                 )
                 credentialsModel.seedInFlightForTesting(progress, sessionName: "acme")
+                credentialsModel.seedStatusForTesting(.signingIn, sessionName: "acme")
             case .failed:
                 credentialsModel.seedLastErrorForTesting(.expiredDeviceCode, sessionName: "acme")
+                credentialsModel.seedStatusForTesting(.signedOut, sessionName: "acme")
             case .signedIn:
-                credentialsModel.seedLastTokenForTesting(
-                    StoredSSOToken(
-                        accessToken: "preview-token",
-                        expiresAt: Date(timeIntervalSinceNow: 8 * 3600),
-                        refreshToken: nil,
-                        issuedAt: Date(),
-                        region: "us-east-1",
-                        sessionName: "acme"
-                    ),
+                credentialsModel.seedStatusForTesting(
+                    .signedIn(expiresAt: Date(timeIntervalSinceNow: 8 * 3600), canRefresh: false),
                     sessionName: "acme"
                 )
+            case .expiredNeedsSignIn:
+                credentialsModel.seedStatusForTesting(
+                    .expired(expiredAt: Date(timeIntervalSinceNow: -60), canRefresh: false),
+                    sessionName: "acme"
+                )
+            case .signOutAdvisory:
+                credentialsModel.seedStatusForTesting(.signedOut, sessionName: "acme")
+                credentialsModel.seedSignOutFailureForTesting(sessionName: "acme")
             }
         }
     }
@@ -291,19 +314,3 @@ private struct SessionDetailPreviewHarness: View {
     }
 }
 
-private struct StubIdentityCenterService: IdentityCenterServicing {
-    @concurrent
-    func signIn(
-        sessionName: String,
-        startUrl: URL,
-        region: String,
-        scopes: [String],
-        clientName: String,
-        verificationHandler: @escaping @concurrent @Sendable (DeviceVerification) async -> Void
-    ) async throws -> StoredSSOToken {
-        fatalError("Stub: signIn should not be called in previews")
-    }
-    
-    func cancelSignIn(sessionName: String) async {
-    }
-}

@@ -1,4 +1,5 @@
 import SwiftUI
+import IAMIdentityCenter
 
 struct MainView: View {
     let folderURL: URL
@@ -48,6 +49,7 @@ struct MainView: View {
         .environment(AppModel(initialPhase: .ready(folderURL)))
         .environment(ProfilesModel())
         .environment(EditorState())
+        .environment(CredentialsModel(service: PreviewIdentityCenterService()))
 }
 
 #Preview("Main – with sample data") {
@@ -59,6 +61,7 @@ private struct MainViewSampleDataHarness: View {
     @State private var appModel = AppModel(initialPhase: .setup)
     @State private var profilesModel = ProfilesModel()
     @State private var editorState = EditorState()
+    @State private var credentialsModel = CredentialsModel(service: PreviewIdentityCenterService())
 
     var body: some View {
         Group {
@@ -67,6 +70,7 @@ private struct MainViewSampleDataHarness: View {
                     .environment(appModel)
                     .environment(profilesModel)
                     .environment(editorState)
+                    .environment(credentialsModel)
             } else {
                 ProgressView().controlSize(.small)
             }
@@ -144,3 +148,4 @@ private struct MainViewSampleDataHarness: View {
         """
     }
 }
+
