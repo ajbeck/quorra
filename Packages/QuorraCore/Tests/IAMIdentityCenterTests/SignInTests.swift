@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 import Testing
 @testable import IAMIdentityCenter
 
@@ -10,42 +11,32 @@ actor VerificationCapture {
     }
 }
 
-@Suite("IdentityCenterService.signIn", .serialized)
+/// Integration tests for `IdentityCenterService.signIn`.
+///
+/// Per Apple's testing pyramid (*"Testing"* docs): these are integration tests — they wire up
+/// the actor, OIDC client (with URLProtocol stubs), an in-memory keychain store, and a
+/// synthetic sleeper to assert end-to-end flow behavior. Per-endpoint request/response shape
+/// and error mapping live in `OIDCClientTests`.
+///
+/// The suite carries a `.timeLimit` trait so any future regression that would have produced a
+/// hang (e.g. an unbounded polling loop, a missing wake-up notification) surfaces as a
+/// recorded test failure within the bound, not an indefinite session hang. Apple's
+/// `Testing/TimeLimitTrait` is the documented mechanism for this.
+extension IAMIdentityCenterTestSuite {
+@Suite("IdentityCenterService.signIn", .serialized, .timeLimit(.minutes(1)))
 struct SignInTests {
+
     // MARK: - Happy path
 
-    @Test("Happy path: RegisterClient → StartDeviceAuthorization → 2× authorization_pending → success")
+    @Test("Happy path returns token and persists it")
     func happyPath() async throws {
-        let keychain = Keychain(accessGroup: "test.\(UUID().uuidString)")
+        defer { StubURLProtocol.reset() }
+        let keychain = InMemoryKeychainStore()
+        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
+        let service = IdentityCenterService(keychain: keychain, oidcClient: oidcClient, sleeper: MockSleeper())
 
-        // Clean up any leftover items from previous test runs
-        try? await keychain.deleteRecord(service: "dev.ajbeck.quorra.oidc-client", account: "us-east-1")
-        try? await keychain.deleteRecord(service: "dev.ajbeck.quorra.sso-token", account: "test-session")
-
-        let urlSession = StubURLProtocol.makeSession()
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: urlSession)
-        let sleeper = MockSleeper()
-        let service = IdentityCenterService(keychain: keychain, oidcClient: oidcClient, sleeper: sleeper)
-
-        // Stub RegisterClient
-        try StubURLProtocol.registerSuccess(urlSubstring: "/client/register", json: [
-            "clientId": "test-client-id",
-            "clientSecret": "test-client-secret",
-            "clientIdIssuedAt": Int(Date().timeIntervalSince1970),
-            "clientSecretExpiresAt": Int(Date().addingTimeInterval(90 * 24 * 60 * 60).timeIntervalSince1970),
-        ])
-
-        // Stub StartDeviceAuthorization
-        try StubURLProtocol.registerSuccess(urlSubstring: "/device_authorization", json: [
-            "deviceCode": "test-device-code",
-            "userCode": "ABCD-1234",
-            "verificationUri": "https://device.sso.us-east-1.amazonaws.com/",
-            "verificationUriComplete": "https://device.sso.us-east-1.amazonaws.com/?user_code=ABCD-1234",
-            "expiresIn": 600,
-            "interval": 1,
-        ])
-
-        // Stub CreateToken: immediate success (simplest happy path)
+        try registerStub(clientId: "test-client-id", clientSecret: "test-client-secret")
+        try deviceAuthStub(expiresIn: 600, interval: 1)
         try StubURLProtocol.registerSuccess(urlSubstring: "/token", json: [
             "accessToken": "test-access-token",
             "tokenType": "Bearer",
@@ -53,108 +44,63 @@ struct SignInTests {
             "refreshToken": "test-refresh-token",
         ])
 
-        let captureActor = VerificationCapture()
-
-        async let tokenResult = service.signIn(
+        let capture = VerificationCapture()
+        let token = try await service.signIn(
             sessionName: "test-session",
             startUrl: URL(string: "https://example.awsapps.com/start")!,
             region: "us-east-1",
             scopes: ["sso:account:access"],
-            verificationHandler: { verification in
-                await captureActor.record(verification)
-            }
+            verificationHandler: { await capture.record($0) }
         )
 
-        // Wait for the polling loop to start
-        while await sleeper.pendingSleeperCount == 0 {
-            await Task.yield()
-        }
-        await sleeper.advance(by: 1.0)
-
-        let token = try await tokenResult
-
-        // Verify token returned
         #expect(token.accessToken == "test-access-token")
         #expect(token.refreshToken == "test-refresh-token")
         #expect(token.sessionName == "test-session")
         #expect(token.region == "us-east-1")
+        #expect(await capture.verification?.userCode == "ABCD-1234")
 
-        // Verify verificationHandler was called
-        let capturedVerification = await captureActor.verification
-        #expect(capturedVerification?.userCode == "ABCD-1234")
-
-        // Verify token landed in Keychain
-        let stored = try await keychain.readRecord(
+        let persistedToken = try await keychain.readRecord(
             StoredSSOToken.self,
             service: "dev.ajbeck.quorra.sso-token",
             account: "test-session"
         )
-        #expect(stored.accessToken == "test-access-token")
+        #expect(persistedToken.accessToken == "test-access-token")
 
-        // Verify OIDC client landed in Keychain
-        let storedClient = try await keychain.readRecord(
+        let persistedClient = try await keychain.readRecord(
             StoredOIDCClient.self,
             service: "dev.ajbeck.quorra.oidc-client",
             account: "us-east-1"
         )
-        #expect(storedClient.clientId == "test-client-id")
+        #expect(persistedClient.clientId == "test-client-id")
 
-        StubURLProtocol.reset()
     }
 
     // MARK: - Slow down
 
-    @Test("slow_down increases interval by 5s")
+    @Test("slow_down increases polling interval by 5s")
     func slowDown() async throws {
-        let keychain = Keychain(accessGroup: "test.\(UUID().uuidString)")
-        let urlSession = StubURLProtocol.makeSession()
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: urlSession)
+        defer { StubURLProtocol.reset() }
+        let keychain = InMemoryKeychainStore()
+        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
         let sleeper = MockSleeper()
         let service = IdentityCenterService(keychain: keychain, oidcClient: oidcClient, sleeper: sleeper)
 
-        // Stub RegisterClient
-        try StubURLProtocol.registerSuccess(urlSubstring: "/client/register", json: [
-            "clientId": "test-client-id",
-            "clientSecret": "test-client-secret",
-            "clientIdIssuedAt": Int(Date().timeIntervalSince1970),
-            "clientSecretExpiresAt": Int(Date().addingTimeInterval(90 * 24 * 60 * 60).timeIntervalSince1970),
-        ])
+        try registerStub()
+        try deviceAuthStub(expiresIn: 600, interval: 5)
 
-        // Stub StartDeviceAuthorization
-        try StubURLProtocol.registerSuccess(urlSubstring: "/device_authorization", json: [
-            "deviceCode": "test-device-code",
-            "userCode": "ABCD-1234",
-            "verificationUri": "https://device.sso.us-east-1.amazonaws.com/",
-            "verificationUriComplete": "https://device.sso.us-east-1.amazonaws.com/?user_code=ABCD-1234",
-            "expiresIn": 600,
-            "interval": 5,
-        ])
-
-        // Set up a sequence of stubs: first /token returns slow_down, second returns success
-        // We'll use StubURLProtocol's per-request behavior
-        var tokenCallCount = 0
+        // First /token → slow_down; second /token → success.
+        // URLProtocol callbacks fire on URLSession's internal queue; counter must be
+        // synchronization-safe rather than `nonisolated(unsafe)`.
+        let tokenCallCount = Mutex<Int>(0)
         StubURLProtocol.registerCustom(urlSubstring: "/token") { _ in
-            tokenCallCount += 1
-            if tokenCallCount == 1 {
-                // First call: slow_down
-                let json = """
-                {"error":"slow_down"}
-                """
-                let data = json.data(using: .utf8)!
-                let response = HTTPURLResponse(url: URL(string: "https://oidc.us-east-1.amazonaws.com/token")!, statusCode: 400, httpVersion: nil, headerFields: nil)!
-                return (data, response)
-            } else {
-                // Second call: success
-                let json = """
-                {"accessToken":"test-access-token","tokenType":"Bearer","expiresIn":28800}
-                """
-                let data = json.data(using: .utf8)!
-                let response = HTTPURLResponse(url: URL(string: "https://oidc.us-east-1.amazonaws.com/token")!, statusCode: 200, httpVersion: nil, headerFields: nil)!
-                return (data, response)
+            let n = tokenCallCount.withLock { count -> Int in
+                count += 1
+                return count
             }
+            return n == 1 ? oauthErrorResponse("slow_down") : tokenSuccessResponse()
         }
 
-        async let tokenResult = service.signIn(
+        let token = try await service.signIn(
             sessionName: "test-session",
             startUrl: URL(string: "https://example.awsapps.com/start")!,
             region: "us-east-1",
@@ -162,122 +108,53 @@ struct SignInTests {
             verificationHandler: { _ in }
         )
 
-        // Wait for first sleep (5s)
-        while await sleeper.pendingSleeperCount == 0 {
-            await Task.yield()
-        }
-        await sleeper.advance(by: 5.0)
-
-        // Wait for second sleep (should be 10s after slow_down)
-        while await sleeper.pendingSleeperCount == 0 {
-            await Task.yield()
-        }
-        await sleeper.advance(by: 10.0)
-
-        let token = try await tokenResult
-
         #expect(token.accessToken == "test-access-token")
+        #expect(await sleeper.recordedSleeps == [5.0, 10.0])
 
-        // Verify the interval increase: first sleep was 5s, second was 10s (5s + 5s slow_down)
-        let recordedSleeps = await sleeper.recordedSleeps
-        #expect(recordedSleeps == [5.0, 10.0])
-
-        StubURLProtocol.reset()
     }
 
-    // MARK: - Timeout
+    // MARK: - Wall-clock timeout
 
     @Test("Wall-clock timeout throws .deviceFlowTimedOut")
     func wallClockTimeout() async throws {
-        let keychain = Keychain(accessGroup: "test.\(UUID().uuidString)")
-        let urlSession = StubURLProtocol.makeSession()
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: urlSession)
-        let sleeper = MockSleeper()
-        let service = IdentityCenterService(keychain: keychain, oidcClient: oidcClient, sleeper: sleeper)
+        defer { StubURLProtocol.reset() }
+        let keychain = InMemoryKeychainStore()
+        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
+        let service = IdentityCenterService(keychain: keychain, oidcClient: oidcClient, sleeper: MockSleeper())
 
-        // Stub RegisterClient
-        try StubURLProtocol.registerSuccess(urlSubstring: "/client/register", json: [
-            "clientId": "test-client-id",
-            "clientSecret": "test-client-secret",
-            "clientIdIssuedAt": Int(Date().timeIntervalSince1970),
-            "clientSecretExpiresAt": Int(Date().addingTimeInterval(90 * 24 * 60 * 60).timeIntervalSince1970),
-        ])
-
-        // Stub StartDeviceAuthorization with short expiry
-        try StubURLProtocol.registerSuccess(urlSubstring: "/device_authorization", json: [
-            "deviceCode": "test-device-code",
-            "userCode": "ABCD-1234",
-            "verificationUri": "https://device.sso.us-east-1.amazonaws.com/",
-            "verificationUriComplete": "https://device.sso.us-east-1.amazonaws.com/?user_code=ABCD-1234",
-            "expiresIn": 10,
-            "interval": 5,
-        ])
-
-        // Stub CreateToken: authorization_pending indefinitely
+        try registerStub()
+        try deviceAuthStub(expiresIn: 10, interval: 5)
         try StubURLProtocol.registerOAuthError(urlSubstring: "/token", error: "authorization_pending")
 
-        let signInTask = Task {
-            try await service.signIn(
+        do {
+            _ = try await service.signIn(
                 sessionName: "test-session",
                 startUrl: URL(string: "https://example.awsapps.com/start")!,
                 region: "us-east-1",
                 scopes: ["sso:account:access"],
                 verificationHandler: { _ in }
             )
-        }
-
-        // Wait for first sleep, then advance past expiry (10s + 1s)
-        while await sleeper.pendingSleeperCount == 0 {
-            await Task.yield()
-        }
-        await sleeper.advance(by: 11.0)
-
-        do {
-            _ = try await signInTask.value
-            Issue.record("Expected .deviceFlowTimedOut, but signIn succeeded")
+            Issue.record("Expected .deviceFlowTimedOut")
         } catch IAMIdentityCenterError.deviceFlowTimedOut {
-            // Expected
+            // expected
         } catch {
             Issue.record("Expected .deviceFlowTimedOut, got \(error)")
         }
 
-        StubURLProtocol.reset()
     }
 
     // MARK: - Cancellation
 
-    @Test("cancelSignIn throws .userCancelled")
+    @Test("cancelSignIn throws .userCancelled and writes no token")
     func cancellation() async throws {
-        let keychain = Keychain(accessGroup: "test.\(UUID().uuidString)")
-
-        // Clean up any leftover items
-        try? await keychain.deleteRecord(service: "dev.ajbeck.quorra.oidc-client", account: "us-east-1")
-        try? await keychain.deleteRecord(service: "dev.ajbeck.quorra.sso-token", account: "test-session")
-
-        let urlSession = StubURLProtocol.makeSession()
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: urlSession)
+        defer { StubURLProtocol.reset() }
+        let keychain = InMemoryKeychainStore()
+        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
         let sleeper = MockSleeper()
         let service = IdentityCenterService(keychain: keychain, oidcClient: oidcClient, sleeper: sleeper)
 
-        // Stub RegisterClient
-        try StubURLProtocol.registerSuccess(urlSubstring: "/client/register", json: [
-            "clientId": "test-client-id",
-            "clientSecret": "test-client-secret",
-            "clientIdIssuedAt": Int(Date().timeIntervalSince1970),
-            "clientSecretExpiresAt": Int(Date().addingTimeInterval(90 * 24 * 60 * 60).timeIntervalSince1970),
-        ])
-
-        // Stub StartDeviceAuthorization
-        try StubURLProtocol.registerSuccess(urlSubstring: "/device_authorization", json: [
-            "deviceCode": "test-device-code",
-            "userCode": "ABCD-1234",
-            "verificationUri": "https://device.sso.us-east-1.amazonaws.com/",
-            "verificationUriComplete": "https://device.sso.us-east-1.amazonaws.com/?user_code=ABCD-1234",
-            "expiresIn": 600,
-            "interval": 5,
-        ])
-
-        // Stub CreateToken: authorization_pending indefinitely
+        try registerStub()
+        try deviceAuthStub(expiresIn: 600, interval: 5)
         try StubURLProtocol.registerOAuthError(urlSubstring: "/token", error: "authorization_pending")
 
         let signInTask = Task {
@@ -290,77 +167,59 @@ struct SignInTests {
             )
         }
 
-        // Wait for polling to start
-        while await sleeper.pendingSleeperCount == 0 {
-            await Task.yield()
-        }
-
-        // Cancel mid-poll
+        // Deterministic sync: wait until the polling loop has entered its first sleep.
+        await sleeper.waitForNextSleep()
         await service.cancelSignIn(sessionName: "test-session")
 
         do {
             _ = try await signInTask.value
-            Issue.record("Expected .userCancelled, but signIn succeeded")
+            Issue.record("Expected .userCancelled")
         } catch IAMIdentityCenterError.userCancelled {
-            // Expected
+            // expected
         } catch {
             Issue.record("Expected .userCancelled, got \(error)")
         }
 
-        // Verify no token was written
         do {
             _ = try await keychain.readRecord(
                 StoredSSOToken.self,
                 service: "dev.ajbeck.quorra.sso-token",
                 account: "test-session"
             )
-            Issue.record("Expected keychainItemMissing, but token was written")
+            Issue.record("Expected no token to be persisted")
         } catch IAMIdentityCenterError.keychainItemMissing {
-            // Expected
+            // expected
+        } catch {
+            Issue.record("Expected .keychainItemMissing, got \(error)")
         }
 
-        StubURLProtocol.reset()
     }
 
     // MARK: - Cached client reuse
 
-    @Test("Cached client reuse: does not call RegisterClient when client is fresh")
+    @Test("Cached OIDC client is reused when fresh")
     func cachedClientReuse() async throws {
-        let keychain = Keychain(accessGroup: "test.\(UUID().uuidString)")
-
-        // Pre-populate Keychain with a fresh client
-        let freshClient = StoredOIDCClient(
-            clientId: "cached-client-id",
-            clientSecret: "cached-client-secret",
-            issuedAt: Date(),
-            secretExpiresAt: Date().addingTimeInterval(90 * 24 * 60 * 60),
-            region: "us-east-1",
-            scopes: ["sso:account:access"]
-        )
+        defer { StubURLProtocol.reset() }
+        let keychain = InMemoryKeychainStore()
         try await keychain.writeRecord(
-            freshClient,
+            StoredOIDCClient(
+                clientId: "cached-client-id",
+                clientSecret: "cached-client-secret",
+                issuedAt: Date(),
+                secretExpiresAt: Date().addingTimeInterval(90 * 24 * 60 * 60),
+                region: "us-east-1",
+                scopes: ["sso:account:access"]
+            ),
             service: "dev.ajbeck.quorra.oidc-client",
             account: "us-east-1"
         )
 
-        let urlSession = StubURLProtocol.makeSession()
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: urlSession)
-        let service = IdentityCenterService(keychain: keychain, oidcClient: oidcClient)
+        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
+        let service = IdentityCenterService(keychain: keychain, oidcClient: oidcClient, sleeper: MockSleeper())
 
-        // Stub RegisterClient to FAIL — if it's called, the test fails
+        // If RegisterClient is called the test fails — 500 stub causes flow to throw.
         StubURLProtocol.register5xxError(urlSubstring: "/client/register", statusCode: 500)
-
-        // Stub StartDeviceAuthorization
-        try StubURLProtocol.registerSuccess(urlSubstring: "/device_authorization", json: [
-            "deviceCode": "test-device-code",
-            "userCode": "ABCD-1234",
-            "verificationUri": "https://device.sso.us-east-1.amazonaws.com/",
-            "verificationUriComplete": "https://device.sso.us-east-1.amazonaws.com/?user_code=ABCD-1234",
-            "expiresIn": 600,
-            "interval": 5,
-        ])
-
-        // Stub CreateToken: success immediately
+        try deviceAuthStub()
         try StubURLProtocol.registerSuccess(urlSubstring: "/token", json: [
             "accessToken": "test-access-token",
             "tokenType": "Bearer",
@@ -374,55 +233,34 @@ struct SignInTests {
             scopes: ["sso:account:access"],
             verificationHandler: { _ in }
         )
-
         #expect(token.accessToken == "test-access-token")
-        StubURLProtocol.reset()
+
     }
 
     // MARK: - Expired client triggers re-registration
 
-    @Test("Expired client triggers re-registration")
+    @Test("OIDC client expiring within 7 days triggers re-registration")
     func expiredClientReregistration() async throws {
-        let keychain = Keychain(accessGroup: "test.\(UUID().uuidString)")
-
-        // Pre-populate Keychain with an expiring client (< 7 days remaining)
-        let expiringClient = StoredOIDCClient(
-            clientId: "expiring-client-id",
-            clientSecret: "expiring-client-secret",
-            issuedAt: Date().addingTimeInterval(-83 * 24 * 60 * 60),
-            secretExpiresAt: Date().addingTimeInterval(6 * 24 * 60 * 60),
-            region: "us-east-1",
-            scopes: ["sso:account:access"]
-        )
+        defer { StubURLProtocol.reset() }
+        let keychain = InMemoryKeychainStore()
         try await keychain.writeRecord(
-            expiringClient,
+            StoredOIDCClient(
+                clientId: "expiring-client-id",
+                clientSecret: "expiring-client-secret",
+                issuedAt: Date().addingTimeInterval(-83 * 24 * 60 * 60),
+                secretExpiresAt: Date().addingTimeInterval(6 * 24 * 60 * 60),
+                region: "us-east-1",
+                scopes: ["sso:account:access"]
+            ),
             service: "dev.ajbeck.quorra.oidc-client",
             account: "us-east-1"
         )
 
-        let urlSession = StubURLProtocol.makeSession()
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: urlSession)
-        let service = IdentityCenterService(keychain: keychain, oidcClient: oidcClient)
+        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
+        let service = IdentityCenterService(keychain: keychain, oidcClient: oidcClient, sleeper: MockSleeper())
 
-        // Stub RegisterClient with fresh response
-        try StubURLProtocol.registerSuccess(urlSubstring: "/client/register", json: [
-            "clientId": "new-client-id",
-            "clientSecret": "new-client-secret",
-            "clientIdIssuedAt": Int(Date().timeIntervalSince1970),
-            "clientSecretExpiresAt": Int(Date().addingTimeInterval(90 * 24 * 60 * 60).timeIntervalSince1970),
-        ])
-
-        // Stub StartDeviceAuthorization
-        try StubURLProtocol.registerSuccess(urlSubstring: "/device_authorization", json: [
-            "deviceCode": "test-device-code",
-            "userCode": "ABCD-1234",
-            "verificationUri": "https://device.sso.us-east-1.amazonaws.com/",
-            "verificationUriComplete": "https://device.sso.us-east-1.amazonaws.com/?user_code=ABCD-1234",
-            "expiresIn": 600,
-            "interval": 5,
-        ])
-
-        // Stub CreateToken: success immediately
+        try registerStub(clientId: "new-client-id", clientSecret: "new-client-secret")
+        try deviceAuthStub()
         try StubURLProtocol.registerSuccess(urlSubstring: "/token", json: [
             "accessToken": "test-access-token",
             "tokenType": "Bearer",
@@ -436,10 +274,8 @@ struct SignInTests {
             scopes: ["sso:account:access"],
             verificationHandler: { _ in }
         )
-
         #expect(token.accessToken == "test-access-token")
 
-        // Verify new client landed in Keychain
         let storedClient = try await keychain.readRecord(
             StoredOIDCClient.self,
             service: "dev.ajbeck.quorra.oidc-client",
@@ -447,6 +283,53 @@ struct SignInTests {
         )
         #expect(storedClient.clientId == "new-client-id")
 
-        StubURLProtocol.reset()
     }
+}
+}
+
+// MARK: - Stub helpers
+
+private func registerStub(
+    clientId: String = "test-client-id",
+    clientSecret: String = "test-client-secret"
+) throws {
+    try StubURLProtocol.registerSuccess(urlSubstring: "/client/register", json: [
+        "clientId": clientId,
+        "clientSecret": clientSecret,
+        "clientIdIssuedAt": Int(Date().timeIntervalSince1970),
+        "clientSecretExpiresAt": Int(Date().addingTimeInterval(90 * 24 * 60 * 60).timeIntervalSince1970),
+    ])
+}
+
+private func deviceAuthStub(expiresIn: Int = 600, interval: Int = 5) throws {
+    try StubURLProtocol.registerSuccess(urlSubstring: "/device_authorization", json: [
+        "deviceCode": "test-device-code",
+        "userCode": "ABCD-1234",
+        "verificationUri": "https://device.sso.us-east-1.amazonaws.com/",
+        "verificationUriComplete": "https://device.sso.us-east-1.amazonaws.com/?user_code=ABCD-1234",
+        "expiresIn": expiresIn,
+        "interval": interval,
+    ])
+}
+
+private func oauthErrorResponse(_ code: String) -> (Data, HTTPURLResponse) {
+    let body = "{\"error\":\"\(code)\"}".data(using: .utf8)!
+    let response = HTTPURLResponse(
+        url: URL(string: "https://oidc.us-east-1.amazonaws.com/token")!,
+        statusCode: 400,
+        httpVersion: nil,
+        headerFields: nil
+    )!
+    return (body, response)
+}
+
+private func tokenSuccessResponse() -> (Data, HTTPURLResponse) {
+    let body = "{\"accessToken\":\"test-access-token\",\"tokenType\":\"Bearer\",\"expiresIn\":28800}".data(using: .utf8)!
+    let response = HTTPURLResponse(
+        url: URL(string: "https://oidc.us-east-1.amazonaws.com/token")!,
+        statusCode: 200,
+        httpVersion: nil,
+        headerFields: nil
+    )!
+    return (body, response)
 }
