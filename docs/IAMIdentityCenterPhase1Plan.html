@@ -701,18 +701,18 @@
 
     <header class="hero">
       <div class="hero-meta">
-        <span class="badge primary">phase 1 · in progress</span>
+        <span class="badge primary">phase 1 · shipped</span>
         <span class="badge swift">swift 6.2</span>
         <span class="badge macos">macos 26+</span>
-        <span class="badge tests">279 tests passing</span>
+        <span class="badge tests">315 tests passing</span>
       </div>
       <h1><span class="moniker-bracket">[</span><span class="moniker">SignIn</span><span class="moniker-bracket">]</span></h1>
       <p class="lede">End-to-end OAuth 2.0 device-authorization sign-in for AWS IAM Identity Center, executed as five Sonnet-sized scopes-of-work that ship as one PR. Every secret in the macOS Keychain; every doc citation grounded in the official Apple HIG, SwiftUI reference, and AWS API docs.</p>
 
       <div class="hero-stats">
-        <div class="stat"><span class="num">4 / 5</span><span class="label">phases shipped</span></div>
-        <div class="stat"><span class="num">~2.2k</span><span class="label">lines · landed</span></div>
-        <div class="stat"><span class="num">279</span><span class="label">tests passing</span></div>
+        <div class="stat"><span class="num">5 / 5</span><span class="label">phases shipped</span></div>
+        <div class="stat"><span class="num">~3.0k</span><span class="label">lines · landed</span></div>
+        <div class="stat"><span class="num">315</span><span class="label">tests passing</span></div>
         <div class="stat"><span class="num">0</span><span class="label">secrets on disk</span></div>
       </div>
     </header>
@@ -720,7 +720,7 @@
     <section id="status">
       <h2><span class="section-anchor">★</span>Current status</h2>
 
-      <div class="callout success"><strong>shipped</strong>Phases A–D are committed. Phase E (the inline sign-in panel + browser hop in <code>SessionDetailView</code>) is the only remaining work. A keychain hotfix landed mid-flight after real-app testing surfaced legacy-keychain ACL prompts — see "Keychain hotfix" below.</div>
+      <div class="callout success"><strong>shipped</strong>All five phases are committed. Phase E landed alongside a substantial test-infrastructure refactor (<code>KeychainStore</code> protocol seam) that surfaced during senior review when SwiftPM test-target entitlement limits made the original keychain tests unrunnable. 315 tests pass; 1 pre-existing skip in <code>FileIOTests</code>.</div>
 
       <table class="fields">
         <thead><tr><th>Phase</th><th>Status</th><th>Commit</th><th>Tests</th></tr></thead>
@@ -729,24 +729,27 @@
           <tr><td class="field">B — OIDCClient + Wire types</td><td class="type">✅ shipped</td><td class="note"><code>b817111</code></td><td class="note">+17 tests</td></tr>
           <tr><td class="field">C — IdentityCenterService.signIn</td><td class="type">✅ shipped</td><td class="note"><code>7bb4bd4</code></td><td class="note">+6 tests</td></tr>
           <tr><td class="field">D — CredentialsModel + app integration</td><td class="type">✅ shipped</td><td class="note"><code>663d2c2</code></td><td class="note">+5 tests</td></tr>
-          <tr><td class="field">Keychain hotfix (data-protection keychain)</td><td class="type">🟡 uncommitted</td><td class="note">on disk in <code>Keychain.swift</code></td><td class="note">existing tests still pass</td></tr>
-          <tr><td class="field">E — SessionDetailView + browser hop</td><td class="type">⬜ pending</td><td class="note">—</td><td class="note">—</td></tr>
+          <tr><td class="field">Keychain hotfix (data-protection keychain)</td><td class="type">✅ shipped</td><td class="note">in <code>9ebae21</code></td><td class="note">no test impact</td></tr>
+          <tr><td class="field">Test infrastructure refactor — <code>KeychainStore</code> protocol seam</td><td class="type">✅ shipped</td><td class="note"><code>65bee38</code></td><td class="note">test target unblocked</td></tr>
+          <tr><td class="field">E — SessionDetailView + browser hop + success state</td><td class="type">✅ shipped</td><td class="note"><code>97ccfec</code></td><td class="note">+3 tests · 4 previews</td></tr>
         </tbody>
       </table>
 
       <h3>Keychain hotfix — what and why</h3>
       <p>During real-app testing of Phase D, every Keychain read/write triggered a user-facing approval prompt. Diagnosis: <code>SecItemAdd</code> on macOS defaults to the <strong>legacy login keychain</strong>, whose per-item ACL model prompts on access — <code>kSecAttrAccessGroup</code> only takes effect in the <strong>data-protection keychain</strong>. Apple's <code>kSecUseDataProtectionKeychain</code> reference: <em>"highly recommended… for all keychain operations."</em></p>
-      <p>Fix: every <code>SecItem*</code> query in the <code>Keychain</code> actor now sets <code>kSecUseDataProtectionKeychain: true</code>. Items move to the data-protection keychain (silent same-team-ID sharing, no ACL prompts). Pre-existing items in the legacy keychain were cleared with <code>security delete-generic-password</code>. Awaiting build/test verification then commit.</p>
+      <p>Fix: every <code>SecItem*</code> query in the <code>Keychain</code> actor now sets <code>kSecUseDataProtectionKeychain: true</code>. Items move to the data-protection keychain (silent same-team-ID sharing, no ACL prompts). Landed in <code>9ebae21</code>.</p>
 
       <h3>Refinements vs original plan</h3>
       <ul>
         <li><strong>Phase A:</strong> shipped with one-row-per-record Keychain layout (atomic per write) instead of the field-per-row design originally specified — simpler, strictly safer, no real size pressure for our payloads. Plan §07 was updated to match.</li>
         <li><strong>Phase C:</strong> the actor's init takes a constructed <code>OIDCClient</code> + a <code>Sleeper</code> protocol (production: <code>WallClockSleeper</code>; test: <code>MockSleeper</code> actor) instead of <code>any Clock&lt;Duration&gt;</code> as originally drafted. The <code>Clock</code> existential made test-driven time deterministic in name only; the small <code>Sleeper</code> protocol works directly. Added a <code>signInAlreadyInProgress</code> error case for overlap protection.</li>
         <li><strong>Phase D:</strong> introduced an internal <code>IdentityCenterServicing</code> protocol (Phase A's actor conforms) so the app-side <code>CredentialsModel</code> can inject a stub for tests. The protocol's docstring records the Swift 6.2 <code>@concurrent</code> annotation requirement that bit during stub authoring.</li>
+        <li><strong>Phase E:</strong> added a fourth panel state ("signed in") not in the original spec — agreed during interview because the plan's acceptance criterion *"section transitions to a 'Signed in — token expires at…' success state"* required it. <code>CredentialsModel</code> gained a <code>lastToken: [String: StoredSSOToken]</code> map populated on successful sign-in; deliberately in-memory only (no Keychain read on init) because that would be Phase 2's <code>status(forSession:)</code> in disguise. The panel's <code>onRetry</code> callback was dropped after senior review — it was byte-identical to <code>onSignIn</code>.</li>
+        <li><strong>Test infrastructure (alongside Phase E):</strong> introduced <code>KeychainStore</code> protocol + <code>InMemoryKeychainStore</code> test double after discovering that SwiftPM test bundles can't carry the <code>keychain-access-groups</code> entitlement required by the data-protection keychain (TN3137). The old <code>SignInTests</code> hung on a busy-wait loop because the keychain write inside <code>ensureOIDCClient</code> failed with <code>errSecMissingEntitlement</code> before the polling loop was reached. Apple's testing guide is direct on this: <em>"Replace complex dependencies with stubs… Adopting dependency injection and protocol-oriented programming."</em> <code>MockSleeper</code> was rewritten to auto-advance synthetic time and expose <code>waitForNextSleep()</code> as a deterministic sync point (replacing the prior busy-wait pattern); a parent <code>IAMIdentityCenterTestSuite(.serialized)</code> recursively serializes the two test groups so they don't race on the global <code>StubURLProtocol.stubs</code> registry; <code>.timeLimit(.minutes(1))</code> on the suite converts any future hang into a recorded failure. <code>KeychainTests.swift</code> was deleted — it tested Apple's <code>SecItem*</code> API more than our wrapper and could not run in the SwiftPM test target.</li>
       </ul>
 
       <h3>Next action</h3>
-      <p>Verify the keychain hotfix builds and tests clean via the Xcode MCP server (<code>mcp__xcode__BuildProject</code>, <code>mcp__xcode__RunAllTests</code>), commit it, then begin Phase E. Phase E is described in §"Phase E" below — the substantive scope hasn't changed.</p>
+      <p>Phase 1 is complete. Begin Phase 2 (sign-out + sidebar status dot + <code>SessionAuthStatus</code> enum) — see §11 below.</p>
     </section>
 
     <section id="overview">
@@ -1176,7 +1179,7 @@
     </section>
 
     <section id="phase-e">
-      <h2><span class="section-anchor">E</span>Phase E — SessionDetailView + browser hop <span style="color: var(--warning); font-size: 0.7em; vertical-align: 0.2em;">⬜ pending</span></h2>
+      <h2><span class="section-anchor">E</span>Phase E — SessionDetailView + browser hop <span style="color: var(--success); font-size: 0.7em; vertical-align: 0.2em;">✅ shipped · 97ccfec</span></h2>
 
       <div class="phase-card">
         <span class="phase-tag">Subagent · Sonnet</span>
