@@ -3,914 +3,257 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>IAMIdentityCenterDeviceAuth — Quorra</title>
+<title>IAM Identity Center Device Auth — Quorra</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'media',
+    theme: { extend: {
+      fontFamily: {
+        mono: ['Berkeley Mono','JetBrains Mono','IBM Plex Mono','SF Mono','ui-monospace','Menlo','Consolas','monospace'],
+        serif: ['ui-serif','Iowan Old Style','Charter','Source Serif Pro','Hoefler Text','Palatino','Georgia','serif'],
+      },
+      colors: {
+        coral:{50:'#FFF0ED',100:'#FFDDD6',200:'#FFB3A3',300:'#FF8A6F',400:'#FF6347',500:'#E8452C',600:'#C43420',700:'#9A2718',800:'#741D12',900:'#50130D',950:'#300B07'},
+        sunshine:{50:'#FFFCE5',100:'#FFF8BF',200:'#FFF080',300:'#FFE433',400:'#FFD700',500:'#E5BF00',600:'#BF9F00',700:'#997F00',800:'#736000',900:'#4D4000',950:'#2E2600'},
+        sky:{50:'#E8F4FF',100:'#CCE7FF',200:'#99CFFF',300:'#5CB3FF',400:'#2196F5',500:'#0A7EDB',600:'#0066B8',700:'#004F8F',800:'#003B6B',900:'#002949',950:'#00182B'},
+        mint:{50:'#E6FFF3',100:'#C0FFE0',200:'#80FFC2',300:'#33F59A',400:'#00D97F',500:'#00B86B',600:'#009959',700:'#007A47',800:'#005C35',900:'#003D24',950:'#002415'},
+        violet:{50:'#F3EDFF',100:'#E2D5FF',200:'#C6ABFF',300:'#A47DFF',400:'#8B5CF6',500:'#7342DB',600:'#5E33B8',700:'#49278F',800:'#371D6B',900:'#251349',950:'#160B2B'},
+        tangerine:{50:'#FFF4E5',100:'#FFE4BF',200:'#FFC880',300:'#FFA833',400:'#FF9500',500:'#E58000',600:'#BF6A00',700:'#995500',800:'#733F00',900:'#4D2A00',950:'#2E1900'},
+        bubblegum:{50:'#FFF0F8',100:'#FFDBEE',200:'#FFB3DB',300:'#FF80C5',400:'#FF47AE',500:'#E52D94',600:'#BF2079',700:'#991661',800:'#731049',900:'#4D0B31',950:'#2E061D'},
+        lagoon:{50:'#E5FFFC',100:'#B3FFF5',200:'#66FFEB',300:'#1AE8D5',400:'#00CCB8',500:'#00AD9E',600:'#008F83',700:'#007068',800:'#00544E',900:'#003935',950:'#002220'},
+        slate:{50:'#F8F9FA',100:'#F1F3F5',200:'#E2E5E9',300:'#C8CDD3',400:'#A1A9B3',500:'#6C757D',600:'#545B62',700:'#40464C',800:'#2D3238',900:'#1A1E23',950:'#0D0F12'},
+        success:{300:'#5CF58A',500:'#10B845',700:'#07742A'},
+        warning:{300:'#FCBF3C',500:'#D4920B',700:'#8C6007'},
+        error:{300:'#FF6B6B',500:'#D42020',700:'#881212'},
+      },
+    }},
+  }
+</script>
 <style>
-  /* ================================================================
-     Color tokens (palette you supplied)
-     ================================================================ */
-  :root {
-    color-scheme: light dark;
-
-    --coral-50:  #FFF0ED; --coral-100: #FFDDD6; --coral-200: #FFB3A3; --coral-300: #FF8A6F;
-    --coral-400: #FF6347; --coral-500: #E8452C; --coral-600: #C43420; --coral-700: #9A2718;
-    --coral-800: #741D12; --coral-900: #50130D; --coral-950: #300B07;
-
-    --sunshine-50:  #FFFCE5; --sunshine-100: #FFF8BF; --sunshine-200: #FFF080; --sunshine-300: #FFE433;
-    --sunshine-400: #FFD700; --sunshine-500: #E5BF00; --sunshine-600: #BF9F00; --sunshine-700: #997F00;
-    --sunshine-800: #736000; --sunshine-900: #4D4000; --sunshine-950: #2E2600;
-
-    --sky-50:  #E8F4FF; --sky-100: #CCE7FF; --sky-200: #99CFFF; --sky-300: #5CB3FF;
-    --sky-400: #2196F5; --sky-500: #0A7EDB; --sky-600: #0066B8; --sky-700: #004F8F;
-    --sky-800: #003B6B; --sky-900: #002949; --sky-950: #00182B;
-
-    --mint-50:  #E6FFF3; --mint-100: #C0FFE0; --mint-200: #80FFC2; --mint-300: #33F59A;
-    --mint-400: #00D97F; --mint-500: #00B86B; --mint-600: #009959; --mint-700: #007A47;
-    --mint-800: #005C35; --mint-900: #003D24; --mint-950: #002415;
-
-    --violet-50:  #F3EDFF; --violet-100: #E2D5FF; --violet-200: #C6ABFF; --violet-300: #A47DFF;
-    --violet-400: #8B5CF6; --violet-500: #7342DB; --violet-600: #5E33B8; --violet-700: #49278F;
-    --violet-800: #371D6B; --violet-900: #251349; --violet-950: #160B2B;
-
-    --tangerine-50:  #FFF4E5; --tangerine-100: #FFE4BF; --tangerine-200: #FFC880; --tangerine-300: #FFA833;
-    --tangerine-400: #FF9500; --tangerine-500: #E58000; --tangerine-600: #BF6A00; --tangerine-700: #995500;
-    --tangerine-800: #733F00; --tangerine-900: #4D2A00; --tangerine-950: #2E1900;
-
-    --bubblegum-50:  #FFF0F8; --bubblegum-100: #FFDBEE; --bubblegum-200: #FFB3DB; --bubblegum-300: #FF80C5;
-    --bubblegum-400: #FF47AE; --bubblegum-500: #E52D94; --bubblegum-600: #BF2079; --bubblegum-700: #991661;
-    --bubblegum-800: #731049; --bubblegum-900: #4D0B31; --bubblegum-950: #2E061D;
-
-    --lagoon-50:  #E5FFFC; --lagoon-100: #B3FFF5; --lagoon-200: #66FFEB; --lagoon-300: #1AE8D5;
-    --lagoon-400: #00CCB8; --lagoon-500: #00AD9E; --lagoon-600: #008F83; --lagoon-700: #007068;
-    --lagoon-800: #00544E; --lagoon-900: #003935; --lagoon-950: #002220;
-
-    --slate-50:  #F8F9FA; --slate-100: #F1F3F5; --slate-200: #E2E5E9; --slate-300: #C8CDD3;
-    --slate-400: #A1A9B3; --slate-500: #6C757D; --slate-600: #545B62; --slate-700: #40464C;
-    --slate-800: #2D3238; --slate-900: #1A1E23; --slate-950: #0D0F12;
-
-    --success-300: #5CF58A; --success-500: #10B845; --success-700: #07742A;
-    --warning-300: #FCBF3C; --warning-500: #D4920B; --warning-700: #8C6007;
-    --error-300:   #FF6B6B; --error-500:   #D42020; --error-700:   #881212;
-  }
-
-  /* ================================================================
-     Theme: dark default ("Terminal Garden"), light variant via @media
-     ================================================================ */
-  :root {
-    --bg:            var(--slate-950);
-    --bg-elev:       var(--slate-900);
-    --bg-code:       #0a0d10;
-    --bg-card:       rgba(45, 50, 56, 0.35);
-    --fg:            var(--slate-100);
-    --fg-mute:       var(--slate-400);
-    --fg-dim:        var(--slate-500);
-    --rule:          var(--slate-800);
-    --rule-soft:     #1c2026;
-    --primary:       var(--coral-400);
-    --primary-deep:  var(--coral-500);
-    --primary-soft:  rgba(255, 99, 71, 0.12);
-    --type:          var(--sky-300);
-    --keyword:       var(--violet-300);
-    --string:        var(--mint-300);
-    --number:        var(--tangerine-300);
-    --comment:       var(--slate-500);
-    --aws-accent:    var(--tangerine-400);
-    --decision:      var(--sunshine-300);
-    --success:       var(--success-300);
-    --warning:       var(--warning-300);
-    --error:         var(--error-300);
-    --grid-tint:     rgba(255, 99, 71, 0.04);
-  }
+  body { background-image: linear-gradient(rgba(255,99,71,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,99,71,0.04) 1px, transparent 1px); background-size: 64px 64px; }
+  @keyframes pulse-dot { 0%,100% { opacity: 1 } 50% { opacity: .55 } }
+  .live-dot { animation: pulse-dot 2.4s ease-in-out infinite; }
+  @keyframes blink { 0%,50% { opacity: 1 } 50.01%,100% { opacity: 0 } }
+  .blink::after { content: "_"; animation: blink 1s steps(1) infinite; color: #FF6347; }
+  .tok-keyword { color: #A47DFF; } .tok-type { color: #5CB3FF; } .tok-string { color: #33F59A; }
+  .tok-number { color: #FFA833; } .tok-comment { color: #6C757D; font-style: italic; }
+  .ini-section { color: #FF9500; font-weight: 600; } .ini-key { color: #5CB3FF; } .ini-value { color: #33F59A; }
+  .term-prompt { color: #5CF58A; user-select: none; } .err-case { color: #FF6B6B; }
   @media (prefers-color-scheme: light) {
-    :root {
-      --bg:            var(--slate-50);
-      --bg-elev:       #ffffff;
-      --bg-code:       var(--slate-900);
-      --bg-card:       #ffffff;
-      --fg:            var(--slate-900);
-      --fg-mute:       var(--slate-600);
-      --fg-dim:        var(--slate-500);
-      --rule:          var(--slate-200);
-      --rule-soft:     var(--slate-100);
-      --primary:       var(--coral-500);
-      --primary-deep:  var(--coral-700);
-      --primary-soft:  var(--coral-50);
-      --type:          var(--sky-700);
-      --keyword:       var(--violet-700);
-      --string:        var(--mint-700);
-      --number:        var(--tangerine-700);
-      --comment:       var(--slate-500);
-      --aws-accent:    var(--tangerine-600);
-      --decision:      var(--sunshine-700);
-      --success:       var(--success-700);
-      --warning:       var(--warning-700);
-      --error:         var(--error-700);
-      --grid-tint:     rgba(232, 69, 44, 0.04);
-    }
-    /* Code blocks stay dark in light mode — first-class citizens */
-    :root pre, :root .code-frame { color: var(--slate-100) !important; }
+    .tok-keyword { color: #49278F; } .tok-type { color: #004F8F; } .tok-string { color: #007A47; }
+    .tok-number { color: #995500; } .ini-section { color: #BF6A00; } .ini-key { color: #004F8F; }
+    .ini-value { color: #007A47; } .term-prompt { color: #07742A; } .err-case { color: #881212; }
   }
-
-  /* ================================================================
-     Base
-     ================================================================ */
-  * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; }
-  html { scroll-behavior: smooth; }
-  body {
-    background: var(--bg);
-    background-image:
-      linear-gradient(var(--grid-tint) 1px, transparent 1px),
-      linear-gradient(90deg, var(--grid-tint) 1px, transparent 1px);
-    background-size: 64px 64px, 64px 64px;
-    color: var(--fg);
-    font-family: ui-serif, "Iowan Old Style", "Charter", "Source Serif Pro", "Hoefler Text", "Palatino", Georgia, serif;
-    font-size: 16px;
-    line-height: 1.65;
-    -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
-    font-feature-settings: "kern", "liga", "onum";
-  }
-  ::selection { background: var(--primary-soft); color: var(--fg); }
-
-  a { color: var(--primary); text-decoration: none; border-bottom: 1px solid transparent; transition: border-color 120ms ease, color 120ms ease; }
-  a:hover { border-bottom-color: var(--primary); color: var(--primary-deep); }
-
-  /* Mono everywhere code happens */
-  code, pre, kbd, samp,
-  .mono, .term-prompt, .badge, .tag,
-  h1 .moniker, .section-anchor, .toc-link, .toc-num,
-  .tok-key, .tok-string, .tok-number, .tok-comment, .tok-keyword, .tok-type,
-  .signature, .field, .ini-section, .ini-key, .ini-value, .err-case {
-    font-family: "Berkeley Mono", "JetBrains Mono", "IBM Plex Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace;
-    font-feature-settings: "ss01", "ss02", "calt", "zero";
-  }
-
-  /* ================================================================
-     Layout
-     ================================================================ */
-  .layout {
-    display: grid;
-    grid-template-columns: 280px minmax(0, 1fr);
-    gap: 0;
-    max-width: 1400px;
-    margin: 0 auto;
-    min-height: 100vh;
-  }
-
-  /* TOC rail */
-  aside.rail {
-    border-right: 1px solid var(--rule);
-    padding: 2.5rem 1.75rem 4rem 2rem;
-    position: sticky;
-    top: 0;
-    align-self: start;
-    height: 100vh;
-    overflow-y: auto;
-    background: linear-gradient(180deg, transparent 0%, var(--bg) 8%, var(--bg) 92%, transparent 100%);
-  }
-  aside.rail::-webkit-scrollbar { width: 6px; }
-  aside.rail::-webkit-scrollbar-track { background: transparent; }
-  aside.rail::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 3px; }
-
-  .rail-title {
-    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
-    font-size: 0.7rem;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--fg-dim);
-    margin: 0 0 0.4rem;
-  }
-  .rail-product {
-    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
-    font-size: 0.95rem;
-    color: var(--fg);
-    margin: 0 0 1.6rem;
-    display: flex; align-items: baseline; gap: 0.5rem;
-  }
-  .rail-product .live-dot {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: var(--success);
-    box-shadow: 0 0 12px var(--success), 0 0 0 3px rgba(92, 245, 138, 0.12);
-    animation: pulse 2.4s ease-in-out infinite;
-    flex: 0 0 auto;
-    transform: translateY(-1px);
-  }
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.55; }
-  }
-
-  .toc { list-style: none; padding: 0; margin: 0; }
-  .toc-section { margin: 0 0 1.5rem; }
-  .toc-section-label {
-    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
-    font-size: 0.65rem;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--fg-dim);
-    margin: 0 0 0.45rem;
-    display: flex; align-items: center; gap: 0.55rem;
-  }
-  .toc-section-label::before {
-    content: ""; flex: 0 0 8px; height: 1px; background: var(--primary);
-  }
-  .toc-link {
-    display: flex;
-    align-items: baseline;
-    gap: 0.65rem;
-    padding: 0.28rem 0;
-    color: var(--fg-mute);
-    font-size: 0.85rem;
-    border-bottom: none;
-    transition: color 120ms ease, transform 120ms ease;
-  }
-  .toc-link:hover { color: var(--primary); transform: translateX(2px); border-bottom: none; }
-  .toc-num {
-    color: var(--fg-dim);
-    font-size: 0.7rem;
-    flex: 0 0 auto;
-  }
-
-  /* Main column */
-  main {
-    padding: 4rem 4rem 8rem;
-    max-width: 920px;
-    min-width: 0;
-  }
-  @media (max-width: 1100px) {
-    .layout { grid-template-columns: 1fr; }
-    aside.rail {
-      position: static;
-      height: auto;
-      border-right: none;
-      border-bottom: 1px solid var(--rule);
-      padding: 2rem 1.5rem;
-    }
-    main { padding: 2.5rem 1.5rem 5rem; }
-  }
-  @media (max-width: 720px) {
-    main { padding: 2rem 1rem 4rem; }
-    body { background-size: 32px 32px, 32px 32px; }
-  }
-
-  /* ================================================================
-     Hero
-     ================================================================ */
-  .hero {
-    border: 1px solid var(--rule);
-    border-radius: 8px;
-    padding: 2.5rem 2.25rem;
-    margin: 0 0 3.5rem;
-    background:
-      radial-gradient(at 8% 0%, rgba(255, 99, 71, 0.10) 0, transparent 38%),
-      radial-gradient(at 100% 100%, rgba(115, 66, 219, 0.07) 0, transparent 42%),
-      var(--bg-card);
-    position: relative;
-    overflow: hidden;
-  }
-  .hero::before {
-    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px;
-    background: linear-gradient(90deg, transparent, var(--primary) 30%, var(--primary) 70%, transparent);
-    opacity: 0.6;
-  }
-  .hero-meta {
-    display: flex; flex-wrap: wrap; gap: 0.5rem;
-    margin: 0 0 1.5rem;
-  }
-  .badge {
-    display: inline-flex; align-items: center; gap: 0.4rem;
-    font-size: 0.7rem;
-    letter-spacing: 0.06em;
-    padding: 0.3rem 0.6rem;
-    border-radius: 3px;
-    border: 1px solid currentColor;
-    text-transform: lowercase;
-  }
-  .badge.primary { color: var(--primary); }
-  .badge.swift   { color: var(--tangerine-400); }
-  .badge.macos   { color: var(--sky-300); }
-  .badge.tests   { color: var(--success); }
-  @media (prefers-color-scheme: light) {
-    .badge.primary { color: var(--coral-700); }
-    .badge.swift   { color: var(--tangerine-700); }
-    .badge.macos   { color: var(--sky-700); }
-    .badge.tests   { color: var(--success-700); }
-  }
-
-  h1 {
-    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
-    font-weight: 600;
-    font-size: clamp(2rem, 5.5vw, 3.5rem);
-    line-height: 1;
-    letter-spacing: -0.025em;
-    margin: 0 0 1rem;
-    color: var(--fg);
-  }
-  h1 .moniker {
-    color: var(--primary);
-    font-weight: 600;
-  }
-  h1 .moniker-bracket {
-    color: var(--fg-dim);
-    font-weight: 400;
-  }
-  .lede {
-    font-size: 1.15rem;
-    line-height: 1.55;
-    color: var(--fg-mute);
-    max-width: 56ch;
-    margin: 0 0 1.5rem;
-    font-style: italic;
-  }
-  .hero-stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 1rem 1.5rem;
-    padding-top: 1.5rem;
-    border-top: 1px dashed var(--rule);
-  }
-  .stat .num {
-    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
-    font-size: 1.5rem;
-    color: var(--primary);
-    font-weight: 600;
-    display: block;
-  }
-  .stat .label {
-    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
-    font-size: 0.7rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--fg-dim);
-    margin-top: 0.15rem;
-    display: block;
-  }
-
-  /* ================================================================
-     Headings
-     ================================================================ */
-  h2 {
-    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
-    font-size: 1.45rem;
-    font-weight: 600;
-    letter-spacing: -0.005em;
-    margin: 4.5rem 0 1.2rem;
-    padding-top: 1.2rem;
-    border-top: 1px solid var(--rule);
-    position: relative;
-    color: var(--fg);
-  }
-  h2 .section-anchor {
-    color: var(--primary);
-    margin-right: 0.6rem;
-    font-size: 0.85rem;
-    letter-spacing: 0;
-    vertical-align: 0.15em;
-  }
-  h3 {
-    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
-    font-size: 1.05rem;
-    font-weight: 600;
-    margin: 2.4rem 0 0.7rem;
-    color: var(--fg);
-  }
-  h3::before {
-    content: "▸";
-    color: var(--primary);
-    margin-right: 0.4rem;
-    font-size: 0.85em;
-  }
-  h4 {
-    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
-    font-size: 0.78rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--fg-mute);
-    margin: 1.8rem 0 0.5rem;
-    font-weight: 600;
-  }
-  p { margin: 0 0 1.05rem; }
-  ul, ol { margin: 0 0 1.1rem; padding-left: 1.4rem; }
-  li { margin: 0.3rem 0; }
-  li::marker { color: var(--primary); }
-  strong { font-weight: 600; color: var(--fg); }
-  em { font-style: italic; color: var(--fg-mute); }
-
-  /* Inline code */
-  p code, li code, td code, h2 code, h3 code, h4 code {
-    background: var(--primary-soft);
-    color: var(--primary);
-    padding: 0.1em 0.4em;
-    border-radius: 3px;
-    font-size: 0.86em;
-    border: 1px solid transparent;
-  }
-  @media (prefers-color-scheme: light) {
-    p code, li code, td code, h2 code, h3 code, h4 code {
-      background: var(--coral-50);
-      color: var(--coral-700);
-      border: 1px solid var(--coral-100);
-    }
-  }
-
-  /* ================================================================
-     Code frames — first-class citizens
-     ================================================================ */
-  .code-frame {
-    margin: 1.4rem 0;
-    border-radius: 8px;
-    overflow: hidden;
-    background: var(--bg-code);
-    border: 1px solid #1d2228;
-    box-shadow: 0 8px 28px -16px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 99, 71, 0.04) inset;
-  }
-  .code-titlebar {
-    display: flex; align-items: center; gap: 0.6rem;
-    padding: 0.6rem 0.9rem;
-    background: linear-gradient(180deg, #14181d 0%, #0d1014 100%);
-    border-bottom: 1px solid #1d2228;
-  }
-  .lights { display: flex; gap: 0.4rem; }
-  .lights span {
-    width: 11px; height: 11px; border-radius: 50%;
-    border: 1px solid rgba(0,0,0,0.35);
-  }
-  .lights .l1 { background: var(--coral-400); }
-  .lights .l2 { background: var(--sunshine-400); }
-  .lights .l3 { background: var(--mint-400); }
-  .code-titlebar .filename {
-    color: var(--slate-400);
-    font-size: 0.78rem;
-    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
-    margin-left: 0.4rem;
-  }
-  .code-titlebar .filename .ext { color: var(--primary); }
-  .code-titlebar .langtag {
-    margin-left: auto;
-    color: var(--slate-500);
-    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
-    font-size: 0.68rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    padding: 0.18rem 0.5rem;
-    border: 1px solid #1d2228;
-    border-radius: 3px;
-  }
-  pre {
-    margin: 0;
-    padding: 1.1rem 1.2rem;
-    overflow-x: auto;
-    color: var(--slate-100);
-    font-size: 0.82rem;
-    line-height: 1.6;
-    font-family: "Berkeley Mono", "JetBrains Mono", "IBM Plex Mono", "SF Mono", ui-monospace, monospace;
-    font-feature-settings: "ss01", "ss02";
-    tab-size: 4;
-  }
-  pre code { background: transparent; color: inherit; padding: 0; border: none; font-size: inherit; }
-
-  /* Hand-tinted Swift / INI tokens */
-  .tok-keyword { color: var(--keyword); }
-  .tok-type    { color: var(--type); }
-  .tok-string  { color: var(--string); }
-  .tok-number  { color: var(--number); }
-  .tok-comment { color: var(--comment); font-style: italic; }
-  .ini-section { color: var(--aws-accent); font-weight: 600; }
-  .ini-key     { color: var(--sky-300); }
-  .ini-value   { color: var(--mint-300); }
-  .term-prompt { color: var(--success); user-select: none; }
-
-  /* ================================================================
-     Cards / Callouts
-     ================================================================ */
-  .callout {
-    margin: 1.4rem 0;
-    border-left: 3px solid var(--primary);
-    padding: 0.95rem 1.15rem;
-    background: var(--primary-soft);
-    border-radius: 0 4px 4px 0;
-    font-size: 0.95rem;
-  }
-  .callout.note    { border-color: var(--type);    background: rgba(92, 179, 255, 0.08); }
-  .callout.warn    { border-color: var(--warning); background: rgba(252, 191, 60, 0.08); }
-  .callout.success { border-color: var(--success); background: rgba(92, 245, 138, 0.08); }
-  .callout.danger  { border-color: var(--error);   background: rgba(255, 107, 107, 0.08); }
-  @media (prefers-color-scheme: light) {
-    .callout         { background: var(--coral-50); }
-    .callout.note    { background: var(--sky-50); }
-    .callout.warn    { background: var(--warning-50, #FFF8EB); }
-    .callout.success { background: #EDFFF0; }
-    .callout.danger  { background: #FFF0F0; }
-  }
-  .callout strong {
-    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
-    font-size: 0.7rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--primary);
-    margin-right: 0.4rem;
-    display: inline-block;
-  }
-  .callout.note strong    { color: var(--type); }
-  .callout.warn strong    { color: var(--warning); }
-  .callout.success strong { color: var(--success); }
-  .callout.danger strong  { color: var(--error); }
-
-  /* ================================================================
-     API entries (Swift signatures)
-     ================================================================ */
-  .api {
-    margin: 1.5rem 0 2rem;
-    padding: 0 0 0 1rem;
-    border-left: 2px solid var(--rule);
-  }
-  .api-title {
-    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
-    font-size: 0.95rem;
-    color: var(--fg);
-    margin: 0 0 0.35rem;
-    display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.5rem;
-  }
-  .api-title .kind {
-    color: var(--keyword);
-    font-size: 0.7rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    margin-right: 0.3rem;
-  }
-  .api-title .name { color: var(--primary); font-weight: 600; }
-  .api-desc { color: var(--fg-mute); font-size: 0.95rem; margin: 0.35rem 0 0.65rem; }
-
-  /* Compact signature snippets */
-  .signature {
-    display: block;
-    background: var(--bg-code);
-    color: var(--slate-100);
-    padding: 0.7rem 0.95rem;
-    border-radius: 4px;
-    font-size: 0.8rem;
-    line-height: 1.55;
-    margin: 0.5rem 0 0.6rem;
-    overflow-x: auto;
-    border: 1px solid #1d2228;
-  }
-
-  /* Field tables for structs */
-  table.fields {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 0.6rem 0 1rem;
-    font-size: 0.88rem;
-  }
-  table.fields th, table.fields td {
-    text-align: left;
-    padding: 0.5rem 0.7rem;
-    border-bottom: 1px solid var(--rule-soft);
-    vertical-align: top;
-  }
-  table.fields th {
-    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
-    font-size: 0.68rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--fg-dim);
-    font-weight: 600;
-    border-bottom: 1px solid var(--rule);
-  }
-  table.fields td.field {
-    color: var(--primary);
-  }
-  table.fields td.type {
-    color: var(--type);
-  }
-  table.fields td.note {
-    color: var(--fg-mute);
-    font-family: ui-serif, Georgia, serif;
-  }
-
-  /* Error list */
-  .errors {
-    list-style: none;
-    padding: 0;
-    margin: 1rem 0;
-    display: grid;
-    gap: 0.5rem;
-  }
-  .errors li {
-    border: 1px solid var(--rule);
-    border-left: 3px solid var(--error);
-    border-radius: 4px;
-    padding: 0.7rem 0.9rem;
-    background: var(--bg-card);
-    display: grid;
-    grid-template-columns: minmax(180px, max-content) 1fr;
-    gap: 0.9rem;
-    align-items: baseline;
-  }
-  .errors li .err-case {
-    color: var(--error);
-    font-size: 0.86rem;
-  }
-  .errors li .err-desc {
-    color: var(--fg-mute);
-    font-size: 0.92rem;
-    font-family: ui-serif, Georgia, serif;
-  }
-
-  /* Quickstart steps */
-  .steps { counter-reset: step; padding: 0; list-style: none; }
-  .steps > li {
-    counter-increment: step;
-    margin: 0 0 1.5rem;
-    padding-left: 2.4rem;
-    position: relative;
-  }
-  .steps > li::before {
-    content: counter(step, decimal-leading-zero);
-    position: absolute;
-    left: 0;
-    top: 0;
-    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
-    font-size: 0.85rem;
-    color: var(--primary);
-    background: var(--primary-soft);
-    border: 1px solid var(--primary);
-    border-radius: 4px;
-    padding: 0.18rem 0.45rem;
-    line-height: 1;
-  }
-
-  /* Decision pills */
-  .pills {
-    display: flex; flex-wrap: wrap; gap: 0.45rem;
-    margin: 0.8rem 0 1.4rem;
-  }
-  .pill {
-    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
-    font-size: 0.72rem;
-    padding: 0.32rem 0.6rem;
-    border-radius: 3px;
-    color: var(--fg);
-    border: 1px solid var(--rule);
-    background: var(--bg-card);
-  }
-  .pill .dot { color: var(--primary); margin-right: 0.3rem; }
-
-  /* Footer */
-  footer {
-    margin: 6rem 0 0;
-    padding-top: 1.5rem;
-    border-top: 1px solid var(--rule);
-    color: var(--fg-dim);
-    font-size: 0.85rem;
-    font-family: "Berkeley Mono", "JetBrains Mono", ui-monospace, monospace;
-    display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem;
-  }
-  footer .blink::after { content: "_"; animation: blink 1s steps(1) infinite; color: var(--primary); }
-  @keyframes blink { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
-
-  h2[id], h3[id] { scroll-margin-top: 1.5rem; }
 </style>
 </head>
-<body>
+<body class="font-serif bg-slate-950 text-slate-100 antialiased leading-relaxed">
 
-<div class="layout">
+<div class="grid grid-cols-1 min-[1100px]:grid-cols-[280px_minmax(0,1fr)] max-w-[1400px] mx-auto min-h-screen">
 
-  <!-- ================================================================
-       TOC RAIL
-       ================================================================ -->
-  <aside class="rail">
-    <p class="rail-title">// quorra · research</p>
-    <p class="rail-product"><span class="live-dot" aria-hidden="true"></span>IAM Identity Center · Device Auth</p>
-
-    <nav class="toc">
-      <div class="toc-section">
-        <p class="toc-section-label">Context</p>
-        <a class="toc-link" href="#overview"><span class="toc-num">01</span><span>Overview</span></a>
-        <a class="toc-link" href="#device-grant"><span class="toc-num">02</span><span>Device grant (RFC 8628)</span></a>
-      </div>
-
-      <div class="toc-section">
-        <p class="toc-section-label">AWS APIs</p>
-        <a class="toc-link" href="#sso-oidc"><span class="toc-num">03</span><span>SSO OIDC</span></a>
-        <a class="toc-link" href="#sso-portal"><span class="toc-num">04</span><span>SSO Portal</span></a>
-      </div>
-
-      <div class="toc-section">
-        <p class="toc-section-label">Swift</p>
-        <a class="toc-link" href="#sdk-swift"><span class="toc-num">05</span><span>SDK for Swift</span></a>
-        <a class="toc-link" href="#bypass-cache"><span class="toc-num">06</span><span>Bypassing the cache</span></a>
-        <a class="toc-link" href="#apple"><span class="toc-num">07</span><span>Apple frameworks</span></a>
-      </div>
-
-      <div class="toc-section">
-        <p class="toc-section-label">Storage</p>
-        <a class="toc-link" href="#keychain"><span class="toc-num">08</span><span>Keychain layout</span></a>
-        <a class="toc-link" href="#lifetimes"><span class="toc-num">09</span><span>Lifetimes &amp; "active"</span></a>
-      </div>
-
-      <div class="toc-section">
-        <p class="toc-section-label">Plumbing</p>
-        <a class="toc-link" href="#sketch"><span class="toc-num">10</span><span>End-to-end sketch</span></a>
-        <a class="toc-link" href="#errors"><span class="toc-num">11</span><span>Errors</span></a>
-        <a class="toc-link" href="#open"><span class="toc-num">12</span><span>Open questions</span></a>
-      </div>
+  <aside class="border-b border-slate-800 px-6 py-8 min-[1100px]:border-b-0 min-[1100px]:border-r min-[1100px]:px-7 min-[1100px]:py-10 min-[1100px]:sticky min-[1100px]:top-0 min-[1100px]:self-start min-[1100px]:h-screen min-[1100px]:overflow-y-auto">
+    <p class="font-mono text-[0.7rem] tracking-[0.18em] uppercase text-slate-500 mb-1">// quorra · research</p>
+    <p class="font-mono text-sm text-slate-100 mb-6 flex items-baseline gap-2">
+      <span class="live-dot inline-block w-2 h-2 rounded-full bg-success-300 shadow-[0_0_12px_#5CF58A,0_0_0_3px_rgba(92,245,138,0.12)] -translate-y-px" aria-hidden="true"></span>
+      IAM Identity Center · Device Auth
+    </p>
+    <nav class="text-sm">
+      <p class="font-mono text-[0.65rem] tracking-[0.18em] uppercase text-slate-500 mb-2 flex items-center gap-2"><span class="flex-none w-2 h-px bg-coral-400"></span>Contents</p>
+      <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#overview"><span class="text-[0.7rem] text-slate-500">01</span><span>Overview</span></a>
+      <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#device-grant"><span class="text-[0.7rem] text-slate-500">02</span><span>Device grant</span></a>
+      <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#sso-oidc"><span class="text-[0.7rem] text-slate-500">03</span><span>SSO OIDC API</span></a>
+      <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#sso-portal"><span class="text-[0.7rem] text-slate-500">04</span><span>SSO Portal API</span></a>
+      <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#sdk-swift"><span class="text-[0.7rem] text-slate-500">05</span><span>AWS SDK for Swift</span></a>
+      <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#bypass-cache"><span class="text-[0.7rem] text-slate-500">06</span><span>Bypassing on-disk cache</span></a>
+      <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#apple"><span class="text-[0.7rem] text-slate-500">07</span><span>Apple frameworks</span></a>
+      <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#keychain"><span class="text-[0.7rem] text-slate-500">08</span><span>Keychain layout</span></a>
+      <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#lifetimes"><span class="text-[0.7rem] text-slate-500">09</span><span>Lifetimes</span></a>
+      <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#sketch"><span class="text-[0.7rem] text-slate-500">10</span><span>Swift sketch</span></a>
+      <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#errors"><span class="text-[0.7rem] text-slate-500">11</span><span>Errors</span></a>
+      <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#open"><span class="text-[0.7rem] text-slate-500">12</span><span>Open questions</span></a>
     </nav>
   </aside>
 
-  <!-- ================================================================
-       MAIN
-       ================================================================ -->
-  <main>
+  <main class="px-6 py-10 pb-24 max-w-[920px] min-w-0 min-[1100px]:px-16 min-[1100px]:py-16 min-[1100px]:pb-32">
 
-    <!-- HERO -->
-    <header class="hero">
-      <div class="hero-meta">
-        <span class="badge primary">research</span>
-        <span class="badge swift">swift 6.2</span>
-        <span class="badge macos">macos 26+</span>
-        <span class="badge tests">RFC 8628 · OIDC</span>
+    <header class="border border-slate-800 rounded-lg p-9 mb-14 relative overflow-hidden bg-slate-800/30">
+      <div class="flex flex-wrap gap-2 mb-6">
+        <span class="font-mono inline-flex items-center gap-1.5 text-[0.7rem] tracking-wider px-2.5 py-1 rounded-sm border lowercase border-coral-400 text-coral-400">research</span>
+        <span class="font-mono inline-flex items-center gap-1.5 text-[0.7rem] tracking-wider px-2.5 py-1 rounded-sm border lowercase border-tangerine-400 text-tangerine-400">swift 6.2</span>
+        <span class="font-mono inline-flex items-center gap-1.5 text-[0.7rem] tracking-wider px-2.5 py-1 rounded-sm border lowercase border-sky-300 text-sky-300">macos 26+</span>
+        <span class="font-mono inline-flex items-center gap-1.5 text-[0.7rem] tracking-wider px-2.5 py-1 rounded-sm border lowercase border-success-300 text-success-300">RFC 8628 · OIDC</span>
       </div>
-      <h1><span class="moniker-bracket">[</span><span class="moniker">DeviceAuth</span><span class="moniker-bracket">]</span></h1>
-      <p class="lede">Implementation notes for IAM Identity Center sign-in in Quorra: the OAuth 2.0 device authorization grant, the AWS SSO OIDC and SSO Portal APIs, the AWS SDK for Swift integration surface, the on-disk cache trap, and the Keychain-only storage layout we want instead.</p>
+      <h1 class="font-mono font-semibold text-[clamp(2rem,5.5vw,3.5rem)] leading-none tracking-tight mb-4 text-slate-100"><span class="text-slate-500 font-normal">[</span><span class="text-coral-400">DeviceAuth</span><span class="text-slate-500 font-normal">]</span></h1>
+      <p class="text-lg leading-snug text-slate-400 max-w-[56ch] mb-6 italic">Implementation notes for IAM Identity Center sign-in in Quorra: the OAuth 2.0 device authorization grant, the AWS SSO OIDC and SSO Portal APIs, the AWS SDK for Swift integration surface, the on-disk cache trap, and the Keychain-only storage layout we want instead.</p>
 
-      <div class="hero-stats">
-        <div class="stat"><span class="num">3</span><span class="label">aws apis</span></div>
-        <div class="stat"><span class="num">~8h</span><span class="label">access token</span></div>
-        <div class="stat"><span class="num">~1h</span><span class="label">role creds</span></div>
-        <div class="stat"><span class="num">0</span><span class="label">disk-cached secrets</span></div>
+      <div class="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-4 pt-6 border-t border-dashed border-slate-800">
+        <div class="stat"><span class="font-mono text-2xl text-coral-400 font-semibold block">3</span><span class="font-mono text-[0.7rem] tracking-wider uppercase text-slate-500 mt-0.5 block">aws apis</span></div>
+        <div class="stat"><span class="font-mono text-2xl text-coral-400 font-semibold block">~8h</span><span class="font-mono text-[0.7rem] tracking-wider uppercase text-slate-500 mt-0.5 block">access token</span></div>
+        <div class="stat"><span class="font-mono text-2xl text-coral-400 font-semibold block">~1h</span><span class="font-mono text-[0.7rem] tracking-wider uppercase text-slate-500 mt-0.5 block">role creds</span></div>
+        <div class="stat"><span class="font-mono text-2xl text-coral-400 font-semibold block">0</span><span class="font-mono text-[0.7rem] tracking-wider uppercase text-slate-500 mt-0.5 block">disk-cached secrets</span></div>
       </div>
     </header>
 
-    <!-- 01 OVERVIEW -->
     <section id="overview">
-      <h2><span class="section-anchor">01</span>Overview</h2>
-      <p>"IAM Identity Center sign-in" is shorthand for: drive the OAuth 2.0 <strong>device authorization grant</strong> (RFC 8628) against an AWS Identity Center start URL, hold the resulting bearer token, then use it to enumerate accounts/roles and exchange the (account, role) pair for short-lived STS-style credentials. Quorra is the orchestrator. The user-facing affordance is "Sign in to <code>https://example.awsapps.com/start</code>"; everything below that is plumbing.</p>
+      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">01</span>Overview</h2>
+      <p class="mb-4">"IAM Identity Center sign-in" is shorthand for: drive the OAuth 2.0 <strong class="font-semibold text-slate-100">device authorization grant</strong> (RFC 8628) against an AWS Identity Center start URL, hold the resulting bearer token, then use it to enumerate accounts/roles and exchange the (account, role) pair for short-lived STS-style credentials. Quorra is the orchestrator. The user-facing affordance is "Sign in to <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">https://example.awsapps.com/start</code>"; everything below that is plumbing.</p>
 
-      <p>There are three AWS service surfaces involved, all unauthenticated-or-token-authenticated (no SigV4):</p>
-      <ul>
-        <li><strong>SSO OIDC</strong> (<code>oidc.&lt;region&gt;.amazonaws.com</code>) — registers a public OAuth client and runs the device-code dance.</li>
-        <li><strong>SSO Portal</strong> (<code>portal.sso.&lt;region&gt;.amazonaws.com</code>) — once you have an access token, lists assigned accounts/roles and mints role credentials.</li>
-        <li><strong>STS</strong> only enters if you decide to <code>AssumeRole</code> further. For a default Identity Center sign-in you don't touch STS directly; <code>GetRoleCredentials</code> hands you the credential triple already.</li>
+      <p class="mb-4">There are three AWS service surfaces involved, all unauthenticated-or-token-authenticated (no SigV4):</p>
+      <ul class="ml-6 mb-4">
+        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">SSO OIDC</strong> (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">oidc.&lt;region&gt;.amazonaws.com</code>) — registers a public OAuth client and runs the device-code dance.</li>
+        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">SSO Portal</strong> (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">portal.sso.&lt;region&gt;.amazonaws.com</code>) — once you have an access token, lists assigned accounts/roles and mints role credentials.</li>
+        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">STS</strong> only enters if you decide to <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">AssumeRole</code> further. For a default Identity Center sign-in you don't touch STS directly; <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">GetRoleCredentials</code> hands you the credential triple already.</li>
       </ul>
 
-      <div class="callout note"><strong>scope</strong>This document is research, not a build plan. The SDK-for-Swift answers (especially "does the default token resolver write to <code>~/.aws/sso/cache</code>?") are the load-bearing decisions. Everything else is well-trodden OAuth.</div>
+      <div class="my-6 border-l-[3px] border-sky-300 pl-4 py-3 pr-5 bg-sky-300/[0.08] rounded-r text-[0.95rem]"><strong class="font-mono text-[0.7rem] tracking-wider uppercase mr-2 text-sky-300">scope</strong>This document is research, not a build plan. The SDK-for-Swift answers (especially "does the default token resolver write to <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">~/.aws/sso/cache</code>?") are the load-bearing decisions. Everything else is well-trodden OAuth.</div>
 
-      <h3>Why we don't shell out to <code>aws sso login</code></h3>
-      <p>That binary writes JSON files into <code>~/.aws/sso/cache/</code> as the source of truth, and the broader AWS tooling expects them there. Quorra wants secrets in the macOS Keychain, not a sandboxed app's view of <code>~/.aws/sso/cache</code>. Owning the OIDC flow is the whole point — see <code>CLAUDE.md § SSO Flow</code>.</p>
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Why we don't shell out to <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">aws sso login</code></h3>
+      <p class="mb-4">That binary writes JSON files into <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">~/.aws/sso/cache/</code> as the source of truth, and the broader AWS tooling expects them there. Quorra wants secrets in the macOS Keychain, not a sandboxed app's view of <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">~/.aws/sso/cache</code>. Owning the OIDC flow is the whole point — see <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CLAUDE.md § SSO Flow</code>.</p>
 
-      <h3>Two ways to ship this</h3>
-      <p>Either talk the OIDC + Portal HTTP APIs directly with <code>URLSession</code>, or use the <strong>AWS SDK for Swift</strong>'s <code>SSOOIDC</code> + <code>SSO</code> service clients. The SDK saves us request-shape bikeshedding and gives us first-party model evolution; the cost is an opinionated default token cache that we have to disable. Both options are detailed below.</p>
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Two ways to ship this</h3>
+      <p class="mb-4">Either talk the OIDC + Portal HTTP APIs directly with <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">URLSession</code>, or use the <strong class="font-semibold text-slate-100">AWS SDK for Swift</strong>'s <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SSOOIDC</code> + <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SSO</code> service clients. The SDK saves us request-shape bikeshedding and gives us first-party model evolution; the cost is an opinionated default token cache that we have to disable. Both options are detailed below.</p>
     </section>
-
-    <!-- 02 DEVICE GRANT -->
     <section id="device-grant">
-      <h2><span class="section-anchor">02</span>Device authorization grant (RFC 8628)</h2>
-      <p>RFC 8628 defines a flow for clients on devices without a browser, or where the user shouldn't paste credentials into the device. Despite the name, it's the right shape for any native desktop app that wants to defer authentication to the system browser. AWS Identity Center implements it via the SSO OIDC service.</p>
+      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">02</span>Device authorization grant (RFC 8628)</h2>
+      <p class="mb-4">RFC 8628 defines a flow for clients on devices without a browser, or where the user shouldn't paste credentials into the device. Despite the name, it's the right shape for any native desktop app that wants to defer authentication to the system browser. AWS Identity Center implements it via the SSO OIDC service.</p>
 
-      <h3>State machine</h3>
-      <ol class="steps">
-        <li><strong>Register</strong>. Client calls <code>POST /client/register</code> on the SSO OIDC endpoint with <code>clientName</code>, <code>clientType: "public"</code>, and (for refresh-token issuance) the scope list <code>["sso:account:access"]</code>. Response yields <code>clientId</code>, <code>clientSecret</code>, and <code>clientSecretExpiresAt</code> (Unix seconds, typically ~90 days).</li>
-        <li><strong>Start device authorization</strong>. Client calls <code>POST /device_authorization</code> with <code>clientId</code>, <code>clientSecret</code>, <code>startUrl</code>. Response: <code>deviceCode</code>, <code>userCode</code>, <code>verificationUri</code>, <code>verificationUriComplete</code>, <code>expiresIn</code> (lifetime of the device code, usually 600s), <code>interval</code> (minimum poll interval in seconds, usually 5s).</li>
-        <li><strong>User verification</strong>. Open <code>verificationUriComplete</code> in the system browser (it embeds the user code as a query param so the user doesn't have to type it). Display <code>userCode</code> as a fallback if the URL fails to launch.</li>
-        <li><strong>Poll for token</strong>. Client polls <code>POST /token</code> with <code>grantType: "urn:ietf:params:oauth:grant-type:device_code"</code>, <code>clientId</code>, <code>clientSecret</code>, <code>deviceCode</code>. Wait at least <code>interval</code> seconds between polls; if the server responds <code>slow_down</code>, increase the interval by 5s.</li>
-        <li><strong>Success</strong>. <code>POST /token</code> returns <code>accessToken</code>, <code>tokenType: "Bearer"</code>, <code>expiresIn</code>, optionally <code>refreshToken</code>, optionally <code>idToken</code>. Persist all of it.</li>
-        <li><strong>Refresh</strong>. Later, when the access token nears expiry, call <code>POST /token</code> with <code>grantType: "refresh_token"</code> and the stored refresh token. AWS only returns refresh tokens when the registered scope set includes <code>sso:account:access</code>.</li>
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>State machine</h3>
+      <ol class="list-none p-0 [counter-reset:step]">
+        <li class="[counter-increment:step] mb-6 pl-10 relative before:content-[counter(step,decimal-leading-zero)] before:absolute before:left-0 before:top-0 before:font-mono before:text-sm before:text-coral-400 before:bg-coral-400/10 before:border before:border-coral-400 before:rounded before:px-1.5 before:py-0.5 before:leading-none"><strong class="font-semibold text-slate-100">Register</strong>. Client calls <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">POST /client/register</code> on the SSO OIDC endpoint with <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">clientName</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">clientType: "public"</code>, and (for refresh-token issuance) the scope list <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">["sso:account:access"]</code>. Response yields <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">clientId</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">clientSecret</code>, and <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">clientSecretExpiresAt</code> (Unix seconds, typically ~90 days).</li>
+        <li class="[counter-increment:step] mb-6 pl-10 relative before:content-[counter(step,decimal-leading-zero)] before:absolute before:left-0 before:top-0 before:font-mono before:text-sm before:text-coral-400 before:bg-coral-400/10 before:border before:border-coral-400 before:rounded before:px-1.5 before:py-0.5 before:leading-none"><strong class="font-semibold text-slate-100">Start device authorization</strong>. Client calls <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">POST /device_authorization</code> with <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">clientId</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">clientSecret</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">startUrl</code>. Response: <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">deviceCode</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">userCode</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">verificationUri</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">verificationUriComplete</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expiresIn</code> (lifetime of the device code, usually 600s), <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">interval</code> (minimum poll interval in seconds, usually 5s).</li>
+        <li class="[counter-increment:step] mb-6 pl-10 relative before:content-[counter(step,decimal-leading-zero)] before:absolute before:left-0 before:top-0 before:font-mono before:text-sm before:text-coral-400 before:bg-coral-400/10 before:border before:border-coral-400 before:rounded before:px-1.5 before:py-0.5 before:leading-none"><strong class="font-semibold text-slate-100">User verification</strong>. Open <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">verificationUriComplete</code> in the system browser (it embeds the user code as a query param so the user doesn't have to type it). Display <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">userCode</code> as a fallback if the URL fails to launch.</li>
+        <li class="[counter-increment:step] mb-6 pl-10 relative before:content-[counter(step,decimal-leading-zero)] before:absolute before:left-0 before:top-0 before:font-mono before:text-sm before:text-coral-400 before:bg-coral-400/10 before:border before:border-coral-400 before:rounded before:px-1.5 before:py-0.5 before:leading-none"><strong class="font-semibold text-slate-100">Poll for token</strong>. Client polls <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">POST /token</code> with <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">grantType: "urn:ietf:params:oauth:grant-type:device_code"</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">clientId</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">clientSecret</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">deviceCode</code>. Wait at least <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">interval</code> seconds between polls; if the server responds <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">slow_down</code>, increase the interval by 5s.</li>
+        <li class="[counter-increment:step] mb-6 pl-10 relative before:content-[counter(step,decimal-leading-zero)] before:absolute before:left-0 before:top-0 before:font-mono before:text-sm before:text-coral-400 before:bg-coral-400/10 before:border before:border-coral-400 before:rounded before:px-1.5 before:py-0.5 before:leading-none"><strong class="font-semibold text-slate-100">Success</strong>. <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">POST /token</code> returns <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">accessToken</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">tokenType: "Bearer"</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expiresIn</code>, optionally <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">refreshToken</code>, optionally <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">idToken</code>. Persist all of it.</li>
+        <li class="[counter-increment:step] mb-6 pl-10 relative before:content-[counter(step,decimal-leading-zero)] before:absolute before:left-0 before:top-0 before:font-mono before:text-sm before:text-coral-400 before:bg-coral-400/10 before:border before:border-coral-400 before:rounded before:px-1.5 before:py-0.5 before:leading-none"><strong class="font-semibold text-slate-100">Refresh</strong>. Later, when the access token nears expiry, call <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">POST /token</code> with <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">grantType: "refresh_token"</code> and the stored refresh token. AWS only returns refresh tokens when the registered scope set includes <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">sso:account:access</code>.</li>
       </ol>
 
-      <h3>Polling rules — the parts that bite</h3>
-      <p>RFC 8628 §3.5 is short but the details matter:</p>
-      <ul>
-        <li>The <em>first</em> poll should not happen earlier than <code>interval</code> seconds after the device authorization response — clients that fire immediately routinely get <code>slow_down</code>.</li>
-        <li>On <code>authorization_pending</code>, keep the same interval and try again.</li>
-        <li>On <code>slow_down</code>, add <strong>5 seconds</strong> to the current interval and try again. The increase is permanent for the rest of the flow, not just the next poll.</li>
-        <li>On <code>expired_token</code> or <code>access_denied</code>, stop polling immediately. The user must re-initiate.</li>
-        <li>Stop polling when the wall clock since step 2 exceeds <code>expiresIn</code> seconds — even if the server hasn't said so. Treat that as <code>expired_token</code>.</li>
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Polling rules — the parts that bite</h3>
+      <p class="mb-4">RFC 8628 §3.5 is short but the details matter:</p>
+      <ul class="ml-6 mb-4">
+        <li class="my-1 marker:text-coral-400">The <em class="italic text-slate-400">first</em> poll should not happen earlier than <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">interval</code> seconds after the device authorization response — clients that fire immediately routinely get <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">slow_down</code>.</li>
+        <li class="my-1 marker:text-coral-400">On <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">authorization_pending</code>, keep the same interval and try again.</li>
+        <li class="my-1 marker:text-coral-400">On <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">slow_down</code>, add <strong class="font-semibold text-slate-100">5 seconds</strong> to the current interval and try again. The increase is permanent for the rest of the flow, not just the next poll.</li>
+        <li class="my-1 marker:text-coral-400">On <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expired_token</code> or <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">access_denied</code>, stop polling immediately. The user must re-initiate.</li>
+        <li class="my-1 marker:text-coral-400">Stop polling when the wall clock since step 2 exceeds <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expiresIn</code> seconds — even if the server hasn't said so. Treat that as <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expired_token</code>.</li>
       </ul>
 
-      <h3>Error codes</h3>
-      <ul class="errors">
-        <li><span class="err-case">authorization_pending</span><span class="err-desc">User hasn't completed the browser step yet. Continue polling at the current interval.</span></li>
-        <li><span class="err-case">slow_down</span><span class="err-desc">You're polling too fast. Add 5s to the interval and continue.</span></li>
-        <li><span class="err-case">access_denied</span><span class="err-desc">User refused or the browser flow was cancelled. Surface as a clean cancellation, not an error.</span></li>
-        <li><span class="err-case">expired_token</span><span class="err-desc"><code>deviceCode</code> is past its <code>expiresIn</code>. The user has to start over.</span></li>
-        <li><span class="err-case">invalid_grant</span><span class="err-desc">The grant or device code is malformed. Programming bug — not a user-recoverable state.</span></li>
-        <li><span class="err-case">invalid_client</span><span class="err-desc">The <code>clientId</code>/<code>clientSecret</code> are wrong or expired. Re-run <code>RegisterClient</code> and retry.</span></li>
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Error codes</h3>
+      <ul class="list-none p-0 my-4 grid gap-2">
+        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">authorization_pending</span><span class="text-slate-400">User hasn't completed the browser step yet. Continue polling at the current interval.</span></li>
+        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">slow_down</span><span class="text-slate-400">You're polling too fast. Add 5s to the interval and continue.</span></li>
+        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">access_denied</span><span class="text-slate-400">User refused or the browser flow was cancelled. Surface as a clean cancellation, not an error.</span></li>
+        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">expired_token</span><span class="text-slate-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">deviceCode</code> is past its <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expiresIn</code>. The user has to start over.</span></li>
+        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">invalid_grant</span><span class="text-slate-400">The grant or device code is malformed. Programming bug — not a user-recoverable state.</span></li>
+        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">invalid_client</span><span class="text-slate-400">The <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">clientId</code>/<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">clientSecret</code> are wrong or expired. Re-run <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">RegisterClient</code> and retry.</span></li>
       </ul>
 
-      <p>Reference: <a href="https://datatracker.ietf.org/doc/html/rfc8628">RFC 8628 — OAuth 2.0 Device Authorization Grant</a>, especially §3.4 (token request) and §3.5 (device access token response).</p>
+      <p class="mb-4">Reference: <a href="https://datatracker.ietf.org/doc/html/rfc8628">RFC 8628 — OAuth 2.0 Device Authorization Grant</a>, especially §3.4 (token request) and §3.5 (device access token response).</p>
     </section>
-
-    <!-- 03 SSO OIDC -->
     <section id="sso-oidc">
-      <h2><span class="section-anchor">03</span>AWS SSO OIDC API</h2>
-      <p>Reference: <a href="https://docs.aws.amazon.com/singlesignon/latest/OIDCAPIReference/Welcome.html">AWS IAM Identity Center OIDC API Reference</a>. Three operations are load-bearing for sign-in.</p>
+      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">03</span>AWS SSO OIDC API</h2>
+      <p class="mb-4">Reference: <a href="https://docs.aws.amazon.com/singlesignon/latest/OIDCAPIReference/Welcome.html">AWS IAM Identity Center OIDC API Reference</a>. Three operations are load-bearing for sign-in.</p>
 
-      <div class="api">
-        <p class="api-title"><span class="kind">operation</span><span class="name">RegisterClient</span></p>
-        <p class="api-desc">Registers a public OAuth 2.0 client. Returns a <code>clientId</code>/<code>clientSecret</code> pair Quorra reuses across many sign-ins until <code>clientSecretExpiresAt</code> elapses. Cache it in the Keychain — re-registering on every launch is wasteful and the dashboard shows the user a "registered apps" entry per registration.</p>
-        <span class="signature">POST https://oidc.&lt;region&gt;.amazonaws.com/client/register
+      <div class="my-6 pl-4 border-l-2 border-slate-800">
+        <p class="font-mono text-sm text-slate-100 mb-1.5 flex items-baseline flex-wrap gap-2"><span class="text-violet-300 font-mono text-[0.7rem] tracking-wider uppercase mr-1">operation</span><span class="text-coral-400 font-semibold">RegisterClient</span></p>
+        <p class="text-slate-400 mb-3">Registers a public OAuth 2.0 client. Returns a <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">clientId</code>/<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">clientSecret</code> pair Quorra reuses across many sign-ins until <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">clientSecretExpiresAt</code> elapses. Cache it in the Keychain — re-registering on every launch is wasteful and the dashboard shows the user a "registered apps" entry per registration.</p>
+        <span class="block bg-[#0a0d10] text-slate-100 px-4 py-3 rounded text-[0.8rem] leading-relaxed my-2 overflow-x-auto border border-slate-800 font-mono">POST https://oidc.&lt;region&gt;.amazonaws.com/client/register
 { "clientName": "Quorra", "clientType": "public",
   "scopes": ["sso:account:access"] }
-&rarr; { "clientId", "clientSecret", "clientIdIssuedAt",
+→ { "clientId", "clientSecret", "clientIdIssuedAt",
        "clientSecretExpiresAt" }</span>
-        <p>Including <code>scopes: ["sso:account:access"]</code> is what unlocks refresh-token issuance later. Without it, <code>CreateToken</code> will not return a <code>refreshToken</code> and you're stuck redoing the device dance every ~8 hours.</p>
+        <p class="mb-4">Including <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">scopes: ["sso:account:access"]</code> is what unlocks refresh-token issuance later. Without it, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CreateToken</code> will not return a <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">refreshToken</code> and you're stuck redoing the device dance every ~8 hours.</p>
       </div>
 
-      <div class="api">
-        <p class="api-title"><span class="kind">operation</span><span class="name">StartDeviceAuthorization</span></p>
-        <p class="api-desc">Begins the device-grant flow. Echoes the start URL chosen by the user back into the verification URI so the auth portal knows which Identity Center instance to authenticate against.</p>
-        <span class="signature">POST https://oidc.&lt;region&gt;.amazonaws.com/device_authorization
+      <div class="my-6 pl-4 border-l-2 border-slate-800">
+        <p class="font-mono text-sm text-slate-100 mb-1.5 flex items-baseline flex-wrap gap-2"><span class="text-violet-300 font-mono text-[0.7rem] tracking-wider uppercase mr-1">operation</span><span class="text-coral-400 font-semibold">StartDeviceAuthorization</span></p>
+        <p class="text-slate-400 mb-3">Begins the device-grant flow. Echoes the start URL chosen by the user back into the verification URI so the auth portal knows which Identity Center instance to authenticate against.</p>
+        <span class="block bg-[#0a0d10] text-slate-100 px-4 py-3 rounded text-[0.8rem] leading-relaxed my-2 overflow-x-auto border border-slate-800 font-mono">POST https://oidc.&lt;region&gt;.amazonaws.com/device_authorization
 { "clientId", "clientSecret",
   "startUrl": "https://example.awsapps.com/start" }
-&rarr; { "deviceCode", "userCode",
+→ { "deviceCode", "userCode",
        "verificationUri", "verificationUriComplete",
        "expiresIn", "interval" }</span>
       </div>
 
-      <div class="api">
-        <p class="api-title"><span class="kind">operation</span><span class="name">CreateToken (initial)</span></p>
-        <p class="api-desc">Polled until the user completes the browser step. Returns the SSO access token used against the Portal API.</p>
-        <span class="signature">POST https://oidc.&lt;region&gt;.amazonaws.com/token
+      <div class="my-6 pl-4 border-l-2 border-slate-800">
+        <p class="font-mono text-sm text-slate-100 mb-1.5 flex items-baseline flex-wrap gap-2"><span class="text-violet-300 font-mono text-[0.7rem] tracking-wider uppercase mr-1">operation</span><span class="text-coral-400 font-semibold">CreateToken (initial)</span></p>
+        <p class="text-slate-400 mb-3">Polled until the user completes the browser step. Returns the SSO access token used against the Portal API.</p>
+        <span class="block bg-[#0a0d10] text-slate-100 px-4 py-3 rounded text-[0.8rem] leading-relaxed my-2 overflow-x-auto border border-slate-800 font-mono">POST https://oidc.&lt;region&gt;.amazonaws.com/token
 { "clientId", "clientSecret", "deviceCode",
   "grantType": "urn:ietf:params:oauth:grant-type:device_code" }
-&rarr; { "accessToken", "tokenType": "Bearer",
+→ { "accessToken", "tokenType": "Bearer",
        "expiresIn", "refreshToken"?, "idToken"? }</span>
       </div>
 
-      <div class="api">
-        <p class="api-title"><span class="kind">operation</span><span class="name">CreateToken (refresh)</span></p>
-        <p class="api-desc">Same endpoint, different grant. Use when the access token is expiring and a refresh token is on hand. Returns a fresh access token and (usually) a rotated refresh token; replace both atomically in the Keychain.</p>
-        <span class="signature">POST https://oidc.&lt;region&gt;.amazonaws.com/token
+      <div class="my-6 pl-4 border-l-2 border-slate-800">
+        <p class="font-mono text-sm text-slate-100 mb-1.5 flex items-baseline flex-wrap gap-2"><span class="text-violet-300 font-mono text-[0.7rem] tracking-wider uppercase mr-1">operation</span><span class="text-coral-400 font-semibold">CreateToken (refresh)</span></p>
+        <p class="text-slate-400 mb-3">Same endpoint, different grant. Use when the access token is expiring and a refresh token is on hand. Returns a fresh access token and (usually) a rotated refresh token; replace both atomically in the Keychain.</p>
+        <span class="block bg-[#0a0d10] text-slate-100 px-4 py-3 rounded text-[0.8rem] leading-relaxed my-2 overflow-x-auto border border-slate-800 font-mono">POST https://oidc.&lt;region&gt;.amazonaws.com/token
 { "clientId", "clientSecret",
   "grantType": "refresh_token",
   "refreshToken": "&lt;previous refresh token&gt;" }
-&rarr; { "accessToken", "expiresIn", "refreshToken" }</span>
-        <p>If the refresh token is itself revoked or expired, this returns <code>InvalidGrantException</code>. Treat that as "fall back to the full device flow" — silently if the user is already in front of the app, or with a notification banner if Quorra is acting in the background.</p>
+→ { "accessToken", "expiresIn", "refreshToken" }</span>
+        <p class="mb-4">If the refresh token is itself revoked or expired, this returns <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">InvalidGrantException</code>. Treat that as "fall back to the full device flow" — silently if the user is already in front of the app, or with a notification banner if Quorra is acting in the background.</p>
       </div>
 
-      <h3>Endpoint regionality</h3>
-      <p>Pick the region from the <code>region</code> in the user's <code>[sso-session]</code> block. Identity Center instances are regional; talking to the wrong region returns <code>InvalidRequestException</code>. The <code>StartUrl</code> alone does not encode the region.</p>
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Endpoint regionality</h3>
+      <p class="mb-4">Pick the region from the <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">region</code> in the user's <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">[sso-session]</code> block. Identity Center instances are regional; talking to the wrong region returns <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">InvalidRequestException</code>. The <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">StartUrl</code> alone does not encode the region.</p>
     </section>
-
-    <!-- 04 SSO PORTAL -->
     <section id="sso-portal">
-      <h2><span class="section-anchor">04</span>AWS SSO Portal API</h2>
-      <p>Reference: <a href="https://docs.aws.amazon.com/singlesignon/latest/PortalAPIReference/Welcome.html">AWS IAM Identity Center Portal API Reference</a>. All three operations take the SSO access token as a header (<code>x-amz-sso_bearer_token</code> in the SDK; the SDK does this automatically).</p>
+      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">04</span>AWS SSO Portal API</h2>
+      <p class="mb-4">Reference: <a href="https://docs.aws.amazon.com/singlesignon/latest/PortalAPIReference/Welcome.html">AWS IAM Identity Center Portal API Reference</a>. All three operations take the SSO access token as a header (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">x-amz-sso_bearer_token</code> in the SDK; the SDK does this automatically).</p>
 
-      <div class="api">
-        <p class="api-title"><span class="kind">operation</span><span class="name">ListAccounts</span></p>
-        <p class="api-desc">Pages the AWS accounts the user is assigned to. Quorra calls this once after sign-in to populate the account picker; cache the result alongside the token until expiry.</p>
-        <span class="signature">GET https://portal.sso.&lt;region&gt;.amazonaws.com/assignment/accounts
+      <div class="my-6 pl-4 border-l-2 border-slate-800">
+        <p class="font-mono text-sm text-slate-100 mb-1.5 flex items-baseline flex-wrap gap-2"><span class="text-violet-300 font-mono text-[0.7rem] tracking-wider uppercase mr-1">operation</span><span class="text-coral-400 font-semibold">ListAccounts</span></p>
+        <p class="text-slate-400 mb-3">Pages the AWS accounts the user is assigned to. Quorra calls this once after sign-in to populate the account picker; cache the result alongside the token until expiry.</p>
+        <span class="block bg-[#0a0d10] text-slate-100 px-4 py-3 rounded text-[0.8rem] leading-relaxed my-2 overflow-x-auto border border-slate-800 font-mono">GET https://portal.sso.&lt;region&gt;.amazonaws.com/assignment/accounts
 Headers: x-amz-sso_bearer_token: &lt;accessToken&gt;
-&rarr; { "accountList": [{ accountId, accountName, emailAddress }],
+→ { "accountList": [{ accountId, accountName, emailAddress }],
        "nextToken"? }</span>
       </div>
 
-      <div class="api">
-        <p class="api-title"><span class="kind">operation</span><span class="name">ListAccountRoles</span></p>
-        <p class="api-desc">Pages the IAM Identity Center permission sets the user can assume in a given account.</p>
-        <span class="signature">GET https://portal.sso.&lt;region&gt;.amazonaws.com/assignment/roles?account_id=&lt;id&gt;
+      <div class="my-6 pl-4 border-l-2 border-slate-800">
+        <p class="font-mono text-sm text-slate-100 mb-1.5 flex items-baseline flex-wrap gap-2"><span class="text-violet-300 font-mono text-[0.7rem] tracking-wider uppercase mr-1">operation</span><span class="text-coral-400 font-semibold">ListAccountRoles</span></p>
+        <p class="text-slate-400 mb-3">Pages the IAM Identity Center permission sets the user can assume in a given account.</p>
+        <span class="block bg-[#0a0d10] text-slate-100 px-4 py-3 rounded text-[0.8rem] leading-relaxed my-2 overflow-x-auto border border-slate-800 font-mono">GET https://portal.sso.&lt;region&gt;.amazonaws.com/assignment/roles?account_id=&lt;id&gt;
 Headers: x-amz-sso_bearer_token: &lt;accessToken&gt;
-&rarr; { "roleList": [{ accountId, roleName }], "nextToken"? }</span>
+→ { "roleList": [{ accountId, roleName }], "nextToken"? }</span>
       </div>
 
-      <div class="api">
-        <p class="api-title"><span class="kind">operation</span><span class="name">GetRoleCredentials</span></p>
-        <p class="api-desc">Mints short-lived credentials for an (account, role) pair. This is the call that produces the <code>AccessKeyId</code>/<code>SecretAccessKey</code>/<code>SessionToken</code>/<code>Expiration</code> tuple Quorra serves to consumers (CLI, IMDS).</p>
-        <span class="signature">GET https://portal.sso.&lt;region&gt;.amazonaws.com/federation/credentials?account_id=&lt;id&gt;&amp;role_name=&lt;name&gt;
+      <div class="my-6 pl-4 border-l-2 border-slate-800">
+        <p class="font-mono text-sm text-slate-100 mb-1.5 flex items-baseline flex-wrap gap-2"><span class="text-violet-300 font-mono text-[0.7rem] tracking-wider uppercase mr-1">operation</span><span class="text-coral-400 font-semibold">GetRoleCredentials</span></p>
+        <p class="text-slate-400 mb-3">Mints short-lived credentials for an (account, role) pair. This is the call that produces the <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">AccessKeyId</code>/<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SecretAccessKey</code>/<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SessionToken</code>/<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Expiration</code> tuple Quorra serves to consumers (CLI, IMDS).</p>
+        <span class="block bg-[#0a0d10] text-slate-100 px-4 py-3 rounded text-[0.8rem] leading-relaxed my-2 overflow-x-auto border border-slate-800 font-mono">GET https://portal.sso.&lt;region&gt;.amazonaws.com/federation/credentials?account_id=&lt;id&gt;&amp;role_name=&lt;name&gt;
 Headers: x-amz-sso_bearer_token: &lt;accessToken&gt;
-&rarr; { "roleCredentials": {
+→ { "roleCredentials": {
          accessKeyId, secretAccessKey, sessionToken, expiration } }</span>
-        <p><code>expiration</code> is Unix milliseconds. Lifetime is configurable on the permission set (1h default, max 12h). Quorra should always treat it as "could be as low as 1 hour" and refresh proactively.</p>
+        <p class="mb-4"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expiration</code> is Unix milliseconds. Lifetime is configurable on the permission set (1h default, max 12h). Quorra should always treat it as "could be as low as 1 hour" and refresh proactively.</p>
       </div>
 
-      <div class="callout warn"><strong>quotas</strong>The Portal API is rate-limited per access token; <code>GetRoleCredentials</code> in particular is documented to throttle aggressively. Cache the credential triple and refresh at <code>expiration - 5min</code>, not on every CLI invocation.</div>
+      <div class="my-6 border-l-[3px] border-warning-300 pl-4 py-3 pr-5 bg-warning-300/[0.08] rounded-r text-[0.95rem]"><strong class="font-mono text-[0.7rem] tracking-wider uppercase mr-2 text-warning-300">quotas</strong>The Portal API is rate-limited per access token; <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">GetRoleCredentials</code> in particular is documented to throttle aggressively. Cache the credential triple and refresh at <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expiration - 5min</code>, not on every CLI invocation.</div>
     </section>
-
-    <!-- 05 SDK FOR SWIFT -->
     <section id="sdk-swift">
-      <h2><span class="section-anchor">05</span>AWS SDK for Swift</h2>
-      <p>Source of truth: <a href="https://github.com/awslabs/aws-sdk-swift">awslabs/aws-sdk-swift</a>. The SDK is a SwiftPM package; pulling in <code>AWSSSOOIDC</code> and <code>AWSSSO</code> as products is enough.</p>
+      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">05</span>AWS SDK for Swift</h2>
+      <p class="mb-4">Source of truth: <a href="https://github.com/awslabs/aws-sdk-swift">awslabs/aws-sdk-swift</a>. The SDK is a SwiftPM package; pulling in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">AWSSSOOIDC</code> and <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">AWSSSO</code> as products is enough.</p>
 
-      <h3>The two clients we care about</h3>
-      <table class="fields">
-        <thead><tr><th>Type</th><th>Module</th><th>Purpose</th></tr></thead>
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>The two clients we care about</h3>
+      <table class="w-full text-sm border-collapse my-4">
+        <thead><tr><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Type</th><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Module</th><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Purpose</th></tr></thead>
         <tbody>
-          <tr><td class="field">SSOOIDCClient</td><td class="type">AWSSSOOIDC</td><td class="note">Wraps RegisterClient / StartDeviceAuthorization / CreateToken. The shape we drive the device flow through.</td></tr>
-          <tr><td class="field">SSOClient</td><td class="type">AWSSSO</td><td class="note">Wraps ListAccounts / ListAccountRoles / GetRoleCredentials. The Portal calls.</td></tr>
+          <tr><td class="text-coral-400 font-mono px-3 py-2 border-b border-slate-800/60 align-top">SSOOIDCClient</td><td class="text-sky-300 font-mono px-3 py-2 border-b border-slate-800/60 align-top">AWSSSOOIDC</td><td class="text-slate-400 px-3 py-2 border-b border-slate-800/60 align-top">Wraps RegisterClient / StartDeviceAuthorization / CreateToken. The shape we drive the device flow through.</td></tr>
+          <tr><td class="text-coral-400 font-mono px-3 py-2 border-b border-slate-800/60 align-top">SSOClient</td><td class="text-sky-300 font-mono px-3 py-2 border-b border-slate-800/60 align-top">AWSSSO</td><td class="text-slate-400 px-3 py-2 border-b border-slate-800/60 align-top">Wraps ListAccounts / ListAccountRoles / GetRoleCredentials. The Portal calls.</td></tr>
         </tbody>
       </table>
 
-      <p>Both expose async/await methods that mirror their REST shapes 1-to-1 — <code>registerClient(input:)</code>, <code>startDeviceAuthorization(input:)</code>, <code>createToken(input:)</code>, <code>listAccounts(input:)</code>, <code>listAccountRoles(input:)</code>, <code>getRoleCredentials(input:)</code>. Region is passed via the client config; talking to <code>oidc.eu-west-1.amazonaws.com</code> means <code>SSOOIDCClient.Config(region: "eu-west-1")</code>.</p>
+      <p class="mb-4">Both expose async/await methods that mirror their REST shapes 1-to-1 — <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">registerClient(input:)</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">startDeviceAuthorization(input:)</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">createToken(input:)</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">listAccounts(input:)</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">listAccountRoles(input:)</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">getRoleCredentials(input:)</code>. Region is passed via the client config; talking to <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">oidc.eu-west-1.amazonaws.com</code> means <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SSOOIDCClient.Config(region: "eu-west-1")</code>.</p>
 
-      <div class="code-frame">
-        <div class="code-titlebar">
-          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
-          <span class="filename">register-client<span class="ext">.swift</span></span>
-          <span class="langtag">swift</span>
+      <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
+        <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
+          <div class="flex gap-1.5"><span class="w-2.5 h-2.5 rounded-full border border-black/35 bg-coral-400"></span><span class="w-2.5 h-2.5 rounded-full border border-black/35 bg-sunshine-400"></span><span class="w-2.5 h-2.5 rounded-full border border-black/35 bg-mint-400"></span></div>
+          <span class="text-slate-400 text-xs font-mono ml-1.5">register-client<span class="text-coral-400">.swift</span></span>
+          <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">swift</span>
         </div>
-<pre><code><span class="tok-keyword">import</span> <span class="tok-type">AWSSSOOIDC</span>
+<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code><span class="tok-keyword">import</span> <span class="tok-type">AWSSSOOIDC</span>
 
 <span class="tok-keyword">let</span> oidc = <span class="tok-keyword">try</span> <span class="tok-type">SSOOIDCClient</span>(region: <span class="tok-string">"eu-west-1"</span>)
 
@@ -922,47 +265,45 @@ Headers: x-amz-sso_bearer_token: &lt;accessToken&gt;
 <span class="tok-comment">// reg.clientId / reg.clientSecret / reg.clientSecretExpiresAt</span></code></pre>
       </div>
 
-      <h3>The auth-side extension points</h3>
-      <p>Outside of <code>SSOOIDCClient</code> (which is unauthenticated for <code>RegisterClient</code> and <code>StartDeviceAuthorization</code>, then takes the OIDC client credentials inline for <code>CreateToken</code>), every other AWS SDK call needs an <strong>identity</strong>. The SDK abstracts this through <code>SmithyIdentity.IdentityResolver</code>:</p>
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>The auth-side extension points</h3>
+      <p class="mb-4">Outside of <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SSOOIDCClient</code> (which is unauthenticated for <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">RegisterClient</code> and <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">StartDeviceAuthorization</code>, then takes the OIDC client credentials inline for <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CreateToken</code>), every other AWS SDK call needs an <strong class="font-semibold text-slate-100">identity</strong>. The SDK abstracts this through <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SmithyIdentity.IdentityResolver</code>:</p>
 
-      <table class="fields">
-        <thead><tr><th>Protocol</th><th>Module</th><th>Role</th></tr></thead>
+      <table class="w-full text-sm border-collapse my-4">
+        <thead><tr><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Protocol</th><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Module</th><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Role</th></tr></thead>
         <tbody>
-          <tr><td class="field">IdentityResolver</td><td class="type">SmithyIdentity</td><td class="note">Generic root protocol — returns an <code>Identity</code> on demand.</td></tr>
-          <tr><td class="field">AWSCredentialIdentityResolver</td><td class="type">SmithyIdentity</td><td class="note">Specialised to <code>AWSCredentialIdentity</code> (the SigV4 triple). What you'd plug into a downstream <code>S3Client</code> if you wanted to use Quorra creds with the SDK.</td></tr>
-          <tr><td class="field">SSOTokenIdentityResolver</td><td class="type">AWSSDKIdentity</td><td class="note">Specialised to the SSO bearer token. Has a default that reads the JSON cache files in <code>~/.aws/sso/cache/</code>; this is the one we want to override.</td></tr>
+          <tr><td class="text-coral-400 font-mono px-3 py-2 border-b border-slate-800/60 align-top">IdentityResolver</td><td class="text-sky-300 font-mono px-3 py-2 border-b border-slate-800/60 align-top">SmithyIdentity</td><td class="text-slate-400 px-3 py-2 border-b border-slate-800/60 align-top">Generic root protocol — returns an <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Identity</code> on demand.</td></tr>
+          <tr><td class="text-coral-400 font-mono px-3 py-2 border-b border-slate-800/60 align-top">AWSCredentialIdentityResolver</td><td class="text-sky-300 font-mono px-3 py-2 border-b border-slate-800/60 align-top">SmithyIdentity</td><td class="text-slate-400 px-3 py-2 border-b border-slate-800/60 align-top">Specialised to <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">AWSCredentialIdentity</code> (the SigV4 triple). What you'd plug into a downstream <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">S3Client</code> if you wanted to use Quorra creds with the SDK.</td></tr>
+          <tr><td class="text-coral-400 font-mono px-3 py-2 border-b border-slate-800/60 align-top">SSOTokenIdentityResolver</td><td class="text-sky-300 font-mono px-3 py-2 border-b border-slate-800/60 align-top">AWSSDKIdentity</td><td class="text-slate-400 px-3 py-2 border-b border-slate-800/60 align-top">Specialised to the SSO bearer token. Has a default that reads the JSON cache files in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">~/.aws/sso/cache/</code>; this is the one we want to override.</td></tr>
         </tbody>
       </table>
 
-      <p>Both <code>SSOClient</code> and <code>SSOOIDCClient</code> accept the resolver via their config: the property is typed as <code>any AWSCredentialIdentityResolver</code> (for <code>SSOClient</code> when used through the credential-provider chain) or as a token resolver attached to specific operation inputs. Plug in your own type and the on-disk cache never gets consulted.</p>
+      <p class="mb-4">Both <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SSOClient</code> and <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SSOOIDCClient</code> accept the resolver via their config: the property is typed as <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">any AWSCredentialIdentityResolver</code> (for <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SSOClient</code> when used through the credential-provider chain) or as a token resolver attached to specific operation inputs. Plug in your own type and the on-disk cache never gets consulted.</p>
     </section>
-
-    <!-- 06 BYPASS CACHE -->
     <section id="bypass-cache">
-      <h2><span class="section-anchor">06</span>Bypassing the on-disk cache</h2>
+      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">06</span>Bypassing the on-disk cache</h2>
 
-      <div class="callout danger"><strong>load-bearing answer</strong>Yes — the AWS SDK for Swift's <em>default</em> SSO token resolver reads and writes <code>~/.aws/sso/cache/&lt;sha1(startUrl)&gt;.json</code>. This matches the AWS CLI / boto3 behaviour and is the file we explicitly do not want Quorra to touch.</div>
+      <div class="my-6 border-l-[3px] border-error-300 pl-4 py-3 pr-5 bg-error-300/[0.08] rounded-r text-[0.95rem]"><strong class="font-mono text-[0.7rem] tracking-wider uppercase mr-2 text-error-300">load-bearing answer</strong>Yes — the AWS SDK for Swift's <em class="italic text-slate-400">default</em> SSO token resolver reads and writes <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">~/.aws/sso/cache/&lt;sha1(startUrl)&gt;.json</code>. This matches the AWS CLI / boto3 behaviour and is the file we explicitly do not want Quorra to touch.</div>
 
-      <h3>Where the on-disk behaviour comes from</h3>
-      <p>It's not in the OIDC client itself — <code>SSOOIDCClient</code>'s <code>createToken</code> just performs an HTTP request and returns <code>CreateTokenOutput</code>. The disk dance is in the <strong>credential provider chain</strong>: when an SDK client (e.g. <code>S3Client</code>) is constructed with no explicit credentials, the chain looks for a <code>[sso-session]</code> in <code>~/.aws/config</code>, then expects to find a matching cached token JSON under <code>~/.aws/sso/cache/</code>. If the token is missing or expired, the chain (depending on the SDK version) attempts a refresh via <code>CreateToken</code> and writes the refreshed value back to disk. The exchange to the role triple via <code>GetRoleCredentials</code> is similarly cached at <code>~/.aws/cli/cache/</code> by some implementations.</p>
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Where the on-disk behaviour comes from</h3>
+      <p class="mb-4">It's not in the OIDC client itself — <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SSOOIDCClient</code>'s <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">createToken</code> just performs an HTTP request and returns <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CreateTokenOutput</code>. The disk dance is in the <strong class="font-semibold text-slate-100">credential provider chain</strong>: when an SDK client (e.g. <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">S3Client</code>) is constructed with no explicit credentials, the chain looks for a <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">[sso-session]</code> in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">~/.aws/config</code>, then expects to find a matching cached token JSON under <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">~/.aws/sso/cache/</code>. If the token is missing or expired, the chain (depending on the SDK version) attempts a refresh via <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CreateToken</code> and writes the refreshed value back to disk. The exchange to the role triple via <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">GetRoleCredentials</code> is similarly cached at <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">~/.aws/cli/cache/</code> by some implementations.</p>
 
-      <h3>How to skip it cleanly</h3>
-      <p>Two compatible strategies:</p>
-      <ol>
-        <li><strong>Don't use the chain.</strong> Build <code>SSOOIDCClient</code> and <code>SSOClient</code> directly, pass the SSO access token explicitly as the <code>accessToken</code> field on each operation input (<code>ListAccountsInput.accessToken</code>, <code>GetRoleCredentialsInput.accessToken</code>, etc.). Quorra controls the bytes; nothing reads <code>~/.aws/sso/cache/</code> because the resolver is never asked.</li>
-        <li><strong>Conform to <code>SSOTokenIdentityResolver</code>.</strong> If, later, we wire other SDK clients (<code>S3Client</code>, <code>EC2Client</code>) so they can resolve credentials through the chain transparently, supply our own token resolver that reads from the Keychain instead of the cache file. Set it on the client config; the chain calls it instead of the file-backed default.</li>
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>How to skip it cleanly</h3>
+      <p class="mb-4">Two compatible strategies:</p>
+      <ol class="ml-6 mb-4 list-decimal">
+        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Don't use the chain.</strong> Build <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SSOOIDCClient</code> and <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SSOClient</code> directly, pass the SSO access token explicitly as the <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">accessToken</code> field on each operation input (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">ListAccountsInput.accessToken</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">GetRoleCredentialsInput.accessToken</code>, etc.). Quorra controls the bytes; nothing reads <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">~/.aws/sso/cache/</code> because the resolver is never asked.</li>
+        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Conform to <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SSOTokenIdentityResolver</code>.</strong> If, later, we wire other SDK clients (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">S3Client</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">EC2Client</code>) so they can resolve credentials through the chain transparently, supply our own token resolver that reads from the Keychain instead of the cache file. Set it on the client config; the chain calls it instead of the file-backed default.</li>
       </ol>
 
-      <p>For Quorra v1, strategy (1) is correct: we never construct downstream service clients in the app — we expose role credentials to outside processes via the IMDS server and stdout (<code>credential_process</code>). Strategy (2) is the mode if we ever embed an AWS SDK client.</p>
+      <p class="mb-4">For Quorra v1, strategy (1) is correct: we never construct downstream service clients in the app — we expose role credentials to outside processes via the IMDS server and stdout (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">credential_process</code>). Strategy (2) is the mode if we ever embed an AWS SDK client.</p>
 
-      <h3>Sketch of a Keychain-backed token resolver</h3>
-      <div class="code-frame">
-        <div class="code-titlebar">
-          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
-          <span class="filename">KeychainSSOTokenResolver<span class="ext">.swift</span></span>
-          <span class="langtag">swift</span>
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Sketch of a Keychain-backed token resolver</h3>
+      <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
+        <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
+          <div class="flex gap-1.5"><span class="w-2.5 h-2.5 rounded-full border border-black/35 bg-coral-400"></span><span class="w-2.5 h-2.5 rounded-full border border-black/35 bg-sunshine-400"></span><span class="w-2.5 h-2.5 rounded-full border border-black/35 bg-mint-400"></span></div>
+          <span class="text-slate-400 text-xs font-mono ml-1.5">KeychainSSOTokenResolver<span class="text-coral-400">.swift</span></span>
+          <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">swift</span>
         </div>
-<pre><code><span class="tok-keyword">import</span> <span class="tok-type">SmithyIdentity</span>
+<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code><span class="tok-keyword">import</span> <span class="tok-type">SmithyIdentity</span>
 <span class="tok-keyword">import</span> <span class="tok-type">AWSSDKIdentity</span>
 
 <span class="tok-comment">// Conform to SSOTokenIdentityResolver — same shape the default
@@ -992,14 +333,14 @@ Headers: x-amz-sso_bearer_token: &lt;accessToken&gt;
 }</code></pre>
       </div>
 
-      <p>Wire it onto a client by mutating the client config:</p>
-      <div class="code-frame">
-        <div class="code-titlebar">
-          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
-          <span class="filename">attach-resolver<span class="ext">.swift</span></span>
-          <span class="langtag">swift</span>
+      <p class="mb-4">Wire it onto a client by mutating the client config:</p>
+      <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
+        <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
+          <div class="flex gap-1.5"><span class="w-2.5 h-2.5 rounded-full border border-black/35 bg-coral-400"></span><span class="w-2.5 h-2.5 rounded-full border border-black/35 bg-sunshine-400"></span><span class="w-2.5 h-2.5 rounded-full border border-black/35 bg-mint-400"></span></div>
+          <span class="text-slate-400 text-xs font-mono ml-1.5">attach-resolver<span class="text-coral-400">.swift</span></span>
+          <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">swift</span>
         </div>
-<pre><code><span class="tok-keyword">var</span> cfg = <span class="tok-keyword">try await</span> <span class="tok-type">SSOClient</span>.<span class="tok-type">Config</span>(region: region)
+<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code><span class="tok-keyword">var</span> cfg = <span class="tok-keyword">try await</span> <span class="tok-type">SSOClient</span>.<span class="tok-type">Config</span>(region: region)
 cfg.tokenIdentityResolver = <span class="tok-type">KeychainSSOTokenResolver</span>(
     sessionName: <span class="tok-string">"corp-sso"</span>,
     keychain: keychain
@@ -1007,37 +348,35 @@ cfg.tokenIdentityResolver = <span class="tok-type">KeychainSSOTokenResolver</spa
 <span class="tok-keyword">let</span> sso = <span class="tok-type">SSOClient</span>(config: cfg)</code></pre>
       </div>
 
-      <div class="callout note"><strong>verify the property name</strong>The exact field on the generated <code>Config</code> has shifted between SDK versions (<code>tokenIdentityResolver</code> / <code>bearerTokenIdentityResolver</code>). Check against the version pinned in <code>Package.resolved</code> at integration time. The protocol surface is stable; the config plumbing has churned.</div>
+      <div class="my-6 border-l-[3px] border-sky-300 pl-4 py-3 pr-5 bg-sky-300/[0.08] rounded-r text-[0.95rem]"><strong class="font-mono text-[0.7rem] tracking-wider uppercase mr-2 text-sky-300">verify the property name</strong>The exact field on the generated <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Config</code> has shifted between SDK versions (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">tokenIdentityResolver</code> / <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">bearerTokenIdentityResolver</code>). Check against the version pinned in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Package.resolved</code> at integration time. The protocol surface is stable; the config plumbing has churned.</div>
     </section>
-
-    <!-- 07 APPLE -->
     <section id="apple">
-      <h2><span class="section-anchor">07</span>Apple frameworks for the verification step</h2>
-      <p>The user-verification step opens <code>verificationUriComplete</code> in a browser. Two viable choices on macOS:</p>
+      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">07</span>Apple frameworks for the verification step</h2>
+      <p class="mb-4">The user-verification step opens <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">verificationUriComplete</code> in a browser. Two viable choices on macOS:</p>
 
-      <table class="fields">
-        <thead><tr><th>API</th><th>Module</th><th>Behaviour</th></tr></thead>
+      <table class="w-full text-sm border-collapse my-4">
+        <thead><tr><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">API</th><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Module</th><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Behaviour</th></tr></thead>
         <tbody>
-          <tr><td class="field">ASWebAuthenticationSession</td><td class="type">AuthenticationServices</td><td class="note">In-app web view that shares cookies with Safari, hands back a result on a chosen redirect URI scheme.</td></tr>
-          <tr><td class="field">NSWorkspace.shared.open(_:)</td><td class="type">AppKit</td><td class="note">Hands the URL to the user's default browser. App keeps polling <code>CreateToken</code>; nothing comes back through Apple — completion is observed on the wire.</td></tr>
+          <tr><td class="text-coral-400 font-mono px-3 py-2 border-b border-slate-800/60 align-top">ASWebAuthenticationSession</td><td class="text-sky-300 font-mono px-3 py-2 border-b border-slate-800/60 align-top">AuthenticationServices</td><td class="text-slate-400 px-3 py-2 border-b border-slate-800/60 align-top">In-app web view that shares cookies with Safari, hands back a result on a chosen redirect URI scheme.</td></tr>
+          <tr><td class="text-coral-400 font-mono px-3 py-2 border-b border-slate-800/60 align-top">NSWorkspace.shared.open(_:)</td><td class="text-sky-300 font-mono px-3 py-2 border-b border-slate-800/60 align-top">AppKit</td><td class="text-slate-400 px-3 py-2 border-b border-slate-800/60 align-top">Hands the URL to the user's default browser. App keeps polling <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CreateToken</code>; nothing comes back through Apple — completion is observed on the wire.</td></tr>
         </tbody>
       </table>
 
-      <h3>Recommendation: <code>NSWorkspace.shared.open</code></h3>
-      <p>Three reasons:</p>
-      <ul>
-        <li><strong>No redirect URI.</strong> RFC 8628 explicitly removes the redirect-URI step — the user authenticates entirely on the IdP's portal, and the device app learns about completion via polling. <code>ASWebAuthenticationSession</code>'s API is built around a <em>callback URL</em>; using it for a flow that has no callback URL is fighting the framework.</li>
-        <li><strong>Default browser, default cookies.</strong> The corporate Identity Center portal almost certainly already has the user signed in to the corp IdP in their everyday browser. Routing them through that browser turns "click this once" into "click confirm." <code>ASWebAuthenticationSession</code>'s ephemeral cookie jar (<code>prefersEphemeralWebBrowserSession = true</code>) loses that benefit; non-ephemeral mode is allowed but presents a system "<em>quorra wants to use awsapps.com to sign in</em>" prompt that's confusing for an internal corporate flow.</li>
-        <li><strong>Sandbox-friendly.</strong> <code>NSWorkspace.open</code> is permitted from a sandboxed app without entitlements. <code>ASWebAuthenticationSession</code> works too, but the path of least resistance is the simpler one.</li>
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Recommendation: <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">NSWorkspace.shared.open</code></h3>
+      <p class="mb-4">Three reasons:</p>
+      <ul class="ml-6 mb-4">
+        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">No redirect URI.</strong> RFC 8628 explicitly removes the redirect-URI step — the user authenticates entirely on the IdP's portal, and the device app learns about completion via polling. <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">ASWebAuthenticationSession</code>'s API is built around a <em class="italic text-slate-400">callback URL</em>; using it for a flow that has no callback URL is fighting the framework.</li>
+        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Default browser, default cookies.</strong> The corporate Identity Center portal almost certainly already has the user signed in to the corp IdP in their everyday browser. Routing them through that browser turns "click this once" into "click confirm." <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">ASWebAuthenticationSession</code>'s ephemeral cookie jar (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">prefersEphemeralWebBrowserSession = true</code>) loses that benefit; non-ephemeral mode is allowed but presents a system "<em class="italic text-slate-400">quorra wants to use awsapps.com to sign in</em>" prompt that's confusing for an internal corporate flow.</li>
+        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Sandbox-friendly.</strong> <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">NSWorkspace.open</code> is permitted from a sandboxed app without entitlements. <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">ASWebAuthenticationSession</code> works too, but the path of least resistance is the simpler one.</li>
       </ul>
 
-      <div class="code-frame">
-        <div class="code-titlebar">
-          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
-          <span class="filename">open-verification<span class="ext">.swift</span></span>
-          <span class="langtag">swift</span>
+      <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
+        <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
+          <div class="flex gap-1.5"><span class="w-2.5 h-2.5 rounded-full border border-black/35 bg-coral-400"></span><span class="w-2.5 h-2.5 rounded-full border border-black/35 bg-sunshine-400"></span><span class="w-2.5 h-2.5 rounded-full border border-black/35 bg-mint-400"></span></div>
+          <span class="text-slate-400 text-xs font-mono ml-1.5">open-verification<span class="text-coral-400">.swift</span></span>
+          <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">swift</span>
         </div>
-<pre><code><span class="tok-keyword">import</span> <span class="tok-type">AppKit</span>
+<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code><span class="tok-keyword">import</span> <span class="tok-type">AppKit</span>
 
 <span class="tok-keyword">guard let</span> url = <span class="tok-type">URL</span>(string: deviceAuth.verificationUriComplete) <span class="tok-keyword">else</span> {
     <span class="tok-keyword">throw</span> <span class="tok-type">DeviceAuthError</span>.malformedVerificationURL
@@ -1047,95 +386,89 @@ cfg.tokenIdentityResolver = <span class="tok-type">KeychainSSOTokenResolver</spa
 <span class="tok-keyword">let</span> opened = <span class="tok-type">NSWorkspace</span>.shared.open(url)</code></pre>
       </div>
 
-      <p>Surface the <code>userCode</code> in the UI alongside the auto-launch — copy-on-click, with a visible "if your browser didn't open, paste this code at <code>verificationUri</code>" affordance. Some browsers eat <code>verificationUriComplete</code>'s query parameters when launched cold; the manual fallback covers it.</p>
+      <p class="mb-4">Surface the <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">userCode</code> in the UI alongside the auto-launch — copy-on-click, with a visible "if your browser didn't open, paste this code at <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">verificationUri</code>" affordance. Some browsers eat <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">verificationUriComplete</code>'s query parameters when launched cold; the manual fallback covers it.</p>
 
-      <h3>When <code>ASWebAuthenticationSession</code> would be right</h3>
-      <p>If we ever switch to the standard authorization-code grant (which <em>does</em> have a redirect URI), <code>ASWebAuthenticationSession</code> is the correct primitive. That's not where Quorra v1 is going.</p>
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>When <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">ASWebAuthenticationSession</code> would be right</h3>
+      <p class="mb-4">If we ever switch to the standard authorization-code grant (which <em class="italic text-slate-400">does</em> have a redirect URI), <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">ASWebAuthenticationSession</code> is the correct primitive. That's not where Quorra v1 is going.</p>
     </section>
-
-    <!-- 08 KEYCHAIN -->
     <section id="keychain">
-      <h2><span class="section-anchor">08</span>Keychain layout</h2>
-      <p>All Quorra SSO state goes into <code>kSecClassGenericPassword</code> items in the <strong>shared access group</strong> declared in both target entitlements: <code>$(AppIdentifierPrefix)dev.ajbeck.quorra.shared</code>. The CLI and the app read/write the same items.</p>
+      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">08</span>Keychain layout</h2>
+      <p class="mb-4">All Quorra SSO state goes into <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">kSecClassGenericPassword</code> items in the <strong class="font-semibold text-slate-100">shared access group</strong> declared in both target entitlements: <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">$(AppIdentifierPrefix)dev.ajbeck.quorra.shared</code>. The CLI and the app read/write the same items.</p>
 
-      <h3>Item conventions</h3>
-      <table class="fields">
-        <thead><tr><th>Item</th><th>service</th><th>account</th><th>secret</th></tr></thead>
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Item conventions</h3>
+      <table class="w-full text-sm border-collapse my-4">
+        <thead><tr><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Item</th><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">service</th><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">account</th><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">secret</th></tr></thead>
         <tbody>
-          <tr><td class="field">OIDC client registration</td><td class="type">dev.ajbeck.quorra.oidc-client</td><td class="type">&lt;region&gt;</td><td class="note">JSON: <code>{ clientId, clientSecret, expiresAt }</code></td></tr>
-          <tr><td class="field">SSO access &amp; refresh token</td><td class="type">dev.ajbeck.quorra.sso-token</td><td class="type">&lt;sso-session-name&gt;</td><td class="note">JSON: <code>{ accessToken, expiresAt, refreshToken? }</code></td></tr>
-          <tr><td class="field">Role credentials</td><td class="type">dev.ajbeck.quorra.role-creds</td><td class="type">&lt;accountId&gt;:&lt;roleName&gt;</td><td class="note">JSON: <code>{ accessKeyId, secretAccessKey, sessionToken, expiration }</code></td></tr>
+          <tr><td class="text-coral-400 font-mono px-3 py-2 border-b border-slate-800/60 align-top">OIDC client registration</td><td class="text-sky-300 font-mono px-3 py-2 border-b border-slate-800/60 align-top">dev.ajbeck.quorra.oidc-client</td><td class="text-sky-300 font-mono px-3 py-2 border-b border-slate-800/60 align-top">&lt;region&gt;</td><td class="text-slate-400 px-3 py-2 border-b border-slate-800/60 align-top">JSON: <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">{ clientId, clientSecret, expiresAt }</code></td></tr>
+          <tr><td class="text-coral-400 font-mono px-3 py-2 border-b border-slate-800/60 align-top">SSO access &amp; refresh token</td><td class="text-sky-300 font-mono px-3 py-2 border-b border-slate-800/60 align-top">dev.ajbeck.quorra.sso-token</td><td class="text-sky-300 font-mono px-3 py-2 border-b border-slate-800/60 align-top">&lt;sso-session-name&gt;</td><td class="text-slate-400 px-3 py-2 border-b border-slate-800/60 align-top">JSON: <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">{ accessToken, expiresAt, refreshToken? }</code></td></tr>
+          <tr><td class="text-coral-400 font-mono px-3 py-2 border-b border-slate-800/60 align-top">Role credentials</td><td class="text-sky-300 font-mono px-3 py-2 border-b border-slate-800/60 align-top">dev.ajbeck.quorra.role-creds</td><td class="text-sky-300 font-mono px-3 py-2 border-b border-slate-800/60 align-top">&lt;accountId&gt;:&lt;roleName&gt;</td><td class="text-slate-400 px-3 py-2 border-b border-slate-800/60 align-top">JSON: <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">{ accessKeyId, secretAccessKey, sessionToken, expiration }</code></td></tr>
         </tbody>
       </table>
 
-      <p>One row per <code>(service, account)</code> pair. Updates use <code>SecItemUpdate</code>; missing-row updates fall back to <code>SecItemAdd</code>. Deletes use <code>SecItemDelete</code>. Round-tripping is straightforward as long as the access group attribute is set on every operation.</p>
+      <p class="mb-4">One row per <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">(service, account)</code> pair. Updates use <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SecItemUpdate</code>; missing-row updates fall back to <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SecItemAdd</code>. Deletes use <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SecItemDelete</code>. Round-tripping is straightforward as long as the access group attribute is set on every operation.</p>
 
-      <h3>Accessibility class</h3>
-      <p>Two reasonable choices:</p>
-      <table class="fields">
-        <thead><tr><th>Constant</th><th>Visibility</th><th>Use case</th></tr></thead>
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Accessibility class</h3>
+      <p class="mb-4">Two reasonable choices:</p>
+      <table class="w-full text-sm border-collapse my-4">
+        <thead><tr><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Constant</th><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Visibility</th><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Use case</th></tr></thead>
         <tbody>
-          <tr><td class="field">kSecAttrAccessibleWhenUnlocked</td><td class="type">Mac unlocked, current login session</td><td class="note">Highest secrecy. Items unreadable when the screen is locked. Right for the SSO refresh token.</td></tr>
-          <tr><td class="field">kSecAttrAccessibleAfterFirstUnlock</td><td class="type">After first unlock since boot</td><td class="note">Tolerates background access while the screen is locked. Right for short-lived role creds the IMDS server might serve to a build script while the user is away from their desk.</td></tr>
+          <tr><td class="text-coral-400 font-mono px-3 py-2 border-b border-slate-800/60 align-top">kSecAttrAccessibleWhenUnlocked</td><td class="text-sky-300 font-mono px-3 py-2 border-b border-slate-800/60 align-top">Mac unlocked, current login session</td><td class="text-slate-400 px-3 py-2 border-b border-slate-800/60 align-top">Highest secrecy. Items unreadable when the screen is locked. Right for the SSO refresh token.</td></tr>
+          <tr><td class="text-coral-400 font-mono px-3 py-2 border-b border-slate-800/60 align-top">kSecAttrAccessibleAfterFirstUnlock</td><td class="text-sky-300 font-mono px-3 py-2 border-b border-slate-800/60 align-top">After first unlock since boot</td><td class="text-slate-400 px-3 py-2 border-b border-slate-800/60 align-top">Tolerates background access while the screen is locked. Right for short-lived role creds the IMDS server might serve to a build script while the user is away from their desk.</td></tr>
         </tbody>
       </table>
 
-      <p>Recommended split: <strong>refresh token uses <code>WhenUnlocked</code></strong>, <strong>access token + role credentials use <code>AfterFirstUnlock</code></strong>. The refresh token is the long-lived secret; treat it strictly. Access tokens are ~8h and role creds are ~1h — a screen lock shouldn't break a backgrounded build that needs them. <code>WhenUnlockedThisDeviceOnly</code> / <code>AfterFirstUnlockThisDeviceOnly</code> variants prevent items from being copied to a new Mac via Migration Assistant; opt for the <em>ThisDeviceOnly</em> variant — credentials shouldn't ride along on hardware migration.</p>
+      <p class="mb-4">Recommended split: <strong class="font-semibold text-slate-100">refresh token uses <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">WhenUnlocked</code></strong>, <strong class="font-semibold text-slate-100">access token + role credentials use <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">AfterFirstUnlock</code></strong>. The refresh token is the long-lived secret; treat it strictly. Access tokens are ~8h and role creds are ~1h — a screen lock shouldn't break a backgrounded build that needs them. <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">WhenUnlockedThisDeviceOnly</code> / <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">AfterFirstUnlockThisDeviceOnly</code> variants prevent items from being copied to a new Mac via Migration Assistant; opt for the <em class="italic text-slate-400">ThisDeviceOnly</em> variant — credentials shouldn't ride along on hardware migration.</p>
 
-      <h3>Concurrent safety</h3>
-      <p>Both binaries can mutate Keychain items simultaneously. Keychain operations are themselves atomic per call, but a read-modify-write sequence (refresh-then-store) is not. Wrap the refresh path in an <code>actor</code> or use a process-shared lock file (<code>flock</code> on a file under the shared container). Per <code>CLAUDE.md § App ↔ CLI Architecture</code> we already plan for shared mutable state; the same locking discipline applies here.</p>
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Concurrent safety</h3>
+      <p class="mb-4">Both binaries can mutate Keychain items simultaneously. Keychain operations are themselves atomic per call, but a read-modify-write sequence (refresh-then-store) is not. Wrap the refresh path in an <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">actor</code> or use a process-shared lock file (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">flock</code> on a file under the shared container). Per <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CLAUDE.md § App ↔ CLI Architecture</code> we already plan for shared mutable state; the same locking discipline applies here.</p>
 
-      <div class="callout warn"><strong>do not write secrets to ~/.aws/credentials</strong>The whole point of the Keychain layer is that <code>~/.aws/credentials</code> stays free of bearer tokens, refresh tokens, and SigV4 secrets. The on-disk file holds metadata and pointers; secrets live exclusively in Keychain items reachable through the shared access group.</div>
+      <div class="my-6 border-l-[3px] border-warning-300 pl-4 py-3 pr-5 bg-warning-300/[0.08] rounded-r text-[0.95rem]"><strong class="font-mono text-[0.7rem] tracking-wider uppercase mr-2 text-warning-300">do not write secrets to ~/.aws/credentials</strong>The whole point of the Keychain layer is that <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">~/.aws/credentials</code> stays free of bearer tokens, refresh tokens, and SigV4 secrets. The on-disk file holds metadata and pointers; secrets live exclusively in Keychain items reachable through the shared access group.</div>
     </section>
-
-    <!-- 09 LIFETIMES -->
     <section id="lifetimes">
-      <h2><span class="section-anchor">09</span>Lifetimes &amp; "active" semantics</h2>
+      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">09</span>Lifetimes &amp; "active" semantics</h2>
 
-      <table class="fields">
-        <thead><tr><th>Item</th><th>Lifetime</th><th>Set by</th><th>Refreshable?</th></tr></thead>
+      <table class="w-full text-sm border-collapse my-4">
+        <thead><tr><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Item</th><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Lifetime</th><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Set by</th><th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Refreshable?</th></tr></thead>
         <tbody>
-          <tr><td class="field">OIDC client_secret</td><td class="type">~90 days</td><td class="type">SSO OIDC service</td><td class="note">No — re-register when <code>clientSecretExpiresAt</code> is reached.</td></tr>
-          <tr><td class="field">SSO access token</td><td class="type">~8 hours</td><td class="type">CreateToken's <code>expiresIn</code></td><td class="note">Yes, via <code>refresh_token</code> grant — <strong>only</strong> if the registration included <code>sso:account:access</code>.</td></tr>
-          <tr><td class="field">SSO refresh token</td><td class="type">Long, undocumented (typically days/weeks)</td><td class="type">CreateToken</td><td class="note">Rotates on each refresh. When refresh fails, fall back to the device flow.</td></tr>
-          <tr><td class="field">Role credentials</td><td class="type">1h default, up to 12h</td><td class="type">Permission-set max-session</td><td class="note">No direct refresh — call <code>GetRoleCredentials</code> again with a still-valid SSO token.</td></tr>
+          <tr><td class="text-coral-400 font-mono px-3 py-2 border-b border-slate-800/60 align-top">OIDC client_secret</td><td class="text-sky-300 font-mono px-3 py-2 border-b border-slate-800/60 align-top">~90 days</td><td class="text-sky-300 font-mono px-3 py-2 border-b border-slate-800/60 align-top">SSO OIDC service</td><td class="text-slate-400 px-3 py-2 border-b border-slate-800/60 align-top">No — re-register when <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">clientSecretExpiresAt</code> is reached.</td></tr>
+          <tr><td class="text-coral-400 font-mono px-3 py-2 border-b border-slate-800/60 align-top">SSO access token</td><td class="text-sky-300 font-mono px-3 py-2 border-b border-slate-800/60 align-top">~8 hours</td><td class="text-sky-300 font-mono px-3 py-2 border-b border-slate-800/60 align-top">CreateToken's <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expiresIn</code></td><td class="text-slate-400 px-3 py-2 border-b border-slate-800/60 align-top">Yes, via <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">refresh_token</code> grant — <strong class="font-semibold text-slate-100">only</strong> if the registration included <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">sso:account:access</code>.</td></tr>
+          <tr><td class="text-coral-400 font-mono px-3 py-2 border-b border-slate-800/60 align-top">SSO refresh token</td><td class="text-sky-300 font-mono px-3 py-2 border-b border-slate-800/60 align-top">Long, undocumented (typically days/weeks)</td><td class="text-sky-300 font-mono px-3 py-2 border-b border-slate-800/60 align-top">CreateToken</td><td class="text-slate-400 px-3 py-2 border-b border-slate-800/60 align-top">Rotates on each refresh. When refresh fails, fall back to the device flow.</td></tr>
+          <tr><td class="text-coral-400 font-mono px-3 py-2 border-b border-slate-800/60 align-top">Role credentials</td><td class="text-sky-300 font-mono px-3 py-2 border-b border-slate-800/60 align-top">1h default, up to 12h</td><td class="text-sky-300 font-mono px-3 py-2 border-b border-slate-800/60 align-top">Permission-set max-session</td><td class="text-slate-400 px-3 py-2 border-b border-slate-800/60 align-top">No direct refresh — call <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">GetRoleCredentials</code> again with a still-valid SSO token.</td></tr>
         </tbody>
       </table>
 
-      <div class="callout note"><strong>verify access-token TTL</strong>~8 hours is the AWS-documented default for Identity Center, but the actual value is whatever <code>CreateToken</code> returns in <code>expiresIn</code>. Always trust the response field over the documented number; org admins can shrink the session length on the Identity Center settings page.</div>
+      <div class="my-6 border-l-[3px] border-sky-300 pl-4 py-3 pr-5 bg-sky-300/[0.08] rounded-r text-[0.95rem]"><strong class="font-mono text-[0.7rem] tracking-wider uppercase mr-2 text-sky-300">verify access-token TTL</strong>~8 hours is the AWS-documented default for Identity Center, but the actual value is whatever <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CreateToken</code> returns in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expiresIn</code>. Always trust the response field over the documented number; org admins can shrink the session length on the Identity Center settings page.</div>
 
-      <h3>"Active" — what the green dot means</h3>
-      <p>For the sidebar status indicator on a profile, "active" should mean: <em>Quorra can serve fresh role credentials for this profile right now without user interaction</em>. That's a four-clause check:</p>
-      <ol>
-        <li>The <code>sso-session</code> referenced by the profile has an SSO access token in the Keychain whose <code>expiresAt</code> is in the future, <em>or</em> a refresh token is present and the access token can be silently refreshed.</li>
-        <li>The OIDC client registration is not past <code>clientSecretExpiresAt</code> (or the refresh path will tear down with <code>InvalidClientException</code>).</li>
-        <li>The most recent <code>GetRoleCredentials</code> call for this (account, role) succeeded — i.e. the user still has the role assigned.</li>
-        <li>If role credentials are cached, their <code>expiration</code> is in the future <em>or</em> we still have a valid access token to mint new ones.</li>
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>"Active" — what the green dot means</h3>
+      <p class="mb-4">For the sidebar status indicator on a profile, "active" should mean: <em class="italic text-slate-400">Quorra can serve fresh role credentials for this profile right now without user interaction</em>. That's a four-clause check:</p>
+      <ol class="ml-6 mb-4 list-decimal">
+        <li class="my-1 marker:text-coral-400">The <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">sso-session</code> referenced by the profile has an SSO access token in the Keychain whose <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expiresAt</code> is in the future, <em class="italic text-slate-400">or</em> a refresh token is present and the access token can be silently refreshed.</li>
+        <li class="my-1 marker:text-coral-400">The OIDC client registration is not past <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">clientSecretExpiresAt</code> (or the refresh path will tear down with <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">InvalidClientException</code>).</li>
+        <li class="my-1 marker:text-coral-400">The most recent <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">GetRoleCredentials</code> call for this (account, role) succeeded — i.e. the user still has the role assigned.</li>
+        <li class="my-1 marker:text-coral-400">If role credentials are cached, their <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expiration</code> is in the future <em class="italic text-slate-400">or</em> we still have a valid access token to mint new ones.</li>
       </ol>
 
-      <p>If (1) and (2) hold but the cached role creds are stale, we count as "active" — the next consumer call will trigger a transparent <code>GetRoleCredentials</code>. If (1) is false and no refresh token is on hand, we are <strong>not active</strong> regardless of what's cached; the dot is amber/red and clicking the profile prompts a new device-flow sign-in.</p>
+      <p class="mb-4">If (1) and (2) hold but the cached role creds are stale, we count as "active" — the next consumer call will trigger a transparent <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">GetRoleCredentials</code>. If (1) is false and no refresh token is on hand, we are <strong class="font-semibold text-slate-100">not active</strong> regardless of what's cached; the dot is amber/red and clicking the profile prompts a new device-flow sign-in.</p>
 
-      <h3>Refresh windows</h3>
-      <p>Don't wait until expiry. Refresh proactively on a 60-second skew:</p>
-      <ul>
-        <li>Access token: refresh when <code>expiresAt - now &lt; 5min</code>.</li>
-        <li>Role credentials: re-fetch when <code>expiration - now &lt; 5min</code>.</li>
-        <li>OIDC client: re-register when <code>clientSecretExpiresAt - now &lt; 7 days</code> (any refresh attempt will surface <code>InvalidClientException</code> if we leave it).</li>
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Refresh windows</h3>
+      <p class="mb-4">Don't wait until expiry. Refresh proactively on a 60-second skew:</p>
+      <ul class="ml-6 mb-4">
+        <li class="my-1 marker:text-coral-400">Access token: refresh when <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expiresAt - now &lt; 5min</code>.</li>
+        <li class="my-1 marker:text-coral-400">Role credentials: re-fetch when <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expiration - now &lt; 5min</code>.</li>
+        <li class="my-1 marker:text-coral-400">OIDC client: re-register when <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">clientSecretExpiresAt - now &lt; 7 days</code> (any refresh attempt will surface <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">InvalidClientException</code> if we leave it).</li>
       </ul>
     </section>
-
-    <!-- 10 SKETCH -->
     <section id="sketch">
-      <h2><span class="section-anchor">10</span>End-to-end Swift sketch</h2>
-      <p>Pulling the pieces together: the high-level shape of the sign-in path, plus how the Keychain-backed token feeds the Portal calls.</p>
+      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">10</span>End-to-end Swift sketch</h2>
+      <p class="mb-4">Pulling the pieces together: the high-level shape of the sign-in path, plus how the Keychain-backed token feeds the Portal calls.</p>
 
-      <div class="code-frame">
-        <div class="code-titlebar">
-          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
-          <span class="filename">DeviceAuth<span class="ext">.swift</span></span>
-          <span class="langtag">swift</span>
+      <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
+        <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
+          <div class="flex gap-1.5"><span class="w-2.5 h-2.5 rounded-full border border-black/35 bg-coral-400"></span><span class="w-2.5 h-2.5 rounded-full border border-black/35 bg-sunshine-400"></span><span class="w-2.5 h-2.5 rounded-full border border-black/35 bg-mint-400"></span></div>
+          <span class="text-slate-400 text-xs font-mono ml-1.5">DeviceAuth<span class="text-coral-400">.swift</span></span>
+          <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">swift</span>
         </div>
-<pre><code><span class="tok-keyword">import</span> <span class="tok-type">AppKit</span>
+<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code><span class="tok-keyword">import</span> <span class="tok-type">AppKit</span>
 <span class="tok-keyword">import</span> <span class="tok-type">AWSSSOOIDC</span>
 <span class="tok-keyword">import</span> <span class="tok-type">AWSSSO</span>
 
@@ -1202,64 +535,59 @@ cfg.tokenIdentityResolver = <span class="tok-type">KeychainSSOTokenResolver</spa
 }</code></pre>
       </div>
 
-      <p>The <code>ensureFreshToken</code> path is the Keychain-backed resolver from §06: read the stored token, refresh via <code>CreateToken(refresh_token)</code> if it's near expiry, return the live access token. <code>SSOClient</code> takes the bearer token directly on each input — <em>nothing in this code path consults <code>~/.aws/sso/cache/</code></em>.</p>
+      <p class="mb-4">The <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">ensureFreshToken</code> path is the Keychain-backed resolver from §06: read the stored token, refresh via <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CreateToken(refresh_token)</code> if it's near expiry, return the live access token. <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SSOClient</code> takes the bearer token directly on each input — <em class="italic text-slate-400">nothing in this code path consults <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">~/.aws/sso/cache/</code></em>.</p>
     </section>
-
-    <!-- 11 ERRORS -->
     <section id="errors">
-      <h2><span class="section-anchor">11</span>Errors &amp; their handling</h2>
+      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">11</span>Errors &amp; their handling</h2>
 
-      <ul class="errors">
-        <li><span class="err-case">.authorizationPending</span><span class="err-desc">Maps from <code>AuthorizationPendingException</code>. Internal, never surfaces — the polling loop swallows it.</span></li>
-        <li><span class="err-case">.slowDown</span><span class="err-desc">Maps from <code>SlowDownException</code>. Internal — the loop increments the interval by 5s.</span></li>
-        <li><span class="err-case">.expired</span><span class="err-desc">User did not complete the browser step before <code>expiresIn</code>. Surface a "sign-in expired, try again" toast and offer to restart.</span></li>
-        <li><span class="err-case">.cancelled</span><span class="err-desc">User refused at the IdP. Treat as a clean cancellation — no error toast, return to the previous UI state.</span></li>
-        <li><span class="err-case">.invalidClient</span><span class="err-desc">Client registration is gone or expired. Re-register and retry once; if the second attempt fails, surface as a real error.</span></li>
-        <li><span class="err-case">.invalidGrant</span><span class="err-desc">Refresh token is no longer valid. Drop it from the Keychain and re-run the device flow.</span></li>
-        <li><span class="err-case">.networkUnavailable</span><span class="err-desc">URLSession-level failure. Retry with backoff; offer the user a manual retry button after two failures.</span></li>
-        <li><span class="err-case">.throttling</span><span class="err-desc">Portal API rate limit. Back off and retry; if it persists, the user is hitting an org-level cap and we should surface that.</span></li>
+      <ul class="list-none p-0 my-4 grid gap-2">
+        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">.authorizationPending</span><span class="text-slate-400">Maps from <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">AuthorizationPendingException</code>. Internal, never surfaces — the polling loop swallows it.</span></li>
+        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">.slowDown</span><span class="text-slate-400">Maps from <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SlowDownException</code>. Internal — the loop increments the interval by 5s.</span></li>
+        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">.expired</span><span class="text-slate-400">User did not complete the browser step before <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expiresIn</code>. Surface a "sign-in expired, try again" toast and offer to restart.</span></li>
+        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">.cancelled</span><span class="text-slate-400">User refused at the IdP. Treat as a clean cancellation — no error toast, return to the previous UI state.</span></li>
+        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">.invalidClient</span><span class="text-slate-400">Client registration is gone or expired. Re-register and retry once; if the second attempt fails, surface as a real error.</span></li>
+        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">.invalidGrant</span><span class="text-slate-400">Refresh token is no longer valid. Drop it from the Keychain and re-run the device flow.</span></li>
+        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">.networkUnavailable</span><span class="text-slate-400">URLSession-level failure. Retry with backoff; offer the user a manual retry button after two failures.</span></li>
+        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">.throttling</span><span class="text-slate-400">Portal API rate limit. Back off and retry; if it persists, the user is hitting an org-level cap and we should surface that.</span></li>
       </ul>
     </section>
-
-    <!-- 12 OPEN -->
     <section id="open">
-      <h2><span class="section-anchor">12</span>Open questions</h2>
+      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">12</span>Open questions</h2>
 
-      <div class="pills">
-        <span class="pill"><span class="dot">●</span>SDK version pinning</span>
-        <span class="pill"><span class="dot">●</span>Resolver field name</span>
-        <span class="pill"><span class="dot">●</span>OIDC client per region</span>
-        <span class="pill"><span class="dot">●</span>Per-binary OIDC client</span>
-        <span class="pill"><span class="dot">●</span>Refresh-token lifetime</span>
-        <span class="pill"><span class="dot">●</span>Multi-session UX</span>
+      <div class="flex flex-wrap gap-2 my-3 mb-5">
+        <span class="font-mono text-[0.72rem] px-2.5 py-1.5 rounded-sm text-slate-100 border border-slate-800 bg-slate-800/30"><span class="text-coral-400 mr-1">●</span>SDK version pinning</span>
+        <span class="font-mono text-[0.72rem] px-2.5 py-1.5 rounded-sm text-slate-100 border border-slate-800 bg-slate-800/30"><span class="text-coral-400 mr-1">●</span>Resolver field name</span>
+        <span class="font-mono text-[0.72rem] px-2.5 py-1.5 rounded-sm text-slate-100 border border-slate-800 bg-slate-800/30"><span class="text-coral-400 mr-1">●</span>OIDC client per region</span>
+        <span class="font-mono text-[0.72rem] px-2.5 py-1.5 rounded-sm text-slate-100 border border-slate-800 bg-slate-800/30"><span class="text-coral-400 mr-1">●</span>Per-binary OIDC client</span>
+        <span class="font-mono text-[0.72rem] px-2.5 py-1.5 rounded-sm text-slate-100 border border-slate-800 bg-slate-800/30"><span class="text-coral-400 mr-1">●</span>Refresh-token lifetime</span>
+        <span class="font-mono text-[0.72rem] px-2.5 py-1.5 rounded-sm text-slate-100 border border-slate-800 bg-slate-800/30"><span class="text-coral-400 mr-1">●</span>Multi-session UX</span>
       </div>
 
-      <h3>Should the OIDC client be per-region?</h3>
-      <p>The OIDC service is regional, but a registered client can be reused across regions for the same Identity Center start URL. We tentatively scope items by <code>region</code> in the Keychain because the registration endpoint changes; cross-checking against a multi-region tenant is required before shipping.</p>
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Should the OIDC client be per-region?</h3>
+      <p class="mb-4">The OIDC service is regional, but a registered client can be reused across regions for the same Identity Center start URL. We tentatively scope items by <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">region</code> in the Keychain because the registration endpoint changes; cross-checking against a multi-region tenant is required before shipping.</p>
 
-      <h3>Should the app and the CLI share one OIDC client registration?</h3>
-      <p>Yes — they're the same product, the same access group, and AWS bills "registered apps" cosmetically. Both binaries should look up <code>(service: dev.ajbeck.quorra.oidc-client, account: &lt;region&gt;)</code> and only register if missing. The first to wake up wins and the other reads the result.</p>
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Should the app and the CLI share one OIDC client registration?</h3>
+      <p class="mb-4">Yes — they're the same product, the same access group, and AWS bills "registered apps" cosmetically. Both binaries should look up <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">(service: dev.ajbeck.quorra.oidc-client, account: &lt;region&gt;)</code> and only register if missing. The first to wake up wins and the other reads the result.</p>
 
-      <h3>What is the actual refresh-token lifetime?</h3>
-      <p>Not documented numerically by AWS. Empirical reports suggest weeks but it's at the IdP's discretion. Quorra should treat any <code>InvalidGrantException</code> on refresh as "fall back to the full device flow" and not assume a TTL.</p>
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>What is the actual refresh-token lifetime?</h3>
+      <p class="mb-4">Not documented numerically by AWS. Empirical reports suggest weeks but it's at the IdP's discretion. Quorra should treat any <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">InvalidGrantException</code> on refresh as "fall back to the full device flow" and not assume a TTL.</p>
 
-      <h3>How do we present multiple <code>[sso-session]</code> blocks?</h3>
-      <p>One sign-in per session. The sidebar groups profiles under their session header (already designed in <code>SidebarGroups</code>); the green-dot status is per-session, then propagates down to the profiles that reference it. Edge case: a profile with <code>sso_start_url</code> set inline (no session block) gets its own implicit session.</p>
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>How do we present multiple <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">[sso-session]</code> blocks?</h3>
+      <p class="mb-4">One sign-in per session. The sidebar groups profiles under their session header (already designed in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SidebarGroups</code>); the green-dot status is per-session, then propagates down to the profiles that reference it. Edge case: a profile with <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">sso_start_url</code> set inline (no session block) gets its own implicit session.</p>
 
-      <h3>Do we need the <code>idToken</code>?</h3>
-      <p>No. <code>CreateToken</code> sometimes returns an <code>idToken</code>; we ignore it. AWS doesn't require it for <code>GetRoleCredentials</code>, and we have no use for the JWT claims. Storing it would just be one more rotated secret to manage.</p>
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Do we need the <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">idToken</code>?</h3>
+      <p class="mb-4">No. <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CreateToken</code> sometimes returns an <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">idToken</code>; we ignore it. AWS doesn't require it for <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">GetRoleCredentials</code>, and we have no use for the JWT claims. Storing it would just be one more rotated secret to manage.</p>
 
-      <h3>SDK version pinning</h3>
-      <p>The exact <code>Config</code> field for token resolver injection has changed between recent <code>aws-sdk-swift</code> releases. Pin the SDK to a specific minor version in <code>Package.resolved</code> and verify against the generated headers at integration time. Don't follow <code>main</code>.</p>
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>SDK version pinning</h3>
+      <p class="mb-4">The exact <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Config</code> field for token resolver injection has changed between recent <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">aws-sdk-swift</code> releases. Pin the SDK to a specific minor version in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Package.resolved</code> and verify against the generated headers at integration time. Don't follow <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">main</code>.</p>
     </section>
 
-    <footer>
-      <span class="blink">$ quorra sso login</span>
-      <span>quorra · macOS 26 · swift 6.2</span>
+    <footer class="mt-24 pt-6 border-t border-slate-800 text-slate-500 text-sm font-mono flex flex-wrap justify-between gap-4">
+      <span class="blink">$ quorra sso research</span>
+      <span>quorra · device auth · macOS 26 · swift 6.2</span>
     </footer>
 
   </main>
 </div>
-
 </body>
 </html>

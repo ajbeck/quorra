@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IAM Identity Center · Phase 1 Plan — Quorra (archived)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'media',
+    theme: { extend: {
+      fontFamily: {
+        mono: ['Berkeley Mono','JetBrains Mono','IBM Plex Mono','SF Mono','ui-monospace','Menlo','Consolas','monospace'],
+        serif: ['ui-serif','Iowan Old Style','Charter','Source Serif Pro','Hoefler Text','Palatino','Georgia','serif'],
+      },
+      colors: {
+        coral:{50:'#FFF0ED',100:'#FFDDD6',200:'#FFB3A3',300:'#FF8A6F',400:'#FF6347',500:'#E8452C',600:'#C43420',700:'#9A2718',800:'#741D12',900:'#50130D',950:'#300B07'},
+        sunshine:{50:'#FFFCE5',100:'#FFF8BF',200:'#FFF080',300:'#FFE433',400:'#FFD700',500:'#E5BF00',600:'#BF9F00',700:'#997F00',800:'#736000',900:'#4D4000',950:'#2E2600'},
+        sky:{50:'#E8F4FF',100:'#CCE7FF',200:'#99CFFF',300:'#5CB3FF',400:'#2196F5',500:'#0A7EDB',600:'#0066B8',700:'#004F8F',800:'#003B6B',900:'#002949',950:'#00182B'},
+        mint:{50:'#E6FFF3',100:'#C0FFE0',200:'#80FFC2',300:'#33F59A',400:'#00D97F',500:'#00B86B',600:'#009959',700:'#007A47',800:'#005C35',900:'#003D24',950:'#002415'},
+        violet:{50:'#F3EDFF',100:'#E2D5FF',200:'#C6ABFF',300:'#A47DFF',400:'#8B5CF6',500:'#7342DB',600:'#5E33B8',700:'#49278F',800:'#371D6B',900:'#251349',950:'#160B2B'},
+        tangerine:{50:'#FFF4E5',100:'#FFE4BF',200:'#FFC880',300:'#FFA833',400:'#FF9500',500:'#E58000',600:'#BF6A00',700:'#995500',800:'#733F00',900:'#4D2A00',950:'#2E1900'},
+        bubblegum:{50:'#FFF0F8',100:'#FFDBEE',200:'#FFB3DB',300:'#FF80C5',400:'#FF47AE',500:'#E52D94',600:'#BF2079',700:'#991661',800:'#731049',900:'#4D0B31',950:'#2E061D'},
+        lagoon:{50:'#E5FFFC',100:'#B3FFF5',200:'#66FFEB',300:'#1AE8D5',400:'#00CCB8',500:'#00AD9E',600:'#008F83',700:'#007068',800:'#00544E',900:'#003935',950:'#002220'},
+        slate:{50:'#F8F9FA',100:'#F1F3F5',200:'#E2E5E9',300:'#C8CDD3',400:'#A1A9B3',500:'#6C757D',600:'#545B62',700:'#40464C',800:'#2D3238',900:'#1A1E23',950:'#0D0F12'},
+        success:{300:'#5CF58A',500:'#10B845',700:'#07742A'},
+        warning:{300:'#FCBF3C',500:'#D4920B',700:'#8C6007'},
+        error:{300:'#FF6B6B',500:'#D42020',700:'#881212'},
+      },
+    }},
+  }
+</script>
+<style>
+  body { background-image: linear-gradient(rgba(255,99,71,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,99,71,0.04) 1px, transparent 1px); background-size: 64px 64px; }
+  @keyframes pulse-dot { 0%,100% { opacity: 1 } 50% { opacity: .55 } }
+  .live-dot { animation: pulse-dot 2.4s ease-in-out infinite; }
+  @keyframes blink { 0%,50% { opacity: 1 } 50.01%,100% { opacity: 0 } }
+  .blink::after { content: "_"; animation: blink 1s steps(1) infinite; color: #FF6347; }
+  .tok-keyword { color: #A47DFF; } .tok-type { color: #5CB3FF; } .tok-string { color: #33F59A; }
+  .tok-number { color: #FFA833; } .tok-comment { color: #6C757D; font-style: italic; }
+  .ini-section { color: #FF9500; font-weight: 600; } .ini-key { color: #5CB3FF; } .ini-value { color: #33F59A; }
+  .term-prompt { color: #5CF58A; user-select: none; } .err-case { color: #FF6B6B; }
+  @media (prefers-color-scheme: light) {
+    .tok-keyword { color: #49278F; } .tok-type { color: #004F8F; } .tok-string { color: #007A47; }
+    .tok-number { color: #995500; } .ini-section { color: #BF6A00; } .ini-key { color: #004F8F; }
+    .ini-value { color: #007A47; } .term-prompt { color: #07742A; } .err-case { color: #881212; }
+  }
+</style>
+</head>
+<body class="font-serif bg-slate-950 text-slate-100 antialiased leading-relaxed">
+
+<div class="grid grid-cols-1 min-[1100px]:grid-cols-[280px_minmax(0,1fr)] max-w-[1400px] mx-auto min-h-screen">
+
+  <aside class="border-b border-slate-800 px-6 py-8 min-[1100px]:border-b-0 min-[1100px]:border-r min-[1100px]:px-7 min-[1100px]:py-10 min-[1100px]:sticky min-[1100px]:top-0 min-[1100px]:self-start min-[1100px]:h-screen min-[1100px]:overflow-y-auto">
+    <p class="font-mono text-[0.7rem] tracking-[0.18em] uppercase text-slate-500 mb-1">// quorra · plan · archived</p>
+    <p class="font-mono text-sm text-slate-100 mb-6 flex items-baseline gap-2">
+      <span class="live-dot inline-block w-2 h-2 rounded-full bg-success-300 shadow-[0_0_12px_#5CF58A,0_0_0_3px_rgba(92,245,138,0.12)] -translate-y-px" aria-hidden="true"></span>
+      IAM Identity Center · Phase 1
+    </p>
+    <nav class="text-sm">
+      <div class="mb-6">
+        <p class="font-mono text-[0.65rem] tracking-[0.18em] uppercase text-slate-500 mb-2 flex items-center gap-2"><span class="flex-none w-2 h-px bg-coral-400"></span>Context</p>
+        <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#status"><span class="text-[0.7rem] text-slate-500">★</span><span>Current status</span></a>
+        <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#overview"><span class="text-[0.7rem] text-slate-500">01</span><span>Overview</span></a>
+        <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#scope"><span class="text-[0.7rem] text-slate-500">02</span><span>Scope &amp; non-goals</span></a>
+        <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#decisions"><span class="text-[0.7rem] text-slate-500">03</span><span>Decisions log</span></a>
+      </div>
+      <div class="mb-6">
+        <p class="font-mono text-[0.65rem] tracking-[0.18em] uppercase text-slate-500 mb-2 flex items-center gap-2"><span class="flex-none w-2 h-px bg-coral-400"></span>Architecture</p>
+        <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#layers"><span class="text-[0.7rem] text-slate-500">04</span><span>Layers</span></a>
+        <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#shapes"><span class="text-[0.7rem] text-slate-500">05</span><span>Data shapes</span></a>
+        <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#errors"><span class="text-[0.7rem] text-slate-500">06</span><span>Errors</span></a>
+        <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#service-api"><span class="text-[0.7rem] text-slate-500">07</span><span>Actor API</span></a>
+      </div>
+      <div class="mb-6">
+        <p class="font-mono text-[0.65rem] tracking-[0.18em] uppercase text-slate-500 mb-2 flex items-center gap-2"><span class="flex-none w-2 h-px bg-coral-400"></span>Phases</p>
+        <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#phase-a"><span class="text-[0.7rem] text-slate-500">A</span><span>Skeleton + Keychain</span></a>
+        <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#phase-b"><span class="text-[0.7rem] text-slate-500">B</span><span>OIDC client</span></a>
+        <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#phase-c"><span class="text-[0.7rem] text-slate-500">C</span><span>signIn orchestration</span></a>
+        <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#phase-d"><span class="text-[0.7rem] text-slate-500">D</span><span>CredentialsModel</span></a>
+        <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#phase-e"><span class="text-[0.7rem] text-slate-500">E</span><span>SessionDetailView</span></a>
+      </div>
+      <div class="mb-6">
+        <p class="font-mono text-[0.65rem] tracking-[0.18em] uppercase text-slate-500 mb-2 flex items-center gap-2"><span class="flex-none w-2 h-px bg-coral-400"></span>Workflow</p>
+        <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#workflow"><span class="text-[0.7rem] text-slate-500">08</span><span>Subagent loop</span></a>
+        <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#prompt-template"><span class="text-[0.7rem] text-slate-500">09</span><span>Prompt template</span></a>
+        <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#xcode-steps"><span class="text-[0.7rem] text-slate-500">10</span><span>Xcode UI steps</span></a>
+      </div>
+      <div class="mb-6">
+        <p class="font-mono text-[0.65rem] tracking-[0.18em] uppercase text-slate-500 mb-2 flex items-center gap-2"><span class="flex-none w-2 h-px bg-coral-400"></span>Beyond</p>
+        <a class="font-mono flex items-baseline gap-2 py-1 text-slate-400 hover:text-coral-400 transition" href="#future"><span class="text-[0.7rem] text-slate-500">11</span><span>Future phases</span></a>
+      </div>
+    </nav>
+  </aside>
+
+  <main class="px-6 py-10 pb-24 max-w-[920px] min-w-0 min-[1100px]:px-16 min-[1100px]:py-16 min-[1100px]:pb-32">
+
+    <header class="border border-slate-800 rounded-lg p-9 mb-14 relative overflow-hidden bg-slate-800/30">
+      <div class="flex flex-wrap gap-2 mb-6">
+        <span class="font-mono inline-flex items-center gap-1.5 text-[0.7rem] tracking-wider px-2.5 py-1 rounded-sm border lowercase border-coral-400 text-coral-400">phase 1 · shipped</span>
+        <span class="font-mono inline-flex items-center gap-1.5 text-[0.7rem] tracking-wider px-2.5 py-1 rounded-sm border lowercase border-tangerine-400 text-tangerine-400">swift 6.2</span>
+        <span class="font-mono inline-flex items-center gap-1.5 text-[0.7rem] tracking-wider px-2.5 py-1 rounded-sm border lowercase border-sky-300 text-sky-300">macos 26+</span>
+        <span class="font-mono inline-flex items-center gap-1.5 text-[0.7rem] tracking-wider px-2.5 py-1 rounded-sm border lowercase border-success-300 text-success-300">315 tests passing</span>
+      </div>
+      <h1 class="font-mono font-semibold text-[clamp(2rem,5.5vw,3.5rem)] leading-none tracking-tight mb-4 text-slate-100"><span class="text-slate-500 font-normal">[</span><span class="text-coral-400">SignIn</span><span class="text-slate-500 font-normal">]</span></h1>
+      <p class="text-lg leading-snug text-slate-400 max-w-[56ch] mb-6 italic">End-to-end OAuth 2.0 device-authorization sign-in for AWS IAM Identity Center, executed as five Sonnet-sized scopes-of-work that ship as one PR. Every secret in the macOS Keychain; every doc citation grounded in the official Apple HIG, SwiftUI reference, and AWS API docs.</p>
+
+      <div class="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-4 pt-6 border-t border-dashed border-slate-800">
+        <div class="stat"><span class="font-mono text-2xl text-coral-400 font-semibold block">5 / 5</span><span class="font-mono text-[0.7rem] tracking-wider uppercase text-slate-500 mt-0.5 block">phases shipped</span></div>
+        <div class="stat"><span class="font-mono text-2xl text-coral-400 font-semibold block">~3.0k</span><span class="font-mono text-[0.7rem] tracking-wider uppercase text-slate-500 mt-0.5 block">lines · landed</span></div>
+        <div class="stat"><span class="font-mono text-2xl text-coral-400 font-semibold block">315</span><span class="font-mono text-[0.7rem] tracking-wider uppercase text-slate-500 mt-0.5 block">tests passing</span></div>
+        <div class="stat"><span class="font-mono text-2xl text-coral-400 font-semibold block">0</span><span class="font-mono text-[0.7rem] tracking-wider uppercase text-slate-500 mt-0.5 block">secrets on disk</span></div>
+      </div>
+    </header>
+
+    <section id="status">
+      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">★</span>Current status</h2>
+
+      <div class="my-6 border-l-[3px] border-success-300 pl-4 py-3 pr-5 bg-success-300/[0.08] rounded-r text-[0.95rem]"><strong class="font-mono text-[0.7rem] tracking-wider uppercase mr-2 text-success-300">shipped</strong>All five phases are committed. Phase E landed alongside a substantial test-infrastructure refactor (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">KeychainStore</code> protocol seam) that surfaced during senior review when SwiftPM test-target entitlement limits made the original keychain tests unrunnable. 315 tests pass; 1 pre-existing skip in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">FileIOTests</code>.</div>
+
+      <table class="w-full text-sm border-collapse my-4">
+        <thead><tr>
+          <th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Phase</th>
+          <th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Status</th>
+          <th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Commit</th>
+          <th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Tests</th>
+        </tr></thead>
+        <tbody>
+          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">A — Skeleton + Keychain</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">✅ shipped</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">0ca0562</code></td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">22 tests</td></tr>
+          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">B — OIDCClient + Wire types</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">✅ shipped</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">b817111</code></td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">+17 tests</td></tr>
+          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">C — IdentityCenterService.signIn</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">✅ shipped</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">7bb4bd4</code></td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">+6 tests</td></tr>
+          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">D — CredentialsModel + app integration</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">✅ shipped</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">663d2c2</code></td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">+5 tests</td></tr>
+          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">Keychain hotfix (data-protection keychain)</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">✅ shipped</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">9ebae21</code></td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">no test impact</td></tr>
+          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">Test infrastructure refactor — <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">KeychainStore</code> protocol seam</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">✅ shipped</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">65bee38</code></td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">test target unblocked</td></tr>
+          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">E — SessionDetailView + browser hop + success state</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">✅ shipped</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">97ccfec</code></td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">+3 tests · 4 previews</td></tr>
+        </tbody>
+      </table>
+
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Keychain hotfix — what and why</h3>
+      <p class="mb-4">During real-app testing of Phase D, every Keychain read/write triggered a user-facing approval prompt. Diagnosis: <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SecItemAdd</code> on macOS defaults to the <strong class="font-semibold text-slate-100">legacy login keychain</strong>, whose per-item ACL model prompts on access — <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">kSecAttrAccessGroup</code> only takes effect in the <strong class="font-semibold text-slate-100">data-protection keychain</strong>. Apple's <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">kSecUseDataProtectionKeychain</code> reference: <em class="italic text-slate-400">"highly recommended… for all keychain operations."</em></p>
+      <p class="mb-4">Fix: every <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SecItem*</code> query in the <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Keychain</code> actor now sets <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">kSecUseDataProtectionKeychain: true</code>. Items move to the data-protection keychain (silent same-team-ID sharing, no ACL prompts). Landed in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">9ebae21</code>.</p>
+
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Refinements vs original plan</h3>
+      <ul class="ml-6 mb-4">
+        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Phase A:</strong> shipped with one-row-per-record Keychain layout (atomic per write) instead of the field-per-row design originally specified — simpler, strictly safer, no real size pressure for our payloads. Plan §07 was updated to match.</li>
+        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Phase C:</strong> the actor's init takes a constructed <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">OIDCClient</code> + a <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Sleeper</code> protocol (production: <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">WallClockSleeper</code>; test: <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">MockSleeper</code> actor) instead of <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">any Clock&lt;Duration&gt;</code> as originally drafted. The <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Clock</code> existential made test-driven time deterministic in name only; the small <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Sleeper</code> protocol works directly. Added a <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signInAlreadyInProgress</code> error case for overlap protection.</li>
+        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Phase D:</strong> introduced an internal <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">IdentityCenterServicing</code> protocol (Phase A's actor conforms) so the app-side <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CredentialsModel</code> can inject a stub for tests. The protocol's docstring records the Swift 6.2 <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">@concurrent</code> annotation requirement that bit during stub authoring.</li>
+        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Phase E:</strong> added a fourth panel state ("signed in") not in the original spec — agreed during interview because the plan's acceptance criterion <em class="italic text-slate-400">"section transitions to a 'Signed in — token expires at…' success state"</em> required it. <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CredentialsModel</code> gained a <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">lastToken: [String: StoredSSOToken]</code> map populated on successful sign-in; deliberately in-memory only (no Keychain read on init) because that would be Phase 2's <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">status(forSession:)</code> in disguise. The panel's <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">onRetry</code> callback was dropped after senior review — it was byte-identical to <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">onSignIn</code>.</li>
+        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Test infrastructure (alongside Phase E):</strong> introduced <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">KeychainStore</code> protocol + <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">InMemoryKeychainStore</code> test double after discovering that SwiftPM test bundles can't carry the <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">keychain-access-groups</code> entitlement required by the data-protection keychain (TN3137). The old <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SignInTests</code> hung on a busy-wait loop because the keychain write inside <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">ensureOIDCClient</code> failed with <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">errSecMissingEntitlement</code> before the polling loop was reached. Apple's testing guide is direct on this: <em class="italic text-slate-400">"Replace complex dependencies with stubs… Adopting dependency injection and protocol-oriented programming."</em> <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">MockSleeper</code> was rewritten to auto-advance synthetic time and expose <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">waitForNextSleep()</code> as a deterministic sync point (replacing the prior busy-wait pattern); a parent <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">IAMIdentityCenterTestSuite(.serialized)</code> recursively serializes the two test groups so they don't race on the global <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">StubURLProtocol.stubs</code> registry; <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.timeLimit(.minutes(1))</code> on the suite converts any future hang into a recorded failure. <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">KeychainTests.swift</code> was deleted — it tested Apple's <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SecItem*</code> API more than our wrapper and could not run in the SwiftPM test target.</li>
+      </ul>
+
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Next action</h3>
+      <p class="mb-4">Phase 1 is complete. Begin Phase 2 (sign-out + sidebar status dot + <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SessionAuthStatus</code> enum) — see §11 below.</p>
+    </section>
+    <section id="overview">
+      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">01</span>Overview</h2>
+      <p class="mb-4">Phase 1 replaces the <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">"Sign-in not yet implemented in this build"</code> stub in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SessionDetailView</code> with a real device-authorization flow. The user clicks <strong class="font-semibold text-slate-100">Sign in with IAM Identity Center</strong> on a session, Safari opens to the verification URL, Quorra polls AWS until the user completes the browser step, then the access token (and refresh token, if issued) lands in the macOS Keychain.</p>
+
+      <p class="mb-4">The work is split into five scopes — A through E — small enough that a Sonnet subagent can execute each one cleanly with the plan + project context attached. After each phase the senior reviewer (the main agent) runs <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">/simplify</code> on the diff, applies fixes, and folds the lessons into the next phase's prompt so the same mistakes don't repeat.</p>
+
+      <div class="my-6 border-l-[3px] border-sky-300 pl-4 py-3 pr-5 bg-sky-300/[0.08] rounded-r text-[0.95rem]"><strong class="font-mono text-[0.7rem] tracking-wider uppercase mr-2 text-sky-300">research basis</strong>This plan is grounded in the research report at <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">docs/IAMIdentityCenterDeviceAuth.html</code>. That doc is the authoritative reference for the OIDC protocol mechanics, AWS API field names, and Keychain layout choices. Read it once before kickoff.</div>
+    </section>
+    <section id="scope">
+      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">02</span>Scope &amp; non-goals</h2>
+
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>In scope</h3>
+      <ul class="ml-6 mb-4">
+        <li class="my-1 marker:text-coral-400">New <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">IAMIdentityCenter</code> library product in the existing <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">QuorraCore</code> SwiftPM package.</li>
+        <li class="my-1 marker:text-coral-400">An <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">actor Keychain</code> wrapper for the shared access group <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">$(AppIdentifierPrefix)dev.ajbeck.quorra.shared</code>.</li>
+        <li class="my-1 marker:text-coral-400">A hand-rolled <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">OIDCClient</code> built on <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">URLSession</code> covering <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">RegisterClient</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">StartDeviceAuthorization</code>, and <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CreateToken</code> (initial grant only).</li>
+        <li class="my-1 marker:text-coral-400">An <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">actor IdentityCenterService</code> with one public verb: <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signIn(sessionName:startUrl:region:scopes:clientName:verificationHandler:)</code>.</li>
+        <li class="my-1 marker:text-coral-400">App-side <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">@Observable @MainActor CredentialsModel</code> exposing <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signIn(session:)</code> and an <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">inFlight</code> dictionary.</li>
+        <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SessionDetailView</code> changes: replace the status-section stub with the inline sign-in panel.</li>
+        <li class="my-1 marker:text-coral-400">Tests at every layer.</li>
+      </ul>
+
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Out of scope (deferred to later PRs)</h3>
+      <ul class="ml-6 mb-4">
+        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Refresh.</strong> No <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">refresh_token</code> grant in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CreateToken</code>; no <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">liveToken</code> on the actor; no proactive refresh task. Phase 3.</li>
+        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Sign-out.</strong> Phase 2 — trivial once UI exists.</li>
+        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Sidebar status dot.</strong> Phase 2 — needs <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SessionAuthStatus</code> + <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">status(forSession:)</code>.</li>
+        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">SSO Portal calls + role credentials.</strong> No <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">ListAccounts</code> / <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">GetRoleCredentials</code>; no <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">RoleCredentials</code> type. Phase 4.</li>
+        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Profile-detail credential reveal.</strong> Phase 4 — needs role credentials.</li>
+        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">IMDS endpoint subsystem.</strong> Phase 5.</li>
+        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">CLI sign-in.</strong> Same module, but <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">quorra-cli</code> doesn't depend on <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">IAMIdentityCenter</code> until the CLI work begins.</li>
+      </ul>
+
+      <div class="my-6 border-l-[3px] border-warning-300 pl-4 py-3 pr-5 bg-warning-300/[0.08] rounded-r text-[0.95rem]"><strong class="font-mono text-[0.7rem] tracking-wider uppercase mr-2 text-warning-300">do not</strong>Phase 1 must not introduce <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SessionAuthStatus</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">status(forSession:)</code>, sidebar dots, or role credentials. Each is a real piece of work that gets its own scope; smuggling them into Phase 1 makes review harder and the diff fatter.</div>
+    </section>
+    <section id="decisions">
+      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">03</span>Decisions log</h2>
+      <p class="mb-4">Settled during the planning interview (Q1–Q10). Each is grounded in either Apple/Swift official documentation or AWS official API documentation; see the linked doc paths.</p>
+
+      <div class="flex flex-wrap gap-2 my-3 mb-5">
+        <span class="font-mono text-[0.72rem] px-2.5 py-1.5 rounded-sm text-slate-100 border border-slate-800 bg-slate-800/30"><span class="text-coral-400 mr-1">●</span>Two-layer architecture</span>
+        <span class="font-mono text-[0.72rem] px-2.5 py-1.5 rounded-sm text-slate-100 border border-slate-800 bg-slate-800/30"><span class="text-coral-400 mr-1">●</span>Single Keychain actor</span>
+        <span class="font-mono text-[0.72rem] px-2.5 py-1.5 rounded-sm text-slate-100 border border-slate-800 bg-slate-800/30"><span class="text-coral-400 mr-1">●</span>One-row-per-record (atomic)</span>
+        <span class="font-mono text-[0.72rem] px-2.5 py-1.5 rounded-sm text-slate-100 border border-slate-800 bg-slate-800/30"><span class="text-coral-400 mr-1">●</span>kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly</span>
+        <span class="font-mono text-[0.72rem] px-2.5 py-1.5 rounded-sm text-slate-100 border border-slate-800 bg-slate-800/30"><span class="text-coral-400 mr-1">●</span>kSecUseDataProtectionKeychain: true</span>
+        <span class="font-mono text-[0.72rem] px-2.5 py-1.5 rounded-sm text-slate-100 border border-slate-800 bg-slate-800/30"><span class="text-coral-400 mr-1">●</span>URLSession (no SDK)</span>
+        <span class="font-mono text-[0.72rem] px-2.5 py-1.5 rounded-sm text-slate-100 border border-slate-800 bg-slate-800/30"><span class="text-coral-400 mr-1">●</span>Untyped throws (TSPL §Specifying the Error Type)</span>
+        <span class="font-mono text-[0.72rem] px-2.5 py-1.5 rounded-sm text-slate-100 border border-slate-800 bg-slate-800/30"><span class="text-coral-400 mr-1">●</span>Error + Sendable + LocalizedError only</span>
+        <span class="font-mono text-[0.72rem] px-2.5 py-1.5 rounded-sm text-slate-100 border border-slate-800 bg-slate-800/30"><span class="text-coral-400 mr-1">●</span>High-level operations service</span>
+        <span class="font-mono text-[0.72rem] px-2.5 py-1.5 rounded-sm text-slate-100 border border-slate-800 bg-slate-800/30"><span class="text-coral-400 mr-1">●</span>Sleeper protocol (not Clock existential)</span>
+        <span class="font-mono text-[0.72rem] px-2.5 py-1.5 rounded-sm text-slate-100 border border-slate-800 bg-slate-800/30"><span class="text-coral-400 mr-1">●</span>NSWorkspace.open over ASWebAuthenticationSession</span>
+        <span class="font-mono text-[0.72rem] px-2.5 py-1.5 rounded-sm text-slate-100 border border-slate-800 bg-slate-800/30"><span class="text-coral-400 mr-1">●</span>Inline sign-in panel (HIG Loading + Sheets)</span>
+        <span class="font-mono text-[0.72rem] px-2.5 py-1.5 rounded-sm text-slate-100 border border-slate-800 bg-slate-800/30"><span class="text-coral-400 mr-1">●</span>Date for stored timestamps</span>
+        <span class="font-mono text-[0.72rem] px-2.5 py-1.5 rounded-sm text-slate-100 border border-slate-800 bg-slate-800/30"><span class="text-coral-400 mr-1">●</span>No idToken stored</span>
+      </div>
+
+      <table class="w-full text-sm border-collapse my-4">
+        <thead><tr>
+          <th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Decision</th>
+          <th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Source / citation</th>
+          <th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Where it lands</th>
+        </tr></thead>
+        <tbody>
+          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">Untyped throws</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">TSPL §"Specifying the Error Type": <em class="italic text-slate-400">"Most Swift code doesn't specify the type for the errors it throws."</em></td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">IAMIdentityCenterError signature</td></tr>
+          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">LocalizedError conformance</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">Foundation/LocalizedError. Required for SwiftUI <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.alert</code> + recovery copy.</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">Errors+LocalizedError.swift</td></tr>
+          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">No CustomNSError</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">No NSError-bridging consumer; HIG Errors-and-Exceptions frames protocols as a menu of capabilities, not a stack.</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">(omitted)</td></tr>
+          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">High-level signIn API</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">Apple AuthenticationServices precedent: <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">ASWebAuthenticationSession.start()</code> + completion handler; <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">ASAuthorizationController.performRequests()</code> + delegate.</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">IdentityCenterService.signIn(...)</td></tr>
+          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">NSWorkspace.shared.open</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">RFC 8628 has no redirect URI — ASWebAuthenticationSession's callback model is wrong-shaped. Default browser reuses IdP cookies.</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">SessionDetailView verificationHandler</td></tr>
+          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">Inline sign-in panel</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">HIG Sheets: <em class="italic text-slate-400">"In macOS… a sheet is always modal."</em> HIG Loading: <em class="italic text-slate-400">"Let people do other things in your app while they wait."</em></td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">SessionDetailView statusSection</td></tr>
+          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">"Sign in with IAM Identity Center"</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">HIG Managing Accounts: <em class="italic text-slate-400">"Always identify the authentication method you offer."</em></td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">Button labels</td></tr>
+          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">"Waiting for browser sign-in…"</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">HIG Progress Indicators: <em class="italic text-slate-400">"avoid vague terms like loading or authenticating."</em></td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">ProgressView caption</td></tr>
+          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">Indeterminate spinner + determinate countdown</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">HIG Progress Indicators: prefer determinate when duration known; combining is permitted.</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">SessionDetailView sign-in panel</td></tr>
+          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">One-row-per-record Keychain layout <em class="italic text-slate-400">(refined from "field-per-row")</em></td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">Atomic writes; partial-write recovery becomes automatic. Phase A review concluded the size pressure that motivated field-per-row doesn't apply to our payloads (typical SSO bearer JWT + refresh ≈ 4 KB, well under <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">kSecValueData</code> limits).</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">Keychain actor schema</td></tr>
+          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">Apple Security: usable after first unlock since boot; ThisDeviceOnly prevents Migration Assistant copy. Loosened from <em class="italic text-slate-400">WhenUnlocked</em> so background CLI / IMDS reads work while the screen is locked.</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">All Keychain rows</td></tr>
+          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">kSecUseDataProtectionKeychain: true <em class="italic text-slate-400">(post-launch hotfix)</em></td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">Apple <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">kSecUseDataProtectionKeychain</code> reference: <em class="italic text-slate-400">"highly recommended… for all keychain operations."</em> Routes items to the data-protection keychain (silent same-team-ID sharing) instead of the legacy login keychain (per-item ACL prompts).</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">All <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SecItem*</code> queries in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Keychain</code> actor</td></tr>
+        </tbody>
+      </table>
+    </section>
+    <section id="layers">
+      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">04</span>Architecture: layers</h2>
+
+      <p class="mb-4">Two layers, mirroring the existing <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">AWSConfigINI</code> + <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">ProfilesModel</code> split:</p>
+
+      <table class="w-full text-sm border-collapse my-4">
+        <thead><tr>
+          <th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Layer</th>
+          <th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Lives in</th>
+          <th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Owns</th>
+        </tr></thead>
+        <tbody>
+          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">IAMIdentityCenter (low-level)</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">Packages/QuorraCore/Sources/IAMIdentityCenter/</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">URLSession-backed OIDC client, Keychain wrapper, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">actor IdentityCenterService</code>, error type, data shapes. Pure logic + I/O. No SwiftUI. Sendable throughout.</td></tr>
+          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">CredentialsModel (app-side)</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">quorra/App/Credentials/</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">@Observable @MainActor</code> presenter. Owns <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">inFlight</code> dictionary, calls into the actor, publishes UI-friendly state.</td></tr>
+        </tbody>
+      </table>
+
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Module dependency direction</h3>
+      <p class="mb-4">Strict one-way: <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">quorra</code> (app) → <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CredentialsModel</code> → <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">IAMIdentityCenter</code> (library) → <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">URLSession</code> + <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Security.framework</code>. No cycles. <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">IAMIdentityCenter</code> imports <em class="italic text-slate-400">nothing from the app</em> — not <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SwiftUI</code>, not <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Observation</code>, not <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">AppKit</code>.</p>
+
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Sendable boundaries</h3>
+      <ul class="ml-6 mb-4">
+        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Actor.</strong> <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">IdentityCenterService</code> is an <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">actor</code> — all calls cross an isolation boundary; everything it returns is <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Sendable</code>.</li>
+        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Keychain.</strong> <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">actor Keychain</code> — same property.</li>
+        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Data shapes.</strong> Every public struct in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">IAMIdentityCenter</code> is <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Sendable, Hashable, Codable</code> with all-value-typed stored properties.</li>
+        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">App side.</strong> <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CredentialsModel</code> is <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">@Observable @MainActor</code>. Inputs/outputs to/from the actor are <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Sendable</code>; the model itself is main-actor-isolated so SwiftUI consumes it directly.</li>
+      </ul>
+    </section>
+    <section id="shapes">
+      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">05</span>Data shapes</h2>
+
+      <p class="mb-4">Public types in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">IAMIdentityCenter</code>. Wire types (mirroring the AWS JSON exactly) live in an internal <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Wire</code> namespace and don't leak.</p>
+
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>StoredOIDCClient</h3>
+      <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
+        <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
+          <div class="flex gap-1.5"><span class="w-2.5 h-2.5 rounded-full border border-black/35 bg-coral-400"></span><span class="w-2.5 h-2.5 rounded-full border border-black/35 bg-sunshine-400"></span><span class="w-2.5 h-2.5 rounded-full border border-black/35 bg-mint-400"></span></div>
+          <span class="text-slate-400 text-xs font-mono ml-1.5">StoredOIDCClient<span class="text-coral-400">.swift</span></span>
+          <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">swift</span>
+        </div>
+<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code><span class="tok-keyword">public struct</span> <span class="tok-type">StoredOIDCClient</span>: <span class="tok-type">Sendable</span>, <span class="tok-type">Hashable</span>, <span class="tok-type">Codable</span> {
+    <span class="tok-keyword">public let</span> clientId: <span class="tok-type">String</span>
+    <span class="tok-keyword">public let</span> clientSecret: <span class="tok-type">String</span>
+    <span class="tok-keyword">public let</span> issuedAt: <span class="tok-type">Date</span>           <span class="tok-comment">// from clientIdIssuedAt (Unix s)</span>
+    <span class="tok-keyword">public let</span> secretExpiresAt: <span class="tok-type">Date</span>    <span class="tok-comment">// from clientSecretExpiresAt</span>
+    <span class="tok-keyword">public let</span> region: <span class="tok-type">String</span>
+    <span class="tok-keyword">public let</span> scopes: [<span class="tok-type">String</span>]
+}</code></pre>
+      </div>
+
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>StoredSSOToken</h3>
+      <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
+        <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
+          <div class="flex gap-1.5"><span class="w-2.5 h-2.5 rounded-full border border-black/35 bg-coral-400"></span><span class="w-2.5 h-2.5 rounded-full border border-black/35 bg-sunshine-400"></span><span class="w-2.5 h-2.5 rounded-full border border-black/35 bg-mint-400"></span></div>
+          <span class="text-slate-400 text-xs font-mono ml-1.5">StoredSSOToken<span class="text-coral-400">.swift</span></span>
+          <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">swift</span>
+        </div>
+<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code><span class="tok-keyword">public struct</span> <span class="tok-type">StoredSSOToken</span>: <span class="tok-type">Sendable</span>, <span class="tok-type">Hashable</span>, <span class="tok-type">Codable</span> {
+    <span class="tok-keyword">public let</span> accessToken: <span class="tok-type">String</span>
+    <span class="tok-keyword">public let</span> expiresAt: <span class="tok-type">Date</span>           <span class="tok-comment">// absolute, computed at receive-time</span>
+    <span class="tok-keyword">public let</span> refreshToken: <span class="tok-type">String</span>?
+    <span class="tok-keyword">public let</span> issuedAt: <span class="tok-type">Date</span>
+    <span class="tok-keyword">public let</span> region: <span class="tok-type">String</span>
+    <span class="tok-keyword">public let</span> sessionName: <span class="tok-type">String</span>
+}</code></pre>
+      </div>
+
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>DeviceVerification</h3>
+      <p class="mb-4">Passed to the <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">verificationHandler</code> callback during <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signIn</code>.</p>
+      <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
+        <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
+          <div class="flex gap-1.5"><span class="w-2.5 h-2.5 rounded-full border border-black/35 bg-coral-400"></span><span class="w-2.5 h-2.5 rounded-full border border-black/35 bg-sunshine-400"></span><span class="w-2.5 h-2.5 rounded-full border border-black/35 bg-mint-400"></span></div>
+          <span class="text-slate-400 text-xs font-mono ml-1.5">DeviceVerification<span class="text-coral-400">.swift</span></span>
+          <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">swift</span>
+        </div>
+<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code><span class="tok-keyword">public struct</span> <span class="tok-type">DeviceVerification</span>: <span class="tok-type">Sendable</span>, <span class="tok-type">Hashable</span> {
+    <span class="tok-keyword">public let</span> userCode: <span class="tok-type">String</span>
+    <span class="tok-keyword">public let</span> verificationUri: <span class="tok-type">URL</span>
+    <span class="tok-keyword">public let</span> verificationUriComplete: <span class="tok-type">URL</span>
+    <span class="tok-keyword">public let</span> expiresAt: <span class="tok-type">Date</span>
+    <span class="tok-keyword">public let</span> interval: <span class="tok-type">TimeInterval</span>
+}</code></pre>
+      </div>
+
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Codable strategy</h3>
+      <ul class="ml-6 mb-4">
+        <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">JSONEncoder.dateEncodingStrategy = .secondsSince1970</code> on encode/decode of stored types.</li>
+        <li class="my-1 marker:text-coral-400">AWS wire types (response envelopes, error bodies) live as internal <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">struct Wire.RegisterClientResponse</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Wire.CreateTokenResponse</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Wire.OAuthErrorResponse</code> in a <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Wire.swift</code> file.</li>
+        <li class="my-1 marker:text-coral-400">Public surface stays clean: callers never see wire types.</li>
+      </ul>
+
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Redaction in CustomStringConvertible</h3>
+      <p class="mb-4">Every secret-bearing public struct (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">StoredOIDCClient</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">StoredSSOToken</code>) implements <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CustomStringConvertible</code> with the secret fields elided:</p>
+      <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
+        <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
+          <div class="flex gap-1.5"><span class="w-2.5 h-2.5 rounded-full border border-black/35 bg-coral-400"></span><span class="w-2.5 h-2.5 rounded-full border border-black/35 bg-sunshine-400"></span><span class="w-2.5 h-2.5 rounded-full border border-black/35 bg-mint-400"></span></div>
+          <span class="text-slate-400 text-xs font-mono ml-1.5">Redaction<span class="text-coral-400">.swift</span></span>
+          <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">swift</span>
+        </div>
+<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code><span class="tok-keyword">extension</span> <span class="tok-type">StoredSSOToken</span>: <span class="tok-type">CustomStringConvertible</span> {
+    <span class="tok-keyword">public var</span> description: <span class="tok-type">String</span> {
+        <span class="tok-string">"StoredSSOToken(session: \(sessionName), expiresAt: \(expiresAt), hasRefresh: \(refreshToken != nil))"</span>
+    }
+}</code></pre>
+      </div>
+      <p class="mb-4">Pure ergonomics — kills a class of <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">print(token)</code> footguns and <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">os.Logger</code> default-redaction inversions.</p>
+    </section>
+    <section id="errors">
+      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">06</span>Errors</h2>
+
+      <p class="mb-4">Single enum, untyped <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">throws</code> in public API per TSPL guidance, conforms to <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Error + Sendable + LocalizedError</code>.</p>
+
+      <ul class="list-none p-0 my-4 grid gap-2">
+        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">.network(URLError)</span><span class="text-slate-400">Wraps <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">URLSession</code>-level transport errors.</span></li>
+        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">.malformedResponse(String)</span><span class="text-slate-400">JSON decode failed or missing required fields.</span></li>
+        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">.httpStatus(Int, body: String?)</span><span class="text-slate-400">Unexpected HTTP status with no parseable AWS error envelope.</span></li>
+        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">.authorizationPending</span><span class="text-slate-400">RFC 8628 — internal; absorbed by the polling loop.</span></li>
+        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">.slowDown</span><span class="text-slate-400">RFC 8628 — internal; loop adds 5s to the interval.</span></li>
+        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">.accessDenied</span><span class="text-slate-400">User refused at the IdP. Surface as cancellation, not error.</span></li>
+        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">.expiredDeviceCode</span><span class="text-slate-400">User did not complete the flow before <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expiresIn</code>.</span></li>
+        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">.invalidGrant</span><span class="text-slate-400">Programmer / state error.</span></li>
+        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">.invalidClient</span><span class="text-slate-400">OIDC client registration is gone or expired. (Phase 3 will retry; Phase 1 surfaces.)</span></li>
+        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">.userCancelled</span><span class="text-slate-400">User pressed Cancel in the inline sign-in panel.</span></li>
+        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">.deviceFlowTimedOut</span><span class="text-slate-400">Wall clock since <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">StartDeviceAuthorization</code> exceeded <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expiresIn</code>.</span></li>
+        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">.awsError(code: String, description: String?)</span><span class="text-slate-400">Forward-compat fallback for AWS error codes we don't have a typed case for.</span></li>
+        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">.keychainItemMissing(service: String, account: String)</span><span class="text-slate-400">Expected row not present.</span></li>
+        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">.keychainStatus(OSStatus)</span><span class="text-slate-400">Keychain operation failed at the OS level.</span></li>
+        <li class="border border-slate-800 border-l-[3px] border-l-error-300 rounded p-3 bg-slate-800/30 grid grid-cols-[minmax(180px,max-content)_1fr] gap-3 items-baseline"><span class="err-case">.keychainMalformed(reason: String)</span><span class="text-slate-400">Stored payload didn't decode (e.g. partial-write recovery).</span></li>
+      </ul>
+
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>LocalizedError</h3>
+      <p class="mb-4">Every case provides an <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">errorDescription</code> and, where applicable, a <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">recoverySuggestion</code>. The descriptions are user-facing, not developer-facing; the alert rendered by <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SessionDetailView</code> reads from these.</p>
+
+      <div class="my-6 border-l-[3px] border-sky-300 pl-4 py-3 pr-5 bg-sky-300/[0.08] rounded-r text-[0.95rem]"><strong class="font-mono text-[0.7rem] tracking-wider uppercase mr-2 text-sky-300">polling internals</strong><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.authorizationPending</code> and <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.slowDown</code> are part of the public enum but should never escape the actor — they're <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">throw</code>n by the wire decoder in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">OIDCClient.createToken</code> and caught by the polling loop in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">IdentityCenterService.signIn</code>. Consumer-facing: a successful <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signIn</code> or one of the terminal errors.</div>
+    </section>
+    <section id="service-api">
+      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">07</span>Actor API (Phase 1 surface)</h2>
+
+      <div class="my-6 pl-4 border-l-2 border-slate-800">
+        <p class="font-mono text-sm text-slate-100 mb-1.5 flex items-baseline flex-wrap gap-2"><span class="text-violet-300 font-mono text-[0.7rem] tracking-wider uppercase mr-1">actor</span><span class="text-coral-400 font-semibold">IdentityCenterService</span></p>
+        <code class="block bg-[#0a0d10] text-slate-100 px-4 py-3 rounded text-[0.8rem] leading-relaxed my-2 overflow-x-auto border border-slate-800 font-mono"><span class="tok-keyword">public actor</span> <span class="tok-type">IdentityCenterService</span> {
+    <span class="tok-keyword">public init</span>(keychain: <span class="tok-type">Keychain</span>, urlSession: <span class="tok-type">URLSession</span> = .shared, clock: <span class="tok-keyword">any</span> <span class="tok-type">Clock</span>&lt;<span class="tok-type">Duration</span>&gt; = <span class="tok-type">ContinuousClock</span>())
+}</code>
+      </div>
+
+      <div class="my-6 pl-4 border-l-2 border-slate-800">
+        <p class="font-mono text-sm text-slate-100 mb-1.5 flex items-baseline flex-wrap gap-2"><span class="text-violet-300 font-mono text-[0.7rem] tracking-wider uppercase mr-1">func</span><span class="text-coral-400 font-semibold">signIn(...)</span></p>
+        <code class="block bg-[#0a0d10] text-slate-100 px-4 py-3 rounded text-[0.8rem] leading-relaxed my-2 overflow-x-auto border border-slate-800 font-mono"><span class="tok-keyword">public func</span> signIn(
+    sessionName: <span class="tok-type">String</span>,
+    startUrl: <span class="tok-type">URL</span>,
+    region: <span class="tok-type">String</span>,
+    scopes: [<span class="tok-type">String</span>],
+    clientName: <span class="tok-type">String</span> = <span class="tok-string">"Quorra"</span>,
+    verificationHandler: <span class="tok-keyword">@Sendable</span> (<span class="tok-type">DeviceVerification</span>) <span class="tok-keyword">async</span> -&gt; <span class="tok-type">Void</span>
+) <span class="tok-keyword">async throws</span> -&gt; <span class="tok-type">StoredSSOToken</span></code>
+        <p class="text-slate-400 mb-3">Drive the full device-grant flow. Reuses cached <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">StoredOIDCClient</code> from Keychain when present and not near-expiry; otherwise calls <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">RegisterClient</code>. Calls <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">StartDeviceAuthorization</code>, invokes <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">verificationHandler</code> exactly once with the resulting <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">DeviceVerification</code>, then polls <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CreateToken</code> every <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">interval</code> seconds until the user completes the browser step or the device code expires. Persists token to Keychain, returns it.</p>
+      </div>
+
+      <div class="my-6 pl-4 border-l-2 border-slate-800">
+        <p class="font-mono text-sm text-slate-100 mb-1.5 flex items-baseline flex-wrap gap-2"><span class="text-violet-300 font-mono text-[0.7rem] tracking-wider uppercase mr-1">func</span><span class="text-coral-400 font-semibold">cancelSignIn(sessionName:)</span></p>
+        <code class="block bg-[#0a0d10] text-slate-100 px-4 py-3 rounded text-[0.8rem] leading-relaxed my-2 overflow-x-auto border border-slate-800 font-mono"><span class="tok-keyword">public func</span> cancelSignIn(sessionName: <span class="tok-type">String</span>) <span class="tok-keyword">async</span></code>
+        <p class="text-slate-400 mb-3">Cancels an in-flight <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signIn</code> for the given session. The <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signIn</code> call throws <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.userCancelled</code>.</p>
+      </div>
+
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Keychain layout (Phase 1 subset)</h3>
+      <table class="w-full text-sm border-collapse my-4">
+        <thead><tr>
+          <th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Item</th>
+          <th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">service</th>
+          <th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">account</th>
+        </tr></thead>
+        <tbody>
+          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">OIDC client (per region)</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">dev.ajbeck.quorra.oidc-client</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">&lt;region&gt;</td></tr>
+          <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">SSO token (per session)</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">dev.ajbeck.quorra.sso-token</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-sky-300 font-mono">&lt;sessionName&gt;</td></tr>
+        </tbody>
+      </table>
+
+      <p class="mb-4">Each record is stored as a single JSON-encoded Keychain row. Atomic per record by construction — there's no intermediate state where some fields are persisted and others aren't, so partial-write recovery is automatic: a missing row throws <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.keychainItemMissing</code>; a corrupt row throws <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.keychainMalformed</code>. Both cases force a fresh registration or sign-in.</p>
+
+      <div class="my-6 border-l-[3px] border-sky-300 pl-4 py-3 pr-5 bg-sky-300/[0.08] rounded-r text-[0.95rem]"><strong class="font-mono text-[0.7rem] tracking-wider uppercase mr-2 text-sky-300">design note</strong>An earlier draft of this plan called for field-per-row records to stay under Keychain's per-item size limits. In practice our payloads are well under those limits (a typical SSO bearer JWT plus refresh token is &lt; 4 KB; Keychain's <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">kSecValueData</code> tolerates much more). Atomicity-per-record removes a class of partial-write bugs and is preferred.</div>
+
+      <div class="my-6 border-l-[3px] border-warning-300 pl-4 py-3 pr-5 bg-warning-300/[0.08] rounded-r text-[0.95rem]"><strong class="font-mono text-[0.7rem] tracking-wider uppercase mr-2 text-warning-300">access group</strong>Every <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SecItem*</code> call must include <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">kSecAttrAccessGroup = "$(AppIdentifierPrefix)dev.ajbeck.quorra.shared"</code>, evaluated at sign time. The app and CLI both read from this group; missing the attribute makes items invisible to the other binary.</div>
+    </section>
+    <section id="phase-a">
+      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">A</span>Phase A — Skeleton + Keychain <span class="text-success-300 text-xs align-[0.2em]">✅ shipped · 0ca0562</span></h2>
+
+      <div class="border border-slate-800 rounded-lg p-6 my-5 bg-slate-800/30 relative">
+        <span class="absolute -top-2.5 left-4 bg-slate-950 text-coral-400 font-mono text-[0.7rem] tracking-widest uppercase px-2 py-0.5 border border-coral-400 rounded-sm">Subagent · Sonnet</span>
+        <p class="text-slate-500 font-mono text-[0.72rem] tracking-wider uppercase mb-2">~250 LOC source · ~180 LOC tests</p>
+        <h3 class="font-mono text-base font-semibold mb-3 text-slate-100" style="margin-top:0"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>What gets built</h3>
+        <ul class="ml-6 mb-4">
+          <li class="my-1 marker:text-coral-400">New <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">IAMIdentityCenter</code> library product in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Packages/QuorraCore/Package.swift</code> with a matching <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">IAMIdentityCenterTests</code> test target.</li>
+          <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">IAMIdentityCenterError</code> enum with all 15 cases (Phase 1 set + forward-compat for refresh/portal cases that won't be thrown yet).</li>
+          <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Errors+LocalizedError.swift</code> with user-facing copy for every case.</li>
+          <li class="my-1 marker:text-coral-400">Public data shapes: <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">StoredOIDCClient</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">StoredSSOToken</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">DeviceVerification</code>. <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CustomStringConvertible</code> with redaction on the secret-bearing types.</li>
+          <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">actor Keychain</code> with <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">read</code> / <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">write</code> / <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">delete</code> / <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">readRecord</code> / <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">writeRecord</code> / <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">deleteRecord</code> verbs. The <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Record</code> verbs implement the field-per-row record convention with partial-write recovery.</li>
+        </ul>
+
+        <h4 class="font-mono text-[0.78rem] tracking-wider uppercase text-slate-400 mt-7 mb-2 font-semibold">Acceptance criteria</h4>
+        <ul class="ml-6 mb-4">
+          <li class="my-1 marker:text-coral-400">Package builds with no warnings under Swift 6.2 strict concurrency checking.</li>
+          <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Keychain</code> round-trips a <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">StoredSSOToken</code> through <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">writeRecord</code> / <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">readRecord</code> and the result equals the input.</li>
+          <li class="my-1 marker:text-coral-400">Deleting one row of a logical record causes <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">readRecord</code> to throw <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.keychainItemMissing</code> rather than returning a partial structure.</li>
+          <li class="my-1 marker:text-coral-400">Every <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">IAMIdentityCenterError</code> case has a non-nil <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">errorDescription</code>.</li>
+          <li class="my-1 marker:text-coral-400">Test suite passes via <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">swift test</code> from inside the package directory.</li>
+        </ul>
+
+        <h4 class="font-mono text-[0.78rem] tracking-wider uppercase text-slate-400 mt-7 mb-2 font-semibold">File map</h4>
+        <table class="w-full text-sm border-collapse my-4">
+          <thead><tr>
+            <th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Path</th>
+            <th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Purpose</th>
+          </tr></thead>
+          <tbody>
+            <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">Packages/QuorraCore/Package.swift</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">Add <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">IAMIdentityCenter</code> library product + test target</td></tr>
+            <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">Packages/QuorraCore/Sources/IAMIdentityCenter/IAMIdentityCenter.swift</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">Module preamble doc-comment</td></tr>
+            <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">Packages/QuorraCore/Sources/IAMIdentityCenter/Errors.swift</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">Error enum</td></tr>
+            <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">Packages/QuorraCore/Sources/IAMIdentityCenter/Errors+LocalizedError.swift</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">User-facing copy</td></tr>
+            <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">Packages/QuorraCore/Sources/IAMIdentityCenter/StoredOIDCClient.swift</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">Cached OIDC registration</td></tr>
+            <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">Packages/QuorraCore/Sources/IAMIdentityCenter/StoredSSOToken.swift</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">Persisted SSO token</td></tr>
+            <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">Packages/QuorraCore/Sources/IAMIdentityCenter/DeviceVerification.swift</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">Verification handler payload</td></tr>
+            <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">Packages/QuorraCore/Sources/IAMIdentityCenter/Keychain.swift</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">actor Keychain</code></td></tr>
+            <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">Packages/QuorraCore/Tests/IAMIdentityCenterTests/KeychainTests.swift</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">Round-trip + partial-write recovery + access-group attribute</td></tr>
+            <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">Packages/QuorraCore/Tests/IAMIdentityCenterTests/ErrorsTests.swift</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">Every case has errorDescription</td></tr>
+          </tbody>
+        </table>
+
+        <h4 class="font-mono text-[0.78rem] tracking-wider uppercase text-slate-400 mt-7 mb-2 font-semibold">Test seam</h4>
+        <p class="mb-4">The <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Keychain</code> actor takes the access-group string in its initializer rather than hardcoding it. Tests construct a <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Keychain(accessGroup: "test.&lt;UUID&gt;")</code> so each test run has its own namespace and tests are hermetic.</p>
+      </div>
+
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Hand-off to me (the senior reviewer)</h3>
+      <p class="mb-4">After Phase A, I run <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">/simplify</code> on the diff, run <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">swift test</code>, and walk you through the Xcode UI step that adds the <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">IAMIdentityCenter</code> library product as a dependency to the <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">quorra</code> target. Findings get folded into Phase B's prompt.</p>
+    </section>
+    <section id="phase-b">
+      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">B</span>Phase B — OIDCClient <span class="text-success-300 text-xs align-[0.2em]">✅ shipped · b817111</span></h2>
+
+      <div class="border border-slate-800 rounded-lg p-6 my-5 bg-slate-800/30 relative">
+        <span class="absolute -top-2.5 left-4 bg-slate-950 text-coral-400 font-mono text-[0.7rem] tracking-widest uppercase px-2 py-0.5 border border-coral-400 rounded-sm">Subagent · Sonnet</span>
+        <p class="text-slate-500 font-mono text-[0.72rem] tracking-wider uppercase mb-2">~300 LOC source · ~250 LOC tests</p>
+        <h3 class="font-mono text-base font-semibold mb-3 text-slate-100" style="margin-top:0"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>What gets built</h3>
+        <ul class="ml-6 mb-4">
+          <li class="my-1 marker:text-coral-400">Internal <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Wire</code> namespace with <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Codable</code> structs mirroring the AWS JSON exactly: <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">RegisterClientRequest</code>/<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">RegisterClientResponse</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">StartDeviceAuthorizationRequest</code>/<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">StartDeviceAuthorizationResponse</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CreateTokenRequest</code> (device-code grant) / <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CreateTokenResponse</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">OAuthErrorResponse</code>.</li>
+          <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">struct OIDCClient: Sendable</code> with <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">registerClient</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">startDeviceAuthorization</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">createToken(deviceCode:clientId:clientSecret:)</code>. Region-aware URL construction.</li>
+          <li class="my-1 marker:text-coral-400">HTTP error → <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">IAMIdentityCenterError</code> mapping: parses the OAuth error envelope, switches on <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">error</code> field for typed cases, falls back to <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.awsError(...)</code> for unknown codes.</li>
+          <li class="my-1 marker:text-coral-400">URLProtocol-based test fixtures for hermetic transport tests.</li>
+        </ul>
+
+        <h4 class="font-mono text-[0.78rem] tracking-wider uppercase text-slate-400 mt-7 mb-2 font-semibold">Acceptance criteria</h4>
+        <ul class="ml-6 mb-4">
+          <li class="my-1 marker:text-coral-400">All three operations succeed against URLProtocol stubs that mirror the AWS response shapes from the research report.</li>
+          <li class="my-1 marker:text-coral-400">Each documented OAuth error code (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">authorization_pending</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">slow_down</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">access_denied</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expired_token</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">invalid_grant</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">invalid_client</code>) maps to the correct typed <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">IAMIdentityCenterError</code> case.</li>
+          <li class="my-1 marker:text-coral-400">An undocumented OAuth error code maps to <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.awsError(code:description:)</code> with the original <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">error_description</code> preserved.</li>
+          <li class="my-1 marker:text-coral-400">A 5xx response with no parseable body throws <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.httpStatus(...)</code>.</li>
+          <li class="my-1 marker:text-coral-400">A network failure throws <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.network(URLError)</code>.</li>
+          <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">OIDCClient</code> never imports <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Foundation.URLSession</code> directly into its public surface — the session is injected.</li>
+        </ul>
+
+        <h4 class="font-mono text-[0.78rem] tracking-wider uppercase text-slate-400 mt-7 mb-2 font-semibold">File map</h4>
+        <table class="w-full text-sm border-collapse my-4">
+          <thead><tr>
+            <th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Path</th>
+            <th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Purpose</th>
+          </tr></thead>
+          <tbody>
+            <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">Packages/QuorraCore/Sources/IAMIdentityCenter/Wire/Wire.swift</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">Internal namespace</td></tr>
+            <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">Packages/QuorraCore/Sources/IAMIdentityCenter/Wire/RegisterClient.swift</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">Request + response</td></tr>
+            <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">Packages/QuorraCore/Sources/IAMIdentityCenter/Wire/StartDeviceAuthorization.swift</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">Request + response</td></tr>
+            <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">Packages/QuorraCore/Sources/IAMIdentityCenter/Wire/CreateToken.swift</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">Request + response (device-code grant only)</td></tr>
+            <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">Packages/QuorraCore/Sources/IAMIdentityCenter/Wire/OAuthErrorResponse.swift</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">RFC 8628 / AWS error envelope</td></tr>
+            <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">Packages/QuorraCore/Sources/IAMIdentityCenter/OIDCClient.swift</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">URLSession-backed, Sendable struct</td></tr>
+            <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">Packages/QuorraCore/Sources/IAMIdentityCenter/HTTPErrorMapping.swift</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">OAuthErrorResponse → IAMIdentityCenterError</td></tr>
+            <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">Packages/QuorraCore/Tests/IAMIdentityCenterTests/Stubs/StubURLProtocol.swift</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">Test seam — registers per-test responses</td></tr>
+            <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">Packages/QuorraCore/Tests/IAMIdentityCenterTests/OIDCClientTests.swift</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">Three endpoints + error mapping matrix</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <section id="phase-c">
+      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">C</span>Phase C — IdentityCenterService.signIn <span class="text-success-300 text-xs align-[0.2em]">✅ shipped · 7bb4bd4</span></h2>
+
+      <div class="border border-slate-800 rounded-lg p-6 my-5 bg-slate-800/30 relative">
+        <span class="absolute -top-2.5 left-4 bg-slate-950 text-coral-400 font-mono text-[0.7rem] tracking-widest uppercase px-2 py-0.5 border border-coral-400 rounded-sm">Subagent · Sonnet</span>
+        <p class="text-slate-500 font-mono text-[0.72rem] tracking-wider uppercase mb-2">~200 LOC source · ~280 LOC tests</p>
+        <h3 class="font-mono text-base font-semibold mb-3 text-slate-100" style="margin-top:0"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>What gets built</h3>
+        <ul class="ml-6 mb-4">
+          <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">actor IdentityCenterService</code> with init, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signIn</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">cancelSignIn</code>.</li>
+          <li class="my-1 marker:text-coral-400">Polling state machine inside <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signIn</code>: per RFC 8628 §3.5, sleep <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">interval</code> first, increment by 5s on <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.slowDown</code>, terminate on <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.expiredDeviceCode</code> / <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.accessDenied</code>, throw <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.deviceFlowTimedOut</code> when wall clock since <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">StartDeviceAuthorization</code> exceeds <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expiresIn</code>.</li>
+          <li class="my-1 marker:text-coral-400">OIDC client cache: read <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">StoredOIDCClient</code> for <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">region</code> from Keychain; if missing or <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">secretExpiresAt - now &lt; 7 days</code>, call <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">RegisterClient</code> and persist.</li>
+          <li class="my-1 marker:text-coral-400">Cancellation: <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">[String: Task&lt;StoredSSOToken, Error&gt;]</code> map keyed by sessionName; <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">cancelSignIn</code> finds the task and cancels it. The polling loop honors <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Task.checkCancellation()</code> and re-throws <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CancellationError</code> as <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.userCancelled</code>.</li>
+          <li class="my-1 marker:text-coral-400">Persists the <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">StoredSSOToken</code> on success, returns it.</li>
+        </ul>
+
+        <h4 class="font-mono text-[0.78rem] tracking-wider uppercase text-slate-400 mt-7 mb-2 font-semibold">Acceptance criteria</h4>
+        <ul class="ml-6 mb-4">
+          <li class="my-1 marker:text-coral-400">Happy path: stub responses for <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">RegisterClient</code> → <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">StartDeviceAuthorization</code> → 2× <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">authorization_pending</code> → <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CreateToken</code> success. <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signIn</code> returns the token; verificationHandler was invoked exactly once with valid <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">DeviceVerification</code>; token landed in Keychain.</li>
+          <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">slow_down</code>: stub returns <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">slow_down</code> on first poll, success on second. The actor's interval increased by 5s after the first <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">slow_down</code>.</li>
+          <li class="my-1 marker:text-coral-400">Timeout: stub returns <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">authorization_pending</code> indefinitely; service throws <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.deviceFlowTimedOut</code> after wall clock exceeds <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expiresIn</code>. Use the injected <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Clock</code> to fast-forward.</li>
+          <li class="my-1 marker:text-coral-400">Cancellation: parent <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Task</code> calls <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">cancelSignIn</code> mid-poll; the polling loop exits and <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signIn</code> throws <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.userCancelled</code>.</li>
+          <li class="my-1 marker:text-coral-400">Cached client reuse: write a <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">StoredOIDCClient</code> to Keychain manually; <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signIn</code> does <em class="italic text-slate-400">not</em> call <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">RegisterClient</code>.</li>
+          <li class="my-1 marker:text-coral-400">Expired client refresh: write a <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">StoredOIDCClient</code> with <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">secretExpiresAt &lt; now + 7 days</code>; <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signIn</code> <em class="italic text-slate-400">does</em> call <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">RegisterClient</code>.</li>
+          <li class="my-1 marker:text-coral-400">Sendable conformance: passing the <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">verificationHandler</code> closure across actor isolation compiles cleanly under strict concurrency.</li>
+        </ul>
+
+        <h4 class="font-mono text-[0.78rem] tracking-wider uppercase text-slate-400 mt-7 mb-2 font-semibold">File map</h4>
+        <table class="w-full text-sm border-collapse my-4">
+          <thead><tr>
+            <th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Path</th>
+            <th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Purpose</th>
+          </tr></thead>
+          <tbody>
+            <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">Packages/QuorraCore/Sources/IAMIdentityCenter/IdentityCenterService.swift</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">Actor + signIn + cancelSignIn</td></tr>
+            <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">Packages/QuorraCore/Sources/IAMIdentityCenter/IdentityCenterService+Polling.swift</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">Polling state machine, isolated</td></tr>
+            <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">Packages/QuorraCore/Tests/IAMIdentityCenterTests/SignInTests.swift</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">All six acceptance scenarios</td></tr>
+            <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">Packages/QuorraCore/Tests/IAMIdentityCenterTests/Stubs/MockClock.swift</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">Deterministic time for timeout tests</td></tr>
+          </tbody>
+        </table>
+
+        <div class="my-6 border-l-[3px] border-sky-300 pl-4 py-3 pr-5 bg-sky-300/[0.08] rounded-r text-[0.95rem]"><strong class="font-mono text-[0.7rem] tracking-wider uppercase mr-2 text-sky-300">clock injection</strong>The actor's <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">init</code> takes <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">clock: any Clock&lt;Duration&gt;</code>. Polling uses <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">try await clock.sleep(for: .seconds(interval))</code> instead of <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Task.sleep(for:)</code>. Tests inject a controllable mock; production code uses <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">ContinuousClock()</code>.</div>
+      </div>
+    </section>
+    <section id="phase-d">
+      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">D</span>Phase D — CredentialsModel + app integration <span class="text-success-300 text-xs align-[0.2em]">✅ shipped · 663d2c2</span></h2>
+
+      <div class="border border-slate-800 rounded-lg p-6 my-5 bg-slate-800/30 relative">
+        <span class="absolute -top-2.5 left-4 bg-slate-950 text-coral-400 font-mono text-[0.7rem] tracking-widest uppercase px-2 py-0.5 border border-coral-400 rounded-sm">Subagent · Sonnet</span>
+        <p class="text-slate-500 font-mono text-[0.72rem] tracking-wider uppercase mb-2">~150 LOC source · ~120 LOC tests</p>
+        <h3 class="font-mono text-base font-semibold mb-3 text-slate-100" style="margin-top:0"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>What gets built</h3>
+        <ul class="ml-6 mb-4">
+          <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">@Observable @MainActor final class CredentialsModel</code> with <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signIn(session:)</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">cancelSignIn(session:)</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">private(set) var inFlight: [String: SignInProgress]</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">private(set) var lastError: [String: IAMIdentityCenterError]</code>.</li>
+          <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SignInProgress</code> struct (Sendable, Hashable): mirrors <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">DeviceVerification</code> + <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">startedAt</code>, used as the UI's input.</li>
+          <li class="my-1 marker:text-coral-400">The <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">verificationHandler</code> closure passed to the actor's <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signIn</code> is responsible for two things: opening the browser via <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">NSWorkspace.shared.open(_:)</code>, and writing the <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SignInProgress</code> entry to <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">inFlight</code>.</li>
+          <li class="my-1 marker:text-coral-400">Wire-up in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">quorraApp.swift</code>: instantiate the actor + Keychain at app launch, inject <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CredentialsModel</code> into the environment alongside <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">AppModel</code> / <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">ProfilesModel</code>.</li>
+        </ul>
+
+        <h4 class="font-mono text-[0.78rem] tracking-wider uppercase text-slate-400 mt-7 mb-2 font-semibold">Acceptance criteria</h4>
+        <ul class="ml-6 mb-4">
+          <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CredentialsModel</code> compiles under strict concurrency with <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">@Observable @MainActor</code> + actor-crossing in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signIn</code>.</li>
+          <li class="my-1 marker:text-coral-400">Test: <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">signIn</code> with a stubbed actor populates <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">inFlight[sessionName]</code> when <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">verificationHandler</code> fires, removes it on completion.</li>
+          <li class="my-1 marker:text-coral-400">Test: a thrown error from the actor lands in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">lastError[sessionName]</code>, and <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">inFlight[sessionName]</code> is cleared.</li>
+          <li class="my-1 marker:text-coral-400">Test: <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">cancelSignIn</code> calls through to the actor and clears <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">inFlight[sessionName]</code>.</li>
+          <li class="my-1 marker:text-coral-400"><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">quorraApp.swift</code> compiles and the app launches successfully with <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CredentialsModel</code> in the environment.</li>
+        </ul>
+
+        <h4 class="font-mono text-[0.78rem] tracking-wider uppercase text-slate-400 mt-7 mb-2 font-semibold">File map</h4>
+        <table class="w-full text-sm border-collapse my-4">
+          <thead><tr>
+            <th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Path</th>
+            <th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Purpose</th>
+          </tr></thead>
+          <tbody>
+            <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">quorra/App/Credentials/CredentialsModel.swift</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">Observable @MainActor model</td></tr>
+            <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">quorra/App/Credentials/SignInProgress.swift</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">UI-shape struct</td></tr>
+            <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">quorra/App/quorraApp.swift</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">Add <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">@State credentialsModel</code> + <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.environment(credentialsModel)</code></td></tr>
+            <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">quorra/Tests/QuorraAppTests/CredentialsModelTests.swift</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">Inject a stub <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">IdentityCenterService</code> protocol</td></tr>
+          </tbody>
+        </table>
+
+        <div class="my-6 border-l-[3px] border-warning-300 pl-4 py-3 pr-5 bg-warning-300/[0.08] rounded-r text-[0.95rem]"><strong class="font-mono text-[0.7rem] tracking-wider uppercase mr-2 text-warning-300">protocolize for tests</strong><code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CredentialsModel</code> is the first place in the app target that needs to test against a stubbed <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">IdentityCenterService</code>. Add an internal protocol <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">IdentityCenterServicing</code> in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">IAMIdentityCenter</code> that the actor conforms to, then inject <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">any IdentityCenterServicing</code> into <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CredentialsModel</code>. Keeps test seams clean without bleeding test-only code into production.</div>
+      </div>
+    </section>
+    <section id="phase-e">
+      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">E</span>Phase E — SessionDetailView + browser hop <span class="text-success-300 text-xs align-[0.2em]">✅ shipped · 97ccfec</span></h2>
+
+      <div class="border border-slate-800 rounded-lg p-6 my-5 bg-slate-800/30 relative">
+        <span class="absolute -top-2.5 left-4 bg-slate-950 text-coral-400 font-mono text-[0.7rem] tracking-widest uppercase px-2 py-0.5 border border-coral-400 rounded-sm">Subagent · Sonnet</span>
+        <p class="text-slate-500 font-mono text-[0.72rem] tracking-wider uppercase mb-2">~200 LOC source</p>
+        <h3 class="font-mono text-base font-semibold mb-3 text-slate-100" style="margin-top:0"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>What gets built</h3>
+        <ul class="ml-6 mb-4">
+          <li class="my-1 marker:text-coral-400">Replace the placeholder <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">statusSection</code> in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SessionDetailView.swift</code> with a real status section that branches on <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">credentialsModel.inFlight[node.id]</code> and <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">credentialsModel.lastError[node.id]</code>.</li>
+          <li class="my-1 marker:text-coral-400">Three states for the section:
+            <ol class="ml-6 mb-4 list-decimal">
+              <li class="my-1"><strong class="font-semibold text-slate-100">Idle</strong> — <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Button("Sign in with IAM Identity Center")</code> if the session has the required fields (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">ssoStartUrl</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">ssoRegion</code>); placeholder text if not.</li>
+              <li class="my-1"><strong class="font-semibold text-slate-100">In-flight</strong> — userCode in monospaced text (selectable); <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Link("Open browser again", destination: verificationUriComplete)</code>; <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">ProgressView()</code> with caption <em class="italic text-slate-400">"Waiting for browser sign-in…"</em>; <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Text(timerInterval: ...)</code> determinate countdown to <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expiresAt</code>; <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Button("Cancel", role: .cancel)</code>.</li>
+              <li class="my-1"><strong class="font-semibold text-slate-100">Error</strong> — <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Text(error.localizedDescription)</code> in error-color; <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Button("Try again")</code>.</li>
+            </ol>
+          </li>
+          <li class="my-1 marker:text-coral-400">Disabled in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.readOnly</code> mode (matches existing pattern).</li>
+          <li class="my-1 marker:text-coral-400">Update the <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SessionDetailPreviewHarness</code> to inject a stub <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">CredentialsModel</code> and a sample <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SignInProgress</code> so previews show all three states.</li>
+        </ul>
+
+        <h4 class="font-mono text-[0.78rem] tracking-wider uppercase text-slate-400 mt-7 mb-2 font-semibold">Acceptance criteria</h4>
+        <ul class="ml-6 mb-4">
+          <li class="my-1 marker:text-coral-400">Click "Sign in with IAM Identity Center" on a real <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">[sso-session]</code> with valid <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">sso_start_url</code> and <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">sso_region</code> → Safari opens to the AWS device-authorization URL → after browser completion, the section transitions to a "Signed in — token expires at…" success state.</li>
+          <li class="my-1 marker:text-coral-400">Cancel button mid-flight clears the in-flight UI back to idle.</li>
+          <li class="my-1 marker:text-coral-400">Letting the device code expire surfaces <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">"Sign-in request expired. Please try again."</code> in the error state.</li>
+          <li class="my-1 marker:text-coral-400">Three named SwiftUI <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">#Preview</code>s exist: <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">"Idle"</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">"Signing in"</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">"Sign-in failed"</code>.</li>
+          <li class="my-1 marker:text-coral-400">Read-only mode shows the section but disables all interactive controls (existing pattern).</li>
+        </ul>
+
+        <h4 class="font-mono text-[0.78rem] tracking-wider uppercase text-slate-400 mt-7 mb-2 font-semibold">File map</h4>
+        <table class="w-full text-sm border-collapse my-4">
+          <thead><tr>
+            <th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Path</th>
+            <th class="font-mono text-[0.68rem] tracking-wider uppercase text-slate-500 font-semibold text-left px-3 py-2 border-b border-slate-700">Purpose</th>
+          </tr></thead>
+          <tbody>
+            <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">quorra/App/Views/Detail/SessionDetailView.swift</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">Replace statusSection; update preview harness</td></tr>
+            <tr><td class="px-3 py-2 border-b border-slate-800/60 align-top text-coral-400 font-mono">quorra/App/Views/Detail/SignInPanel.swift</td><td class="px-3 py-2 border-b border-slate-800/60 align-top text-slate-400">Extracted view used inside statusSection — three states</td></tr>
+          </tbody>
+        </table>
+
+        <div class="my-6 border-l-[3px] border-sky-300 pl-4 py-3 pr-5 bg-sky-300/[0.08] rounded-r text-[0.95rem]"><strong class="font-mono text-[0.7rem] tracking-wider uppercase mr-2 text-sky-300">HIG copy reference</strong>Every user-facing string in this view is grounded in the HIG citations from §03 above. The subagent prompt for Phase E will quote the exact copy strings so they don't drift.</div>
+      </div>
+    </section>
+    <section id="workflow">
+      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">08</span>Subagent execution loop</h2>
+
+      <ol class="list-none p-0 [counter-reset:step]">
+        <li class="[counter-increment:step] mb-6 pl-10 relative before:content-[counter(step,decimal-leading-zero)] before:absolute before:left-0 before:top-0 before:font-mono before:text-sm before:text-coral-400 before:bg-coral-400/10 before:border before:border-coral-400 before:rounded before:px-1.5 before:py-0.5 before:leading-none">
+          <h3 class="font-mono text-base font-semibold mb-3 text-slate-100" style="margin-top:0"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Main agent writes the prompt</h3>
+          <p class="mb-4">For phase N, the main agent assembles a self-contained prompt: project rules preamble + this plan as context + the phase's specific scope/files/acceptance criteria + cumulative review findings from phases 1..N-1.</p>
+        </li>
+        <li class="[counter-increment:step] mb-6 pl-10 relative before:content-[counter(step,decimal-leading-zero)] before:absolute before:left-0 before:top-0 before:font-mono before:text-sm before:text-coral-400 before:bg-coral-400/10 before:border before:border-coral-400 before:rounded before:px-1.5 before:py-0.5 before:leading-none">
+          <h3 class="font-mono text-base font-semibold mb-3 text-slate-100" style="margin-top:0"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Sonnet subagent executes</h3>
+          <p class="mb-4">Spawned via the <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Agent</code> tool with <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">model: "sonnet"</code>. It reads the plan, reads referenced project files, writes code, writes tests, runs <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">swift build</code> + <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">swift test</code>, returns a summary of what it changed.</p>
+        </li>
+        <li class="[counter-increment:step] mb-6 pl-10 relative before:content-[counter(step,decimal-leading-zero)] before:absolute before:left-0 before:top-0 before:font-mono before:text-sm before:text-coral-400 before:bg-coral-400/10 before:border before:border-coral-400 before:rounded before:px-1.5 before:py-0.5 before:leading-none">
+          <h3 class="font-mono text-base font-semibold mb-3 text-slate-100" style="margin-top:0"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Senior review with /simplify</h3>
+          <p class="mb-4">Main agent invokes <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">/simplify</code> on the diff. Looks for: dead code, premature abstraction, missing tests, copy drift from the HIG citations, Sendable / actor-isolation mistakes, secrets in error messages or log output, partial-write recovery missed, redaction missed in description.</p>
+        </li>
+        <li class="[counter-increment:step] mb-6 pl-10 relative before:content-[counter(step,decimal-leading-zero)] before:absolute before:left-0 before:top-0 before:font-mono before:text-sm before:text-coral-400 before:bg-coral-400/10 before:border before:border-coral-400 before:rounded before:px-1.5 before:py-0.5 before:leading-none">
+          <h3 class="font-mono text-base font-semibold mb-3 text-slate-100" style="margin-top:0"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Apply fixes inline</h3>
+          <p class="mb-4">Main agent fixes anything actionable directly. Anything ambiguous gets escalated to the user via <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">AskUserQuestion</code>.</p>
+        </li>
+        <li class="[counter-increment:step] mb-6 pl-10 relative before:content-[counter(step,decimal-leading-zero)] before:absolute before:left-0 before:top-0 before:font-mono before:text-sm before:text-coral-400 before:bg-coral-400/10 before:border before:border-coral-400 before:rounded before:px-1.5 before:py-0.5 before:leading-none">
+          <h3 class="font-mono text-base font-semibold mb-3 text-slate-100" style="margin-top:0"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Xcode UI step (if any)</h3>
+          <p class="mb-4">Walk the user through any required pbxproj-side changes (e.g. adding a target dependency through the Project Editor). Subagent never touches pbxproj or workspace files.</p>
+        </li>
+        <li class="[counter-increment:step] mb-6 pl-10 relative before:content-[counter(step,decimal-leading-zero)] before:absolute before:left-0 before:top-0 before:font-mono before:text-sm before:text-coral-400 before:bg-coral-400/10 before:border before:border-coral-400 before:rounded before:px-1.5 before:py-0.5 before:leading-none">
+          <h3 class="font-mono text-base font-semibold mb-3 text-slate-100" style="margin-top:0"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Capture lessons → next prompt</h3>
+          <p class="mb-4">Anything the reviewer fixed becomes a "do not" line in phase N+1's prompt. The cumulative findings list grows monotonically; phase E sees the union of all prior lessons.</p>
+        </li>
+      </ol>
+    </section>
+    <section id="prompt-template">
+      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">09</span>Subagent prompt template</h2>
+
+      <p class="mb-4">Each phase's prompt follows this structure. The <strong class="font-semibold text-slate-100">preamble</strong> and <strong class="font-semibold text-slate-100">context refs</strong> stay constant; the <strong class="font-semibold text-slate-100">scope</strong> and <strong class="font-semibold text-slate-100">cumulative findings</strong> change per phase.</p>
+
+      <div class="my-5 rounded-lg overflow-hidden bg-[#0a0d10] border border-slate-800 shadow-[0_8px_28px_-16px_rgba(0,0,0,0.6)]">
+        <div class="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-b from-[#14181d] to-[#0d1014] border-b border-slate-800">
+          <div class="flex gap-1.5"><span class="w-2.5 h-2.5 rounded-full border border-black/35 bg-coral-400"></span><span class="w-2.5 h-2.5 rounded-full border border-black/35 bg-sunshine-400"></span><span class="w-2.5 h-2.5 rounded-full border border-black/35 bg-mint-400"></span></div>
+          <span class="text-slate-400 text-xs font-mono ml-1.5">prompt-template<span class="text-coral-400">.md</span></span>
+          <span class="ml-auto text-slate-500 font-mono text-[0.68rem] tracking-widest uppercase px-2 py-0.5 border border-slate-800 rounded-sm">markdown</span>
+        </div>
+<pre class="m-0 px-5 py-4 overflow-x-auto text-slate-100 text-[0.82rem] leading-relaxed font-mono"><code><span class="tok-comment"># Quorra · IAM Identity Center · Phase {LETTER}</span>
+
+You are a Sonnet subagent executing Phase {LETTER} of a planned implementation.
+Read the plan in full before writing any code:
+
+  /Users/aj.beck/Developer/repos/ajbeck/quorra/docs/IAMIdentityCenterPhase1Plan.html
+
+Then read these for project rules:
+
+  /Users/aj.beck/Developer/repos/ajbeck/quorra/CLAUDE.md
+  /Users/aj.beck/Developer/repos/ajbeck/quorra/docs/AWSConfigINI.html       (style/posture precedent)
+  /Users/aj.beck/Developer/repos/ajbeck/quorra/docs/IAMIdentityCenterDeviceAuth.html  (protocol details)
+
+<span class="tok-comment">## Hard rules</span>
+
+1. Do not modify project files (.xcodeproj, .xcworkspace, .pbxproj, entitlements).
+   Only Package.swift, Swift sources, tests, and resources.
+2. Read Apple/Swift docs FIRST via the xcode MCP server before writing code that
+   uses an Apple API. Cite the symbol name in a code comment when the choice was
+   doc-driven (e.g. // Apple: SwiftUI/View/privacySensitive(_:) ).
+3. Untyped throws on all public IAMIdentityCenter API. Conform to
+   Error + Sendable + LocalizedError. Don't add CustomNSError or RecoverableError.
+4. Strict concurrency must pass. No @unchecked Sendable shortcuts.
+5. Tests via Swift Testing (@Test macro), not XCTest.
+6. No secrets in error messages, log output, or .description outputs.
+7. Match the codebase's existing posture: hand-built, no third-party deps,
+   value types where possible, file-per-type for public types.
+
+<span class="tok-comment">## Scope of this phase</span>
+
+{SCOPE_FROM_PLAN}
+
+<span class="tok-comment">## Acceptance criteria</span>
+
+{ACCEPTANCE_FROM_PLAN}
+
+<span class="tok-comment">## File map</span>
+
+{FILE_MAP_FROM_PLAN}
+
+<span class="tok-comment">## Lessons from prior phases (do not repeat)</span>
+
+{CUMULATIVE_FINDINGS}
+
+<span class="tok-comment">## Deliverable</span>
+
+After implementing, run `swift build` then `swift test` from
+QuorraCore/. Both must succeed. Return a summary listing files
+changed, line counts, and test counts. Do not commit.</code></pre>
+      </div>
+
+      <div class="my-6 border-l-[3px] border-sky-300 pl-4 py-3 pr-5 bg-sky-300/[0.08] rounded-r text-[0.95rem]"><strong class="font-mono text-[0.7rem] tracking-wider uppercase mr-2 text-sky-300">findings format</strong>Cumulative findings should be terse and actionable: <em class="italic text-slate-400">"PHASE A: do not store the OIDC client_secret in a single Keychain row — split per the field-per-row rule (plan §07)."</em> Not narrative; not motivational. Each is a "don't" with a citation back to the plan.</div>
+    </section>
+    <section id="xcode-steps">
+      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">10</span>Xcode UI steps (manual, between phases)</h2>
+
+      <p class="mb-4">Subagents never touch pbxproj. These steps are executed by the senior reviewer between phases, with click-by-click instructions surfaced at the moment they're needed.</p>
+
+      <ol class="list-none p-0 [counter-reset:step]">
+        <li class="[counter-increment:step] mb-6 pl-10 relative before:content-[counter(step,decimal-leading-zero)] before:absolute before:left-0 before:top-0 before:font-mono before:text-sm before:text-coral-400 before:bg-coral-400/10 before:border before:border-coral-400 before:rounded before:px-1.5 before:py-0.5 before:leading-none">
+          <h3 class="font-mono text-base font-semibold mb-3 text-slate-100" style="margin-top:0"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>After Phase A — register the library product</h3>
+          <p class="mb-4">Open the <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">quorra.xcworkspace</code>. In the Project Editor, select the <strong class="font-semibold text-slate-100">quorra</strong> target → <em class="italic text-slate-400">General</em> tab → <em class="italic text-slate-400">Frameworks, Libraries, and Embedded Content</em> → click <strong class="font-semibold text-slate-100">+</strong> → search <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">IAMIdentityCenter</code> → select it → <em class="italic text-slate-400">Add</em>. Verify by importing it from a temporary file in the app target and building.</p>
+        </li>
+        <li class="[counter-increment:step] mb-6 pl-10 relative before:content-[counter(step,decimal-leading-zero)] before:absolute before:left-0 before:top-0 before:font-mono before:text-sm before:text-coral-400 before:bg-coral-400/10 before:border before:border-coral-400 before:rounded before:px-1.5 before:py-0.5 before:leading-none">
+          <h3 class="font-mono text-base font-semibold mb-3 text-slate-100" style="margin-top:0"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>After Phase A — codesign sanity check</h3>
+          <p class="mb-4">Build the app once. From a terminal: <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">codesign -d --entitlements - /Users/aj.beck/Library/Developer/Xcode/DerivedData/quorra-*/Build/Products/Debug/quorra.app</code>. Verify <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">keychain-access-groups</code> is non-empty and includes <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">$(AppIdentifierPrefix)dev.ajbeck.quorra.shared</code>. Per the project memory, missing Team ID has bitten this codebase before.</p>
+        </li>
+        <li class="[counter-increment:step] mb-6 pl-10 relative before:content-[counter(step,decimal-leading-zero)] before:absolute before:left-0 before:top-0 before:font-mono before:text-sm before:text-coral-400 before:bg-coral-400/10 before:border before:border-coral-400 before:rounded before:px-1.5 before:py-0.5 before:leading-none">
+          <h3 class="font-mono text-base font-semibold mb-3 text-slate-100" style="margin-top:0"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>CLI dependency wiring</h3>
+          <p class="mb-4">Deferred. Will be done when Phase {future} adds CLI sign-in.</p>
+        </li>
+      </ol>
+    </section>
+    <section id="future">
+      <h2 class="font-mono text-2xl font-semibold mt-16 mb-5 pt-5 border-t border-slate-800"><span class="text-coral-400 mr-2 text-sm align-[0.15em]">11</span>Future phases (deferred — for context only)</h2>
+
+      <p class="mb-4">These phases are not part of this PR. They're outlined here so the engineer reading this plan understands what's deliberately out of scope and why the Phase 1 surface looks the way it does.</p>
+
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Phase 2 — Sign-out + sidebar status dot + status enum</h3>
+      <ul class="ml-6 mb-4">
+        <li class="my-1 marker:text-coral-400">Add <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SessionAuthStatus</code> enum (5 cases) and <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">ProfileAuthStatus</code> enum (placeholder for Phase 4).</li>
+        <li class="my-1 marker:text-coral-400">Add <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">actor.status(forSession:) async -> SessionAuthStatus</code> — non-mutating; reads stored timestamps; never hits network.</li>
+        <li class="my-1 marker:text-coral-400">Add <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">actor.signOut(sessionName:) async</code> — purges all rows for the session.</li>
+        <li class="my-1 marker:text-coral-400">Add the green/red dot to <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SidebarView</code>'s <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">SessionRow</code>, wrapped in <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">TimelineView(.periodic(from: .now, by: 60))</code>.</li>
+        <li class="my-1 marker:text-coral-400">Add an <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">AsyncStream&lt;AuthEvent&gt;</code> on the actor so the model can listen for changes and re-query <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">status(...)</code> only when something changes.</li>
+      </ul>
+
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Phase 3 — Silent refresh</h3>
+      <ul class="ml-6 mb-4">
+        <li class="my-1 marker:text-coral-400">Add <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">refresh_token</code> grant to <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">OIDCClient.createToken</code>.</li>
+        <li class="my-1 marker:text-coral-400">Add <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">actor.liveToken(forSession:)</code> — reads Keychain; if <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expiresAt - now &lt; 5min</code> and a refresh token is present, refreshes silently and persists; otherwise returns the stored token. Throws if no usable token + no refresh path.</li>
+        <li class="my-1 marker:text-coral-400">Add <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">actor.refreshNow(sessionName:)</code> — always-mutating, user-initiated.</li>
+        <li class="my-1 marker:text-coral-400">Phase 3 is <strong class="font-semibold text-slate-100">lazy on read only</strong>. Proactive refresh waits for Phase 5.</li>
+      </ul>
+
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Phase 4 — SSO Portal + role credentials + reveal UI</h3>
+      <ul class="ml-6 mb-4">
+        <li class="my-1 marker:text-coral-400">Add <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">PortalClient</code> with <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">listAccounts</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">listAccountRoles</code>, <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">getRoleCredentials</code>. <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">RoleCredentials</code> public type with <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Wire</code>-namespaced ms-vs-s adapter for the <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expiration</code> field.</li>
+        <li class="my-1 marker:text-coral-400">Add <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">actor.roleCredentials(forSession:accountId:roleName:region:) async throws -> RoleCredentials</code> — reads role-creds cache, mints fresh via <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">GetRoleCredentials</code> if near-expiry (<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">liveToken</code> first if SSO token also stale).</li>
+        <li class="my-1 marker:text-coral-400">Add a <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">"Credentials"</code> <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Section</code> to <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">ProfileDetailView</code> for SSO-derived profiles. <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">DisclosureGroup</code> with <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">privacySensitive()</code> on each secret <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Text</code>; redaction toggled via <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">.environment(\.redactionReasons, isRevealed ? [] : .privacy)</code>. Per-row copy buttons + a <em class="italic text-slate-400">"Copy as environment variables"</em> action.</li>
+        <li class="my-1 marker:text-coral-400">No auto-hide; no clipboard self-clear (Apple Passwords precedent — neither is HIG-mandated).</li>
+        <li class="my-1 marker:text-coral-400">Long-term-keys profiles get no credentials section (separate concern — secrets live in the file in v1).</li>
+      </ul>
+
+      <h3 class="font-mono text-base font-semibold mt-9 mb-3 text-slate-100"><span class="text-coral-400 mr-2 text-[0.85em]">▸</span>Phase 5 — IMDS endpoint subsystem</h3>
+      <p class="mb-4">This is the biggest deferred chunk and the one that anchors the actor's design. Worth capturing the contract carefully so Phase 1's actor doesn't accidentally pre-empt it.</p>
+
+      <ul class="ml-6 mb-4">
+        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">One endpoint per profile.</strong> Each profile that the user enables IMDS-for gets its own <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">IMDSEndpoint</code> instance bound to a unique <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">127.0.0.1:&lt;port&gt;</code>.</li>
+        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">The endpoint owns its own refresh loop.</strong> Not the credentials actor. No <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">activate</code>/<code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">deactivate</code> handshake. <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">IMDSEndpoint.start()</code> mints the initial creds and schedules <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">Task.sleep</code> until <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">expiration - 7.5 min</code>; on wake, re-mint via <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">service.roleCredentials(...)</code>; loop until <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">stop()</code>.</li>
+        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">7.5-minute pre-rotation budget.</strong> AWS IMDS guarantees ≥5min; we go a little wider to give ourselves margin against round-trip variance on flaky networks. Source: <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">AWSEC2/UserGuide/instance-metadata-security-credentials.html</code> (<em class="italic text-slate-400">"We make new credentials available at least five minutes before the expiration of the old credentials."</em>).</li>
+        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">Failure response.</strong> When refresh fails, the endpoint serves <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">HTTP 200 OK</code> with body <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">{"Code": "AssumeRoleUnauthorizedAccess", "LastUpdated": "...", "Type": "AWS-HMAC", "Message": "&lt;truthful reason&gt;"}</code> — never <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">4xx</code> for credential-content failures, and never secret material on a failure response. Source: <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">IAM/UserGuide/troubleshoot_iam-ec2.html</code>.</li>
+        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">HTTP 4xx / 5xx</strong> reserved for IMDS-protocol-level failures (missing IMDSv2 token, version-pinned paths, unknown metadata paths, server bugs).</li>
+        <li class="my-1 marker:text-coral-400"><strong class="font-semibold text-slate-100">IMDSv2 by default.</strong> <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">PUT /latest/api/token</code> with <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">X-aws-ec2-metadata-token-ttl-seconds</code>; subsequent <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">GET</code>s require the bearer token. IMDSv1 supported as fallback per project CLAUDE.md.</li>
+      </ul>
+
+      <div class="my-6 border-l-[3px] border-warning-300 pl-4 py-3 pr-5 bg-warning-300/[0.08] rounded-r text-[0.95rem]"><strong class="font-mono text-[0.7rem] tracking-wider uppercase mr-2 text-warning-300">why this matters for Phase 1</strong>The credentials actor's API in Phase 1 must be <em class="italic text-slate-400">complete enough</em> for Phase 5 to plug into without surgery. Specifically: <code class="bg-coral-400/10 text-coral-400 px-1.5 py-0.5 rounded text-[0.86em]">roleCredentials(...)</code> is the verb the IMDS endpoint will call on its refresh loop. We don't implement it in Phase 1, but the Phase 1 design must not introduce anything that would block adding it later (no global mutable state, no hidden refresh tasks, no implicit caching the IMDS endpoint can't see through).</div>
+    </section>
+
+    <footer class="mt-24 pt-6 border-t border-slate-800 text-slate-500 text-sm font-mono flex flex-wrap justify-between gap-4">
+      <span class="blink">$ quorra sso login</span>
+      <span>quorra · phase 1 · macOS 26 · swift 6.2</span>
+    </footer>
+
+  </main>
+</div>
+</body>
+</html>
