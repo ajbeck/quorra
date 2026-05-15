@@ -24,6 +24,10 @@ actor StubOIDCRequesting: OIDCRequesting {
     var nextCreateTokenResult: Result<StoredSSOToken, Error> = .success(makeDefaultSSOToken())
     var nextRefreshResult: Result<StoredSSOToken, Error> = .success(makeDefaultSSOToken())
 
+    /// Optional async block for `createToken`. When set, overrides `nextCreateTokenResult`.
+    /// Useful for tests that need the token poll to block indefinitely (e.g. cancellation tests).
+    var createTokenBlock: (@Sendable () async throws -> StoredSSOToken)?
+
     /// Optional async block for `refreshToken`. When set, overrides `nextRefreshResult`.
     /// Useful for tests that need the refresh to block indefinitely (e.g. testing in-flight guards).
     var refreshBlock: (@Sendable () async throws -> StoredSSOToken)?
@@ -36,6 +40,11 @@ actor StubOIDCRequesting: OIDCRequesting {
     private(set) var refreshCallCount = 0
 
     // MARK: - Configuration helpers
+
+    func setCreateTokenBlock(_ block: @escaping @Sendable () async throws -> StoredSSOToken) {
+        createTokenBlock = block
+        nextCreateTokenResult = .success(makeDefaultSSOToken())  // reset canned result
+    }
 
     func setNextRefreshResult(_ result: Result<StoredSSOToken, Error>) {
         nextRefreshResult = result
@@ -68,6 +77,9 @@ actor StubOIDCRequesting: OIDCRequesting {
         sessionName: String
     ) async throws -> StoredSSOToken {
         createTokenCallCount += 1
+        if let block = createTokenBlock {
+            return try await block()
+        }
         return try nextCreateTokenResult.get()
     }
 

@@ -147,15 +147,23 @@ struct SignInTests {
 
     @Test("cancelSignIn throws .userCancelled and writes no token")
     func cancellation() async throws {
-        defer { StubURLProtocol.reset() }
         let keychain = InMemoryKeychainStore()
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
+        let stub = StubOIDCRequesting()
         let sleeper = MockSleeper()
-        let service = IdentityCenterService(keychain: keychain, oidcClient: oidcClient, sleeper: sleeper)
+        let service = IdentityCenterService(keychain: keychain, oidcClient: stub, sleeper: sleeper)
 
-        try registerStub()
-        try deviceAuthStub(expiresIn: 600, interval: 5)
-        try StubURLProtocol.registerOAuthError(urlSubstring: "/token", error: "authorization_pending")
+        // Gate the createToken call so it blocks until the sign-in Task is cancelled.
+        // This eliminates the scheduling race between MockSleeper.sleep(for:)'s Task.yield()
+        // and the cancelSignIn actor-hop: whether or not Task.checkCancellation() catches the
+        // cancellation before createToken is reached, the for-await below will catch it
+        // (AsyncStream.next() returns nil when the enclosing Task is cancelled, causing the
+        // loop to exit and the explicit CancellationError to propagate).  Either path through
+        // pollForToken results in CancellationError → signIn maps to .userCancelled.
+        let (gateStream, _) = AsyncStream<Void>.makeStream()
+        await stub.setCreateTokenBlock {
+            for await _ in gateStream { break }   // exits when task is cancelled (stream → nil)
+            throw CancellationError()
+        }
 
         let signInTask = Task {
             try await service.signIn(
@@ -167,8 +175,11 @@ struct SignInTests {
             )
         }
 
-        // Deterministic sync: wait until the polling loop has entered its first sleep.
+        // Deterministic sync point: wait until the polling loop has entered its first sleep.
+        // After this, the poll loop is at Task.yield()/checkCancellation() or createToken.
         await sleeper.waitForNextSleep()
+        // Cancel the sign-in. If checkCancellation() hasn't fired yet, the gated createToken
+        // will observe the cancellation and throw CancellationError deterministically.
         await service.cancelSignIn(sessionName: "test-session")
 
         do {

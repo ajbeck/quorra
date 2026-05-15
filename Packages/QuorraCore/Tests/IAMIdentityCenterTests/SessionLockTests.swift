@@ -152,40 +152,50 @@ struct SessionLockTests {
     /// The cancel-then-queue pattern means:
     /// 1. signOut cancels the in-flight refresh task (fast path — network call unwinds).
     /// 2. signOut then takes the session lock and runs.
-    /// 3. End state is signed-out regardless of whether the refresh was cancelled mid-flight
-    ///    or had already completed before signOut ran.
+    /// 3. End state is signed-out.
     ///
-    /// We verify the end state, not the specific cancellation timing.
+    /// Determinism technique: the in-flight refresh is planted directly via
+    /// `_test_setInFlightRefresh` with a gated Task (blocked on an AsyncStream gate that
+    /// is never yielded to). This bypasses the `liveToken` startup race — the refresh is
+    /// definitively in-flight in `inFlightRefresh["s"]` when `signOut` runs. signOut cancels
+    /// the gate-blocked task (AsyncStream returns nil on task cancellation → explicit
+    /// CancellationError), takes the session lock, and deletes the Keychain row. The new
+    /// token is never written because the gate never completes, so the end-state is always
+    /// signed-out.
     @Test("D21 scenario 10e: signOut after refresh — end state is signed-out")
     func d21Scenario10eRefreshThenSignOut() async throws {
         defer { StubURLProtocol.reset() }
 
         let keychain = InMemoryKeychainStore()
-        // Token inside skew window so liveToken triggers inline refresh
+        // Token inside skew window — the seeded state is what signOut will read and delete.
         try await seedSignedInState(keychain: keychain, expiresIn: 3 * 60)
 
         // Stub a successful Portal logout
         try StubURLProtocol.registerSuccess(urlSubstring: "/logout", json: [:])
 
-        // Use a stub that makes refresh take a moment so signOut can race it
         let stub = StubOIDCRequesting()
-        await stub.setNextRefreshResult(.success(makeDefaultSSOToken(
-            accessToken: "refreshed-at",
-            sessionName: "s"
-        )))
-
         let urlSession = StubURLProtocol.makeSession()
         let service = IdentityCenterService(keychain: keychain, oidcClient: stub, urlSession: urlSession)
 
-        // Start a refresh (liveToken will trigger it since token is inside skew window)
-        let refreshTask = Task { _ = try? await service.liveToken(forSession: "s") }
+        // Plant a gated in-flight refresh task in inFlightRefresh["s"].
+        // The gate (an AsyncStream that is never yielded to) blocks indefinitely until the
+        // enclosing Task is cancelled, at which point AsyncStream.next() returns nil and
+        // we throw CancellationError explicitly.  This makes the refresh deterministically
+        // in-flight — no startup race against signOut.
+        let (gateStream, _) = AsyncStream<Void>.makeStream()
+        let inFlightRefresh = Task<StoredSSOToken, Error> {
+            for await _ in gateStream { break }   // exits when task is cancelled (stream → nil)
+            throw CancellationError()
+        }
+        await service._test_setInFlightRefresh(inFlightRefresh, for: "s")
 
-        // Immediately queue a signOut — this exercises the cancel-then-queue path.
-        // D21: signOut cancels inFlightRefresh first, then takes the session lock.
+        // signOut (D21 cancel-then-queue):
+        //   step 1 — cancels inFlightRefresh["s"] (exits gate, throws CancellationError)
+        //   step 2 — takes session lock, reads keychain, deletes row, fires /logout
         try await service.signOut(sessionName: "s")
 
-        // Wait for the refresh task to finish (cancelled or completed)
-        await refreshTask.value
+        // Drain the cancelled refresh task
+        _ = try? await inFlightRefresh.value
 
         // End state must be signed-out
         let signedIn = await isSignedIn(keychain: keychain)
