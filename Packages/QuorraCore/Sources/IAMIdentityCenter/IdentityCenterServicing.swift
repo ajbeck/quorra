@@ -98,4 +98,22 @@ public protocol IdentityCenterServicing: Sendable {
         roleName: String,
         region: String
     ) async throws -> RoleCredentials
+
+    /// Returns the `ProfileAuthStatus` for a `(sessionName, accountId, roleName)` tuple.
+    ///
+    /// Contract per D29:
+    /// - Underlying session `.signedOut` / `.signingIn` → `.notSignedIn(sessionName:)`
+    /// - Underlying session `.expired(_, canRefresh: false)` → `.signInExpired(sessionName:)`
+    /// - Underlying session `.signedIn` or `.expired(_, canRefresh: true)` → `.ready(expiresAt:)`
+    ///   where `expiresAt` is the cached role-cred row's deadline, or `nil` when no row is
+    ///   cached yet (still "ready" — mint-on-demand per research §09).
+    ///
+    /// Non-throwing: absorbs Keychain errors and maps to a status. Opportunistically schedules
+    /// `T_mint` when a cached row exists and the bearer is valid (D28 deferred trigger).
+    @concurrent
+    func status(
+        forProfile sessionName: String,
+        accountId: String,
+        roleName: String
+    ) async -> ProfileAuthStatus
 }
