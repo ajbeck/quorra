@@ -18,6 +18,15 @@ public protocol KeychainStore: Sendable {
     /// Delete the row at `(service, account)`. Missing rows are not an error.
     func delete(service: String, account: String) async throws
 
+    /// Returns all `kSecAttrAccount` strings stored under `service`.
+    ///
+    /// Used by the sign-out cascade (D27) to enumerate and purge role-credential rows for a
+    /// session. The caller filters the returned strings by prefix to isolate the target session.
+    ///
+    /// Returns an empty array when no rows exist for `service` (not an error).
+    /// The returned order is unspecified — callers must not depend on it.
+    func enumerateAccounts(service: String) async throws -> [String]
+
     /// Decode a JSON-encoded row at `(service, account)` to `T`.
     /// Throws `.keychainItemMissing` if absent, `.keychainMalformed` if the payload won't decode.
     func readRecord<T: Decodable & Sendable>(_ type: T.Type, service: String, account: String) async throws -> T
