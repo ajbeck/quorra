@@ -45,12 +45,12 @@
 
     <header class="hero">
       <div class="hero-meta">
-        <span class="badge primary">scope 2 · planning</span>
+        <span class="badge primary">scope B · planning</span>
         <span class="badge swift">swift 6.2</span>
         <span class="badge macos">macos 26+</span>
       </div>
       <h1><span class="moniker-bracket">[</span><span class="moniker">Sessions</span><span class="moniker-bracket">]</span></h1>
-      <p class="lede">Complete the session-auth lifecycle. Sign-in shipped in Scope 1; this scope adds sign-out, silent refresh, the sidebar status icon, and the event stream that drives UI invalidation. Then peels off role credentials and IMDS as separate scopes once the lifecycle holds.</p>
+      <p class="lede">Quorra's IAM Identity Center subsystem, scope-by-scope. Sign-in shipped in Scope 1. Sign-out + status enum + event stream shipped in A1. Silent refresh + live token shipped in A2. Scope B now lands role credentials, the profile-row status icon, and the credentials reveal section — closing the loop from "user signed in" to "Quorra serves fresh STS credentials." Scope C will then expose those credentials via a local IMDS endpoint.</p>
     </header>
 
     <section id="status">
@@ -69,11 +69,14 @@
         <li>315 tests passing, full Swift Testing suite, hermetic transport stubs</li>
       </ul>
 
-      <h3>What's just shipped (Scope A1)</h3>
+      <h3>What's already shipped (Scope A1)</h3>
       <p>Sign-out, <code>SessionAuthStatus</code> enum, <code>AsyncStream&lt;AuthEvent&gt;</code> on the actor, event-driven expiration via <code>Task.sleep(until:)</code>, sidebar status icon (recolored <code>key.icloud</code>), Portal <code>POST /logout</code>. 357 tests passing (+42).</p>
 
-      <h3>What's design-settled (Scope A2)</h3>
-      <p>Silent refresh — twelve decisions (<a href="#decisions">D10–D21</a>) taken in the planning interview. Dual-timer model (<code>T_refresh</code> at <code>expiresAt − 5min</code> + <code>T_expire</code> at <code>expiresAt</code>), <code>liveToken(forSession:)</code> as the single read path with single-flight refresh, terminal-vs-transient failure split, per-session async serialization via Task chain (Apple's recommended primitive over <code>Synchronization.Mutex</code>, which is sync/blocking and wrong for async code). File map and acceptance criteria below in <a href="#scope-a2">A2</a>.</p>
+      <h3>What's just shipped (Scope A2)</h3>
+      <p>Silent refresh — twelve decisions (<a href="#decisions">D10–D21</a>) landed in commit <code>631d41f</code>. Dual-timer model (<code>T_refresh</code> at <code>expiresAt − 5min</code> + <code>T_expire</code> at <code>expiresAt</code>), <code>liveToken(forSession:)</code> as the single read path with single-flight refresh, terminal-vs-transient failure split, per-session async serialization via Task chain. Senior-review cleanup pass added <code>OIDCRequesting</code> protocol for cleaner test seams and wired <code>withSessionLock</code> through signIn/signOut/refreshNow. <strong>IAMIdentityCenter coverage: 90.53%</strong>; 86 IAM tests / 390 total passing.</p>
+
+      <h3>What's design-settled (Scope B)</h3>
+      <p>Role credentials + profile icon — ten decisions (<a href="#decisions">D22–D31</a>) taken in the planning interview. <code>PortalRequesting</code> protocol mirrors A2's <code>OIDCRequesting</code> seam. <code>liveCredentials(forSession:accountId:roleName:region:)</code> as the single read path with single-flight via <code>inFlightMint</code>. Proactive <code>T_mint</code> per <code>(session, account, role)</code> for Scope C's IMDS pre-warm. Sign-out cascades: in-flight mint tasks cancelled, role-cred Keychain rows enumerated and purged. UI uses HIG-blessed primitives — single <code>DisclosureGroup</code> + <code>Form</code> + <code>LabeledContent</code> with mask/reveal/copy buttons. File map and acceptance criteria below in <a href="#scope-b">B</a>.</p>
     </section>
 
     <section id="scope-map">
@@ -97,7 +100,7 @@
       </div>
 
       <div class="phase-card">
-        <span class="phase-tag">Scope A2 · design settled</span>
+        <span class="phase-tag">Scope A2 · shipped</span>
         <h3>Silent refresh + live token</h3>
         <ul>
           <li>New <code>OIDCClient.refreshToken(client:refreshToken:sessionName:)</code> — separate verb, not an overload of <code>createToken</code> (<a href="#decisions">D15</a>)</li>
@@ -111,14 +114,16 @@
       </div>
 
       <div class="phase-card">
-        <span class="phase-tag">Scope B</span>
-        <h3>Role credentials + profile dot</h3>
+        <span class="phase-tag">Scope B · design settled</span>
+        <h3>Role credentials + profile icon</h3>
         <ul>
-          <li><code>PortalClient</code> (<code>ListAccounts</code>, <code>ListAccountRoles</code>, <code>GetRoleCredentials</code>)</li>
-          <li><code>RoleCredentials</code> type + Keychain row (<code>service: dev.ajbeck.quorra.role-creds</code>)</li>
-          <li><code>roleCredentials(forSession:accountId:roleName:region:)</code> on the actor</li>
-          <li><code>ProfileAuthStatus</code> — the real four-clause "active" check (<a href="IAMIdentityCenterDeviceAuth.html#lifetimes">§09</a>)</li>
-          <li>Profile-row icon + credentials reveal section in <code>ProfileDetailView</code></li>
+          <li><code>PortalRequesting</code> protocol with three verbs: <code>listAccounts</code>, <code>listAccountRoles</code>, <code>getRoleCredentials</code>. Pagination hidden internally (<a href="#decisions">D23</a>)</li>
+          <li><code>RoleCredentials</code> struct stored in Keychain at <code>service: dev.ajbeck.quorra.role-creds</code>, <code>account: &lt;sessionName&gt;:&lt;accountId&gt;:&lt;roleName&gt;</code> (<a href="#decisions">D24</a>)</li>
+          <li><code>liveCredentials(forSession:accountId:roleName:region:) -&gt; RoleCredentials</code> — single read path; in-skew triggers inline mint; single-flight via <code>inFlightMint</code> (<a href="#decisions">D25</a>, <a href="#decisions">D26</a>)</li>
+          <li>Proactive <code>T_mint</code> per <code>(session, account, role)</code> at <code>expiresAt − 5min</code>, pre-warming for Scope C's IMDS (<a href="#decisions">D28</a>)</li>
+          <li><code>ProfileAuthStatus</code> — three-case enum, transient activity in <code>Set&lt;String&gt;</code> overlays on <code>CredentialsModel</code> (<a href="#decisions">D29</a>)</li>
+          <li>Sign-out cascade extends D3: cancel in-flight mints, enumerate-and-delete role-cred rows (<a href="#decisions">D27</a>)</li>
+          <li>Profile-row status icon + credentials reveal section using HIG <code>DisclosureGroup</code> + <code>Form</code> + <code>LabeledContent</code> (<a href="#decisions">D31</a>)</li>
         </ul>
       </div>
 
@@ -434,6 +439,293 @@
       <p>This simplifies <a href="#decisions">D20</a>'s scenario 10e dramatically: refresh succeeds, signOut queued behind it. Refresh writes the new token, signOut runs next and deletes it. End state: signed out. No "discard if Keychain row missing" defensive check anywhere.</p>
 
       <div class="callout note"><strong>apple-canonical primitive</strong>The Swift Forums thread on <em>"concurrency-safe-lock"</em> and WWDC21 both arrive at the same place: actor + Task chain for async serialization. Apple does not ship a built-in <code>AsyncMutex</code>; the documented pattern is what's implemented above.</div>
+
+      <h3 style="margin-top: 2.5em;">B decisions — role credentials</h3>
+      <p>Ten decisions taken during the B design interview. Each is grounded in Apple framework reference docs, HIG, AWS API documentation, RFC compliance, or the research docs.</p>
+
+      <h3>D22 — Single actor, new extension files, <code>PortalRequesting</code> protocol seam</h3>
+      <p>Role-credentials code lives on the existing <code>IdentityCenterService</code> actor (not a new <code>RoleCredentialsService</code>). New extension files mirror the A1/A2 pattern: <code>+RoleCredentials.swift</code>, <code>+PortalClient.swift</code>, <code>+ProfileStatus.swift</code>. Wire layer extracted as <code>PortalRequesting</code> protocol with a concrete <code>PortalClient</code> conforming, mirroring A2's <code>OIDCRequesting</code>/<code>OIDCClient</code> seam.</p>
+      <p><strong>Why one actor, not two:</strong></p>
+      <ul>
+        <li><em>Sign-out atomicity.</em> The session sign-out must purge both the SSO token row AND every derived role-cred row in one synchronized operation. With one actor + the D21 session lock, this is one <code>withSessionLock</code> body. With two actors, it's a cross-actor call during the lock window — exactly the actor-reentrancy hazard D21 closed.</li>
+        <li><em>Refresh interaction.</em> Mint calls <code>liveToken</code> (A2) internally. Same actor means <code>await self.liveToken(...)</code> — A2's <code>inFlightRefresh</code> single-flight kicks in automatically. Two actors means a cross-boundary hop with serialized locks at both ends.</li>
+      </ul>
+      <p><strong>Apple-canonical precedent:</strong> <code>AuthorizationController</code> (AuthenticationServices) handles Apple ID, passkey, password, security key, and custom-method credentials through a single <code>performRequest(_:)</code> API with a discriminated <code>ASAuthorizationResult</code> enum. Apple splits at <em>operations</em> (authorize vs save vs web-auth), not at <em>credential types</em>. SSO tokens and role credentials are both bearer-credentials Quorra serves to consumers; they share one actor.</p>
+
+      <h3>D23 — All three Portal verbs in <code>PortalRequesting</code></h3>
+      <p>AWS SSO Portal exposes <code>ListAccounts</code>, <code>ListAccountRoles</code>, <code>GetRoleCredentials</code>. All three land in B even though only <code>GetRoleCredentials</code> is load-bearing for the credentials reveal section. The discovery verbs will eventually be needed for the future profile-creation flow; adding them now means we don't revisit the wire layer later.</p>
+      <p>Pagination is handled internally — methods return flat lists, callers don't manage <code>nextToken</code>. Matches AWS SDK convenience patterns (e.g., the <code>paginated()</code> async sequences in <code>aws-sdk-go-v2</code>).</p>
+      <p>Concrete protocol:</p>
+
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">PortalRequesting<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
+        </div>
+<pre><code><span class="tok-keyword">public protocol</span> <span class="tok-type">PortalRequesting</span>: <span class="tok-type">Sendable</span> {
+    <span class="tok-keyword">func</span> listAccounts(accessToken: <span class="tok-type">String</span>, region: <span class="tok-type">String</span>) <span class="tok-keyword">async throws</span> -&gt; [<span class="tok-type">PortalAccount</span>]
+    <span class="tok-keyword">func</span> listAccountRoles(accessToken: <span class="tok-type">String</span>, accountId: <span class="tok-type">String</span>, region: <span class="tok-type">String</span>) <span class="tok-keyword">async throws</span> -&gt; [<span class="tok-type">PortalRole</span>]
+    <span class="tok-keyword">func</span> getRoleCredentials(accessToken: <span class="tok-type">String</span>, accountId: <span class="tok-type">String</span>, roleName: <span class="tok-type">String</span>, region: <span class="tok-type">String</span>) <span class="tok-keyword">async throws</span> -&gt; <span class="tok-type">RoleCredentials</span>
+}</code></pre>
+      </div>
+
+      <h3>D24 — <code>RoleCredentials</code> struct + Keychain layout</h3>
+      <p>The struct carries AWS-supplied fields plus provenance metadata needed for cascade, status, and debugging:</p>
+
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">RoleCredentials<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
+        </div>
+<pre><code><span class="tok-keyword">public struct</span> <span class="tok-type">RoleCredentials</span>: <span class="tok-type">Sendable</span>, <span class="tok-type">Hashable</span>, <span class="tok-type">Codable</span> {
+    <span class="tok-comment">// From AWS</span>
+    <span class="tok-keyword">public let</span> accessKeyId: <span class="tok-type">String</span>
+    <span class="tok-keyword">public let</span> secretAccessKey: <span class="tok-type">String</span>
+    <span class="tok-keyword">public let</span> sessionToken: <span class="tok-type">String</span>
+    <span class="tok-keyword">public let</span> expiresAt: <span class="tok-type">Date</span>
+    <span class="tok-comment">// Provenance (Quorra-added)</span>
+    <span class="tok-keyword">public let</span> accountId: <span class="tok-type">String</span>
+    <span class="tok-keyword">public let</span> roleName: <span class="tok-type">String</span>
+    <span class="tok-keyword">public let</span> region: <span class="tok-type">String</span>
+    <span class="tok-keyword">public let</span> sessionName: <span class="tok-type">String</span>
+    <span class="tok-keyword">public let</span> issuedAt: <span class="tok-type">Date</span>
+}</code></pre>
+      </div>
+
+      <p>Plus a redaction <code>CustomStringConvertible</code> conformance so accidental logging never prints the secret (mirrors <code>StoredSSOToken</code>'s pattern).</p>
+
+      <p><strong>Keychain layout:</strong></p>
+      <table class="fields">
+        <thead><tr><th>Attribute</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td class="field">kSecClass</td><td class="type">kSecClassGenericPassword</td></tr>
+          <tr><td class="field">kSecAttrService</td><td class="type">dev.ajbeck.quorra.role-creds</td></tr>
+          <tr><td class="field">kSecAttrAccount</td><td class="type">&lt;sessionName&gt;:&lt;accountId&gt;:&lt;roleName&gt;</td></tr>
+          <tr><td class="field">kSecAttrAccessGroup</td><td class="type">$(AppIdentifierPrefix)dev.ajbeck.quorra.shared</td></tr>
+          <tr><td class="field">kSecValueData</td><td class="type">JSON-encoded RoleCredentials (Codable)</td></tr>
+        </tbody>
+      </table>
+
+      <p><strong>Why tuple identity for the account string</strong> (rejected alternatives):</p>
+      <ul>
+        <li><em>Per-profile keying</em> — duplicates when two profiles reference the same <code>(session, account, role)</code>.</li>
+        <li><em>Global <code>(account, role)</code> only</em> — no way to cascade purge on session sign-out.</li>
+        <li><em>Session in the service prefix</em> — works but spreads role-cred rows across many services; harder to enumerate.</li>
+      </ul>
+
+      <p><strong>Size envelope</strong> — Apple's keychain docs consistently say "small chunks of data." Our encoded payload is typically 800 B–2.2 KB; worst case is the documented STS-max 12-KB session token, bringing total to ~12.8 KB. Comfortably inside the practical envelope (Apple guidance: tens of KB before reaching for an alternative). A <strong>worst-case-payload round-trip test</strong> is in the B test suite to guard against future regressions at extremes.</p>
+
+      <h3>D25 — Single public verb <code>liveCredentials</code></h3>
+      <p>One verb, not the A2-symmetric pair:</p>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">IdentityCenterService+RoleCredentials<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
+        </div>
+<pre><code>@<span class="tok-keyword">concurrent</span>
+<span class="tok-keyword">public func</span> liveCredentials(
+    forSession sessionName: <span class="tok-type">String</span>,
+    accountId: <span class="tok-type">String</span>,
+    roleName: <span class="tok-type">String</span>,
+    region: <span class="tok-type">String</span>
+) <span class="tok-keyword">async throws</span> -&gt; <span class="tok-type">RoleCredentials</span></code></pre>
+      </div>
+      <p><strong>No <code>mintCredentialsNow</code></strong> — A2's <code>refreshNow</code> earned its place because the SSO refresh-vs-resign-in distinction needed a "retry refresh without device flow" verb. Role creds have no equivalent two-tier failure mode; retrying is just "call <code>liveCredentials</code> again." YAGNI applies. Verb stays additive — we can add the explicit "always-mint" variant if a future consumer demands it.</p>
+
+      <h3>D26 — Behavior matrix, skew, single-flight, no session lock</h3>
+      <table class="fields">
+        <thead><tr><th>Situation</th><th>Behavior</th></tr></thead>
+        <tbody>
+          <tr><td class="field">Cached row exists, <code>now &lt; expiresAt − skew</code></td><td class="note">Return cached</td></tr>
+          <tr><td class="field">Inside skew (<code>now ≥ expiresAt − skew, now &lt; expiresAt</code>)</td><td class="note">Inline mint, await, return new</td></tr>
+          <tr><td class="field">Past expiry, bearer valid</td><td class="note">Inline mint, await, return new</td></tr>
+          <tr><td class="field">No cached row</td><td class="note">Inline mint, await, return new</td></tr>
+          <tr><td class="field">Mint already in flight</td><td class="note">Await <code>inFlightMint[key]</code>, return shared result</td></tr>
+          <tr><td class="field">Underlying <code>liveToken</code> throws <code>.notSignedIn</code></td><td class="note">Propagate</td></tr>
+          <tr><td class="field">AWS <code>ForbiddenException</code> (role no longer assigned)</td><td class="note">Throw <code>.roleNotAssigned</code>, purge cached row</td></tr>
+          <tr><td class="field">AWS <code>ResourceNotFoundException</code> (account doesn't exist)</td><td class="note">Throw <code>.accountNotFound</code>, purge cached row</td></tr>
+          <tr><td class="field">Network / 5xx</td><td class="note">Propagate as transient, no Keychain mutation</td></tr>
+        </tbody>
+      </table>
+
+      <p><strong>Skew:</strong> reuse <code>ServiceConstants.refreshSkew = 5 * 60</code> from A2. Same physical value, same semantic, less surface area. Research §09 documents the 5-min figure for both SSO tokens and role credentials.</p>
+
+      <p><strong>Single-flight key:</strong> <code>"&lt;sessionName&gt;:&lt;accountId&gt;:&lt;roleName&gt;"</code> — matches the Keychain row key. Concurrent <code>liveCredentials</code> calls for the same tuple coalesce; different tuples don't block.</p>
+
+      <p><strong>No session lock around <code>liveCredentials</code>.</strong> Relies on three layered guarantees:</p>
+      <ol>
+        <li><code>inFlightMint</code> coalesces mint-vs-mint races for the same tuple.</li>
+        <li><code>liveToken</code> (A2) internally takes the session lock when fetching the SSO bearer — by the time we call <code>portal.getRoleCredentials</code>, the bearer is fresh and the session lock has been released.</li>
+        <li>Sign-out cancels every <code>inFlightMint</code> for the session (D27). Any in-flight mint's <code>URLSession.data(for:)</code> throws <code>CancellationError</code>; no Keychain write happens.</li>
+      </ol>
+
+      <p>The alternative — taking the session lock inside <code>liveCredentials</code> — would deadlock because <code>liveToken</code> re-takes the lock. We could use Swift's <code>#isolation</code> macro or an <code>isolated</code> parameter token to bypass the deadlock, but the layered-guarantees approach gives identical end-state correctness with less complexity.</p>
+
+      <h3>D27 — Sign-out cascade extends D3</h3>
+      <p>Sign-out's existing order of operations gains a new step. The full sequence:</p>
+      <ol>
+        <li><strong>Cancel-then-queue (extended)</strong>: cancel <code>inFlightRefresh[sessionName]</code> <em>and</em> every <code>inFlightMint[key]</code> whose key starts with <code>&lt;sessionName&gt;:</code>, before taking the session lock.</li>
+        <li>Take session lock (D21).</li>
+        <li>Cancel in-flight <code>signIn</code> for the session (existing A1).</li>
+        <li>Read the <code>StoredSSOToken</code> — if missing, emit <code>.signedOut</code> and return (idempotent).</li>
+        <li>Cancel <code>T_refresh</code> and <code>T_expire</code> (existing A1).</li>
+        <li><strong>Cancel every <code>T_mint</code> whose key starts with <code>&lt;sessionName&gt;:</code></strong> (new in B).</li>
+        <li>Emit <code>.signedOut(sessionName:)</code> (UI flips immediately).</li>
+        <li>Delete the SSO token Keychain row (existing A1).</li>
+        <li><strong>Enumerate role-cred rows under <code>service: dev.ajbeck.quorra.role-creds</code>, delete every one whose account starts with <code>&lt;sessionName&gt;:</code></strong> (new in B).</li>
+        <li>Fire Portal <code>/logout</code> best-effort (existing A1).</li>
+        <li>If 10 fails, emit <code>.signOutServerSideFailed</code> (existing A1) — do NOT throw.</li>
+      </ol>
+
+      <p><strong>New <code>KeychainStore</code> method required:</strong></p>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">KeychainStore<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
+        </div>
+<pre><code><span class="tok-keyword">public protocol</span> <span class="tok-type">KeychainStore</span>: <span class="tok-type">Sendable</span> {
+    <span class="tok-comment">// existing</span>
+    <span class="tok-keyword">func</span> read(service: <span class="tok-type">String</span>, account: <span class="tok-type">String</span>) <span class="tok-keyword">async throws</span> -&gt; <span class="tok-type">Data</span>
+    <span class="tok-keyword">func</span> write(_ data: <span class="tok-type">Data</span>, service: <span class="tok-type">String</span>, account: <span class="tok-type">String</span>) <span class="tok-keyword">async throws</span>
+    <span class="tok-keyword">func</span> delete(service: <span class="tok-type">String</span>, account: <span class="tok-type">String</span>) <span class="tok-keyword">async throws</span>
+
+    <span class="tok-comment">// new in B</span>
+    <span class="tok-keyword">func</span> enumerateAccounts(service: <span class="tok-type">String</span>) <span class="tok-keyword">async throws</span> -&gt; [<span class="tok-type">String</span>]
+}</code></pre>
+      </div>
+
+      <p><code>enumerateAccounts(service:)</code> calls <code>SecItemCopyMatching</code> with <code>kSecMatchLimit: kSecMatchLimitAll, kSecReturnAttributes: true</code> and returns the <code>kSecAttrAccount</code> strings. Linear scan in Swift filters by <code>hasPrefix("&lt;sessionName&gt;:")</code>. Typical user has &lt;50 role-cred rows; filter is microseconds.</p>
+
+      <h3>D28 — Proactive <code>T_mint</code> timer per <code>(session, account, role)</code></h3>
+      <p>Per-tuple proactive timer mirrors A2's <code>T_refresh</code> shape. Pre-warms role creds so Scope C's IMDS endpoint can serve fresh credentials with zero mint latency on hot-path requests.</p>
+
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">IdentityCenterService<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
+        </div>
+<pre><code><span class="tok-comment">// A2 (existing)</span>
+<span class="tok-keyword">var</span> refreshTimers: [<span class="tok-type">String</span>: <span class="tok-type">Task</span>&lt;<span class="tok-type">Void</span>, <span class="tok-type">Never</span>&gt;] = [:]
+<span class="tok-keyword">var</span> inFlightRefresh: [<span class="tok-type">String</span>: <span class="tok-type">Task</span>&lt;<span class="tok-type">StoredSSOToken</span>, <span class="tok-type">Error</span>&gt;] = [:]
+
+<span class="tok-comment">// B (new)</span>
+<span class="tok-keyword">var</span> mintTimers: [<span class="tok-type">String</span>: <span class="tok-type">Task</span>&lt;<span class="tok-type">Void</span>, <span class="tok-type">Never</span>&gt;] = [:]
+<span class="tok-keyword">var</span> inFlightMint: [<span class="tok-type">String</span>: <span class="tok-type">Task</span>&lt;<span class="tok-type">RoleCredentials</span>, <span class="tok-type">Error</span>&gt;] = [:]</code></pre>
+      </div>
+
+      <p><strong>Scheduling triggers</strong> (mirroring A2's <code>T_refresh</code>):</p>
+      <ul>
+        <li>On successful mint → cancel old, schedule next at new <code>expiresAt − refreshSkew</code>.</li>
+        <li>On <code>status(forProfile:)</code> → opportunistically schedule if cached row exists, bearer valid, no timer yet.</li>
+        <li>On sign-out for <code>session X</code> → cancel every <code>T_mint</code> whose key starts with <code>&lt;X&gt;:</code> (D27).</li>
+        <li>On terminal failure (<code>.roleNotAssigned</code> / <code>.accountNotFound</code>) → cancel timer, purge cached row.</li>
+        <li>On transient failure → leave the timer slot empty; rely on lazy mint via next <code>liveCredentials</code>.</li>
+      </ul>
+
+      <p>Events fired by <code>T_mint</code>: <code>.mintingCredentials → .mintedCredentials | .mintCredentialsFailed | .roleAccessDenied</code> (D30).</p>
+
+      <h3>D29 — <code>ProfileAuthStatus</code> shape</h3>
+      <p>Three-case enum following A1 D17's lesson (transient activity in <code>Set&lt;String&gt;</code> overlays on the model, enum stays steady-state):</p>
+
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">ProfileAuthStatus<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
+        </div>
+<pre><code><span class="tok-keyword">public enum</span> <span class="tok-type">ProfileAuthStatus</span>: <span class="tok-type">Sendable</span>, <span class="tok-type">Hashable</span> {
+    <span class="tok-comment">/// All four clauses from research §09 pass. expiresAt is the cached role-cred deadline;</span>
+    <span class="tok-comment">/// nil means uncached but mintable (still counts as "active" per §09).</span>
+    <span class="tok-keyword">case</span> ready(expiresAt: <span class="tok-type">Date</span>?)
+
+    <span class="tok-comment">/// Clause 1 fails: SSO session is signed out.</span>
+    <span class="tok-keyword">case</span> notSignedIn(sessionName: <span class="tok-type">String</span>)
+
+    <span class="tok-comment">/// Clause 1 fails: SSO token expired with no refresh path (terminal — device flow needed).</span>
+    <span class="tok-keyword">case</span> signInExpired(sessionName: <span class="tok-type">String</span>)
+}</code></pre>
+      </div>
+
+      <p><strong>No <code>.roleNotAssigned</code> in the enum</strong> — every fresh <code>liveCredentials</code> attempt is independent. On terminal <code>ForbiddenException</code>: purge cached row, throw <code>.roleNotAssigned</code>, populate <code>roleRejected: Set&lt;String&gt;</code> on the model. UI surfaces a soft-warning advisory in the credentials reveal section ("This role is no longer available."). If admin restores the role, the next mint succeeds; advisory auto-clears. Persistent "rejected" state would double the state surface for one rare condition.</p>
+
+      <p><strong>No <code>.configError</code></strong> — preconditions are the model's job. Profiles whose <code>ssoSession</code> / <code>ssoAccountId</code> / <code>ssoRoleName</code> are nil don't get queried; the actor only sees well-formed inputs.</p>
+
+      <p><strong>Model overlay sets (new in B):</strong></p>
+      <ul>
+        <li><code>mintingNow: Set&lt;String&gt;</code> — keys with mint in flight (drives pulse on the profile icon)</li>
+        <li><code>mintFailure: Set&lt;String&gt;</code> — transient failure (drives retry advisory)</li>
+        <li><code>roleRejected: Set&lt;String&gt;</code> — terminal failure (drives "contact admin" advisory)</li>
+      </ul>
+
+      <p><strong>Verb:</strong> <code>status(forProfile sessionName:accountId:roleName:) async -&gt; ProfileAuthStatus</code> on the actor. Mirrors A1's <code>status(forSession:)</code> shape. Internally: check session status, then optionally check cached role-cred row, opportunistically schedule <code>T_mint</code>.</p>
+
+      <h3>D30 — Four new <code>AuthEvent</code> cases</h3>
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">AuthEvent<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
+        </div>
+<pre><code><span class="tok-comment">// B additions to AuthEvent</span>
+<span class="tok-keyword">case</span> mintingCredentials(sessionName: <span class="tok-type">String</span>, accountId: <span class="tok-type">String</span>, roleName: <span class="tok-type">String</span>)
+<span class="tok-keyword">case</span> mintedCredentials(sessionName: <span class="tok-type">String</span>, accountId: <span class="tok-type">String</span>, roleName: <span class="tok-type">String</span>)
+<span class="tok-keyword">case</span> mintCredentialsFailed(sessionName: <span class="tok-type">String</span>, accountId: <span class="tok-type">String</span>, roleName: <span class="tok-type">String</span>)  <span class="tok-comment">// transient</span>
+<span class="tok-keyword">case</span> roleAccessDenied(sessionName: <span class="tok-type">String</span>, accountId: <span class="tok-type">String</span>, roleName: <span class="tok-type">String</span>)        <span class="tok-comment">// terminal</span></code></pre>
+      </div>
+
+      <p><strong>Two failure events, not one with a discriminator</strong> — A2's <code>.refreshFailed</code> works as a single case because the status verb disambiguates (<code>canRefresh: true</code> vs <code>false</code>). For role creds, the status verb does <em>not</em> disambiguate (both buckets leave the next <code>status(forProfile:)</code> at <code>.ready</code> or its bearer-derived state). Domain-modeling the two scenarios as distinct events is cleaner than a flag.</p>
+
+      <p><strong>One <code>roleAccessDenied</code> for both <code>ForbiddenException</code> and <code>ResourceNotFoundException</code></strong> — both lead to the same user action (contact admin / fix config). The specific AWS error code is preserved in the thrown <code>IAMIdentityCenterError</code> for callers who want diagnostic detail.</p>
+
+      <p>Events still carry only structural identifiers; the model re-pulls full status on receipt (A1 D2 contract).</p>
+
+      <h3>D31 — UI: profile icon + credentials reveal section</h3>
+
+      <p><strong>Profile-row icon</strong> (parallel to A1's <code>SessionStatusIcon</code>): new <code>ProfileStatusIcon</code> view rendering the three-layer HIG approach (shape + color + motion).</p>
+      <table class="fields">
+        <thead><tr><th>State</th><th>Symbol</th><th>Foreground</th><th>Effect</th></tr></thead>
+        <tbody>
+          <tr><td class="field">ready (no overlays)</td><td class="type">person.icloud.fill</td><td class="note">.green</td><td class="note">—</td></tr>
+          <tr><td class="field">ready + mintingNow</td><td class="type">person.icloud.fill</td><td class="note">.green</td><td class="note">.pulse</td></tr>
+          <tr><td class="field">ready + mintFailure</td><td class="type">person.icloud.fill</td><td class="note">.green</td><td class="note">—</td></tr>
+          <tr><td class="field">ready + roleRejected</td><td class="type">person.icloud</td><td class="note">.red</td><td class="note">—</td></tr>
+          <tr><td class="field">notSignedIn(_)</td><td class="type">person.icloud</td><td class="note">.secondary</td><td class="note">—</td></tr>
+          <tr><td class="field">signInExpired(_)</td><td class="type">person.icloud</td><td class="note">.red</td><td class="note">—</td></tr>
+        </tbody>
+      </table>
+
+      <p><code>person.icloud</code> chosen to disambiguate from the session row's <code>key.icloud</code> — the profile represents identity-as-a-role; the session represents the SSO bearer. <code>mintFailure</code> stays green because research §09 says stale-but-mintable counts as "active" — soft warnings surface in the detail view, not the sidebar.</p>
+
+      <p><strong>Credentials reveal section</strong> in <code>ProfileDetailView</code> uses HIG-blessed SwiftUI primitives:</p>
+      <ul>
+        <li><strong>One <code>DisclosureGroup("Credentials")</code></strong> — HIG explicitly limits views to a single disclosure button. <em>"Use a disclosure control to hide details until they're relevant."</em></li>
+        <li><strong><code>Form</code> + <code>LabeledContent</code></strong> per credential field — gives the native macOS aligned-labels vertical-stack rendering. <em>"A container for attaching a label to a value-bearing view."</em></li>
+        <li><strong>Mask by default + per-field <code>eye</code>/<code>eye.slash</code> reveal toggle</strong> matching Apple's password-field convention. We do <em>not</em> use <code>privacySensitive(_:)</code> — that's for system-managed runtime redaction (locked widgets), not user-driven reveal.</li>
+        <li><strong>Mask format:</strong> <code>accessKeyId</code> shows fingerprint <code>ASIA••••••••IRTH</code> (first 4 + last 4 — identifiable without revealing). <code>secretAccessKey</code> and <code>sessionToken</code> show plain <code>••••••••••••</code> (no meaningful suffix to fingerprint).</li>
+        <li><strong>Copy buttons</strong> via <code>doc.on.doc</code> SF Symbol with <code>NSPasteboard.general.setString(...)</code>. No clipboard auto-clear (macOS has no clean API for it; natural cred expiry &lt;1h is the mitigation).</li>
+        <li><strong>Bulk copy buttons:</strong> <em>Copy as environment variables</em> (writes <code>export AWS_ACCESS_KEY_ID=…</code>) and <em>Copy as config block</em> (writes <code>[profile temp]\naws_access_key_id = …</code>). Bordered button style for action weight.</li>
+      </ul>
+
+      <p><strong>State-to-rendering matrix</strong> for the disclosure body:</p>
+      <table class="fields">
+        <thead><tr><th>State</th><th>DisclosureGroup body</th></tr></thead>
+        <tbody>
+          <tr><td class="field">notSignedIn(s)</td><td class="note">Disabled. Link: <em>"Sign in to {s} to mint credentials."</em></td></tr>
+          <tr><td class="field">signInExpired(s)</td><td class="note">Same.</td></tr>
+          <tr><td class="field">ready, collapsed</td><td class="note">No mint yet. Header reads <code>[▼ Show credentials]</code>.</td></tr>
+          <tr><td class="field">ready, just expanded</td><td class="note">Trigger <code>liveCredentials</code>. ProgressView during mint. Then render rows.</td></tr>
+          <tr><td class="field">ready + mintingNow</td><td class="note">ProgressView with <em>"Refreshing credentials…"</em> caption.</td></tr>
+          <tr><td class="field">ready + mintFailure</td><td class="note">Render cached creds + inline advisory + <code>[Retry]</code> button.</td></tr>
+          <tr><td class="field">ready + roleRejected</td><td class="note">Inline advisory <em>"This role is no longer available. Contact your administrator."</em> No retry.</td></tr>
+        </tbody>
+      </table>
+
+      <p><strong>Read-only mode is orthogonal</strong> — role-cred mint writes only to Keychain, not <code>~/.aws/config</code>/<code>credentials</code>. Copy buttons write to clipboard, not disk. Both permitted in read-only mode (matches A1 D5's posture).</p>
     </section>
 
     <section id="data-flow">
@@ -748,8 +1040,128 @@
     </section>
 
     <section id="scope-b">
-      <h2><span class="section-anchor">B</span>Role credentials + profile icon</h2>
-      <p>Deferred — separate planning interview once A2 ships. See the scope map above for the intended surface.</p>
+      <h2><span class="section-anchor">B</span>Role credentials + profile icon <span style="color: var(--accent); font-size: 0.7em; vertical-align: 0.2em;">⚡ design settled · ready to implement</span></h2>
+
+      <p>Closes the loop from "user signed in" to "Quorra serves fresh STS credentials for any configured profile." Adds the role-credentials lifecycle on top of A2's bearer-token foundation, surfaces it via the profile-row icon and the credentials reveal section in <code>ProfileDetailView</code>, and pre-warms via a proactive timer so Scope C's IMDS endpoint can serve credentials with zero mint latency on the hot path.</p>
+
+      <h3>File map</h3>
+
+      <h4>New files — <code>Packages/QuorraCore/Sources/IAMIdentityCenter/</code></h4>
+      <table class="fields">
+        <thead><tr><th>Path</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td class="field">PortalRequesting.swift</td><td class="note">Protocol with three verbs per <a href="#decisions">D23</a>. Concrete <code>PortalClient</code> conforming via extension.</td></tr>
+          <tr><td class="field">PortalClient.swift</td><td class="note">Production <code>URLSession</code>-backed conformance hitting <code>portal.sso.&lt;region&gt;.amazonaws.com</code>. Pagination handled internally.</td></tr>
+          <tr><td class="field">PortalAccount.swift / PortalRole.swift</td><td class="note">Response models for <code>ListAccounts</code> / <code>ListAccountRoles</code>.</td></tr>
+          <tr><td class="field">RoleCredentials.swift</td><td class="note">Struct per <a href="#decisions">D24</a> with redaction <code>CustomStringConvertible</code>.</td></tr>
+          <tr><td class="field">ProfileAuthStatus.swift</td><td class="note">Enum per <a href="#decisions">D29</a> with icon/foreground/effect/accessibility helpers.</td></tr>
+          <tr><td class="field">Wire/GetRoleCredentials.swift</td><td class="note"><code>Wire.GetRoleCredentialsRequest</code> / <code>Wire.GetRoleCredentialsResponse</code>.</td></tr>
+          <tr><td class="field">Wire/ListAccounts.swift</td><td class="note">List request/response + pagination shape.</td></tr>
+          <tr><td class="field">Wire/ListAccountRoles.swift</td><td class="note">Same for roles.</td></tr>
+          <tr><td class="field">IdentityCenterService+RoleCredentials.swift</td><td class="note">Extension implementing <code>liveCredentials</code>, internal <code>runMintBody</code>, <code>inFlightMint</code> single-flight per <a href="#decisions">D25</a>, <a href="#decisions">D26</a>.</td></tr>
+          <tr><td class="field">IdentityCenterService+Mint.swift</td><td class="note">Mint timer (<code>scheduleMint</code> / <code>cancelMint</code> / <code>handleMint</code>) mirroring A2's refresh-timer machinery. Routes through <code>sleeper.sleep(until:)</code> per <a href="#decisions">D19</a>.</td></tr>
+          <tr><td class="field">IdentityCenterService+ProfileStatus.swift</td><td class="note">Extension implementing <code>status(forProfile:)</code> per <a href="#decisions">D29</a>. Opportunistically schedules <code>T_mint</code> on cached-row + valid-bearer.</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Modified files — <code>Packages/QuorraCore/Sources/IAMIdentityCenter/</code></h4>
+      <table class="fields">
+        <thead><tr><th>Path</th><th>Change</th></tr></thead>
+        <tbody>
+          <tr><td class="field">IdentityCenterService.swift</td><td class="note">Add actor state: <code>mintTimers: [String: Task&lt;Void, Never&gt;]</code>, <code>inFlightMint: [String: Task&lt;RoleCredentials, Error&gt;]</code>. Add <code>roleCredsService</code> to <code>ServiceConstants</code>. Wire <code>portalClient: any PortalRequesting</code> as a stored property (defaulted to <code>PortalClient</code>).</td></tr>
+          <tr><td class="field">IdentityCenterService+SignOut.swift</td><td class="note">D27 cascade: cancel <code>inFlightMint[*]</code> for session before taking lock; cancel <code>T_mint</code> for session inside lock; enumerate and delete role-cred rows.</td></tr>
+          <tr><td class="field">IdentityCenterServicing.swift</td><td class="note">Add <code>liveCredentials(forSession:accountId:roleName:region:) async throws -&gt; RoleCredentials</code> and <code>status(forProfile:accountId:roleName:) async -&gt; ProfileAuthStatus</code> to the protocol.</td></tr>
+          <tr><td class="field">KeychainStore.swift</td><td class="note">Add <code>enumerateAccounts(service:) async throws -&gt; [String]</code> protocol method per <a href="#decisions">D27</a>. <code>Keychain</code> concrete implementation uses <code>SecItemCopyMatching</code> with <code>kSecMatchLimit: kSecMatchLimitAll</code>.</td></tr>
+          <tr><td class="field">AuthEvent.swift</td><td class="note">Add four cases per <a href="#decisions">D30</a>: <code>.mintingCredentials</code>, <code>.mintedCredentials</code>, <code>.mintCredentialsFailed</code>, <code>.roleAccessDenied</code>.</td></tr>
+          <tr><td class="field">Errors.swift</td><td class="note">Add cases: <code>.roleNotAssigned</code>, <code>.accountNotFound</code>. Map AWS <code>ForbiddenException</code> / <code>ResourceNotFoundException</code> in <code>HTTPErrorMapping</code>. Update <code>Errors+LocalizedError.swift</code>.</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Modified files — App-side</h4>
+      <table class="fields">
+        <thead><tr><th>Path</th><th>Change</th></tr></thead>
+        <tbody>
+          <tr><td class="field">App/Credentials/CredentialsModel.swift</td><td class="note">Add <code>profileStatus: [String: ProfileAuthStatus]</code> cache, <code>mintingNow</code>, <code>mintFailure</code>, <code>roleRejected</code> <code>Set&lt;String&gt;</code> overlays. Wire four new events to the consumer Task. Add <code>observeProfileStatus(...)</code> method (parallel to <code>observeStatus</code>).</td></tr>
+          <tr><td class="field">App/Views/SidebarRows/ProfileRow.swift</td><td class="note">Replace stub icon with <code>ProfileStatusIcon</code>. Add <code>.task(id: profile.id)</code> calling <code>model.observeProfileStatus(...)</code> when profile is SSO-backed.</td></tr>
+          <tr><td class="field">App/Views/Detail/ProfileDetailView.swift</td><td class="note">Replace stub body with the full layout per <a href="#decisions">D31</a>: profile metadata <code>Form</code> + <code>Status</code> badge + <code>CredentialsRevealSection</code>.</td></tr>
+          <tr><td class="field">App/Credentials/PreviewIdentityCenterService.swift</td><td class="note">Extend the inert preview stub to cover <code>liveCredentials</code> and <code>status(forProfile:)</code>.</td></tr>
+        </tbody>
+      </table>
+
+      <h4>App-side new</h4>
+      <table class="fields">
+        <thead><tr><th>Path</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td class="field">App/Views/SidebarRows/ProfileStatusIcon.swift</td><td class="note">Pure view: <code>ProfileAuthStatus</code> + <code>mintingNow</code> + <code>roleRejected</code> Boolean overlays → SF Symbol + foregroundStyle + symbolEffect. Mirrors <code>SessionStatusIcon</code>.</td></tr>
+          <tr><td class="field">App/Views/Detail/CredentialsRevealSection.swift</td><td class="note">HIG-blessed <code>DisclosureGroup</code> + <code>Form</code> + per-field <code>LabeledContent</code> rows + bulk copy buttons per <a href="#decisions">D31</a>.</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Tests — <code>Packages/QuorraCore/Tests/IAMIdentityCenterTests/</code></h4>
+      <table class="fields">
+        <thead><tr><th>Path</th><th>Coverage</th></tr></thead>
+        <tbody>
+          <tr><td class="field">Stubs/StubPortalRequesting.swift</td><td class="note">Verb-level stub mirroring A2's <code>StubOIDCRequesting</code>. <code>setNextGetRoleCredentialsResult(...)</code>, <code>setNextListAccountsResult(...)</code>, call counters.</td></tr>
+          <tr><td class="field">LiveCredentialsTests.swift</td><td class="note">Full <a href="#decisions">D26</a> matrix: outside skew, inside skew, past expiry, no cached row, coalescing, propagation of <code>liveToken</code> errors, ForbiddenException → terminal + purge, ResourceNotFoundException → terminal + purge, network/5xx transient.</td></tr>
+          <tr><td class="field">MintTimerTests.swift</td><td class="note"><code>T_mint</code> fires at <code>expiresAt − refreshSkew</code> using <code>MockSleeper</code>'s synthetic time. Both timers cancelled on signOut. Reschedule after successful mint. Opportunistic schedule on <code>status(forProfile:)</code>. <code>noDoubleMint</code> verifies one-wake-up claim per tuple.</td></tr>
+          <tr><td class="field">PortalClientTests.swift</td><td class="note">Wire-level: request encoding, response decoding, pagination, error mapping. Uses <code>StubURLProtocol</code>.</td></tr>
+          <tr><td class="field">SignOutCascadeTests.swift</td><td class="note"><a href="#decisions">D27</a> cascade end-to-end: pre-seed role-cred rows for session X, sign out, assert all rows purged + all <code>T_mint</code> for X cancelled + in-flight mint tasks throw <code>CancellationError</code>.</td></tr>
+          <tr><td class="field">ProfileStatusTests.swift</td><td class="note">Each branch of <code>status(forProfile:)</code>: signedOut → <code>.notSignedIn</code>; signedIn + cached fresh → <code>.ready(expiresAt:)</code>; signedIn + no cache → <code>.ready(expiresAt: nil)</code>; expired+!canRefresh → <code>.signInExpired</code>; opportunistic <code>T_mint</code> scheduling.</td></tr>
+          <tr><td class="field">TokenRotationTests.swift (extended)</td><td class="note">Stub <code>PortalRequesting</code> with worst-case-size session token (12 KB). Round-trip through Keychain. Assert byte-equal read-back per <a href="#decisions">D24</a>.</td></tr>
+          <tr><td class="field">AuthEventStreamTests.swift (extended)</td><td class="note">Each mint path emits documented events: success → <code>.mintingCredentials</code> then <code>.mintedCredentials</code>; transient → <code>.mintingCredentials</code> then <code>.mintCredentialsFailed</code>; terminal → <code>.mintingCredentials</code> then <code>.roleAccessDenied</code>; coalesced caller sees no second <code>.mintingCredentials</code>.</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Tests — App-side <code>Tests/QuorraAppTests/</code></h4>
+      <table class="fields">
+        <thead><tr><th>Path</th><th>Coverage</th></tr></thead>
+        <tbody>
+          <tr><td class="field">CredentialsModelTests.swift (extended)</td><td class="note">Mint events populate the right overlay sets; <code>signedOut</code> clears B sets for all keys under the session.</td></tr>
+          <tr><td class="field">ProfileStatusIconTests.swift</td><td class="note">Each <code>(ProfileAuthStatus × mintingNow × roleRejected)</code> tuple → expected (symbol, color, effect) per <a href="#decisions">D31</a>.</td></tr>
+          <tr><td class="field">CredentialsRevealSectionTests.swift</td><td class="note">Reveal state per-field; mask format (fingerprint vs plain dots); copy actions write expected pasteboard strings; advisory rendering for each failure overlay.</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Testing patterns (carried forward from A1/A2)</h3>
+      <p>These are the established conventions for the IAM Identity Center test suite — applying them keeps the new tests internally consistent and avoids the friction patterns A2's senior review identified.</p>
+      <ol>
+        <li><strong>Time-based timer tests go through <code>Sleeper.sleep(until:)</code></strong> (<a href="#decisions">D19</a>). Production <code>WallClockSleeper</code> uses <code>Task.sleep(for:)</code>. <code>MockSleeper</code> auto-advances synthetic time. Tests can write <em>"schedule for now+1h, advance synthetic clock to deadline, assert event fires"</em> using <strong>production skew values</strong> — no test-only short skews.</li>
+        <li><strong>Real-time short intervals (50–300 ms)</strong> remain valid for narrow "did this fire" assertions when the test doesn't need to advance a clock.</li>
+        <li><strong>Avoid <code>any Clock&lt;Duration&gt;</code> adoption</strong> — Swift 6.2's existential-Instant arithmetic has rough edges. <code>Sleeper</code> is the internally consistent seam.</li>
+        <li><strong>Prefer verb-level stubs over URL-level stubs.</strong> Use <code>StubPortalRequesting</code> for actor-behavior tests; reserve <code>StubURLProtocol</code> for wire-encoding tests (<code>PortalClientTests</code>). Eliminates the <code>NSLock</code> + <code>nonisolated(unsafe) var</code> friction in async-call-counting.</li>
+        <li><strong>Single-event-stream assertions</strong> via <code>EventCollector</code> + Swift Testing's <code>confirmation</code>. Events carry structural IDs only; tests assert "this case appeared" without parsing payloads.</li>
+        <li><strong>State-mutation tests &gt; timing tests</strong> wherever possible. Most "what happens when T fires" tests can be rewritten as "what happens when <code>handleX(...)</code> is called directly" — no clock advance needed. Use <code>_test_setInFlightX</code> helpers to plant state when needed.</li>
+        <li><strong>Separate scheduling tests from action tests.</strong> Pure "is the timer dict populated" tests are tautological — drop or fold into the action test.</li>
+        <li><strong>Worst-case-payload round-trip test</strong> (<a href="#decisions">D24</a>) — guards against any silent regression at extremes (12 KB STS session token through the Keychain round-trip).</li>
+      </ol>
+
+      <h3>Acceptance criteria</h3>
+      <ol>
+        <li>Signed-in profile, cached role-cred row valid, no event activity for ~55 min. At <code>T = expiresAt − 5min</code>: <code>.mintingCredentials</code> emitted, Portal call runs, <code>.mintedCredentials</code> emitted, new <code>RoleCredentials</code> in Keychain, new <code>T_mint</code> scheduled for new <code>expiresAt − 5min</code>.</li>
+        <li>Signed-in profile, no cached row: first <code>liveCredentials</code> call mints inline, persists, schedules <code>T_mint</code>. Returns the fresh credentials.</li>
+        <li>Network down during a mint: <code>.mintingCredentials</code> then <code>.mintCredentialsFailed</code> (transient). Keychain row unchanged. Status stays <code>.ready</code>. UI shows transient advisory with <code>[Retry]</code>.</li>
+        <li>Admin removes the role; mint hits <code>ForbiddenException</code>: <code>.mintingCredentials</code> then <code>.roleAccessDenied</code>. Cached row purged. Status stays <code>.ready</code> (per §09: stale-but-mintable; the next attempt is the rejection). UI shows terminal advisory: <em>"This role is no longer available. Contact your administrator."</em></li>
+        <li><code>liveCredentials</code> inside skew window with no in-flight mint: triggers inline mint, awaits, returns refreshed. Single Portal call.</li>
+        <li>Concurrent <code>liveCredentials</code> calls for the same <code>(session, account, role)</code>: coalesce via <code>inFlightMint</code>. One Portal call.</li>
+        <li>Concurrent <code>liveCredentials</code> calls for <em>different</em> <code>(session, account, role)</code>: run in parallel, no blocking.</li>
+        <li>User clicks "Sign out" for session X while a mint is in flight for X: in-flight mint cancelled, sign-out cascade purges SSO row + all role-cred rows for X. End state: signed out with no role-cred rows. No <code>.mintedCredentials</code> emitted.</li>
+        <li>Sign-out for session X does NOT affect role-cred rows for session Y. Verified by enumeration prefix-filter.</li>
+        <li>App restart with valid bearer + cached role-cred row: <code>status(forProfile:)</code> opportunistically schedules <code>T_mint</code>. Pre-warm path is hot for Scope C.</li>
+        <li>Worst-case payload (12 KB session token) round-trips through Keychain byte-equal.</li>
+        <li>Strict concurrency clean under Swift 6.2.</li>
+        <li>All existing A1/A2 tests still pass; B test count adds ~40-50 new tests; <code>IAMIdentityCenter</code> coverage stays ≥ 90%.</li>
+        <li>VoiceOver reads <code>ProfileStatusIcon</code>'s accessibility label correctly for each state.</li>
+        <li>Read-only mode permits role-cred minting and copy actions (matches A1 D5 posture).</li>
+      </ol>
+
+      <h3>Out of scope</h3>
+      <ul>
+        <li><strong>IMDS endpoint</strong> (Scope C) — <code>liveCredentials</code> becomes C's read path, but the HTTP listener / port discovery / IMDSv2 token flow come later.</li>
+        <li><strong>Profile-creation UI</strong> using <code>listAccounts</code> / <code>listAccountRoles</code> — the wire layer ships in B, but the UI for browsing accounts/roles is a future scope.</li>
+        <li><strong>Explicit "rotate credentials now" UI button</strong> — there's no <code>mintCredentialsNow</code> public verb; if a future consumer demands explicit always-mint we add it then.</li>
+        <li><strong>App↔CLI shared bookmark</strong> — separate concern; Keychain coherence works regardless.</li>
+        <li><strong>Inject creds into <code>~/.aws/credentials</code></strong> — copy-to-clipboard ships in B; writing them to disk would be the first place read-only mode bites, and is a future scope.</li>
+      </ul>
     </section>
 
     <section id="scope-c">
