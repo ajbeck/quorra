@@ -89,7 +89,10 @@ extension IdentityCenterService {
     /// concurrent caller may also have passed the initial `inFlightMint` nil-check. This guard
     /// handles that race: if a task was registered while we were suspended, coalesce onto the
     /// existing one instead of starting a second Portal call (D26 — mirrors D12 fix in A2).
-    private func startInlineMint(
+    ///
+    /// `internal` (not `private`) so `handleMint` in `+Mint.swift` can route the timer-fired
+    /// path through here, keeping single-flight + provenance construction in one place (D28).
+    func startInlineMint(
         sessionName: String,
         accountId: String,
         roleName: String,
@@ -177,6 +180,19 @@ extension IdentityCenterService {
             creds,
             service: ServiceConstants.roleCredsService,
             account: key
+        )
+
+        // D28: on successful mint, schedule (or reschedule) the proactive T_mint timer at the new
+        // credential's deadline. Cancel-old-then-schedule-new mirrors A2's runRefreshBody pattern
+        // for T_refresh. The timer fires `handleMint`, which routes back through startInlineMint
+        // so a fresh row is pre-warmed before the current one enters the skew window.
+        cancelMint(forKey: key)
+        scheduleMint(
+            forSession: sessionName,
+            accountId: accountId,
+            roleName: roleName,
+            region: region,
+            expiresAt: creds.expiresAt
         )
 
         roleCredsLogger.debug("Minted role credentials: \(creds)")

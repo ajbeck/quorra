@@ -32,6 +32,10 @@ public actor IdentityCenterService: IdentityCenterServicing {
     /// In-flight mint tasks keyed by "<sessionName>:<accountId>:<roleName>". Single-flight coalescing (D26 / B).
     var inFlightMint: [String: Task<RoleCredentials, Error>] = [:]
 
+    /// Proactive mint timers keyed by "<sessionName>:<accountId>:<roleName>" — fires at
+    /// `expiresAt − refreshSkew` to pre-warm credentials for Scope C's IMDS endpoint (D28 / B).
+    var mintTimers: [String: Task<Void, Never>] = [:]
+
     /// Per-session Task chain for async serialization (D21 / A2).
     var sessionLocks: [String: Task<Void, Never>] = [:]
 
