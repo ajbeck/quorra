@@ -26,4 +26,10 @@ actor InMemoryKeychainStore: KeychainStore {
     func delete(service: String, account: String) {
         storage[Key(service: service, account: account)] = nil
     }
+
+    func enumerateAccounts(service: String) -> [String] {
+        storage.keys
+            .filter { $0.service == service }
+            .map { $0.account }
+    }
 }

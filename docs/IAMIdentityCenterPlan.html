@@ -466,12 +466,33 @@
 <pre><code><span class="tok-keyword">public protocol</span> <span class="tok-type">PortalRequesting</span>: <span class="tok-type">Sendable</span> {
     <span class="tok-keyword">func</span> listAccounts(accessToken: <span class="tok-type">String</span>, region: <span class="tok-type">String</span>) <span class="tok-keyword">async throws</span> -&gt; [<span class="tok-type">PortalAccount</span>]
     <span class="tok-keyword">func</span> listAccountRoles(accessToken: <span class="tok-type">String</span>, accountId: <span class="tok-type">String</span>, region: <span class="tok-type">String</span>) <span class="tok-keyword">async throws</span> -&gt; [<span class="tok-type">PortalRole</span>]
-    <span class="tok-keyword">func</span> getRoleCredentials(accessToken: <span class="tok-type">String</span>, accountId: <span class="tok-type">String</span>, roleName: <span class="tok-type">String</span>, region: <span class="tok-type">String</span>) <span class="tok-keyword">async throws</span> -&gt; <span class="tok-type">RoleCredentials</span>
+    <span class="tok-keyword">func</span> getRoleCredentials(accessToken: <span class="tok-type">String</span>, accountId: <span class="tok-type">String</span>, roleName: <span class="tok-type">String</span>, region: <span class="tok-type">String</span>) <span class="tok-keyword">async throws</span> -&gt; <span class="tok-type">MintedCredential</span>
 }</code></pre>
       </div>
 
+      <div class="callout note"><strong>amended after chunk-1 senior review</strong>The original D23 signature returned <code>RoleCredentials</code> directly. The wire layer cannot fully populate that type — it has no <code>sessionName</code> (the SSO session that authorized the mint is a caller concern, not a wire-response field). Returning a half-populated <code>RoleCredentials</code> with <code>sessionName: ""</code> is a latent <a href="#decisions">D27</a> sign-out-cascade bug: the cascade prefix-matches on <code>&lt;sessionName&gt;:</code>, so a row with an empty session name can never be purged → role credentials surviving sign-out. Fix: <code>getRoleCredentials</code> returns a narrow wire-only <code>MintedCredential</code>; the actor (chunk 2) constructs the provenance-bearing <code>RoleCredentials</code>. The half-populated state becomes unrepresentable — "make illegal states unrepresentable."</div>
+
       <h3>D24 — <code>RoleCredentials</code> struct + Keychain layout</h3>
-      <p>The struct carries AWS-supplied fields plus provenance metadata needed for cascade, status, and debugging:</p>
+
+      <p><strong>Wire-only mint type.</strong> The Portal verb returns this minimal value; it carries only what AWS sends, no provenance:</p>
+
+      <div class="code-frame">
+        <div class="code-titlebar">
+          <div class="lights"><span class="l1"></span><span class="l2"></span><span class="l3"></span></div>
+          <span class="filename">MintedCredential<span class="ext">.swift</span></span>
+          <span class="langtag">swift</span>
+        </div>
+<pre><code><span class="tok-keyword">public struct</span> <span class="tok-type">MintedCredential</span>: <span class="tok-type">Sendable</span>, <span class="tok-type">Hashable</span> {
+    <span class="tok-keyword">public let</span> accessKeyId: <span class="tok-type">String</span>
+    <span class="tok-keyword">public let</span> secretAccessKey: <span class="tok-type">String</span>
+    <span class="tok-keyword">public let</span> sessionToken: <span class="tok-type">String</span>
+    <span class="tok-keyword">public let</span> expiresAt: <span class="tok-type">Date</span>   <span class="tok-comment">// converted from Unix-ms wire format</span>
+}</code></pre>
+      </div>
+
+      <p>Not <code>Codable</code> — it is never persisted. Only <code>RoleCredentials</code> (below) is written to the Keychain. The actor (chunk 2, <a href="#decisions">D25</a>/<a href="#decisions">D26</a> path) maps <code>MintedCredential</code> → <code>RoleCredentials</code>, adding <em>all</em> provenance (<code>accountId</code>, <code>roleName</code>, <code>region</code>, <code>sessionName</code>, <code>issuedAt</code>) from its own call context.</p>
+
+      <p><strong>Persisted struct</strong> — carries AWS-supplied fields plus provenance metadata needed for cascade, status, and debugging:</p>
 
       <div class="code-frame">
         <div class="code-titlebar">

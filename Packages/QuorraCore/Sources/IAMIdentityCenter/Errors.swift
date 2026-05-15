@@ -80,4 +80,15 @@ public enum IAMIdentityCenterError: Error, Equatable, Sendable {
     /// The OIDC client registration was rejected (`invalid_client`). Terminal —
     /// the client must re-register on the next sign-in (D14).
     case refreshClientInvalid
+
+    // MARK: - B — Role credentials
+
+    /// The Portal returned `ForbiddenException` for `GetRoleCredentials` — the role is no
+    /// longer assigned to this user. Terminal for the cached row: purge it and surface
+    /// a "contact admin" advisory. The next `liveCredentials` call will retry the mint (D26).
+    case roleNotAssigned
+
+    /// The Portal returned `ResourceNotFoundException` for `GetRoleCredentials` — the account
+    /// doesn't exist or the user has no access. Terminal for the cached row (D26).
+    case accountNotFound
 }

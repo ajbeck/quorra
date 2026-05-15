@@ -70,6 +70,12 @@ extension IAMIdentityCenterError: LocalizedError {
 
         case .refreshClientInvalid:
             return "Client registration expired during refresh. Please sign in again."
+
+        case .roleNotAssigned:
+            return "This role is no longer assigned to your user. Contact your AWS administrator."
+
+        case .accountNotFound:
+            return "The AWS account could not be found. Check your profile configuration."
         }
     }
 
@@ -98,6 +104,12 @@ extension IAMIdentityCenterError: LocalizedError {
 
         case .refreshTokenRejected, .refreshClientInvalid:
             return "Sign in again to restore your session."
+
+        case .roleNotAssigned:
+            return "Contact your AWS administrator to restore role access."
+
+        case .accountNotFound:
+            return "Check your profile's sso_account_id setting."
 
         default:
             return nil

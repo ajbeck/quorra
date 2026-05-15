@@ -112,6 +112,45 @@ public actor Keychain: KeychainStore {
         }
     }
 
+    /// Returns all `kSecAttrAccount` strings stored under `service`.
+    ///
+    /// Uses `SecItemCopyMatching` with `kSecMatchLimitAll` and `kSecReturnAttributes: true`.
+    ///
+    /// Apple's `SecItemCopyMatching` reference notes that combining `kSecReturnData` and
+    /// `kSecMatchLimitAll` is not supported for password items (each copy may require
+    /// authentication). We therefore request attributes only and ignore the data — the
+    /// caller only needs the account strings for enumeration and cascade deletion.
+    ///
+    /// Returns an empty array when no rows exist for `service` (`errSecItemNotFound`).
+    ///
+    /// - Throws: `.keychainStatus` on unexpected OS-level failures.
+    public func enumerateAccounts(service: String) throws -> [String] {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccessGroup as String: accessGroup,
+            kSecUseDataProtectionKeychain as String: true,
+            kSecMatchLimit as String: kSecMatchLimitAll,
+            kSecReturnAttributes as String: true,
+        ]
+
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+
+        if status == errSecItemNotFound {
+            return []
+        }
+        guard status == errSecSuccess else {
+            throw IAMIdentityCenterError.keychainStatus(status)
+        }
+
+        guard let items = result as? [[String: Any]] else {
+            return []
+        }
+
+        return items.compactMap { $0[kSecAttrAccount as String] as? String }
+    }
+
     // Record verbs (`readRecord`/`writeRecord`/`deleteRecord`) are provided by the
     // `KeychainStore` protocol extension in `KeychainStore.swift`.
 }
