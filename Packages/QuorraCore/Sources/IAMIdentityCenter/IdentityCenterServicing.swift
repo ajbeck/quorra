@@ -10,9 +10,9 @@ import Foundation
 /// with `@escaping @concurrent @Sendable` — otherwise the inferred isolation
 /// (`nonisolated(nonsending)`) won't match the protocol's `@concurrent` requirement.
 ///
-/// The same `@concurrent` annotation applies to `status`, `signOut`, `liveToken`, and
-/// `refreshNow`. The `events` property is `nonisolated` on the actor (stored at init time),
-/// so stubs should declare it as `nonisolated var`.
+/// The same `@concurrent` annotation applies to `status`, `signOut`, `liveToken`,
+/// `refreshNow`, and `liveCredentials`. The `events` property is `nonisolated` on the actor
+/// (stored at init time), so stubs should declare it as `nonisolated var`.
 public protocol IdentityCenterServicing: Sendable {
     // MARK: - Scope 1
 
@@ -75,4 +75,27 @@ public protocol IdentityCenterServicing: Sendable {
     /// `.refreshFailed` only (D16).
     @concurrent
     func refreshNow(sessionName: String) async throws -> StoredSSOToken
+
+    // MARK: - B additions
+
+    /// Returns short-lived STS role credentials for `(sessionName, accountId, roleName, region)`.
+    ///
+    /// Contract per D25/D26:
+    /// - Cached row exists, outside skew → return cached
+    /// - Inside skew or past expiry → inline mint via `GetRoleCredentials`, write Keychain, return new
+    /// - No cached row → inline mint
+    /// - Mint already in flight for same tuple → coalesce (await shared result)
+    /// - `liveToken` throws `.notSignedIn` or `.tokenExpired` → propagate
+    /// - AWS `ForbiddenException` → throw `.roleNotAssigned`, purge cached row
+    /// - AWS `ResourceNotFoundException` → throw `.accountNotFound`, purge cached row
+    /// - Network / 5xx transient → propagate, no Keychain mutation
+    ///
+    /// Does NOT take the session lock (D26). Single-flight key: `"<sessionName>:<accountId>:<roleName>"`.
+    @concurrent
+    func liveCredentials(
+        forSession sessionName: String,
+        accountId: String,
+        roleName: String,
+        region: String
+    ) async throws -> RoleCredentials
 }

@@ -37,5 +37,15 @@ struct PreviewIdentityCenterService: IdentityCenterServicing {
     func refreshNow(sessionName: String) async throws -> StoredSSOToken {
         throw IAMIdentityCenterError.notSignedIn
     }
+
+    @concurrent
+    func liveCredentials(
+        forSession sessionName: String,
+        accountId: String,
+        roleName: String,
+        region: String
+    ) async throws -> RoleCredentials {
+        throw IAMIdentityCenterError.notSignedIn
+    }
 }
 #endif

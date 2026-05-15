@@ -14,6 +14,8 @@ public actor IdentityCenterService: IdentityCenterServicing {
     internal let sleeper: any Sleeper
     /// URLSession for Portal /logout calls. Injectable for tests.
     internal let urlSession: URLSession
+    /// Portal client for role-credential mint operations. Injectable for tests.
+    internal let portalClient: any PortalRequesting
 
     /// Map of in-flight sign-in tasks keyed by session name.
     private var inFlight: [String: Task<StoredSSOToken, Error>] = [:]
@@ -27,6 +29,9 @@ public actor IdentityCenterService: IdentityCenterServicing {
     /// In-flight refresh tasks keyed by session name. Single-flight coalescing (D12 / A2).
     var inFlightRefresh: [String: Task<StoredSSOToken, Error>] = [:]
 
+    /// In-flight mint tasks keyed by "<sessionName>:<accountId>:<roleName>". Single-flight coalescing (D26 / B).
+    var inFlightMint: [String: Task<RoleCredentials, Error>] = [:]
+
     /// Per-session Task chain for async serialization (D21 / A2).
     var sessionLocks: [String: Task<Void, Never>] = [:]
 
@@ -34,6 +39,7 @@ public actor IdentityCenterService: IdentityCenterServicing {
     enum ServiceConstants {
         static let oidcClientService = "dev.ajbeck.quorra.oidc-client"
         static let ssoTokenService = "dev.ajbeck.quorra.sso-token"
+        static let roleCredsService = "dev.ajbeck.quorra.role-creds"
         static let oidcClientReregistrationLeadTime: TimeInterval = 7 * 24 * 60 * 60
         static let slowDownIncrementSeconds: TimeInterval = 5
         /// Refresh skew: trigger refresh this many seconds before `expiresAt` (D11 / D12).
@@ -61,15 +67,18 @@ public actor IdentityCenterService: IdentityCenterServicing {
     /// - Parameters:
     ///   - keychain: Keychain store for persisting secrets (production: `Keychain`; tests: an in-memory stub)
     ///   - oidcClient: Pre-configured OIDC client for the region
+    ///   - portalClient: Portal client for `GetRoleCredentials` calls (default: `PortalClient()`)
     ///   - sleeper: Time source for sleep/timeout (injectable for testing)
     public init(
         keychain: any KeychainStore,
         oidcClient: any OIDCRequesting,
+        portalClient: any PortalRequesting = PortalClient(),
         sleeper: any Sleeper = WallClockSleeper(),
         urlSession: URLSession = .shared
     ) {
         self.keychain = keychain
         self.oidcClient = oidcClient
+        self.portalClient = portalClient
         self.sleeper = sleeper
         self.urlSession = urlSession
         // Bounded buffer guards against producer outrunning a slow consumer (rare in

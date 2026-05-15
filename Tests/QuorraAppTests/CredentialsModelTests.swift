@@ -416,6 +416,16 @@ actor StubIdentityCenterService: IdentityCenterServicing {
         throw IAMIdentityCenterError.notSignedIn
     }
 
+    @concurrent
+    func liveCredentials(
+        forSession sessionName: String,
+        accountId: String,
+        roleName: String,
+        region: String
+    ) async throws -> RoleCredentials {
+        throw IAMIdentityCenterError.notSignedIn
+    }
+
     /// Suspends until the verification handler has fired at least once.
     func awaitVerificationFired() async {
         if verificationHasFired { return }
