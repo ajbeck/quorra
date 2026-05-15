@@ -47,5 +47,14 @@ struct PreviewIdentityCenterService: IdentityCenterServicing {
     ) async throws -> RoleCredentials {
         throw IAMIdentityCenterError.notSignedIn
     }
+
+    @concurrent
+    func status(
+        forProfile sessionName: String,
+        accountId: String,
+        roleName: String
+    ) async -> ProfileAuthStatus {
+        .notSignedIn(sessionName: sessionName)
+    }
 }
 #endif
