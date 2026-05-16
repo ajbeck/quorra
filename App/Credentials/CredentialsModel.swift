@@ -11,6 +11,10 @@ import IAMIdentityCenter
 /// - `refreshFailure`: sessions that had a transient refresh failure (D16, A2)
 /// - `inFlight`: in-flight device-flow progress (for the inProgress panel mode)
 /// - `lastError`: last sign-in error per session
+/// - `profileStatus`: cached `ProfileAuthStatus` per `"<sessionName>:<accountId>:<roleName>"` key (D30, B)
+/// - `mintingNow`: tuples with an active credential mint in flight (D30, B)
+/// - `mintFailure`: tuples that had a transient mint failure (D30, B)
+/// - `roleRejected`: tuples where a terminal access-denied error was received (D30, B)
 ///
 /// A long-lived stream consumer Task started at init iterates the service's `events` stream
 /// and re-pulls `status(forSession:)` for the affected session on every event. Views never
@@ -38,6 +42,27 @@ final class CredentialsModel {
     /// Drives the "Couldn't refresh your session. [Refresh now]" advisory in `SignInPanel`.
     /// Populated on `.refreshFailed`, cleared on `.refreshed` / next `.signedIn` / `.signedOut`.
     private(set) var refreshFailure: Set<String> = []
+
+    // MARK: - B overlay sets (D30)
+
+    /// Cached `ProfileAuthStatus` per `"<sessionName>:<accountId>:<roleName>"` key.
+    /// Populated on demand by `observeProfileStatus` and invalidated by mint events.
+    private(set) var profileStatus: [String: ProfileAuthStatus] = [:]
+
+    /// Tuples with an active credential mint in flight.
+    /// Keys are `"<sessionName>:<accountId>:<roleName>"`.
+    /// Populated on `.mintingCredentials`, cleared on `.mintedCredentials` / `.mintCredentialsFailed` / `.roleAccessDenied`.
+    private(set) var mintingNow: Set<String> = []
+
+    /// Tuples that had a transient mint failure.
+    /// Keys are `"<sessionName>:<accountId>:<roleName>"`.
+    /// Populated on `.mintCredentialsFailed`, cleared on `.mintingCredentials` / `.mintedCredentials`.
+    private(set) var mintFailure: Set<String> = []
+
+    /// Tuples where role access was denied (terminal — `ForbiddenException` or `ResourceNotFoundException`).
+    /// Keys are `"<sessionName>:<accountId>:<roleName>"`.
+    /// Populated on `.roleAccessDenied`, cleared on `.mintingCredentials`.
+    private(set) var roleRejected: Set<String> = []
 
     /// In-flight device-flow progress per session (for the `inProgress` panel mode).
     private(set) var inFlight: [String: SignInProgress] = [:]
@@ -156,6 +181,20 @@ final class CredentialsModel {
         }
     }
 
+    /// Populates `profileStatus[key]` from the actor. Called by `ProfileRow.task(id:)`.
+    ///
+    /// Mirrors `observeStatus(forSession:)` exactly but for the `(sessionName, accountId, roleName)`
+    /// tuple. Skips the actor hop when a cached value already exists — the event stream owns
+    /// invalidation (D30). Key is `"<sessionName>:<accountId>:<roleName>"`.
+    func observeProfileStatus(forSession sessionName: String, accountId: String, roleName: String) async {
+        let key = "\(sessionName):\(accountId):\(roleName)"
+        if profileStatus[key] != nil { return }
+        let s = await service.status(forProfile: sessionName, accountId: accountId, roleName: roleName)
+        if profileStatus[key] != s {
+            profileStatus[key] = s
+        }
+    }
+
     // MARK: - Private
 
     /// Reacts to an `AuthEvent` from the service. Runs on MainActor.
@@ -185,6 +224,13 @@ final class CredentialsModel {
             if signOutFailure.contains(name) { signOutFailure.remove(name) }
             if refreshFailure.contains(name) { refreshFailure.remove(name) }
             if refreshingNow.contains(name) { refreshingNow.remove(name) }
+            // D30: clear all B overlay sets for every key that belongs to this session.
+            // Keys have the form "<sessionName>:<accountId>:<roleName>"; prefix-match on "<name>:".
+            let prefix = "\(name):"
+            mintingNow = mintingNow.filter { !$0.hasPrefix(prefix) }
+            mintFailure = mintFailure.filter { !$0.hasPrefix(prefix) }
+            roleRejected = roleRejected.filter { !$0.hasPrefix(prefix) }
+            profileStatus = profileStatus.filter { !$0.key.hasPrefix(prefix) }
             await refreshStatus(for: name)
 
         case .expired(let name):
@@ -210,6 +256,35 @@ final class CredentialsModel {
             if refreshingNow.contains(name) { refreshingNow.remove(name) }
             refreshFailure.insert(name)
             await refreshStatus(for: name)
+
+        // MARK: B events (D30)
+
+        case .mintingCredentials(let session, let accountId, let role):
+            let key = "\(session):\(accountId):\(role)"
+            mintingNow.insert(key)
+            if mintFailure.contains(key) { mintFailure.remove(key) }
+            if roleRejected.contains(key) { roleRejected.remove(key) }
+            await refreshProfileStatus(forSession: session, accountId: accountId, roleName: role)
+
+        case .mintedCredentials(let session, let accountId, let role):
+            let key = "\(session):\(accountId):\(role)"
+            if mintingNow.contains(key) { mintingNow.remove(key) }
+            if mintFailure.contains(key) { mintFailure.remove(key) }
+            if roleRejected.contains(key) { roleRejected.remove(key) }
+            await refreshProfileStatus(forSession: session, accountId: accountId, roleName: role)
+
+        case .mintCredentialsFailed(let session, let accountId, let role):
+            let key = "\(session):\(accountId):\(role)"
+            if mintingNow.contains(key) { mintingNow.remove(key) }
+            mintFailure.insert(key)
+            // No profile status re-pull on transient failure — profile stays .ready; the overlay
+            // Set drives the advisory. Matches D30's explicit mapping table.
+
+        case .roleAccessDenied(let session, let accountId, let role):
+            let key = "\(session):\(accountId):\(role)"
+            if mintingNow.contains(key) { mintingNow.remove(key) }
+            roleRejected.insert(key)
+            await refreshProfileStatus(forSession: session, accountId: accountId, roleName: role)
         }
     }
 
@@ -218,6 +293,16 @@ final class CredentialsModel {
         let s = await service.status(forSession: sessionName)
         if status[sessionName] != s {
             status[sessionName] = s
+        }
+    }
+
+    /// Re-pulls `ProfileAuthStatus` from the actor and updates `profileStatus[key]`.
+    /// Mirrors `refreshStatus(for:)` for the B overlay path (D30).
+    private func refreshProfileStatus(forSession sessionName: String, accountId: String, roleName: String) async {
+        let key = "\(sessionName):\(accountId):\(roleName)"
+        let s = await service.status(forProfile: sessionName, accountId: accountId, roleName: roleName)
+        if profileStatus[key] != s {
+            profileStatus[key] = s
         }
     }
 
@@ -259,6 +344,21 @@ final class CredentialsModel {
     /// Test seam: write-access to `refreshFailure` for setting up refresh-failure advisory preconditions.
     func seedRefreshFailureForTesting(sessionName: String) {
         refreshFailure.insert(sessionName)
+    }
+
+    /// Test seam: write-access to `mintingNow` for setting up minting-overlay preconditions.
+    func seedMintingNowForTesting(key: String) {
+        mintingNow.insert(key)
+    }
+
+    /// Test seam: write-access to `mintFailure` for setting up mint-failure advisory preconditions.
+    func seedMintFailureForTesting(key: String) {
+        mintFailure.insert(key)
+    }
+
+    /// Test seam: write-access to `roleRejected` for setting up role-rejected advisory preconditions.
+    func seedRoleRejectedForTesting(key: String) {
+        roleRejected.insert(key)
     }
     #endif
 }

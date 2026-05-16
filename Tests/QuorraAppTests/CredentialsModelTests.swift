@@ -302,6 +302,115 @@ struct CredentialsModelTests {
 
         #expect(model.signOutFailure.contains("test-session"))
     }
+
+    // MARK: - B (D30) mint event → overlay mapping
+
+    @Test func mintingCredentialsEventPopulatesMintingNow() async throws {
+        let stub = StubIdentityCenterService()
+        await stub.setProfileStatusToReturn(.ready(expiresAt: Date().addingTimeInterval(3600)))
+        let model = CredentialsModel(service: stub)
+        let key = "s:123456789012:r"
+
+        // Seed prior failure/rejected state so we can prove .mintingCredentials clears them.
+        model.seedMintFailureForTesting(key: key)
+        model.seedRoleRejectedForTesting(key: key)
+
+        await stub.yieldEvent(.mintingCredentials(sessionName: "s", accountId: "123456789012", roleName: "r"))
+        try await Task.sleep(for: .milliseconds(100))
+
+        #expect(model.mintingNow.contains(key))
+        #expect(!model.mintFailure.contains(key))
+        #expect(!model.roleRejected.contains(key))
+    }
+
+    @Test func mintedCredentialsEventClearsAllBSets() async throws {
+        let stub = StubIdentityCenterService()
+        await stub.setProfileStatusToReturn(.ready(expiresAt: Date().addingTimeInterval(3600)))
+        let model = CredentialsModel(service: stub)
+        let key = "s:123456789012:r"
+
+        model.seedMintingNowForTesting(key: key)
+        model.seedMintFailureForTesting(key: key)
+        model.seedRoleRejectedForTesting(key: key)
+
+        await stub.yieldEvent(.mintedCredentials(sessionName: "s", accountId: "123456789012", roleName: "r"))
+        try await Task.sleep(for: .milliseconds(100))
+
+        #expect(!model.mintingNow.contains(key))
+        #expect(!model.mintFailure.contains(key))
+        #expect(!model.roleRejected.contains(key))
+    }
+
+    @Test func mintCredentialsFailedEventSetsMintFailure() async throws {
+        let stub = StubIdentityCenterService()
+        let model = CredentialsModel(service: stub)
+        let key = "s:123456789012:r"
+
+        model.seedMintingNowForTesting(key: key)
+
+        await stub.yieldEvent(.mintCredentialsFailed(sessionName: "s", accountId: "123456789012", roleName: "r"))
+        try await Task.sleep(for: .milliseconds(100))
+
+        #expect(!model.mintingNow.contains(key))
+        #expect(model.mintFailure.contains(key))
+    }
+
+    @Test func roleAccessDeniedEventSetsRoleRejected() async throws {
+        let stub = StubIdentityCenterService()
+        await stub.setProfileStatusToReturn(.ready(expiresAt: nil))
+        let model = CredentialsModel(service: stub)
+        let key = "s:123456789012:r"
+
+        model.seedMintingNowForTesting(key: key)
+
+        await stub.yieldEvent(.roleAccessDenied(sessionName: "s", accountId: "123456789012", roleName: "r"))
+        try await Task.sleep(for: .milliseconds(100))
+
+        #expect(!model.mintingNow.contains(key))
+        #expect(model.roleRejected.contains(key))
+    }
+
+    @Test func signedOutClearsBSetsForSessionPrefixOnly() async throws {
+        let stub = StubIdentityCenterService()
+        let model = CredentialsModel(service: stub)
+        let keyA1 = "session-a:111111111111:r1"
+        let keyA2 = "session-a:222222222222:r2"
+        let keyB = "session-b:333333333333:r3"
+
+        model.seedMintingNowForTesting(key: keyA1)
+        model.seedMintFailureForTesting(key: keyA2)
+        model.seedRoleRejectedForTesting(key: keyA1)
+        model.seedRoleRejectedForTesting(key: keyB)
+
+        await stub.yieldEvent(.signedOut(sessionName: "session-a"))
+        try await Task.sleep(for: .milliseconds(100))
+
+        // session-a keys cleared from every B set
+        #expect(!model.mintingNow.contains(keyA1))
+        #expect(!model.mintFailure.contains(keyA2))
+        #expect(!model.roleRejected.contains(keyA1))
+        // session-b key untouched (prefix isolation)
+        #expect(model.roleRejected.contains(keyB))
+    }
+
+    // MARK: - observeProfileStatus populates the profileStatus cache
+
+    @Test func observeProfileStatusPopulatesCache() async {
+        let stub = StubIdentityCenterService()
+        await stub.setProfileStatusToReturn(.ready(expiresAt: Date().addingTimeInterval(3600)))
+        let model = CredentialsModel(service: stub)
+        let key = "s:123456789012:r"
+
+        #expect(model.profileStatus[key] == nil)
+
+        await model.observeProfileStatus(forSession: "s", accountId: "123456789012", roleName: "r")
+
+        if case .ready = model.profileStatus[key] {
+            // expected — populated from the stub
+        } else {
+            Issue.record("Expected .ready in profileStatus cache, got \(String(describing: model.profileStatus[key]))")
+        }
+    }
 }
 
 /// Actor-backed stub conforming to `IdentityCenterServicing`. Tests use the continuation
@@ -315,6 +424,7 @@ actor StubIdentityCenterService: IdentityCenterServicing {
     private(set) var cancelCallCount = 0
     private(set) var signOutCallCount = 0
     private var statusToReturn: SessionAuthStatus = .signedOut
+    private var profileStatusToReturn: ProfileAuthStatus = .notSignedIn(sessionName: "stub")
     private var verificationFiredContinuations: [CheckedContinuation<Void, Never>] = []
     private var verificationHasFired = false
     private var releaseContinuation: CheckedContinuation<Void, Never>?
@@ -343,6 +453,10 @@ actor StubIdentityCenterService: IdentityCenterServicing {
 
     func setStatusToReturn(_ status: SessionAuthStatus) {
         statusToReturn = status
+    }
+
+    func setProfileStatusToReturn(_ status: ProfileAuthStatus) {
+        profileStatusToReturn = status
     }
 
     /// Yields an event to the stream so the CredentialsModel's consumer Task processes it.
@@ -432,7 +546,11 @@ actor StubIdentityCenterService: IdentityCenterServicing {
         accountId: String,
         roleName: String
     ) async -> ProfileAuthStatus {
-        .notSignedIn(sessionName: sessionName)
+        await self.getProfileStatus()
+    }
+
+    private func getProfileStatus() -> ProfileAuthStatus {
+        profileStatusToReturn
     }
 
     /// Suspends until the verification handler has fired at least once.
