@@ -136,6 +136,10 @@ extension IdentityCenterService {
         // take it again here to avoid deadlock). Throws `.notSignedIn` / `.tokenExpired` on failure.
         let bearer = try await liveToken(forSession: sessionName)
 
+        // D30: emit mintingCredentials immediately before the Portal call (bearer is in hand).
+        // Mirrors A2's `eventContinuation.yield(.refreshing(...))` placement in runRefreshBody.
+        eventContinuation.yield(.mintingCredentials(sessionName: sessionName, accountId: accountId, roleName: roleName))
+
         let minted: MintedCredential
         do {
             minted = try await portalClient.getRoleCredentials(
@@ -150,6 +154,8 @@ extension IdentityCenterService {
                 service: ServiceConstants.roleCredsService,
                 account: key
             )
+            // D30: one roleAccessDenied covers both ForbiddenException and ResourceNotFoundException
+            eventContinuation.yield(.roleAccessDenied(sessionName: sessionName, accountId: accountId, roleName: roleName))
             throw IAMIdentityCenterError.roleNotAssigned
         } catch IAMIdentityCenterError.accountNotFound {
             // Terminal for this tuple — purge cached row
@@ -157,9 +163,14 @@ extension IdentityCenterService {
                 service: ServiceConstants.roleCredsService,
                 account: key
             )
+            // D30: one roleAccessDenied covers both ForbiddenException and ResourceNotFoundException
+            eventContinuation.yield(.roleAccessDenied(sessionName: sessionName, accountId: accountId, roleName: roleName))
             throw IAMIdentityCenterError.accountNotFound
+        } catch {
+            // Transient errors (network, 5xx) — no Keychain mutation; D30: emit mintCredentialsFailed
+            eventContinuation.yield(.mintCredentialsFailed(sessionName: sessionName, accountId: accountId, roleName: roleName))
+            throw error
         }
-        // Transient errors (network, 5xx) propagate here without Keychain mutation
 
         // D23/D24 amendment: actor constructs the full provenance-bearing RoleCredentials.
         // `sessionName` is the caller-supplied value — NOT the empty string — closing the
@@ -181,6 +192,9 @@ extension IdentityCenterService {
             service: ServiceConstants.roleCredsService,
             account: key
         )
+
+        // D30: emit mintedCredentials after Keychain write succeeds (mirrors A2's .refreshed placement).
+        eventContinuation.yield(.mintedCredentials(sessionName: sessionName, accountId: accountId, roleName: roleName))
 
         // D28: on successful mint, schedule (or reschedule) the proactive T_mint timer at the new
         // credential's deadline. Cancel-old-then-schedule-new mirrors A2's runRefreshBody pattern

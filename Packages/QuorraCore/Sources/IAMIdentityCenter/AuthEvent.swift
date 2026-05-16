@@ -45,4 +45,22 @@ public enum AuthEvent: Sendable, Hashable {
     /// Silent refresh failed; status transitions to `expired(canRefresh: false)` if
     /// no further retry is possible.
     case refreshFailed(sessionName: String)
+
+    // MARK: - B events (D30 — produced by role-credential mint paths)
+
+    /// Role-credential mint started (inline or timer-fired). Emitted immediately before the
+    /// `GetRoleCredentials` Portal call; bearer is already in hand.
+    case mintingCredentials(sessionName: String, accountId: String, roleName: String)
+
+    /// Role-credential mint succeeded; new credentials persisted in Keychain.
+    case mintedCredentials(sessionName: String, accountId: String, roleName: String)
+
+    /// Role-credential mint failed transiently (network/5xx). No Keychain mutation.
+    /// The next `liveCredentials` call will retry.
+    case mintCredentialsFailed(sessionName: String, accountId: String, roleName: String)
+
+    /// Role access denied — the Portal returned `ForbiddenException` or
+    /// `ResourceNotFoundException` (both are terminal: the tuple's cached row has been purged).
+    /// The specific AWS error is preserved in the thrown `IAMIdentityCenterError` for diagnostics.
+    case roleAccessDenied(sessionName: String, accountId: String, roleName: String)
 }
