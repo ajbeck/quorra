@@ -1410,9 +1410,25 @@ git commit -m "docs: note AWS SDK adoption for IAM Identity Center transport"
 
 ---
 
-## Phase 0 Notes (fill in during spike)
+## Phase 0 Notes (recorded during spike)
 
-- **`aws-sdk-swift` pinned version:** _____
+### Task 0.1 — SPM dependency add (2026-05-20)
+
+- **Actual package path:** `Packages/QuorraCore/Package.swift` (the plan body used `QuorraCore/Package.swift`; ignore that and use this).
+- **`aws-sdk-swift` resolved version:** **1.7.1**
+- **Key transitive deps resolved (in workspace `Package.resolved`):**
+  - `smithy-swift` 0.207.0
+  - `aws-crt-swift` 0.58.1
+  - `swift-nio` 2.99.0 + nio-ssl 2.37.0 + nio-http2 1.43.0 + nio-transport-services 1.28.0 + nio-extras 1.34.0
+  - `swift-crypto` 4.5.0 + swift-certificates 1.19.1 + swift-asn1 1.7.0
+  - `async-http-client` 1.33.1
+  - `swift-log` 1.12.0, `swift-collections` 1.5.1, `swift-atomics` 1.3.0, `swift-distributed-tracing` 1.4.1, `swift-service-lifecycle` 2.11.0, `swift-http-types` 1.5.1, `swift-http-structured-headers` 1.7.0
+  - Total transitive count: ~26 packages.
+- **Build result:** BUILD SUCCEEDED in ~112s (warm SourcePackages cache after first resolution). Zero warnings.
+- **Version-pinning policy gap:** `Package.resolved` is in `.gitignore` (`Package.resolved` matches at any depth). With `from: "1.0.0"` in `Package.swift`, each clone resolves to the latest 1.x. Decide separately whether to (a) unignore `Quorra.xcworkspace/xcshareddata/swiftpm/Package.resolved` so the lockfile travels with the repo, or (b) tighten the `Package.swift` constraint to `exact:` once we settle on a known-good version. **Recommendation:** unignore the workspace `Package.resolved` after Task 0.2.
+- **SmithyCodeGeneratorPlugin trust gate:** the first build on each developer's machine fails with `Plugin "SmithyCodeGeneratorPlugin" from package "smithy-swift" must be enabled before it can be used`. The MCP/headless build cannot accept the trust prompt — the developer must run an interactive ⌘B in Xcode UI once to trigger the trust sheet, click **Trust & Enable**, and then headless builds work. **Add this to the README / onboarding doc before merging the migration.**
+
+### Task 0.2 — SDK import smoke test
 - **Exact Configuration type spelling:** _____ (e.g. `SSOOIDCClient.SSOOIDCClientConfiguration` or `SSOOIDCClient.Config`)
 - **Exact exception initializer signatures:** _____ (e.g. `init(message:)` vs `init(properties:)`)
 - **Binary size delta:** _____ (before / after)
