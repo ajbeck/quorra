@@ -9,6 +9,9 @@ xcuserdata/
 .build/
 .swiftpm/
 Package.resolved
+# …but the workspace-pinned lockfile travels with the repo so every clone
+# resolves to the same aws-sdk-swift / smithy-swift / aws-crt-swift versions.
+!Quorra.xcworkspace/xcshareddata/swiftpm/Package.resolved
 
 # Claude Code / agent tooling
 .agents/
