@@ -1,5 +1,6 @@
 import Foundation
 import OSLog
+import Security
 
 private let statusLogger = Logger(subsystem: "dev.ajbeck.quorra", category: "IAMIdentityCenter.Status")
 
@@ -38,6 +39,16 @@ extension IdentityCenterService {
             return .signedOut
         } catch IAMIdentityCenterError.keychainMalformed(let reason) {
             statusLogger.warning("Malformed SSO token in Keychain for session '\(sessionName, privacy: .public)': \(reason, privacy: .public)")
+            return .signedOut
+        } catch IAMIdentityCenterError.keychainStatus(errSecMissingEntitlement) {
+            // TN3137: data-protection keychain items are tied to the signing identity that
+            // wrote them. errSecMissingEntitlement (-34018) here means the current build can't
+            // claim the row — most commonly a stale row from a previous Xcode dev cert or a
+            // misconfigured entitlement. Functionally equivalent to a missing row; a successful
+            // sign-in will overwrite it. Log at .info so it doesn't masquerade as a real fault.
+            statusLogger.info(
+                "Stale Keychain row for session '\(sessionName, privacy: .public)' (errSecMissingEntitlement) — sign in again to replace it."
+            )
             return .signedOut
         } catch {
             statusLogger.warning("Keychain read failed for session '\(sessionName, privacy: .public)': \(error, privacy: .public)")

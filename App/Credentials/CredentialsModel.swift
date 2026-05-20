@@ -195,6 +195,26 @@ final class CredentialsModel {
         }
     }
 
+    /// Fetches live role credentials for a profile tuple, forwarding to the actor's
+    /// `liveCredentials` (D26 — returns cached if fresh, mints inline if stale/absent,
+    /// single-flight coalesced). The returned `RoleCredentials` is intentionally NOT stored
+    /// on the model: secret material is held only transiently in the calling view's `@State`
+    /// and cleared when the credentials section collapses (D31 security posture). Mint
+    /// progress/outcome still flows through the event stream into the overlay Sets.
+    func liveCredentials(
+        forSession sessionName: String,
+        accountId: String,
+        roleName: String,
+        region: String
+    ) async throws -> RoleCredentials {
+        try await service.liveCredentials(
+            forSession: sessionName,
+            accountId: accountId,
+            roleName: roleName,
+            region: region
+        )
+    }
+
     // MARK: - Private
 
     /// Reacts to an `AuthEvent` from the service. Runs on MainActor.
@@ -359,6 +379,12 @@ final class CredentialsModel {
     /// Test seam: write-access to `roleRejected` for setting up role-rejected advisory preconditions.
     func seedRoleRejectedForTesting(key: String) {
         roleRejected.insert(key)
+    }
+
+    /// Test seam: write-access to `profileStatus` for SwiftUI previews of the profile row /
+    /// credentials reveal section. Key is `"<sessionName>:<accountId>:<roleName>"`.
+    func seedProfileStatusForTesting(_ status: ProfileAuthStatus, key: String) {
+        profileStatus[key] = status
     }
     #endif
 }

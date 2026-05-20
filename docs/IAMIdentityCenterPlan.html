@@ -742,9 +742,11 @@
           <tr><td class="field">ready, just expanded</td><td class="note">Trigger <code>liveCredentials</code>. ProgressView during mint. Then render rows.</td></tr>
           <tr><td class="field">ready + mintingNow</td><td class="note">ProgressView with <em>"Refreshing credentials…"</em> caption.</td></tr>
           <tr><td class="field">ready + mintFailure</td><td class="note">Render cached creds + inline advisory + <code>[Retry]</code> button.</td></tr>
-          <tr><td class="field">ready + roleRejected</td><td class="note">Inline advisory <em>"This role is no longer available. Contact your administrator."</em> No retry.</td></tr>
+          <tr><td class="field">ready + roleRejected</td><td class="note">Inline advisory <em>"This role is no longer available. Contact your administrator."</em> No retry. <strong>Rendered at section level, not in the disclosure body</strong> — see amendment below.</td></tr>
         </tbody>
       </table>
+
+      <div class="callout note"><strong>amended after chunk-6b HIG review</strong>The matrix above was originally scoped entirely "for the disclosure body". Chunk-6b implementation review against the HIG found that <code>roleRejected</code> is <em>terminal</em> (an admin must restore access) — it is essential blocking status that explains why the primary action is unavailable, not advanced detail a user drills into. HIG <em>Disclosure controls → Best practices</em>: <em>"Place controls that people are most likely to use at the top of the disclosure hierarchy so they're always visible, with more advanced functionality hidden by default."</em> Burying a dead-end state behind a disclosure the user must discover-and-expand contradicts that. <strong>Amendment:</strong> the three terminal states — <code>notSignedIn</code>, <code>signInExpired</code>, <code>roleRejected</code> — render as a section-level advisory with no disclosure (and consistently with each other). The <code>DisclosureGroup</code> is reserved for the ready→reveal flow (<code>ready</code> / <code>mintingNow</code> / <code>mintFailure</code> / populated rows), where expansion is the natural "show me / show progress" gesture. Same "make the blocking state impossible to miss" spirit as the chunk-1 <code>MintedCredential</code> amendment.</div>
 
       <p><strong>Read-only mode is orthogonal</strong> — role-cred mint writes only to Keychain, not <code>~/.aws/config</code>/<code>credentials</code>. Copy buttons write to clipboard, not disk. Both permitted in read-only mode (matches A1 D5's posture).</p>
     </section>
