@@ -1,0 +1,36 @@
+[mcp_servers.xcode]
+args = ["mcpbridge"]
+command = "xcrun"
+
+[mcp_servers.xcode.tools.XcodeListWindows]
+approval_mode = "approve"
+
+[mcp_servers.xcode.tools.XcodeGrep]
+approval_mode = "approve"
+
+[mcp_servers.xcode.tools.XcodeRead]
+approval_mode = "approve"
+
+[mcp_servers.xcode.tools.XcodeLS]
+approval_mode = "approve"
+
+[mcp_servers.xcode.tools.BuildProject]
+approval_mode = "approve"
+
+[mcp_servers.xcode.tools.GetBuildLog]
+approval_mode = "approve"
+
+[mcp_servers.xcode.tools.ExecuteSnippet]
+approval_mode = "approve"
+
+[mcp_servers.xcode.tools.RunAllTests]
+approval_mode = "approve"
+
+[mcp_servers.xcode.tools.DocumentationSearch]
+approval_mode = "approve"
+
+[mcp_servers.xcode.tools.XcodeGlob]
+approval_mode = "approve"
+
+[mcp_servers.xcode.tools.XcodeListNavigatorIssues]
+approval_mode = "approve"
