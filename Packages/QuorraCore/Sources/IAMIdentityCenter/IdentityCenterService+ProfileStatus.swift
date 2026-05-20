@@ -1,5 +1,6 @@
 import Foundation
 import OSLog
+import Security
 
 private let profileStatusLogger = Logger(subsystem: "dev.ajbeck.quorra", category: "IAMIdentityCenter.ProfileStatus")
 
@@ -64,6 +65,15 @@ extension IdentityCenterService {
             cached = nil
         } catch IAMIdentityCenterError.keychainMalformed(let reason) {
             profileStatusLogger.warning("Malformed role-creds row for '\(key, privacy: .public)': \(reason, privacy: .public)")
+            cached = nil
+        } catch IAMIdentityCenterError.keychainStatus(errSecMissingEntitlement) {
+            // TN3137: data-protection keychain items are tied to the signing identity that
+            // wrote them. errSecMissingEntitlement (-34018) here means the current build can't
+            // claim the row — typically a stale row from a previous Xcode dev cert. Treat as
+            // missing; the next successful mint will overwrite it.
+            profileStatusLogger.info(
+                "Stale role-creds row for '\(key, privacy: .public)' (errSecMissingEntitlement) — will be replaced on next mint."
+            )
             cached = nil
         } catch {
             profileStatusLogger.warning("Role-creds Keychain read failed for '\(key, privacy: .public)': \(error, privacy: .public)")

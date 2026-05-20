@@ -62,30 +62,7 @@ struct SetupView: View {
                 .tracking(0.06 * 11.5)
                 .foregroundStyle(.secondary)
 
-            HStack(spacing: 10) {
-                Text("~/.aws")
-                    .font(.system(size: 13, design: .monospaced))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 5))
-
-                Text("→ \(UserHome.awsFolder.path(percentEncoded: false))")
-                    .font(.system(size: 11.5, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-
-                Spacer(minLength: 8)
-
-                Button("Change…") {
-                    Task { await changeFolder() }
-                }
-                .controlSize(.small)
-            }
-
-            Divider()
-
-            Text("Quorra will read `config` and `credentials`, and store new secrets in the macOS Keychain.")
+            Text("Defaults to `~/.aws`, the standard AWS CLI location.")
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -224,34 +201,24 @@ struct SetupView: View {
     // MARK: - Button row
 
     private var buttonRow: some View {
-        VStack(alignment: .trailing, spacing: 6) {
-            HStack(spacing: 10) {
-                Button("Cancel") {
-                    NSApplication.shared.terminate(nil)
-                }
-                .keyboardShortcut(.cancelAction)
-
-                Button("Continue") {
-                    Task { await continueWithDefault() }
-                }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
+        HStack(spacing: 10) {
+            Button("Cancel") {
+                NSApplication.shared.terminate(nil)
             }
+            .keyboardShortcut(.cancelAction)
 
-            Text("macOS will ask you to confirm access.")
-                .font(.system(size: 11))
-                .foregroundStyle(.tertiary)
+            Button("Choose AWS Folder…") {
+                Task { await chooseAWSFolder() }
+            }
+            .buttonStyle(.borderedProminent)
+            .keyboardShortcut(.defaultAction)
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
     }
 
     // MARK: - Actions
 
-    private func continueWithDefault() async {
-        await runPicker()
-    }
-
-    private func changeFolder() async {
+    private func chooseAWSFolder() async {
         await runPicker()
     }
 
