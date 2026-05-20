@@ -1,0 +1,16 @@
+import Testing
+@testable import quorra
+
+struct KeychainAccessGroupTests {
+    @Test func resolvesSharedGroupFromEntitlementsWhenInfoPlistPrefixIsMissing() {
+        let resolved = KeychainAccessGroup.resolve(
+            infoDictionary: [:],
+            keychainAccessGroups: [
+                "9GEBAJV9R4.dev.ajbeck.quorra.shared",
+                "9GEBAJV9R4.dev.ajbeck.quorra"
+            ]
+        )
+
+        #expect(resolved == "9GEBAJV9R4.dev.ajbeck.quorra.shared")
+    }
+}

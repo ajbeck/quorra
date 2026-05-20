@@ -7,6 +7,7 @@ struct ProfileDetailView: View {
     @Environment(AppModel.self) private var appModel
     @Environment(ProfilesModel.self) private var profilesModel
     @Environment(EditorState.self) private var editorState
+    @Environment(CredentialsModel.self) private var credentialsModel
     @Environment(\.openSettings) private var openSettings
     @State private var draft: Profile
     @State private var isPresentingSaveError = false
@@ -26,6 +27,7 @@ struct ProfileDetailView: View {
             if isReadOnly { readOnlyBanner }
             identitySection
             if draft.ssoSession != nil { sessionLinkSection }
+            if let coords = ssoCredentialCoordinates { credentialsSection(coords) }
             if draft.roleArn != nil || draft.sourceProfile != nil { roleSection }
             if draft.credentialProcess != nil { credentialProcessSection }
         }
@@ -128,6 +130,33 @@ struct ProfileDetailView: View {
         }
     }
 
+    /// SSO-backed profiles expose the credentials reveal section (D31). Non-SSO profiles
+    /// (static creds, role-assumption, credential_process) don't — `ProfileAuthStatus` /
+    /// `liveCredentials` only apply to the SSO path.
+    private var ssoCredentialCoordinates: (session: String, account: String, role: String, region: String)? {
+        guard let session = draft.ssoSession,
+              let account = draft.ssoAccountId,
+              let role = draft.ssoRoleName else {
+            return nil
+        }
+        // The Portal call is region-scoped. The profile's own region is the documented
+        // input; absent that, default to us-east-1 (a wrong region surfaces as a
+        // transient/terminal error the reveal section's advisory already handles).
+        return (session, account, role, draft.region ?? "us-east-1")
+    }
+
+    @ViewBuilder private func credentialsSection(
+        _ coords: (session: String, account: String, role: String, region: String)
+    ) -> some View {
+        CredentialsRevealSection(
+            sessionName: coords.session,
+            accountId: coords.account,
+            roleName: coords.role,
+            region: coords.region
+        )
+        .environment(credentialsModel)
+    }
+
     @ViewBuilder private var sessionLinkSection: some View {
         Section("SSO Session") {
             LabeledContent("Session", value: draft.ssoSession ?? "—")
@@ -186,6 +215,7 @@ private struct ProfileDetailPreviewHarness: View {
     @State private var appModel: AppModel
     @State private var profilesModel = ProfilesModel()
     @State private var editorState = EditorState()
+    @State private var credentialsModel = CredentialsModel(service: PreviewIdentityCenterService())
 
     init(mode: ManagedMode) {
         self.mode = mode
@@ -201,6 +231,7 @@ private struct ProfileDetailPreviewHarness: View {
                     .environment(appModel)
                     .environment(profilesModel)
                     .environment(editorState)
+                    .environment(credentialsModel)
             } else {
                 ProgressView().controlSize(.small)
             }
