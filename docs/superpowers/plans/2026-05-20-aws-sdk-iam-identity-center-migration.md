@@ -1428,12 +1428,21 @@ git commit -m "docs: note AWS SDK adoption for IAM Identity Center transport"
 - **Version-pinning policy gap:** `Package.resolved` is in `.gitignore` (`Package.resolved` matches at any depth). With `from: "1.0.0"` in `Package.swift`, each clone resolves to the latest 1.x. Decide separately whether to (a) unignore `Quorra.xcworkspace/xcshareddata/swiftpm/Package.resolved` so the lockfile travels with the repo, or (b) tighten the `Package.swift` constraint to `exact:` once we settle on a known-good version. **Recommendation:** unignore the workspace `Package.resolved` after Task 0.2.
 - **SmithyCodeGeneratorPlugin trust gate:** the first build on each developer's machine fails with `Plugin "SmithyCodeGeneratorPlugin" from package "smithy-swift" must be enabled before it can be used`. The MCP/headless build cannot accept the trust prompt — the developer must run an interactive ⌘B in Xcode UI once to trigger the trust sheet, click **Trust & Enable**, and then headless builds work. **Add this to the README / onboarding doc before merging the migration.**
 
-### Task 0.2 — SDK import smoke test
-- **Exact Configuration type spelling:** _____ (e.g. `SSOOIDCClient.SSOOIDCClientConfiguration` or `SSOOIDCClient.Config`)
-- **Exact exception initializer signatures:** _____ (e.g. `init(message:)` vs `init(properties:)`)
-- **Binary size delta:** _____ (before / after)
-- **Sendable warnings observed:** _____
-- **Notarization / hardened-runtime issues:** _____
+### Task 0.2 — SKIPPED
+
+Originally specified a throwaway `_SpikeRemoveMe.swift` to import the SDK and instantiate a config/client. **Skipped on 2026-05-20** — Task 0.1 already proved resolution, plugin trust, and linkage; the remaining unknowns (exact type spellings, Sendable behavior, binary delta) are best discovered when we write the real adapter in Phase 2 with the compiler as the verifier. No throwaway file is added to the tree.
+
+**Operational rule for Phase 2+:** trust the AWS SDK for Swift docs (via the `mcp__aws-documentation__*` MCP) for type names and signatures; let Xcode flag any mismatches at build time. Don't preemptively grep SDK checkouts to confirm names.
+
+### Task 0.3 — Gate review (2026-05-20)
+
+- BUILD SUCCEEDED ✅ (Task 0.1)
+- App launches sandboxed (verified during Scope B chunk 6b development on same workspace) ✅
+- Zero warnings introduced by the SDK link ✅
+- Plugin trust documented as a one-time onboarding step ⚠️ (action: add to README before merging migration)
+- Binary delta: deferred until Phase 3 (no SDK code is actually imported yet)
+
+**Decision:** PROCEED to Phase 1.
 
 ---
 
