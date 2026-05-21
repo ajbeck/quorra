@@ -22,7 +22,8 @@ extension IdentityCenterService {
             try Task.checkCancellation()
 
             do {
-                let token = try await oidcClient.createToken(
+                let oidc = try await oidcClientProvider.client(forRegion: client.region)
+                let token = try await oidc.createToken(
                     client: client,
                     deviceCode: deviceCode,
                     sessionName: sessionName

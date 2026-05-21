@@ -7,10 +7,10 @@ extension IAMIdentityCenterTestSuite {
 struct RefreshTimerTests {
 
     private func makeService(
-        keychain: InMemoryKeychainStore = InMemoryKeychainStore()
+        keychain: InMemoryKeychainStore = InMemoryKeychainStore(),
+        stub: StubOIDCRequesting = StubOIDCRequesting()
     ) -> IdentityCenterService {
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
-        return IdentityCenterService(keychain: keychain, oidcClient: oidcClient)
+        IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(stub))
     }
 
     private func seedToken(
@@ -120,7 +120,7 @@ struct RefreshTimerTests {
         // (not starting a second one). Either way, refreshCallCount should be 0 since the
         // guard short-circuits before any OIDC call.
         // Use the stub-based service to validate the call count is 0.
-        let stubService = IdentityCenterService(keychain: InMemoryKeychainStore(), oidcClient: stub)
+        let stubService = IdentityCenterService(keychain: InMemoryKeychainStore(), oidcClientProvider: makeStubOIDCProvider(stub))
         await stubService._test_setInFlightRefresh(neverTask, for: "s")
         await stubService.handleRefresh(sessionName: "s")
         let callCount = await stub.refreshCallCount

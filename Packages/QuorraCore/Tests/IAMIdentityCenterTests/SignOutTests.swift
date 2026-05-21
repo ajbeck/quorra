@@ -20,10 +20,9 @@ struct SignOutTests {
         )
 
         let stubSession = StubURLProtocol.makeSession()
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: stubSession)
         let service = IdentityCenterService(
             keychain: keychain,
-            oidcClient: oidcClient,
+            oidcClientProvider: makeStubOIDCProvider(StubOIDCRequesting()),
             urlSession: stubSession
         )
 
@@ -83,10 +82,9 @@ struct SignOutTests {
         )
 
         let stubSession = StubURLProtocol.makeSession()
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: stubSession)
         let service = IdentityCenterService(
             keychain: keychain,
-            oidcClient: oidcClient,
+            oidcClientProvider: makeStubOIDCProvider(StubOIDCRequesting()),
             urlSession: stubSession
         )
 
@@ -128,10 +126,9 @@ struct SignOutTests {
         defer { StubURLProtocol.reset() }
         let keychain = InMemoryKeychainStore()
         let stubSession = StubURLProtocol.makeSession()
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: stubSession)
         let service = IdentityCenterService(
             keychain: keychain,
-            oidcClient: oidcClient,
+            oidcClientProvider: makeStubOIDCProvider(StubOIDCRequesting()),
             urlSession: stubSession
         )
 
@@ -159,12 +156,11 @@ struct SignOutTests {
     func cancelsInFlightSignIn() async throws {
         defer { StubURLProtocol.reset() }
         let keychain = InMemoryKeychainStore()
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
         let sleeper = MockSleeper()
         let stubSession = StubURLProtocol.makeSession()
         let service = IdentityCenterService(
             keychain: keychain,
-            oidcClient: oidcClient,
+            oidcClientProvider: makeStubOIDCProvider(StubOIDCRequesting()),
             sleeper: sleeper,
             urlSession: stubSession
         )
@@ -217,10 +213,9 @@ struct SignOutTests {
         )
 
         let stubSession = StubURLProtocol.makeSession()
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: stubSession)
         let service = IdentityCenterService(
             keychain: keychain,
-            oidcClient: oidcClient,
+            oidcClientProvider: makeStubOIDCProvider(StubOIDCRequesting()),
             urlSession: stubSession
         )
 

@@ -12,7 +12,7 @@ struct TokenRotationTests {
         keychain: InMemoryKeychainStore,
         stub: StubOIDCRequesting = StubOIDCRequesting()
     ) -> IdentityCenterService {
-        IdentityCenterService(keychain: keychain, oidcClient: stub)
+        IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(stub))
     }
 
     private func seedToken(

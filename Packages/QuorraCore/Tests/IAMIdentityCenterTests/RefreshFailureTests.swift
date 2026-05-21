@@ -9,10 +9,10 @@ struct RefreshFailureTests {
     // MARK: - Helpers
 
     private func makeService(
-        keychain: InMemoryKeychainStore = InMemoryKeychainStore()
+        keychain: InMemoryKeychainStore = InMemoryKeychainStore(),
+        stub: StubOIDCRequesting = StubOIDCRequesting()
     ) -> IdentityCenterService {
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
-        return IdentityCenterService(keychain: keychain, oidcClient: oidcClient)
+        IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(stub))
     }
 
     private func seedToken(
@@ -68,21 +68,23 @@ struct RefreshFailureTests {
     @Test(
         "Terminal failure nils refreshToken in Keychain, cancels T_refresh, emits .refreshFailed",
         arguments: [
-            ("invalid_grant",  IAMIdentityCenterError.refreshTokenRejected),
-            ("invalid_client", IAMIdentityCenterError.refreshClientInvalid),
+            IAMIdentityCenterError.refreshTokenRejected,
+            IAMIdentityCenterError.refreshClientInvalid,
         ]
     )
-    func terminalFailureNilsRefreshToken(awsError: String, expectedError: IAMIdentityCenterError) async throws {
-        defer { StubURLProtocol.reset() }
+    func terminalFailureNilsRefreshToken(expectedError: IAMIdentityCenterError) async throws {
         let keychain = InMemoryKeychainStore()
         // Inside skew so liveToken triggers inline refresh
         let expiresAt = Date().addingTimeInterval(3 * 60)
         try await seedToken(keychain: keychain, expiresAt: expiresAt, refreshToken: "rt")
         try await seedOIDCClient(keychain: keychain)
 
-        try StubURLProtocol.registerOAuthError(urlSubstring: "/token", statusCode: 400, error: awsError)
+        // The SDK adapter remaps invalid_grant → .refreshTokenRejected and
+        // invalid_client → .refreshClientInvalid; the stub stands in for that output.
+        let stub = StubOIDCRequesting()
+        await stub.setNextRefreshResult(.failure(expectedError))
 
-        let service = makeService(keychain: keychain)
+        let service = makeService(keychain: keychain, stub: stub)
 
         // Collect events for the .refreshFailed assertion below
         let collector = EventCollector()
@@ -119,19 +121,25 @@ struct RefreshFailureTests {
         #expect(events.contains { if case .refreshFailed(let n) = $0, n == "s" { return true }; return false })
     }
 
-    // MARK: - Transient bucket: network error leaves Keychain unchanged
+    // MARK: - Transient bucket: a non-terminal error leaves Keychain unchanged
+    //
+    // Post-SDK-migration a transient transport/server failure surfaces as `.awsError`
+    // (the adapter maps unrecognized SDK errors and InternalServerException there), not as
+    // the old `.network` / `.httpStatus` cases. The failure-bucketing contract is unchanged:
+    // anything that is NOT .refreshTokenRejected / .refreshClientInvalid is transient and must
+    // leave the stored refresh token intact.
 
-    @Test("Network error leaves Keychain refresh token intact (transient — no terminal wipe)")
-    func networkErrorLeavesKeychainUnchanged() async throws {
-        defer { StubURLProtocol.reset() }
+    @Test("Transient error leaves Keychain refresh token intact (no terminal wipe)")
+    func transientErrorLeavesKeychainUnchanged() async throws {
         let keychain = InMemoryKeychainStore()
         let expiresAt = Date().addingTimeInterval(3 * 60)
         try await seedToken(keychain: keychain, expiresAt: expiresAt, refreshToken: "rt")
         try await seedOIDCClient(keychain: keychain)
 
-        StubURLProtocol.registerNetworkFailure(urlSubstring: "/token")
+        let stub = StubOIDCRequesting()
+        await stub.setNextRefreshResult(.failure(IAMIdentityCenterError.awsError(code: "server_error", description: nil)))
 
-        let service = makeService(keychain: keychain)
+        let service = makeService(keychain: keychain, stub: stub)
         _ = try? await service.liveToken(forSession: "s")
 
         let stored = try await readToken(keychain: keychain)
@@ -139,88 +147,59 @@ struct RefreshFailureTests {
         #expect(stored.refreshToken == "rt")
     }
 
-    @Test("Network error throws .network (transient) from liveToken")
-    func networkErrorThrowsNetworkError() async throws {
-        defer { StubURLProtocol.reset() }
+    @Test("Transient error propagates (not terminal) from liveToken")
+    func transientErrorPropagatesFromLiveToken() async throws {
         let keychain = InMemoryKeychainStore()
         let expiresAt = Date().addingTimeInterval(3 * 60)
         try await seedToken(keychain: keychain, expiresAt: expiresAt, refreshToken: "rt")
         try await seedOIDCClient(keychain: keychain)
 
-        StubURLProtocol.registerNetworkFailure(urlSubstring: "/token")
+        let stub = StubOIDCRequesting()
+        await stub.setNextRefreshResult(.failure(IAMIdentityCenterError.awsError(code: "server_error", description: nil)))
 
-        let service = makeService(keychain: keychain)
+        let service = makeService(keychain: keychain, stub: stub)
         do {
             _ = try await service.liveToken(forSession: "s")
-            Issue.record("Expected .network to be thrown")
-        } catch IAMIdentityCenterError.network {
-            // expected
+            Issue.record("Expected a transient error to be thrown")
+        } catch IAMIdentityCenterError.awsError(let code, _) {
+            #expect(code == "server_error")
         } catch {
             Issue.record("Wrong error: \(error)")
         }
     }
 
-    // MARK: - Transient bucket: 5xx leaves Keychain unchanged
-
-    @Test("5xx error leaves Keychain refresh token intact (transient)")
-    func serverErrorLeavesKeychainUnchanged() async throws {
-        defer { StubURLProtocol.reset() }
-        let keychain = InMemoryKeychainStore()
-        let expiresAt = Date().addingTimeInterval(3 * 60)
-        try await seedToken(keychain: keychain, expiresAt: expiresAt, refreshToken: "rt")
-        try await seedOIDCClient(keychain: keychain)
-
-        StubURLProtocol.register5xxError(urlSubstring: "/token")
-
-        let service = makeService(keychain: keychain)
-        _ = try? await service.liveToken(forSession: "s")
-
-        let stored = try await readToken(keychain: keychain)
-        #expect(stored.refreshToken == "rt")
-    }
-
     // MARK: - No auto-retry
 
-    @Test("No auto-retry on transient failure — exactly one network call is made")
+    @Test("No auto-retry on transient failure — exactly one refresh call is made")
     func noAutoRetryOnTransientFailure() async throws {
-        defer { StubURLProtocol.reset() }
         let keychain = InMemoryKeychainStore()
         let expiresAt = Date().addingTimeInterval(3 * 60)
         try await seedToken(keychain: keychain, expiresAt: expiresAt, refreshToken: "rt")
         try await seedOIDCClient(keychain: keychain)
 
-        nonisolated(unsafe) var callCount = 0
-        let lock = NSLock()
-        StubURLProtocol.registerCustom(urlSubstring: "/token") { _ in
-            lock.lock()
-            callCount += 1
-            lock.unlock()
-            // Simulate a transient 503
-            let url = URL(string: "https://oidc.us-east-1.amazonaws.com/token")!
-            let response = HTTPURLResponse(url: url, statusCode: 503, httpVersion: "HTTP/1.1", headerFields: [:])!
-            return (Data(), response)
-        }
+        let stub = StubOIDCRequesting()
+        await stub.setNextRefreshResult(.failure(IAMIdentityCenterError.awsError(code: "server_error", description: nil)))
 
-        let service = makeService(keychain: keychain)
+        let service = makeService(keychain: keychain, stub: stub)
         _ = try? await service.liveToken(forSession: "s")
 
         // Must be exactly 1 — no retry loop
-        #expect(callCount == 1)
+        #expect(await stub.refreshCallCount == 1)
     }
 
     // MARK: - T_expire left running after failure
 
     @Test("Expiration timer continues running after a transient refresh failure")
     func expirationTimerRunsAfterTransientFailure() async throws {
-        defer { StubURLProtocol.reset() }
         let keychain = InMemoryKeychainStore()
         let expiresAt = Date().addingTimeInterval(3 * 60)
         try await seedToken(keychain: keychain, expiresAt: expiresAt, refreshToken: "rt")
         try await seedOIDCClient(keychain: keychain)
 
-        StubURLProtocol.registerNetworkFailure(urlSubstring: "/token")
+        let stub = StubOIDCRequesting()
+        await stub.setNextRefreshResult(.failure(IAMIdentityCenterError.awsError(code: "server_error", description: nil)))
 
-        let service = makeService(keychain: keychain)
+        let service = makeService(keychain: keychain, stub: stub)
         // Seed expiration timer first
         await service.scheduleExpiration(forSession: "s", expiresAt: expiresAt)
         #expect(await service.expirationTimers["s"] != nil)

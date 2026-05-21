@@ -9,10 +9,10 @@ struct LiveTokenTests {
     // MARK: - Helpers
 
     private func makeService(
-        keychain: InMemoryKeychainStore = InMemoryKeychainStore()
+        keychain: InMemoryKeychainStore = InMemoryKeychainStore(),
+        stub: StubOIDCRequesting = StubOIDCRequesting()
     ) -> IdentityCenterService {
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
-        return IdentityCenterService(keychain: keychain, oidcClient: oidcClient)
+        IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(stub))
     }
 
     private func seedToken(
@@ -57,7 +57,6 @@ struct LiveTokenTests {
 
     @Test("liveToken returns current token when outside skew window (> refreshSkew remaining)")
     func outsideSkewWindowReturnsCurrentToken() async throws {
-        defer { StubURLProtocol.reset() }
         let keychain = InMemoryKeychainStore()
         // expiresAt is 2 hours out — well outside the 5-minute skew window
         let expiresAt = Date().addingTimeInterval(2 * 3600)
@@ -76,22 +75,16 @@ struct LiveTokenTests {
 
     @Test("liveToken triggers inline refresh when inside skew window (< refreshSkew remaining)")
     func insideSkewWindowTriggersRefresh() async throws {
-        defer { StubURLProtocol.reset() }
         let keychain = InMemoryKeychainStore()
         // expiresAt is 3 minutes out — inside the 5-minute skew window
         let expiresAt = Date().addingTimeInterval(3 * 60)
         try await seedToken(keychain: keychain, expiresAt: expiresAt, refreshToken: "rt")
         try await seedOIDCClient(keychain: keychain)
 
-        // Stub the refresh endpoint
-        try StubURLProtocol.registerSuccess(urlSubstring: "/token", json: [
-            "accessToken": "new-at",
-            "tokenType": "Bearer",
-            "expiresIn": 28800,
-            "refreshToken": "new-rt",
-        ])
+        let stub = StubOIDCRequesting()
+        await stub.setNextRefreshResult(.success(makeDefaultSSOToken(accessToken: "new-at", refreshToken: "new-rt", sessionName: "s")))
 
-        let service = makeService(keychain: keychain)
+        let service = makeService(keychain: keychain, stub: stub)
         let token = try await service.liveToken(forSession: "s")
 
         // The inline refresh should have completed and returned the NEW token
@@ -102,20 +95,16 @@ struct LiveTokenTests {
 
     @Test("liveToken triggers inline refresh when token is past expiresAt and canRefresh: true")
     func pastExpiryWithRefreshTokenTriggersRefresh() async throws {
-        defer { StubURLProtocol.reset() }
         let keychain = InMemoryKeychainStore()
         // expiresAt is 60 seconds IN THE PAST
         let expiresAt = Date().addingTimeInterval(-60)
         try await seedToken(keychain: keychain, expiresAt: expiresAt, refreshToken: "rt")
         try await seedOIDCClient(keychain: keychain)
 
-        try StubURLProtocol.registerSuccess(urlSubstring: "/token", json: [
-            "accessToken": "refreshed-at",
-            "tokenType": "Bearer",
-            "expiresIn": 28800,
-        ])
+        let stub = StubOIDCRequesting()
+        await stub.setNextRefreshResult(.success(makeDefaultSSOToken(accessToken: "refreshed-at", refreshToken: "rt", sessionName: "s")))
 
-        let service = makeService(keychain: keychain)
+        let service = makeService(keychain: keychain, stub: stub)
         let token = try await service.liveToken(forSession: "s")
 
         #expect(token.accessToken == "refreshed-at")
@@ -125,7 +114,6 @@ struct LiveTokenTests {
 
     @Test("liveToken throws .tokenExpired when token is expired and has no refresh token")
     func pastExpiryNoRefreshThrowsTokenExpired() async throws {
-        defer { StubURLProtocol.reset() }
         let keychain = InMemoryKeychainStore()
         let expiresAt = Date().addingTimeInterval(-60)
         // No refresh token
@@ -147,7 +135,6 @@ struct LiveTokenTests {
 
     @Test("liveToken throws .notSignedIn when no Keychain record exists")
     func notSignedInThrowsNotSignedIn() async throws {
-        defer { StubURLProtocol.reset() }
         // Empty keychain — no token seeded
         let service = makeService()
 
@@ -163,34 +150,20 @@ struct LiveTokenTests {
 
     // MARK: - D12: Concurrent callers coalesce via inFlightRefresh
 
-    @Test("Concurrent liveToken calls coalesce — only one refresh network call is made")
+    @Test("Concurrent liveToken calls coalesce — only one refresh call is made")
     func concurrentLiveTokenCallsCoalesce() async throws {
-        defer { StubURLProtocol.reset() }
         let keychain = InMemoryKeychainStore()
         // Token inside the skew window
         let expiresAt = Date().addingTimeInterval(3 * 60)
         try await seedToken(keychain: keychain, expiresAt: expiresAt, refreshToken: "rt")
         try await seedOIDCClient(keychain: keychain)
 
-        // Count how many times the /token endpoint was hit (synchronous — handler is not async)
-        nonisolated(unsafe) var callCount = 0
-        let lock = NSLock()
+        // Coalescing is driven by the actor's keychain-read suspension in performLiveToken,
+        // not by network latency, so an instant stub result still exercises single-flight.
+        let stub = StubOIDCRequesting()
+        await stub.setNextRefreshResult(.success(makeDefaultSSOToken(accessToken: "coalesced-at", refreshToken: "rt", sessionName: "s")))
 
-        StubURLProtocol.registerCustom(urlSubstring: "/token") { _ in
-            lock.lock()
-            callCount += 1
-            lock.unlock()
-            let data = try! JSONSerialization.data(withJSONObject: [
-                "accessToken": "coalesced-at",
-                "tokenType": "Bearer",
-                "expiresIn": 28800,
-            ])
-            let url = URL(string: "https://oidc.us-east-1.amazonaws.com/token")!
-            let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": "application/json"])!
-            return (data, response)
-        }
-
-        let service = makeService(keychain: keychain)
+        let service = makeService(keychain: keychain, stub: stub)
 
         // Fire two concurrent liveToken calls
         async let t1 = service.liveToken(forSession: "s")
@@ -202,38 +175,23 @@ struct LiveTokenTests {
         #expect(tok1.accessToken == "coalesced-at")
         #expect(tok2.accessToken == "coalesced-at")
 
-        // Only ONE network call should have gone out (D12 coalescing)
-        #expect(callCount == 1)
+        // Only ONE refresh should have gone out (D12 coalescing)
+        #expect(await stub.refreshCallCount == 1)
     }
 
     // MARK: - D12: refreshNow coalesces with in-flight refresh
 
     @Test("refreshNow coalesces with an already-in-flight refresh instead of starting a second")
     func refreshNowCoalesces() async throws {
-        defer { StubURLProtocol.reset() }
         let keychain = InMemoryKeychainStore()
         let expiresAt = Date().addingTimeInterval(3 * 60)
         try await seedToken(keychain: keychain, expiresAt: expiresAt, refreshToken: "rt")
         try await seedOIDCClient(keychain: keychain)
 
-        nonisolated(unsafe) var callCount = 0
-        let lock = NSLock()
+        let stub = StubOIDCRequesting()
+        await stub.setNextRefreshResult(.success(makeDefaultSSOToken(accessToken: "coalesced-now", refreshToken: "rt", sessionName: "s")))
 
-        StubURLProtocol.registerCustom(urlSubstring: "/token") { _ in
-            lock.lock()
-            callCount += 1
-            lock.unlock()
-            let data = try! JSONSerialization.data(withJSONObject: [
-                "accessToken": "coalesced-now",
-                "tokenType": "Bearer",
-                "expiresIn": 28800,
-            ])
-            let url = URL(string: "https://oidc.us-east-1.amazonaws.com/token")!
-            let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": "application/json"])!
-            return (data, response)
-        }
-
-        let service = makeService(keychain: keychain)
+        let service = makeService(keychain: keychain, stub: stub)
 
         async let t1 = service.liveToken(forSession: "s")
         async let t2 = service.refreshNow(sessionName: "s")
@@ -243,23 +201,25 @@ struct LiveTokenTests {
         #expect(tok1.accessToken == "coalesced-now")
         #expect(tok2.accessToken == "coalesced-now")
 
-        #expect(callCount == 1)
+        #expect(await stub.refreshCallCount == 1)
     }
 
     // MARK: - D14: liveToken propagates terminal refresh error
 
     @Test("liveToken throws .refreshTokenRejected when AWS returns invalid_grant (terminal)")
     func liveTokenPropagatesTerminalRefreshError() async throws {
-        defer { StubURLProtocol.reset() }
         let keychain = InMemoryKeychainStore()
         // Inside skew so refresh will be triggered
         let expiresAt = Date().addingTimeInterval(3 * 60)
         try await seedToken(keychain: keychain, expiresAt: expiresAt, refreshToken: "bad-rt")
         try await seedOIDCClient(keychain: keychain)
 
-        try StubURLProtocol.registerOAuthError(urlSubstring: "/token", statusCode: 400, error: "invalid_grant")
+        // The SDK adapter remaps a rejected refresh token (invalid_grant) to .refreshTokenRejected;
+        // the stub stands in for that adapter output.
+        let stub = StubOIDCRequesting()
+        await stub.setNextRefreshResult(.failure(IAMIdentityCenterError.refreshTokenRejected))
 
-        let service = makeService(keychain: keychain)
+        let service = makeService(keychain: keychain, stub: stub)
 
         do {
             _ = try await service.liveToken(forSession: "s")
@@ -275,20 +235,15 @@ struct LiveTokenTests {
 
     @Test("Successful liveToken refresh writes new token to Keychain")
     func successfulRefreshWritesNewTokenToKeychain() async throws {
-        defer { StubURLProtocol.reset() }
         let keychain = InMemoryKeychainStore()
         let expiresAt = Date().addingTimeInterval(3 * 60)
         try await seedToken(keychain: keychain, expiresAt: expiresAt, refreshToken: "rt")
         try await seedOIDCClient(keychain: keychain)
 
-        try StubURLProtocol.registerSuccess(urlSubstring: "/token", json: [
-            "accessToken": "written-at",
-            "tokenType": "Bearer",
-            "expiresIn": 28800,
-            "refreshToken": "written-rt",
-        ])
+        let stub = StubOIDCRequesting()
+        await stub.setNextRefreshResult(.success(makeDefaultSSOToken(accessToken: "written-at", refreshToken: "written-rt", sessionName: "s")))
 
-        let service = makeService(keychain: keychain)
+        let service = makeService(keychain: keychain, stub: stub)
         _ = try await service.liveToken(forSession: "s")
 
         // Read back from keychain to verify write happened
