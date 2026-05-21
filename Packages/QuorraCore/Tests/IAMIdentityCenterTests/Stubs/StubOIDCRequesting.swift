@@ -3,22 +3,32 @@ import Foundation
 
 /// Actor-based test double for `OIDCRequesting`.
 ///
-/// Replaces `StubURLProtocol` for tests that exercise actor behavior (refresh outcome, sign-out
-/// sequencing, session lock) rather than wire encoding. Wire-layer tests (`OIDCClientTests`,
-/// `OIDCClientRefreshTests`) keep using `StubURLProtocol` since they specifically test HTTP
-/// encoding and error mapping.
+/// The single OIDC test seam: injected through the `OIDCClientProviding` provider so the actor
+/// exercises real behavior (refresh outcome, sign-out sequencing, session lock) against canned
+/// results. Wire encoding is owned by the AWS SDK and is not tested here (Apple: test the code
+/// you own, not your dependencies).
 ///
 /// Usage:
 /// ```swift
 /// let stub = StubOIDCRequesting()
 /// await stub.setNextRefreshResult(.success(newToken))
-/// let service = IdentityCenterService(keychain: keychain, oidcClient: stub)
+/// let service = IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(stub))
 /// ```
 actor StubOIDCRequesting: OIDCRequesting {
 
+    /// Builds a stub whose default `registerClient` result carries `registerRegion`.
+    ///
+    /// In production `SDKOIDCClient.registerClient` embeds the client's region into the
+    /// returned `StoredOIDCClient`, and the actor's `pollForToken` keys its provider lookup
+    /// off `client.region`. So a region-faithful stub (built with the region it's vended for)
+    /// keeps every provider lookup on the same region — matching real behavior.
+    init(registerRegion: String = "us-east-1") {
+        self.nextRegisterResult = .success(makeDefaultStoredClient(region: registerRegion))
+    }
+
     // MARK: - Canned results (set per-test)
 
-    var nextRegisterResult: Result<StoredOIDCClient, Error> = .success(makeDefaultStoredClient())
+    var nextRegisterResult: Result<StoredOIDCClient, Error>
     var nextStartDeviceAuthorizationResult: Result<(deviceCode: String, verification: DeviceVerification), Error> =
         .success(("stub-device-code", makeDefaultDeviceVerification()))
     var nextCreateTokenResult: Result<StoredSSOToken, Error> = .success(makeDefaultSSOToken())
@@ -40,6 +50,21 @@ actor StubOIDCRequesting: OIDCRequesting {
     private(set) var refreshCallCount = 0
 
     // MARK: - Configuration helpers
+
+    func setNextRegisterResult(_ result: Result<StoredOIDCClient, Error>) {
+        nextRegisterResult = result
+    }
+
+    func setNextStartDeviceAuthorizationResult(
+        _ result: Result<(deviceCode: String, verification: DeviceVerification), Error>
+    ) {
+        nextStartDeviceAuthorizationResult = result
+    }
+
+    func setNextCreateTokenResult(_ result: Result<StoredSSOToken, Error>) {
+        nextCreateTokenResult = result
+        createTokenBlock = nil
+    }
 
     func setCreateTokenBlock(_ block: @escaping @Sendable () async throws -> StoredSSOToken) {
         createTokenBlock = block
@@ -98,13 +123,13 @@ actor StubOIDCRequesting: OIDCRequesting {
 
 // MARK: - Default values
 
-private func makeDefaultStoredClient() -> StoredOIDCClient {
+private func makeDefaultStoredClient(region: String = "us-east-1") -> StoredOIDCClient {
     StoredOIDCClient(
         clientId: "stub-client-id",
         clientSecret: "stub-client-secret",
         issuedAt: Date(),
         secretExpiresAt: Date().addingTimeInterval(90 * 24 * 60 * 60),
-        region: "us-east-1",
+        region: region,
         scopes: ["sso:account:access"]
     )
 }

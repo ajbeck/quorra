@@ -12,8 +12,7 @@ struct MintEventStreamTests {
         keychain: InMemoryKeychainStore = InMemoryKeychainStore(),
         portal: StubPortalRequesting = StubPortalRequesting()
     ) -> IdentityCenterService {
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
-        return IdentityCenterService(keychain: keychain, oidcClient: oidcClient, portalClient: portal)
+        return IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(StubOIDCRequesting()), portalClient: portal)
     }
 
     private func seedFreshToken(keychain: InMemoryKeychainStore, sessionName: String = "s") async throws {

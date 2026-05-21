@@ -9,7 +9,7 @@ struct quorraApp: App {
     @State private var credentialsModel = CredentialsModel(
         service: IdentityCenterService(
             keychain: Keychain(accessGroup: KeychainAccessGroup.shared),
-            oidcClient: OIDCClient(region: "us-east-1")
+            oidcClientProvider: SDKOIDCClientProvider()
         )
     )
 

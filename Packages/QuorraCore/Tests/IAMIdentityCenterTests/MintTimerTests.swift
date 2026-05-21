@@ -16,10 +16,9 @@ struct MintTimerTests {
         keychain: InMemoryKeychainStore = InMemoryKeychainStore(),
         portal: StubPortalRequesting = StubPortalRequesting()
     ) -> IdentityCenterService {
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
         return IdentityCenterService(
             keychain: keychain,
-            oidcClient: oidcClient,
+            oidcClientProvider: makeStubOIDCProvider(StubOIDCRequesting()),
             portalClient: portal
         )
     }
@@ -32,10 +31,9 @@ struct MintTimerTests {
         portal: StubPortalRequesting = StubPortalRequesting(),
         sleeper: MockSleeper
     ) -> IdentityCenterService {
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
         return IdentityCenterService(
             keychain: keychain,
-            oidcClient: oidcClient,
+            oidcClientProvider: makeStubOIDCProvider(StubOIDCRequesting()),
             portalClient: portal,
             sleeper: sleeper
         )

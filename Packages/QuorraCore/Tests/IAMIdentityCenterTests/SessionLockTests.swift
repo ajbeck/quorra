@@ -84,7 +84,7 @@ struct SessionLockTests {
         )))
 
         let urlSession = StubURLProtocol.makeSession()
-        let service = IdentityCenterService(keychain: keychain, oidcClient: stub, urlSession: urlSession)
+        let service = IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(stub), urlSession: urlSession)
 
         // Fire both operations concurrently. Because refreshNow takes the session lock first
         // (races may vary), signOut queues behind it and is guaranteed to run after.
@@ -122,7 +122,7 @@ struct SessionLockTests {
 
         let stub = StubOIDCRequesting()
         let urlSession = StubURLProtocol.makeSession()
-        let service = IdentityCenterService(keychain: keychain, oidcClient: stub, urlSession: urlSession)
+        let service = IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(stub), urlSession: urlSession)
 
         // Start both sign-outs concurrently
         let start = Date()
@@ -175,7 +175,7 @@ struct SessionLockTests {
 
         let stub = StubOIDCRequesting()
         let urlSession = StubURLProtocol.makeSession()
-        let service = IdentityCenterService(keychain: keychain, oidcClient: stub, urlSession: urlSession)
+        let service = IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(stub), urlSession: urlSession)
 
         // Plant a gated in-flight refresh task in inFlightRefresh["s"].
         // The gate (an AsyncStream that is never yielded to) blocks indefinitely until the

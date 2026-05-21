@@ -11,8 +11,7 @@ struct StatusTests {
     @Test("Missing Keychain row returns .signedOut")
     func missingRow() async {
         let keychain = InMemoryKeychainStore()
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
-        let service = IdentityCenterService(keychain: keychain, oidcClient: oidcClient)
+        let service = IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(StubOIDCRequesting()))
 
         let result = await service.status(forSession: "no-such-session")
         #expect(result == .signedOut)
@@ -30,8 +29,7 @@ struct StatusTests {
             account: "test-session"
         )
 
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
-        let service = IdentityCenterService(keychain: keychain, oidcClient: oidcClient)
+        let service = IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(StubOIDCRequesting()))
 
         let result = await service.status(forSession: "test-session")
         if case .signedIn(let at, let canRefresh) = result {
@@ -52,8 +50,7 @@ struct StatusTests {
             account: "test-session"
         )
 
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
-        let service = IdentityCenterService(keychain: keychain, oidcClient: oidcClient)
+        let service = IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(StubOIDCRequesting()))
 
         let result = await service.status(forSession: "test-session")
         if case .signedIn(_, let canRefresh) = result {
@@ -75,8 +72,7 @@ struct StatusTests {
             account: "test-session"
         )
 
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
-        let service = IdentityCenterService(keychain: keychain, oidcClient: oidcClient)
+        let service = IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(StubOIDCRequesting()))
 
         let result = await service.status(forSession: "test-session")
         if case .expired(_, let canRefresh) = result {
@@ -96,8 +92,7 @@ struct StatusTests {
             account: "test-session"
         )
 
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
-        let service = IdentityCenterService(keychain: keychain, oidcClient: oidcClient)
+        let service = IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(StubOIDCRequesting()))
 
         let result = await service.status(forSession: "test-session")
         if case .expired(_, let canRefresh) = result {
@@ -119,8 +114,7 @@ struct StatusTests {
             account: "test-session"
         )
 
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
-        let service = IdentityCenterService(keychain: keychain, oidcClient: oidcClient)
+        let service = IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(StubOIDCRequesting()))
 
         let result = await service.status(forSession: "test-session")
         #expect(result == .signedOut)
@@ -138,8 +132,7 @@ struct StatusTests {
             account: "test-session"
         )
 
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
-        let service = IdentityCenterService(keychain: keychain, oidcClient: oidcClient)
+        let service = IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(StubOIDCRequesting()))
 
         // No timer before first status call
         let timerBefore = await service.expirationTimers["test-session"]
@@ -164,8 +157,7 @@ struct StatusTests {
             account: "test-session"
         )
 
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
-        let service = IdentityCenterService(keychain: keychain, oidcClient: oidcClient)
+        let service = IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(StubOIDCRequesting()))
 
         _ = await service.status(forSession: "test-session")
 

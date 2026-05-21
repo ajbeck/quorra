@@ -11,8 +11,7 @@ struct ProfileStatusTests {
     private func makeService(
         keychain: InMemoryKeychainStore = InMemoryKeychainStore()
     ) -> IdentityCenterService {
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
-        return IdentityCenterService(keychain: keychain, oidcClient: oidcClient)
+        return IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(StubOIDCRequesting()))
     }
 
     private func seedToken(
