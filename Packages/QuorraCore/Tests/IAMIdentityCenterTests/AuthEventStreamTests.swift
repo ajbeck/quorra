@@ -10,18 +10,12 @@ struct AuthEventStreamTests {
 
     @Test("Successful signIn emits signInStarted then signedIn")
     func signInEmitsEvents() async throws {
-        defer { StubURLProtocol.reset() }
         let keychain = InMemoryKeychainStore()
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
-        let service = IdentityCenterService(keychain: keychain, oidcClient: oidcClient)
-
-        try registerStub()
-        try deviceAuthStub(expiresIn: 600, interval: 1)
-        try StubURLProtocol.registerSuccess(urlSubstring: "/token", json: [
-            "accessToken": "test-access-token",
-            "tokenType": "Bearer",
-            "expiresIn": 28800,
-        ])
+        let stub = StubOIDCRequesting()
+        await stub.setNextRegisterResult(.success(makeStoredClient()))
+        await stub.setNextStartDeviceAuthorizationResult(.success(("test-device-code", makeVerification(interval: 1))))
+        await stub.setNextCreateTokenResult(.success(makeDefaultSSOToken(accessToken: "test-access-token", refreshToken: nil, sessionName: "test-session")))
+        let service = IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(stub))
 
         let collector = EventCollector()
         let collectTask = Task {
@@ -60,15 +54,13 @@ struct AuthEventStreamTests {
 
     @Test("Failed signIn emits signInStarted then signInFailed")
     func failedSignInEmitsEvents() async throws {
-        defer { StubURLProtocol.reset() }
         let keychain = InMemoryKeychainStore()
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
-        let service = IdentityCenterService(keychain: keychain, oidcClient: oidcClient)
-
-        try registerStub()
-        try deviceAuthStub(expiresIn: 10, interval: 1)
-        // Always return authorization_pending → wall clock will expire first
-        try StubURLProtocol.registerOAuthError(urlSubstring: "/token", error: "authorization_pending")
+        let stub = StubOIDCRequesting()
+        await stub.setNextRegisterResult(.success(makeStoredClient()))
+        await stub.setNextStartDeviceAuthorizationResult(.success(("test-device-code", makeVerification(interval: 1, expiresIn: 10))))
+        // Always report the browser step as incomplete → wall clock expires first.
+        await stub.setNextCreateTokenResult(.failure(IAMIdentityCenterError.authorizationPending))
+        let service = IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(stub))
 
         let collector = EventCollector()
         let collectTask = Task {
@@ -104,15 +96,14 @@ struct AuthEventStreamTests {
 
     @Test("Cancelled signIn emits signInStarted then signInCancelled")
     func cancelledSignInEmitsEvents() async throws {
-        defer { StubURLProtocol.reset() }
         let keychain = InMemoryKeychainStore()
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
+        let stub = StubOIDCRequesting()
+        await stub.setNextRegisterResult(.success(makeStoredClient()))
+        await stub.setNextStartDeviceAuthorizationResult(.success(("test-device-code", makeVerification(interval: 5))))
+        // Poll never succeeds; the test cancels mid-poll and expects .signInCancelled.
+        await stub.setNextCreateTokenResult(.failure(IAMIdentityCenterError.authorizationPending))
         let sleeper = MockSleeper()
-        let service = IdentityCenterService(keychain: keychain, oidcClient: oidcClient, sleeper: sleeper)
-
-        try registerStub()
-        try deviceAuthStub(expiresIn: 600, interval: 5)
-        try StubURLProtocol.registerOAuthError(urlSubstring: "/token", error: "authorization_pending")
+        let service = IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(stub), sleeper: sleeper)
 
         let collector = EventCollector()
         let collectTask = Task {
@@ -182,10 +173,9 @@ struct AuthEventStreamTests {
             )
         )
 
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: stubSession)
         let service = IdentityCenterService(
             keychain: keychain,
-            oidcClient: oidcClient,
+            oidcClientProvider: makeStubOIDCProvider(StubOIDCRequesting()),
             urlSession: stubSession
         )
 
@@ -226,10 +216,9 @@ struct AuthEventStreamTests {
 
         StubURLProtocol.registerNetworkFailure(urlSubstring: "/logout")
 
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: stubSession)
         let service = IdentityCenterService(
             keychain: keychain,
-            oidcClient: oidcClient,
+            oidcClientProvider: makeStubOIDCProvider(StubOIDCRequesting()),
             urlSession: stubSession
         )
 
@@ -260,8 +249,7 @@ struct AuthEventStreamTests {
     @Test("Expiration timer emits .expired event")
     func expirationEmitsEvent() async throws {
         let keychain = InMemoryKeychainStore()
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
-        let service = IdentityCenterService(keychain: keychain, oidcClient: oidcClient)
+        let service = IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(StubOIDCRequesting()))
 
         let collector = EventCollector()
         let collectTask = Task {

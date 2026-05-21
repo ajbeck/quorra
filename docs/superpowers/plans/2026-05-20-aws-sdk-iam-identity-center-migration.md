@@ -1293,7 +1293,46 @@ Originally specified a throwaway `_SpikeRemoveMe.swift` to import the SDK and in
 
 ## Phase 1 Notes (recorded during Phase 1 work)
 
-> Reserved for SDK type-name findings from Task 1.2, binary delta from Task 1.8 Step 3, and any Sendable annotation surprises found in Task 1.3.
+### Task 1.2 — SDK type verification (2026-05-20)
+
+**Source: AWS SDK for Swift Developer Guide.**
+
+- **Client configuration pattern** (confirmed from [config-code.html](https://docs.aws.amazon.com/sdk-for-swift/latest/developer-guide/config-code.html)):
+  - Convenience init: `try ServiceClient(region: "<region>")` — **synchronous, throws**.
+  - Full config form: `try await ServiceClient.ServiceClientConfiguration(region: "<region>")` — **async throws** — pass into `ServiceClient(config: config)`.
+  - Same pattern applies to all services, so `SSOOIDCClient` and `SSOClient` both follow it.
+  - The plan's Task 1.3 code uses the async config form; that's fine but the convenience init would also work. Stick with the plan's form for explicitness and future-proofing (custom retry/logging).
+- **Portal expiration unit** (confirmed from [API_RoleCredentials.html](https://docs.aws.amazon.com/singlesignon/latest/PortalAPIReference/API_RoleCredentials.html) + existing Quorra code at `PortalClient.swift:112,137` and `Wire/GetRoleCredentials.swift:7,16`):
+  - `RoleCredentials.expiration` is **Unix milliseconds** (typed `Long` in the API ref, `Int64` in current Quorra code). Divide by 1000.0 when converting to `Date(timeIntervalSince1970:)`. The plan's Phase 2 `SDKPortalClient` already does this — verified.
+- **Per-API Input/Output type spellings (OIDC):** not pinned from docs (AWS Swift SDK DocC isn't on `docs.aws.amazon.com`; the Apple DocumentationSearch MCP doesn't index third-party Swift packages). Will let the compiler verify in Task 1.3 — per the Phase 0 operational rule. The plan's spellings (`RegisterClientInput`, `StartDeviceAuthorizationInput`, `CreateTokenInput`, and corresponding `Output` types) follow the standard `aws-sdk-swift` Smithy code-gen convention; mismatches will surface as compile errors.
+- **Error-discrimination protocol:** not pinned from docs. Will discover at compile time in Task 1.3 — the `SDKErrorMapping.extract(from:)` fallback path (`String(describing: type(of: error))`) yields a sensible discriminator even if no `ServiceError`-style protocol is publicly importable, so the failure mode is benign. If `ClientRuntime.ServiceError` doesn't exist, the `if let svc = error as? ServiceError` branch is deleted and `extract` is one line. **Resolved (Task 1.3):** kept the one-line fallback; the SDK's generated exception Swift type names match the Smithy type names, so `String(describing: type(of: error))` is sufficient. No `ClientRuntime` import needed.
+
+### Task 1.7 — test-suite stubbing seam (decision: 2026-05-22)
+
+**Discovery:** the plan's Task 1.7 assumed the IAM test suite injects a protocol-level `StubOIDCRequesting`. In reality ~14 files construct a **real `OIDCClient(region:, urlSession: StubURLProtocol.makeSession())`** and stub at the **HTTP level** via `StubURLProtocol`. Two populations:
+- **Placeholder-only** (`OIDCClient` constructed but never invoked — `status`/timer/mint/sign-out tests): trivially swap to `oidcClientProvider: makeStubOIDCProvider(StubOIDCRequesting())`.
+- **Wire-driving** (`LiveTokenTests`, `SignInTests`, `RefreshFailureTests`, `RefreshTimerTests`, `TokenRotationTests`, `AuthEventStreamTests`, `ExpirationTimerTests`): register `/client/register`, `/device_authorization`, `/token` responses and expect the actor to hit them. These cannot survive the SDK swap — the SDK doesn't route through `StubURLProtocol`.
+
+**Decision — Apple best practice (Option 1):** convert the wire-driving behavior tests from HTTP-level (`StubURLProtocol`) to **protocol-level (`StubOIDCRequesting`)** stubbing, injected through the provider seam. Rationale (Apple *Engineering for Testability*, WWDC 2017; echoed in the Swift Testing docs and already quoted in `OIDCRequesting.swift`): *test the code you own, not your dependencies*, and *inject test doubles at the seam closest to the code under test*. Once the SDK owns OIDC wire encoding, a `StubURLProtocol` test is testing AWS's code; the correct seam is the `OIDCRequesting` protocol boundary. The pure wire-encoding tests `OIDCClientTests` / `OIDCClientRefreshTests` are deleted (Task 1.10) — they test code Quorra no longer owns.
+
+Coalescing note: the actor's single-flight refresh (`+Refresh.swift`) is robust to instant stubs — coalescing is driven by the `keychain.readRecord` actor suspension in `performLiveToken` (a second caller enters during that suspension and `startInlineRefresh` re-checks `inFlightRefresh` before awaiting), NOT by network latency. So `concurrentLiveTokenCallsCoalesce` / `refreshNowCoalesces` convert cleanly: set a single canned refresh result and assert `stub.refreshCallCount == 1`.
+
+### Task 1.3 correction — refreshToken behavior (found during Task 1.7, 2026-05-22)
+
+The plan's `SDKOIDCClient.refreshToken` code block (and its comment) was **wrong about the existing behavior** and I initially copied it. The real hand-rolled `OIDCClient+Refresh.swift` does two refresh-specific things the plan omitted; the SDK adapter must preserve both (verified against the actual code + RFC 6749 §10.4 + the D14/D18 docstrings):
+
+1. **Terminal-error remap (D14):** `invalid_grant` → `.refreshTokenRejected`, `invalid_client` → `.refreshClientInvalid`. The actor's `handleRefreshFailure` treats *only* those two as terminal (clears the dead refresh token / forces re-registration). The SDK adapter's generic `mapOIDC` yields `.invalidGrant` / `.invalidClient`, so `refreshToken` re-maps them in its catch block. (The `createToken` path keeps the generic mapping — the remap is refresh-only.)
+2. **Refresh-token rotation fallback (D18 / RFC 6749 §10.4):** `output.refreshToken ?? <passed-in refreshToken>`. The plan's comment claimed the hand-rolled code used "no fallback" — that's a misread of line 55 (`response.refreshToken ?? refreshToken`). Without the fallback, the first refresh where AWS doesn't rotate the token nils the stored refresh token and forces an unnecessary re-sign-in. `createToken` correctly uses `fallbackRefreshToken: nil`.
+
+Both are now implemented via a shared `makeToken(from:fallbackRefreshToken:sessionName:)` helper in `SDKOIDCClient`.
+
+### Task 1.7/1.8 results (2026-05-22)
+
+- Full suite: **475 passed, 0 failed, 1 skipped** (the skip is the pre-existing `AWSConfigINITests/FileIOTests/lockTimeoutThrownWhenLockHeld`, unrelated to this work). `RegionRoutingTests.signInAsksProviderForSessionRegion` is green.
+- Test seam additions: `StubOIDCRequesting` gained `init(registerRegion:)` + `setNextRegisterResult` / `setNextStartDeviceAuthorizationResult` / `setNextCreateTokenResult`; `TestHelpers` gained `makeStubOIDCProvider`, `makeStoredClient`, `makeVerification`. Wire-driving suites (`SignInTests`, `LiveTokenTests`, `RefreshFailureTests`, `RefreshTimerTests`, `ExpirationTimerTests`, `AuthEventStreamTests`) converted to protocol-level stubbing; placeholder suites swapped to a no-op stub provider.
+  - `RegionRoutingTests` subtlety: `pollForToken` keys its provider lookup off `client.region` (the registered client's region). The stub now embeds the requested region into its registered client (`init(registerRegion:)`) so all lookups stay on one region — mirroring the production SDK adapter, which embeds the region into the `StoredOIDCClient` it returns from `registerClient`.
+- App wired: `App/quorraApp.swift` now injects `SDKOIDCClientProvider()`.
+- **Binary delta (Task 1.8 Step 3):** not separately captured. The SDK framework weight already landed in Phase 0 (the link was verified there before any adapter code existed — see Phase 0 Task 0.3). Phase 1 adds only the thin adapter/provider Swift sources, so the Phase-1-specific delta over the Phase-0 baseline is negligible. A precise byte count was skipped (no clean pre-Phase-0 main build artifact on hand) as low-value.
 
 ---
 

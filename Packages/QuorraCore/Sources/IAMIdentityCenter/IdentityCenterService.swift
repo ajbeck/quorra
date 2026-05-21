@@ -10,7 +10,7 @@ private let logger = Logger(subsystem: "dev.ajbeck.quorra", category: "IAMIdenti
 /// cooperative via `cancelSignIn(sessionName:)`.
 public actor IdentityCenterService: IdentityCenterServicing {
     internal let keychain: any KeychainStore
-    internal let oidcClient: any OIDCRequesting
+    internal let oidcClientProvider: any OIDCClientProviding
     internal let sleeper: any Sleeper
     /// URLSession for Portal /logout calls. Injectable for tests.
     internal let urlSession: URLSession
@@ -70,18 +70,18 @@ public actor IdentityCenterService: IdentityCenterServicing {
     ///
     /// - Parameters:
     ///   - keychain: Keychain store for persisting secrets (production: `Keychain`; tests: an in-memory stub)
-    ///   - oidcClient: Pre-configured OIDC client for the region
+    ///   - oidcClientProvider: Factory that builds a region-correct OIDC client on demand
     ///   - portalClient: Portal client for `GetRoleCredentials` calls (default: `PortalClient()`)
     ///   - sleeper: Time source for sleep/timeout (injectable for testing)
     public init(
         keychain: any KeychainStore,
-        oidcClient: any OIDCRequesting,
+        oidcClientProvider: any OIDCClientProviding,
         portalClient: any PortalRequesting = PortalClient(),
         sleeper: any Sleeper = WallClockSleeper(),
         urlSession: URLSession = .shared
     ) {
         self.keychain = keychain
-        self.oidcClient = oidcClient
+        self.oidcClientProvider = oidcClientProvider
         self.portalClient = portalClient
         self.sleeper = sleeper
         self.urlSession = urlSession
@@ -200,7 +200,8 @@ public actor IdentityCenterService: IdentityCenterServicing {
         verificationHandler: @escaping @Sendable (DeviceVerification) async -> Void
     ) async throws -> StoredSSOToken {
         let client = try await ensureOIDCClient(region: region, scopes: scopes, clientName: clientName)
-        let (deviceCode, verification) = try await oidcClient.startDeviceAuthorization(
+        let oidc = try await oidcClientProvider.client(forRegion: region)
+        let (deviceCode, verification) = try await oidc.startDeviceAuthorization(
             client: client,
             startUrl: startUrl,
             sessionName: sessionName
@@ -245,7 +246,8 @@ public actor IdentityCenterService: IdentityCenterServicing {
             }
         }
 
-        let client = try await oidcClient.registerClient(clientName: clientName, scopes: scopes)
+        let oidc = try await oidcClientProvider.client(forRegion: region)
+        let client = try await oidc.registerClient(clientName: clientName, scopes: scopes)
         try await keychain.writeRecord(client, service: service, account: account)
         return client
     }

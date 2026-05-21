@@ -14,9 +14,9 @@ actor VerificationCapture {
 /// Integration tests for `IdentityCenterService.signIn`.
 ///
 /// Per Apple's testing pyramid (*"Testing"* docs): these are integration tests — they wire up
-/// the actor, OIDC client (with URLProtocol stubs), an in-memory keychain store, and a
-/// synthetic sleeper to assert end-to-end flow behavior. Per-endpoint request/response shape
-/// and error mapping live in `OIDCClientTests`.
+/// the actor, a protocol-level OIDC stub injected through the provider seam, an in-memory
+/// keychain store, and a synthetic sleeper to assert end-to-end flow behavior. Wire encoding
+/// is owned by the AWS SDK and is not retested here (test the code you own, not your dependencies).
 ///
 /// The suite carries a `.timeLimit` trait so any future regression that would have produced a
 /// hang (e.g. an unbounded polling loop, a missing wake-up notification) surfaces as a
@@ -30,19 +30,16 @@ struct SignInTests {
 
     @Test("Happy path returns token and persists it")
     func happyPath() async throws {
-        defer { StubURLProtocol.reset() }
         let keychain = InMemoryKeychainStore()
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
-        let service = IdentityCenterService(keychain: keychain, oidcClient: oidcClient, sleeper: MockSleeper())
-
-        try registerStub(clientId: "test-client-id", clientSecret: "test-client-secret")
-        try deviceAuthStub(expiresIn: 600, interval: 1)
-        try StubURLProtocol.registerSuccess(urlSubstring: "/token", json: [
-            "accessToken": "test-access-token",
-            "tokenType": "Bearer",
-            "expiresIn": 28800,
-            "refreshToken": "test-refresh-token",
-        ])
+        let stub = StubOIDCRequesting()
+        await stub.setNextRegisterResult(.success(makeStoredClient(clientId: "test-client-id", clientSecret: "test-client-secret")))
+        await stub.setNextStartDeviceAuthorizationResult(.success(("test-device-code", makeVerification(userCode: "ABCD-1234", interval: 1))))
+        await stub.setNextCreateTokenResult(.success(makeDefaultSSOToken(
+            accessToken: "test-access-token",
+            refreshToken: "test-refresh-token",
+            sessionName: "test-session"
+        )))
+        let service = IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(stub), sleeper: MockSleeper())
 
         let capture = VerificationCapture()
         let token = try await service.signIn(
@@ -79,26 +76,24 @@ struct SignInTests {
 
     @Test("slow_down increases polling interval by 5s")
     func slowDown() async throws {
-        defer { StubURLProtocol.reset() }
         let keychain = InMemoryKeychainStore()
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
-        let sleeper = MockSleeper()
-        let service = IdentityCenterService(keychain: keychain, oidcClient: oidcClient, sleeper: sleeper)
+        let stub = StubOIDCRequesting()
+        await stub.setNextRegisterResult(.success(makeStoredClient()))
+        await stub.setNextStartDeviceAuthorizationResult(.success(("test-device-code", makeVerification(interval: 5))))
 
-        try registerStub()
-        try deviceAuthStub(expiresIn: 600, interval: 5)
-
-        // First /token → slow_down; second /token → success.
-        // URLProtocol callbacks fire on URLSession's internal queue; counter must be
-        // synchronization-safe rather than `nonisolated(unsafe)`.
+        // First createToken poll → .slowDown; second → success.
         let tokenCallCount = Mutex<Int>(0)
-        StubURLProtocol.registerCustom(urlSubstring: "/token") { _ in
+        await stub.setCreateTokenBlock {
             let n = tokenCallCount.withLock { count -> Int in
                 count += 1
                 return count
             }
-            return n == 1 ? oauthErrorResponse("slow_down") : tokenSuccessResponse()
+            if n == 1 { throw IAMIdentityCenterError.slowDown }
+            return makeDefaultSSOToken(accessToken: "test-access-token", sessionName: "test-session")
         }
+
+        let sleeper = MockSleeper()
+        let service = IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(stub), sleeper: sleeper)
 
         let token = try await service.signIn(
             sessionName: "test-session",
@@ -117,14 +112,14 @@ struct SignInTests {
 
     @Test("Wall-clock timeout throws .deviceFlowTimedOut")
     func wallClockTimeout() async throws {
-        defer { StubURLProtocol.reset() }
         let keychain = InMemoryKeychainStore()
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
-        let service = IdentityCenterService(keychain: keychain, oidcClient: oidcClient, sleeper: MockSleeper())
-
-        try registerStub()
-        try deviceAuthStub(expiresIn: 10, interval: 5)
-        try StubURLProtocol.registerOAuthError(urlSubstring: "/token", error: "authorization_pending")
+        let stub = StubOIDCRequesting()
+        await stub.setNextRegisterResult(.success(makeStoredClient()))
+        await stub.setNextStartDeviceAuthorizationResult(.success(("test-device-code", makeVerification(interval: 5, expiresIn: 10))))
+        // createToken never completes the flow — always reports the user hasn't finished yet,
+        // so the poll loop runs until the wall-clock deadline (expiresIn: 10) is exceeded.
+        await stub.setCreateTokenBlock { throw IAMIdentityCenterError.authorizationPending }
+        let service = IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(stub), sleeper: MockSleeper())
 
         do {
             _ = try await service.signIn(
@@ -150,7 +145,7 @@ struct SignInTests {
         let keychain = InMemoryKeychainStore()
         let stub = StubOIDCRequesting()
         let sleeper = MockSleeper()
-        let service = IdentityCenterService(keychain: keychain, oidcClient: stub, sleeper: sleeper)
+        let service = IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(stub), sleeper: sleeper)
 
         // Gate the createToken call so it blocks until the sign-in Task is cancelled.
         // This eliminates the scheduling race between MockSleeper.sleep(for:)'s Task.yield()
@@ -225,17 +220,16 @@ struct SignInTests {
             account: "us-east-1"
         )
 
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
-        let service = IdentityCenterService(keychain: keychain, oidcClient: oidcClient, sleeper: MockSleeper())
-
-        // If RegisterClient is called the test fails — 500 stub causes flow to throw.
-        StubURLProtocol.register5xxError(urlSubstring: "/client/register", statusCode: 500)
-        try deviceAuthStub()
-        try StubURLProtocol.registerSuccess(urlSubstring: "/token", json: [
-            "accessToken": "test-access-token",
-            "tokenType": "Bearer",
-            "expiresIn": 28800,
-        ])
+        let stub = StubOIDCRequesting()
+        // If RegisterClient is called the test fails — a fresh cached client must be reused.
+        await stub.setNextRegisterResult(.failure(IAMIdentityCenterError.invalidClient))
+        await stub.setNextStartDeviceAuthorizationResult(.success(("test-device-code", makeVerification())))
+        await stub.setNextCreateTokenResult(.success(makeDefaultSSOToken(
+            accessToken: "test-access-token",
+            refreshToken: nil,
+            sessionName: "test-session"
+        )))
+        let service = IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(stub), sleeper: MockSleeper())
 
         let token = try await service.signIn(
             sessionName: "test-session",
@@ -245,6 +239,8 @@ struct SignInTests {
             verificationHandler: { _ in }
         )
         #expect(token.accessToken == "test-access-token")
+        // Cached client was reused — no re-registration occurred.
+        #expect(await stub.registerCallCount == 0)
 
     }
 
@@ -267,16 +263,15 @@ struct SignInTests {
             account: "us-east-1"
         )
 
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
-        let service = IdentityCenterService(keychain: keychain, oidcClient: oidcClient, sleeper: MockSleeper())
-
-        try registerStub(clientId: "new-client-id", clientSecret: "new-client-secret")
-        try deviceAuthStub()
-        try StubURLProtocol.registerSuccess(urlSubstring: "/token", json: [
-            "accessToken": "test-access-token",
-            "tokenType": "Bearer",
-            "expiresIn": 28800,
-        ])
+        let stub = StubOIDCRequesting()
+        await stub.setNextRegisterResult(.success(makeStoredClient(clientId: "new-client-id", clientSecret: "new-client-secret")))
+        await stub.setNextStartDeviceAuthorizationResult(.success(("test-device-code", makeVerification())))
+        await stub.setNextCreateTokenResult(.success(makeDefaultSSOToken(
+            accessToken: "test-access-token",
+            refreshToken: nil,
+            sessionName: "test-session"
+        )))
+        let service = IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(stub), sleeper: MockSleeper())
 
         let token = try await service.signIn(
             sessionName: "test-session",
@@ -286,6 +281,7 @@ struct SignInTests {
             verificationHandler: { _ in }
         )
         #expect(token.accessToken == "test-access-token")
+        #expect(await stub.registerCallCount == 1)
 
         let storedClient = try await keychain.readRecord(
             StoredOIDCClient.self,
@@ -298,26 +294,3 @@ struct SignInTests {
 }
 }
 
-// registerStub / deviceAuthStub now live in Stubs/TestHelpers.swift
-
-private func oauthErrorResponse(_ code: String) -> (Data, HTTPURLResponse) {
-    let body = "{\"error\":\"\(code)\"}".data(using: .utf8)!
-    let response = HTTPURLResponse(
-        url: URL(string: "https://oidc.us-east-1.amazonaws.com/token")!,
-        statusCode: 400,
-        httpVersion: nil,
-        headerFields: nil
-    )!
-    return (body, response)
-}
-
-private func tokenSuccessResponse() -> (Data, HTTPURLResponse) {
-    let body = "{\"accessToken\":\"test-access-token\",\"tokenType\":\"Bearer\",\"expiresIn\":28800}".data(using: .utf8)!
-    let response = HTTPURLResponse(
-        url: URL(string: "https://oidc.us-east-1.amazonaws.com/token")!,
-        statusCode: 200,
-        httpVersion: nil,
-        headerFields: nil
-    )!
-    return (body, response)
-}

@@ -129,7 +129,8 @@ extension IdentityCenterService {
 
         let newToken: StoredSSOToken
         do {
-            newToken = try await oidcClient.refreshToken(
+            let oidc = try await oidcClientProvider.client(forRegion: oldToken.region)
+            newToken = try await oidc.refreshToken(
                 client: client,
                 refreshToken: refreshToken,
                 sessionName: sessionName

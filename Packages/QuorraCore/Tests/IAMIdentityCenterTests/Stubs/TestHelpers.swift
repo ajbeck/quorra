@@ -30,6 +30,48 @@ extension IdentityCenterService {
     }
 }
 
+// MARK: - OIDC provider helpers
+
+/// Wraps a single `StubOIDCRequesting` in a `StubOIDCClientProvider` that returns the same
+/// stub for every region. Use this when a test doesn't care about region routing and just
+/// wants the actor to receive the stub it's set up.
+func makeStubOIDCProvider(_ stub: StubOIDCRequesting) -> StubOIDCClientProvider {
+    StubOIDCClientProvider(factory: { _ in stub })
+}
+
+/// Builds a `StoredOIDCClient` for stub `registerClient` results.
+func makeStoredClient(
+    clientId: String = "test-client-id",
+    clientSecret: String = "test-client-secret",
+    region: String = "us-east-1",
+    secretExpiresAt: Date = Date().addingTimeInterval(90 * 24 * 60 * 60),
+    scopes: [String] = ["sso:account:access"]
+) -> StoredOIDCClient {
+    StoredOIDCClient(
+        clientId: clientId,
+        clientSecret: clientSecret,
+        issuedAt: Date(),
+        secretExpiresAt: secretExpiresAt,
+        region: region,
+        scopes: scopes
+    )
+}
+
+/// Builds a `DeviceVerification` for stub `startDeviceAuthorization` results.
+func makeVerification(
+    userCode: String = "ABCD-1234",
+    interval: TimeInterval = 1,
+    expiresIn: TimeInterval = 600
+) -> DeviceVerification {
+    DeviceVerification(
+        userCode: userCode,
+        verificationUri: URL(string: "https://device.sso.us-east-1.amazonaws.com/")!,
+        verificationUriComplete: URL(string: "https://device.sso.us-east-1.amazonaws.com/?user_code=\(userCode)")!,
+        expiresAt: Date().addingTimeInterval(expiresIn),
+        interval: interval
+    )
+}
+
 // MARK: - StubURLProtocol wire helpers
 
 /// Registers a successful `RegisterClient` response for the test's stubbed URLSession.

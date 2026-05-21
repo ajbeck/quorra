@@ -12,8 +12,7 @@ struct ExpirationTimerTests {
     func timerFiresExpiredEvent() async throws {
         defer { StubURLProtocol.reset() }
         let keychain = InMemoryKeychainStore()
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
-        let service = IdentityCenterService(keychain: keychain, oidcClient: oidcClient)
+        let service = IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(StubOIDCRequesting()))
 
         let collector = EventCollector()
         let collectTask = Task {
@@ -40,8 +39,7 @@ struct ExpirationTimerTests {
     @Test("Expiration timer is cancelled and .expired not emitted after cancelExpiration")
     func timerCancelled() async throws {
         let keychain = InMemoryKeychainStore()
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
-        let service = IdentityCenterService(keychain: keychain, oidcClient: oidcClient)
+        let service = IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(StubOIDCRequesting()))
 
         let counter = EventCounter()
         let collectTask = Task {
@@ -68,8 +66,7 @@ struct ExpirationTimerTests {
     func rescheduleReplacesOldTimer() async throws {
         defer { StubURLProtocol.reset() }
         let keychain = InMemoryKeychainStore()
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
-        let service = IdentityCenterService(keychain: keychain, oidcClient: oidcClient)
+        let service = IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(StubOIDCRequesting()))
 
         let counter = EventCounter()
         let collectTask = Task {
@@ -98,18 +95,16 @@ struct ExpirationTimerTests {
 
     @Test("Successful signIn schedules exactly one expiration timer")
     func signInSchedulesTimer() async throws {
-        defer { StubURLProtocol.reset() }
         let keychain = InMemoryKeychainStore()
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
-        let service = IdentityCenterService(keychain: keychain, oidcClient: oidcClient)
-
-        try registerStub()
-        try deviceAuthStub(expiresIn: 600, interval: 1)
-        try StubURLProtocol.registerSuccess(urlSubstring: "/token", json: [
-            "accessToken": "test-access-token",
-            "tokenType": "Bearer",
-            "expiresIn": 28800,
-        ])
+        let stub = StubOIDCRequesting()
+        await stub.setNextRegisterResult(.success(makeStoredClient()))
+        await stub.setNextStartDeviceAuthorizationResult(.success(("test-device-code", makeVerification(interval: 1))))
+        await stub.setNextCreateTokenResult(.success(makeDefaultSSOToken(
+            accessToken: "test-access-token",
+            refreshToken: nil,
+            sessionName: "test-session"
+        )))
+        let service = IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(stub))
 
         _ = try await service.signIn(
             sessionName: "test-session",
@@ -144,8 +139,7 @@ struct ExpirationTimerTests {
             account: "test-session"
         )
 
-        let oidcClient = OIDCClient(region: "us-east-1", urlSession: StubURLProtocol.makeSession())
-        let service = IdentityCenterService(keychain: keychain, oidcClient: oidcClient)
+        let service = IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(StubOIDCRequesting()))
 
         // Call status() three times
         _ = await service.status(forSession: "test-session")
