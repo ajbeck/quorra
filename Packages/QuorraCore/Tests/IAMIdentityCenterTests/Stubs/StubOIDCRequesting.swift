@@ -34,6 +34,11 @@ actor StubOIDCRequesting: OIDCRequesting {
     var nextCreateTokenResult: Result<StoredSSOToken, Error> = .success(makeDefaultSSOToken())
     var nextRefreshResult: Result<StoredSSOToken, Error> = .success(makeDefaultSSOToken())
 
+    /// Optional async block for `startDeviceAuthorization`. When set, overrides
+    /// `nextStartDeviceAuthorizationResult`. Useful for tests that need to vary behavior across
+    /// calls (e.g. fail once with `.invalidClient`, then succeed after re-registration).
+    var startDeviceAuthorizationBlock: (@Sendable () async throws -> (deviceCode: String, verification: DeviceVerification))?
+
     /// Optional async block for `createToken`. When set, overrides `nextCreateTokenResult`.
     /// Useful for tests that need the token poll to block indefinitely (e.g. cancellation tests).
     var createTokenBlock: (@Sendable () async throws -> StoredSSOToken)?
@@ -59,6 +64,12 @@ actor StubOIDCRequesting: OIDCRequesting {
         _ result: Result<(deviceCode: String, verification: DeviceVerification), Error>
     ) {
         nextStartDeviceAuthorizationResult = result
+    }
+
+    func setStartDeviceAuthorizationBlock(
+        _ block: @escaping @Sendable () async throws -> (deviceCode: String, verification: DeviceVerification)
+    ) {
+        startDeviceAuthorizationBlock = block
     }
 
     func setNextCreateTokenResult(_ result: Result<StoredSSOToken, Error>) {
@@ -93,6 +104,9 @@ actor StubOIDCRequesting: OIDCRequesting {
         sessionName: String
     ) async throws -> (deviceCode: String, verification: DeviceVerification) {
         startDeviceAuthorizationCallCount += 1
+        if let block = startDeviceAuthorizationBlock {
+            return try await block()
+        }
         return try nextStartDeviceAuthorizationResult.get()
     }
 

@@ -199,11 +199,11 @@ public actor IdentityCenterService: IdentityCenterServicing {
         clientName: String,
         verificationHandler: @escaping @Sendable (DeviceVerification) async -> Void
     ) async throws -> StoredSSOToken {
-        let client = try await ensureOIDCClient(region: region, scopes: scopes, clientName: clientName)
-        let oidc = try await oidcClientProvider.client(forRegion: region)
-        let (deviceCode, verification) = try await oidc.startDeviceAuthorization(
-            client: client,
+        let (client, deviceCode, verification) = try await registerAndStartDeviceAuth(
+            region: region,
             startUrl: startUrl,
+            scopes: scopes,
+            clientName: clientName,
             sessionName: sessionName
         )
 
@@ -225,16 +225,62 @@ public actor IdentityCenterService: IdentityCenterServicing {
         return token
     }
 
-    /// Reads cached OIDC client from Keychain; re-registers if missing or near-expiry.
+    /// Obtains an OIDC client (cached or freshly registered) and starts device authorization.
+    ///
+    /// A cached registration is long-lived (`clientSecretExpiresAt` ~90 days) and is required
+    /// to persist across restarts so silent refresh works (the refresh-token grant is bound to
+    /// the `clientId`/`clientSecret` that minted the token — AWS OIDC `CreateToken` requires
+    /// both). But a registration can be invalidated out from under us — revoked, deleted
+    /// server-side, or (historically) cached against the wrong region. The cache check is
+    /// *time-based* only; invalidation surfaces here as `.invalidClient` on first use. The
+    /// documented recovery is to re-register, so on `.invalidClient` we purge the cached client,
+    /// register a fresh one, and retry the device-authorization call exactly once.
+    private func registerAndStartDeviceAuth(
+        region: String,
+        startUrl: URL,
+        scopes: [String],
+        clientName: String,
+        sessionName: String
+    ) async throws -> (client: StoredOIDCClient, deviceCode: String, verification: DeviceVerification) {
+        let client = try await ensureOIDCClient(region: region, scopes: scopes, clientName: clientName)
+        let oidc = try await oidcClientProvider.client(forRegion: region)
+        do {
+            let (deviceCode, verification) = try await oidc.startDeviceAuthorization(
+                client: client,
+                startUrl: startUrl,
+                sessionName: sessionName
+            )
+            return (client, deviceCode, verification)
+        } catch IAMIdentityCenterError.invalidClient {
+            logger.notice("Cached OIDC client rejected (invalidClient) for region \(region, privacy: .public); re-registering and retrying device authorization")
+            let fresh = try await ensureOIDCClient(
+                region: region,
+                scopes: scopes,
+                clientName: clientName,
+                forceReregister: true
+            )
+            let (deviceCode, verification) = try await oidc.startDeviceAuthorization(
+                client: fresh,
+                startUrl: startUrl,
+                sessionName: sessionName
+            )
+            return (fresh, deviceCode, verification)
+        }
+    }
+
+    /// Reads cached OIDC client from Keychain; re-registers if missing, near-expiry, or when
+    /// `forceReregister` is set (used by the `.invalidClient` recovery path). A fresh
+    /// registration overwrites the cached Keychain row for the region, purging a stale one.
     private func ensureOIDCClient(
         region: String,
         scopes: [String],
-        clientName: String
+        clientName: String,
+        forceReregister: Bool = false
     ) async throws -> StoredOIDCClient {
         let service = ServiceConstants.oidcClientService
         let account = region
 
-        if let cached = try? await keychain.readRecord(
+        if !forceReregister, let cached = try? await keychain.readRecord(
             StoredOIDCClient.self,
             service: service,
             account: account

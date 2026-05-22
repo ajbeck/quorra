@@ -248,7 +248,6 @@ struct SignInTests {
 
     @Test("OIDC client expiring within 7 days triggers re-registration")
     func expiredClientReregistration() async throws {
-        defer { StubURLProtocol.reset() }
         let keychain = InMemoryKeychainStore()
         try await keychain.writeRecord(
             StoredOIDCClient(
@@ -290,6 +289,59 @@ struct SignInTests {
         )
         #expect(storedClient.clientId == "new-client-id")
 
+    }
+
+    // MARK: - Invalid cached client triggers re-registration + retry
+
+    @Test("Cached OIDC client rejected as invalid re-registers and retries device authorization")
+    func invalidCachedClientReregistersAndRetries() async throws {
+        let keychain = InMemoryKeychainStore()
+        // Seed a stale cached client that is NOT near time-expiry, so ensureOIDCClient hands it
+        // back as-is. It simulates a registration that was revoked / deleted server-side or (the
+        // migration case) cached against the wrong region — invalid only when actually used.
+        try await keychain.writeRecord(
+            makeStoredClient(clientId: "stale-client-id", region: "us-east-2"),
+            service: "dev.ajbeck.quorra.oidc-client",
+            account: "us-east-2"
+        )
+
+        let stub = StubOIDCRequesting()
+        await stub.setNextRegisterResult(.success(makeStoredClient(clientId: "fresh-client-id", region: "us-east-2")))
+        // First device-auth call rejects the stale client; the second (after re-register) succeeds.
+        let attempt = Mutex<Int>(0)
+        await stub.setStartDeviceAuthorizationBlock {
+            let n = attempt.withLock { count -> Int in count += 1; return count }
+            if n == 1 { throw IAMIdentityCenterError.invalidClient }
+            return ("test-device-code", makeVerification())
+        }
+        await stub.setNextCreateTokenResult(.success(makeDefaultSSOToken(
+            accessToken: "test-access-token",
+            refreshToken: nil,
+            sessionName: "test-session"
+        )))
+
+        let service = IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(stub), sleeper: MockSleeper())
+
+        let token = try await service.signIn(
+            sessionName: "test-session",
+            startUrl: URL(string: "https://asteroidcomputing.awsapps.com/start")!,
+            region: "us-east-2",
+            scopes: ["sso:account:access"],
+            verificationHandler: { _ in }
+        )
+
+        #expect(token.accessToken == "test-access-token")
+        // Recovery happened: exactly one re-registration and two device-auth attempts.
+        #expect(await stub.registerCallCount == 1)
+        #expect(await stub.startDeviceAuthorizationCallCount == 2)
+
+        // The stale cached client was overwritten with the fresh registration.
+        let cached = try await keychain.readRecord(
+            StoredOIDCClient.self,
+            service: "dev.ajbeck.quorra.oidc-client",
+            account: "us-east-2"
+        )
+        #expect(cached.clientId == "fresh-client-id")
     }
 }
 }

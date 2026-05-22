@@ -1334,6 +1334,14 @@ Both are now implemented via a shared `makeToken(from:fallbackRefreshToken:sessi
 - App wired: `App/quorraApp.swift` now injects `SDKOIDCClientProvider()`.
 - **Binary delta (Task 1.8 Step 3):** not separately captured. The SDK framework weight already landed in Phase 0 (the link was verified there before any adapter code existed — see Phase 0 Task 0.3). Phase 1 adds only the thin adapter/provider Swift sources, so the Phase-1-specific delta over the Phase-0 baseline is negligible. A precise byte count was skipped (no clean pre-Phase-0 main build artifact on hand) as low-value.
 
+### Task 1.9 manual-verification finding — invalid cached OIDC client (2026-05-22)
+
+First real sign-in (us-east-2 / astrocompute) failed with "Client registration expired" (`.invalidClient`). Root cause: a **stale, region-mismatched cached OIDC client** from pre-fix attempts — the old hardcoded `OIDCClient(region: "us-east-1")` registered the client against the us-east-1 endpoint but stored it under the `us-east-2` Keychain key; the now-region-correct SDK presents that `clientId` to us-east-2, where it doesn't exist.
+
+Confirmed against AWS OIDC docs that **caching the registration is correct and required** (not just an optimization): `CreateToken` (both device-code and refresh-token grants) requires the persisted `clientId`/`clientSecret`, so the refresh token is bound to the registration that minted it — silent refresh across restarts depends on persisting it. `clientSecretExpiresAt` (~90 days) is the cache-validity window; we already re-register within a 7-day lead time.
+
+The gap this exposed: we re-registered on *time* expiry but not on *invalidation* (revoked / deleted server-side / region-mismatched). Fix (committed separately): `registerAndStartDeviceAuth` now catches `.invalidClient` from `startDeviceAuthorization`, purges the cached client via `ensureOIDCClient(forceReregister:)`, and retries once. Auto-heals the migration artifact and hardens the real flow (registrations do get revoked). Covered by `SignInTests.invalidCachedClientReregistersAndRetries`.
+
 ---
 
 ## Self-Review Checklist
