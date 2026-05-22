@@ -81,10 +81,10 @@ struct TokenRotationTests {
         #expect(stored.accessToken == "new-at")
     }
 
-    // MARK: - D18: Nil refreshToken in response — service writes what OIDC client returns
+    // MARK: - D18: Nil refreshToken in response — service writes what the OIDC client returns
     //
-    // The no-rotation fallback (keeping old-rt when response has no refreshToken) is OIDCClient
-    // wire logic tested in OIDCClientRefreshTests. At the service layer, IdentityCenterService
+    // The no-rotation fallback (keeping the old refresh token when AWS returns none) lives in the
+    // OIDC adapter (SDKOIDCClient.refreshToken). At the service layer, IdentityCenterService
     // faithfully persists whatever StoredSSOToken the OIDC client produces. This test verifies
     // that a nil refreshToken from the OIDC client is written to Keychain as-is (no silently
     // injected refresh token at the service layer).
