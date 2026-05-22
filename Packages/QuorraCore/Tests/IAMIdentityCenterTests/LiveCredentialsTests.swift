@@ -10,9 +10,8 @@ struct LiveCredentialsTests {
 
     /// Creates a service wired to an injected `StubPortalRequesting` for actor-behavior tests.
     ///
-    /// The `OIDCClient` is pointed at a StubURLProtocol session so `liveToken`'s inline refresh
-    /// path (when triggered) doesn't escape to the real network. Tests that only need the cached
-    /// path seed a far-future token so `liveToken` returns immediately without a refresh attempt.
+    /// OIDC is a no-op `StubOIDCRequesting` (these tests don't drive a refresh). Tests that only
+    /// need the cached path seed a far-future token so `liveToken` returns immediately.
     private func makeService(
         keychain: InMemoryKeychainStore = InMemoryKeychainStore(),
         portal: StubPortalRequesting = StubPortalRequesting()

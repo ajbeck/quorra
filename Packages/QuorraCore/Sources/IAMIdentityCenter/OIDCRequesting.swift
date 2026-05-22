@@ -1,9 +1,8 @@
 import Foundation
 
-/// Protocol over the OIDC wire operations. Allows tests to inject a stub double instead
-/// of configuring URLProtocol for tests that exercise actor behavior (not wire encoding).
-///
-/// `OIDCClient` conforms via retroactive extension; the service holds `any OIDCRequesting`.
+/// Protocol over the OIDC wire operations. The production implementation is `SDKOIDCClient`
+/// (backed by `AWSSSOOIDC.SSOOIDCClient`), vended per-region by `OIDCClientProviding`; tests
+/// inject `StubOIDCRequesting` through the same seam to exercise actor behavior without the wire.
 ///
 /// Apple's documented pattern: *"Replace complex dependencies with stubs… Adopting
 /// dependency injection and protocol-oriented programming."* — Apple Testing documentation.
@@ -31,5 +30,3 @@ public protocol OIDCRequesting: Sendable {
         sessionName: String
     ) async throws -> StoredSSOToken
 }
-
-extension OIDCClient: OIDCRequesting {}
