@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "findingId": "fnd_sig-feat-test-suite-c15157900f-5_0793b330b0",
+  "featureId": "feat_test-suite_c15157900f",
+  "title": "Single-flight tests can pass through cached follow-up reads without proving coalescing",
+  "category": "test-gap",
+  "severity": "medium",
+  "confidence": "high",
+  "triage": "test-gap",
+  "evidence": [
+    {
+      "path": "Packages/QuorraCore/Tests/IAMIdentityCenterTests/LiveTokenTests.swift",
+      "startLine": 168,
+      "endLine": 179,
+      "symbol": "LiveTokenTests.concurrentLiveTokenCallsCoalesce",
+      "quote": "async let t1 = service.liveToken(forSession: \"s\")\n        async let t2 = service.liveToken(forSession: \"s\")"
+    },
+    {
+      "path": "Packages/QuorraCore/Tests/IAMIdentityCenterTests/LiveCredentialsTests.swift",
+      "startLine": 287,
+      "endLine": 314,
+      "symbol": "LiveCredentialsTests.concurrentCallsCoalesce",
+      "quote": "await Task.yield()\n        // Unblock the gate — the coalesced task completes\n        gateContinuation.yield(())"
+    },
+    {
+      "path": "Packages/QuorraCore/Tests/IAMIdentityCenterTests/MintEventStreamTests.swift",
+      "startLine": 212,
+      "endLine": 227,
+      "symbol": "MintEventStreamTests.coalescedCallersEmitMintingOnce",
+      "quote": "try await Task.sleep(for: .milliseconds(50))\n        gateContinuation.finish()"
+    }
+  ],
+  "reasoning": "These tests launch two async callers but do not deterministically prove that the second caller reached the in-flight wait path before the first operation completed. If the first refresh or mint completes and writes a fresh cached token or credentials before the second task runs, the second task can return the cached result and the call-count assertions still stay at one. That masks regressions where inFlightRefresh or inFlightMint is not actually coalescing simultaneous callers.",
+  "reproduction": null,
+  "recommendation": "Add a deterministic barrier that records when one backend call is suspended and when a second service call has reached the coalescing path before releasing the backend. Alternatively expose test-only counters for in-flight joiners and assert the second caller awaited the existing task rather than reading post-write cache.",
+  "whyTestsDoNotAlreadyCoverThis": "Task.yield and a fixed 50 ms sleep are scheduler hints, not synchronization. The LiveToken test has no backend gate at all, and the credential/event tests release the gate without observing that the second caller joined the in-flight operation.",
+  "suggestedRegressionTest": "Use a stub refresh/mint block that suspends, start the first call and wait until the stub is entered, then start the second call and wait for a test-only join counter or hook indicating it observed the existing in-flight task before unblocking the stub. Assert one backend call and one join.",
+  "minimumFixScope": "Update the coalescing tests in LiveTokenTests, LiveCredentialsTests, and MintEventStreamTests; add a narrow test-only hook if the current stubs cannot observe joiners.",
+  "status": "open",
+  "history": [],
+  "signature": "sig_feat-test-suite-c15157900f_58768c16fc",
+  "linkedPatchAttemptIds": [],
+  "createdByRunId": "20260522T003850-99b02a",
+  "createdAt": "2026-05-22T00:40:49.317Z",
+  "updatedAt": "2026-05-22T00:40:49.317Z"
+}

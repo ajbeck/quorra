@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "featureId": "feat_test-suite_183828e846",
+  "title": "Apple test suite ./sts",
+  "summary": "Apple Swift test group ./sts with 8 files.",
+  "kind": "test-suite",
+  "source": "apple-test-group",
+  "confidence": "medium",
+  "entrypoints": [
+    {
+      "path": "Tests/QuorraAppTests/AppModelTests.swift",
+      "symbol": "./sts",
+      "route": null,
+      "command": null
+    }
+  ],
+  "ownedFiles": [
+    {
+      "path": "Tests/QuorraAppTests/AppModelTests.swift",
+      "reason": "apple test group ./sts"
+    },
+    {
+      "path": "Tests/QuorraAppTests/BookmarkStorageTests.swift",
+      "reason": "apple test group ./sts"
+    },
+    {
+      "path": "Tests/QuorraAppTests/CredentialsModelTests.swift",
+      "reason": "apple test group ./sts"
+    },
+    {
+      "path": "Tests/QuorraAppTests/KeychainAccessGroupTests.swift",
+      "reason": "apple test group ./sts"
+    },
+    {
+      "path": "Tests/QuorraAppTests/ModePreferenceStorageTests.swift",
+      "reason": "apple test group ./sts"
+    },
+    {
+      "path": "Tests/QuorraAppTests/ProfilesModelDerivationTests.swift",
+      "reason": "apple test group ./sts"
+    },
+    {
+      "path": "Tests/QuorraAppTests/ProfilesModelSaveTests.swift",
+      "reason": "apple test group ./sts"
+    },
+    {
+      "path": "Tests/QuorraAppTests/SessionStatusIconTests.swift",
+      "reason": "apple test group ./sts"
+    }
+  ],
+  "contextFiles": [],
+  "tests": [],
+  "tags": [
+    "apple",
+    "swift",
+    "test"
+  ],
+  "trustBoundaries": [],
+  "status": "needs-fix",
+  "lock": null,
+  "findingIds": [
+    "fnd_sig-feat-test-suite-183828e846-b_ff885a0784",
+    "fnd_sig-feat-test-suite-183828e846-6_36d09aa8ab",
+    "fnd_sig-feat-test-suite-183828e846-c_e7336bd5a4"
+  ],
+  "patchAttemptIds": [],
+  "analysisHistory": [
+    {
+      "runId": "20260522T003850-99b02a",
+      "kind": "review",
+      "summary": "3 finding(s)",
+      "provider": "codex",
+      "model": null,
+      "reasoningEffort": null,
+      "createdAt": "2026-05-22T00:41:41.386Z"
+    }
+  ],
+  "createdAt": "2026-05-22T00:38:31.601Z",
+  "updatedAt": "2026-05-22T00:41:41.386Z"
+}

@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "findingId": "fnd_sig-feat-test-suite-bad259340c-4_aea629f059",
+  "featureId": "feat_test-suite_bad259340c",
+  "title": "UTF-16 BOM round-trip is only detection-tested, not read/write-tested",
+  "category": "test-gap",
+  "severity": "medium",
+  "confidence": "high",
+  "triage": "test-gap",
+  "evidence": [
+    {
+      "path": "Packages/QuorraCore/Tests/AWSConfigINITests/BOMTests.swift",
+      "startLine": 1,
+      "endLine": 3,
+      "symbol": null,
+      "quote": "UTF-8/UTF-16 BOM detection on read and re-emission on write."
+    },
+    {
+      "path": "Packages/QuorraCore/Tests/AWSConfigINITests/BOMTests.swift",
+      "startLine": 24,
+      "endLine": 35,
+      "symbol": "BOMTests.utf16LEBOMDetected / utf16BEBOMDetected",
+      "quote": "let (kind, start) = detectBOM(in: data)"
+    },
+    {
+      "path": "Packages/QuorraCore/Tests/AWSConfigINITests/BOMTests.swift",
+      "startLine": 50,
+      "endLine": 79,
+      "symbol": "BOMTests.bomKindSetWhenLoadedFromFile / bomBytesLeadOutput",
+      "quote": "var bomBytes: [UInt8] = [0xEF, 0xBB, 0xBF]"
+    }
+  ],
+  "reasoning": "The suite claims UTF-16 BOM preservation through read and write, but the UTF-16 tests stop at `detectBOM`. The document load and output-byte assertions only use a UTF-8 BOM, so a regression that detects UTF-16 but cannot parse it or re-emits the wrong encoding would not be caught.",
+  "reproduction": null,
+  "recommendation": "Add UTF-16LE and UTF-16BE file-based tests that load an actual encoded INI document, verify parsed keys, write it back, and assert both BOM bytes and decoded content.",
+  "whyTestsDoNotAlreadyCoverThis": "Existing UTF-16 cases call the low-level detector only; they never construct `AWSConfigINIDocument(contentsOf:)` from UTF-16 data or assert write output for UTF-16.",
+  "suggestedRegressionTest": "Create `[default]\\nregion = us-east-1\\n` encoded as UTF-16LE with `FF FE` and UTF-16BE with `FE FF`, load each via `AWSConfigINIDocument(contentsOf:)`, assert `bomKind`, assert the `region` key, write, then verify the output starts with the same BOM and decodes correctly as the same UTF-16 flavor.",
+  "minimumFixScope": "Extend `BOMTests.swift` with file-level UTF-16LE and UTF-16BE round-trip tests.",
+  "status": "open",
+  "history": [],
+  "signature": "sig_feat-test-suite-bad259340c_4891d19ad0",
+  "linkedPatchAttemptIds": [],
+  "createdByRunId": "20260522T003850-99b02a",
+  "createdAt": "2026-05-22T00:41:20.731Z",
+  "updatedAt": "2026-05-22T00:41:20.731Z"
+}

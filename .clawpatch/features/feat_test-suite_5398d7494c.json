@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "featureId": "feat_test-suite_5398d7494c",
+  "title": "Swift test suite IAMIdentityCenterTests (Packages/QuorraCore)",
+  "summary": "SwiftPM test target IAMIdentityCenterTests at Tests/IAMIdentityCenterTests/AuthEventStreamTests.swift. Package root: Packages/QuorraCore.",
+  "kind": "test-suite",
+  "source": "swiftpm-test-target",
+  "confidence": "medium",
+  "entrypoints": [
+    {
+      "path": "Packages/QuorraCore/Tests/IAMIdentityCenterTests/AuthEventStreamTests.swift",
+      "symbol": null,
+      "route": null,
+      "command": null
+    }
+  ],
+  "ownedFiles": [
+    {
+      "path": "Packages/QuorraCore/Tests/IAMIdentityCenterTests/AuthEventStreamTests.swift",
+      "reason": "entrypoint"
+    }
+  ],
+  "contextFiles": [],
+  "tests": [],
+  "tags": [
+    "swift",
+    "test"
+  ],
+  "trustBoundaries": [],
+  "status": "needs-fix",
+  "lock": null,
+  "findingIds": [
+    "fnd_sig-feat-test-suite-5398d7494c-1_fc97c584a0"
+  ],
+  "patchAttemptIds": [],
+  "analysisHistory": [
+    {
+      "runId": "20260522T003850-99b02a",
+      "kind": "review",
+      "summary": "1 finding(s)",
+      "provider": "codex",
+      "model": null,
+      "reasoningEffort": null,
+      "createdAt": "2026-05-22T00:40:30.585Z"
+    }
+  ],
+  "createdAt": "2026-05-22T00:38:31.601Z",
+  "updatedAt": "2026-05-22T00:40:30.585Z"
+}
