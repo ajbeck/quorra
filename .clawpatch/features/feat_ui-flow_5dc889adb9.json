@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "featureId": "feat_ui-flow_5dc889adb9",
   "title": "Apple source Packages/QuorraCore/Sources/IAMIdentityCenter/Wire",
-  "summary": "Apple Swift source group Packages/QuorraCore/Sources/IAMIdentityCenter/Wire with 6 files.",
+  "summary": "Apple Swift source group Packages/QuorraCore/Sources/IAMIdentityCenter/Wire with 5 files.",
   "kind": "ui-flow",
   "source": "apple-source-group",
   "confidence": "medium",
@@ -32,10 +32,6 @@
       "reason": "apple source group Packages/QuorraCore/Sources/IAMIdentityCenter/Wire"
     },
     {
-      "path": "Packages/QuorraCore/Sources/IAMIdentityCenter/Wire/OAuthErrorResponse.swift",
-      "reason": "apple source group Packages/QuorraCore/Sources/IAMIdentityCenter/Wire"
-    },
-    {
       "path": "Packages/QuorraCore/Sources/IAMIdentityCenter/Wire/Wire.swift",
       "reason": "apple source group Packages/QuorraCore/Sources/IAMIdentityCenter/Wire"
     }
@@ -56,5 +52,5 @@
   "patchAttemptIds": [],
   "analysisHistory": [],
   "createdAt": "2026-05-22T00:38:31.601Z",
-  "updatedAt": "2026-05-22T00:38:31.601Z"
+  "updatedAt": "2026-05-24T10:50:46.797Z"
 }

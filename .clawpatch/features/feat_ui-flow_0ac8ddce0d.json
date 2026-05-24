@@ -39,11 +39,21 @@
   "trustBoundaries": [
     "filesystem"
   ],
-  "status": "pending",
+  "status": "reviewed",
   "lock": null,
   "findingIds": [],
   "patchAttemptIds": [],
-  "analysisHistory": [],
+  "analysisHistory": [
+    {
+      "runId": "20260524T105054-7a497a",
+      "kind": "review",
+      "summary": "0 finding(s); prompt=26564 bytes; approxTokens=6608; includedFiles=3; omittedFiles=0",
+      "provider": "codex",
+      "model": null,
+      "reasoningEffort": null,
+      "createdAt": "2026-05-24T10:51:16.516Z"
+    }
+  ],
   "createdAt": "2026-05-22T00:38:31.601Z",
-  "updatedAt": "2026-05-22T00:38:31.601Z"
+  "updatedAt": "2026-05-24T10:51:16.516Z"
 }
