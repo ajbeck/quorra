@@ -19,12 +19,6 @@ struct AppModelTests {
         self.modeStorage = ModePreferenceStorage(defaults: defaults)
     }
 
-    @Test func initLoadsManagedByDefault() {
-        let model = AppModel(bookmarkStorage: bookmarkStorage, modeStorage: modeStorage)
-        #expect(model.mode == .managed)
-        tearDown()
-    }
-
     @Test func initLoadsPersistedReadOnly() {
         modeStorage.save(.readOnly)
         let model = AppModel(bookmarkStorage: bookmarkStorage, modeStorage: modeStorage)

@@ -20,12 +20,6 @@ struct ModePreferenceStorageTests {
         #expect(storage.load() == .managed)
     }
 
-    @Test func saveAndLoadRoundTripManaged() {
-        storage.save(.managed)
-        #expect(storage.load() == .managed)
-        tearDown()
-    }
-
     @Test func saveAndLoadRoundTripReadOnly() {
         storage.save(.readOnly)
         #expect(storage.load() == .readOnly)

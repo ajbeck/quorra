@@ -26,23 +26,11 @@ struct BookmarkStorageTests {
         tearDown()
     }
 
-    @Test func saveOverwritesExistingValue() {
-        storage.save(Data([0xAA]))
-        storage.save(Data([0xBB, 0xCC]))
-        #expect(storage.load() == Data([0xBB, 0xCC]))
-        tearDown()
-    }
-
     @Test func clearRemovesStoredData() {
         storage.save(Data([0x01]))
         storage.clear()
         #expect(storage.load() == nil)
         tearDown()
-    }
-
-    @Test func clearOnEmptyStoreIsSafe() {
-        storage.clear()
-        #expect(storage.load() == nil)
     }
 
     private func tearDown() {

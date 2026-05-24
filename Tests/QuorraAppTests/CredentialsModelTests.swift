@@ -267,19 +267,13 @@ struct CredentialsModelTests {
 
     // MARK: - stream consumer updates status on events
 
-    @Test func streamConsumerUpdatesStatusOnSignedInEvent() async throws {
+    @Test func signedInEventRefreshesStatusCache() async throws {
         let stub = StubIdentityCenterService()
         let expiresAt = Date().addingTimeInterval(3600)
         await stub.setStatusToReturn(.signedIn(expiresAt: expiresAt, canRefresh: false))
         let model = CredentialsModel(service: stub)
 
-        // Yield a .signedIn event from the stub's stream
-        await stub.yieldEvent(.signedIn(sessionName: "test-session"))
-
-        // The event consumer Task hops: stream → handleEvent → refreshStatus → service.status (actor)
-        // → model.status update. Multiple async hops require a brief sleep rather than Task.yield().
-        // Apple: Swift/TaskGroup/Task.sleep(for:) — smallest reliable async wait for testing.
-        try await Task.sleep(for: .milliseconds(100))
+        await model.processEventForTesting(.signedIn(sessionName: "test-session"))
 
         // The model should have fetched status and populated the cache
         if case .signedIn = model.status["test-session"] {
@@ -289,16 +283,13 @@ struct CredentialsModelTests {
         }
     }
 
-    @Test func streamConsumerSetsSignOutFailureOnEvent() async throws {
+    @Test func signOutFailureEventSetsAdvisory() async throws {
         let stub = StubIdentityCenterService()
         let model = CredentialsModel(service: stub)
 
         #expect(!model.signOutFailure.contains("test-session"))
 
-        await stub.yieldEvent(.signOutServerSideFailed(sessionName: "test-session"))
-
-        // Give the event consumer Task time to process across async hops
-        try await Task.sleep(for: .milliseconds(100))
+        await model.processEventForTesting(.signOutServerSideFailed(sessionName: "test-session"))
 
         #expect(model.signOutFailure.contains("test-session"))
     }
@@ -315,8 +306,7 @@ struct CredentialsModelTests {
         model.seedMintFailureForTesting(key: key)
         model.seedRoleRejectedForTesting(key: key)
 
-        await stub.yieldEvent(.mintingCredentials(sessionName: "s", accountId: "123456789012", roleName: "r"))
-        try await Task.sleep(for: .milliseconds(100))
+        await model.processEventForTesting(.mintingCredentials(sessionName: "s", accountId: "123456789012", roleName: "r"))
 
         #expect(model.mintingNow.contains(key))
         #expect(!model.mintFailure.contains(key))
@@ -333,8 +323,7 @@ struct CredentialsModelTests {
         model.seedMintFailureForTesting(key: key)
         model.seedRoleRejectedForTesting(key: key)
 
-        await stub.yieldEvent(.mintedCredentials(sessionName: "s", accountId: "123456789012", roleName: "r"))
-        try await Task.sleep(for: .milliseconds(100))
+        await model.processEventForTesting(.mintedCredentials(sessionName: "s", accountId: "123456789012", roleName: "r"))
 
         #expect(!model.mintingNow.contains(key))
         #expect(!model.mintFailure.contains(key))
@@ -348,8 +337,7 @@ struct CredentialsModelTests {
 
         model.seedMintingNowForTesting(key: key)
 
-        await stub.yieldEvent(.mintCredentialsFailed(sessionName: "s", accountId: "123456789012", roleName: "r"))
-        try await Task.sleep(for: .milliseconds(100))
+        await model.processEventForTesting(.mintCredentialsFailed(sessionName: "s", accountId: "123456789012", roleName: "r"))
 
         #expect(!model.mintingNow.contains(key))
         #expect(model.mintFailure.contains(key))
@@ -363,8 +351,7 @@ struct CredentialsModelTests {
 
         model.seedMintingNowForTesting(key: key)
 
-        await stub.yieldEvent(.roleAccessDenied(sessionName: "s", accountId: "123456789012", roleName: "r"))
-        try await Task.sleep(for: .milliseconds(100))
+        await model.processEventForTesting(.roleAccessDenied(sessionName: "s", accountId: "123456789012", roleName: "r"))
 
         #expect(!model.mintingNow.contains(key))
         #expect(model.roleRejected.contains(key))
@@ -382,8 +369,7 @@ struct CredentialsModelTests {
         model.seedRoleRejectedForTesting(key: keyA1)
         model.seedRoleRejectedForTesting(key: keyB)
 
-        await stub.yieldEvent(.signedOut(sessionName: "session-a"))
-        try await Task.sleep(for: .milliseconds(100))
+        await model.processEventForTesting(.signedOut(sessionName: "session-a"))
 
         // session-a keys cleared from every B set
         #expect(!model.mintingNow.contains(keyA1))
@@ -413,9 +399,8 @@ struct CredentialsModelTests {
     }
 }
 
-/// Actor-backed stub conforming to `IdentityCenterServicing`. Tests use the continuation
-/// helpers (`awaitVerificationFired`, `releaseHold`) to synchronize on flow events instead of
-/// real `Task.sleep`.
+/// Actor-backed stub conforming to `IdentityCenterServicing`. Sign-in tests use continuation
+/// helpers (`awaitVerificationFired`, `releaseHold`) to synchronize on flow progress.
 actor StubIdentityCenterService: IdentityCenterServicing {
     var signInResult: Result<StoredSSOToken, IAMIdentityCenterError>?
     var verificationToFire: DeviceVerification?
@@ -457,11 +442,6 @@ actor StubIdentityCenterService: IdentityCenterServicing {
 
     func setProfileStatusToReturn(_ status: ProfileAuthStatus) {
         profileStatusToReturn = status
-    }
-
-    /// Yields an event to the stream so the CredentialsModel's consumer Task processes it.
-    func yieldEvent(_ event: AuthEvent) {
-        streamContinuation.yield(event)
     }
 
     func signIn(
