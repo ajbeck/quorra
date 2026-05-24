@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "patchAttemptId": "pat_fnd-sig-feat-test-suite-ca7e335e_075f623556",
+  "findingIds": [
+    "fnd_sig-feat-test-suite-ca7e335e57-b_bbb09fa837"
+  ],
+  "featureIds": [
+    "feat_test-suite_ca7e335e57"
+  ],
+  "status": "applied",
+  "plan": "Replaced MockSleeper's lossy waiter list with sleep-count based signaling, updated synchronization call sites to wait for at least the first observed sleep, and added a regression test for the late-waiter path. Validation could not complete because SwiftPM/Xcode dependency setup is blocked by restricted network access and an existing unrelated Xcode build error in AWSConfigINILockTestHelper/main.swift.",
+  "filesChanged": [
+    "Packages/QuorraCore/Tests/IAMIdentityCenterTests/AuthEventStreamTests.swift",
+    "Packages/QuorraCore/Tests/IAMIdentityCenterTests/MintTimerTests.swift",
+    "Packages/QuorraCore/Tests/IAMIdentityCenterTests/MockSleeperTests.swift",
+    "Packages/QuorraCore/Tests/IAMIdentityCenterTests/SignInTests.swift",
+    "Packages/QuorraCore/Tests/IAMIdentityCenterTests/SignOutTests.swift",
+    "Packages/QuorraCore/Tests/IAMIdentityCenterTests/Stubs/MockSleeper.swift"
+  ],
+  "commandsRun": [],
+  "testResults": [],
+  "provider": {
+    "name": "codex",
+    "model": null,
+    "reasoningEffort": null,
+    "requestId": null,
+    "startedAt": "2026-05-24T11:08:44.087Z",
+    "finishedAt": "2026-05-24T11:13:17.033Z"
+  },
+  "git": {
+    "baseSha": "4079fc95c2ee1535e38434077ac8558e28be9983",
+    "commitSha": null,
+    "branchName": "getting-started",
+    "prUrl": null
+  },
+  "createdAt": "2026-05-24T11:08:44.084Z",
+  "updatedAt": "2026-05-24T11:13:17.035Z"
+}

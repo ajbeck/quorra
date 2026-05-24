@@ -172,7 +172,7 @@ struct SignInTests {
 
         // Deterministic sync point: wait until the polling loop has entered its first sleep.
         // After this, the poll loop is at Task.yield()/checkCancellation() or createToken.
-        await sleeper.waitForNextSleep()
+        await sleeper.waitForSleepCount(atLeast: 1)
         // Cancel the sign-in. If checkCancellation() hasn't fired yet, the gated createToken
         // will observe the cancellation and throw CancellationError deterministically.
         await service.cancelSignIn(sessionName: "test-session")
