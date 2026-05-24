@@ -336,6 +336,12 @@ final class CredentialsModel {
     // MARK: - DEBUG test seams
 
     #if DEBUG
+    /// Test seam: exercises event-to-state mapping without going through the AsyncStream
+    /// consumer task, keeping event mapping tests deterministic and layer-local.
+    func processEventForTesting(_ event: AuthEvent) async {
+        await handleEvent(event)
+    }
+
     /// Test seam: write-access to `lastError` for setting up "prior failure" preconditions.
     func seedLastErrorForTesting(_ error: IAMIdentityCenterError, sessionName: String) {
         lastError[sessionName] = error
