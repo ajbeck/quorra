@@ -291,6 +291,52 @@ struct SignInTests {
 
     }
 
+    @Test("Cached OIDC client with different scopes triggers re-registration")
+    func scopeMismatchReregisters() async throws {
+        let keychain = InMemoryKeychainStore()
+        try await keychain.writeRecord(
+            makeStoredClient(
+                clientId: "old-scope-client-id",
+                region: "us-east-1",
+                scopes: ["sso:account:access"]
+            ),
+            service: "dev.ajbeck.quorra.oidc-client",
+            account: "us-east-1"
+        )
+
+        let requestedScopes = ["sso:account:access", "codewhisperer:completions"]
+        let stub = StubOIDCRequesting()
+        await stub.setNextRegisterResult(.success(makeStoredClient(
+            clientId: "new-scope-client-id",
+            region: "us-east-1",
+            scopes: requestedScopes
+        )))
+        await stub.setNextStartDeviceAuthorizationResult(.success(("test-device-code", makeVerification())))
+        await stub.setNextCreateTokenResult(.success(makeDefaultSSOToken(
+            accessToken: "test-access-token",
+            refreshToken: nil,
+            sessionName: "test-session"
+        )))
+        let service = IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(stub), sleeper: MockSleeper())
+
+        _ = try await service.signIn(
+            sessionName: "test-session",
+            startUrl: URL(string: "https://example.awsapps.com/start")!,
+            region: "us-east-1",
+            scopes: requestedScopes,
+            verificationHandler: { _ in }
+        )
+
+        #expect(await stub.registerCallCount == 1)
+        let cached = try await keychain.readRecord(
+            StoredOIDCClient.self,
+            service: "dev.ajbeck.quorra.oidc-client",
+            account: "us-east-1"
+        )
+        #expect(cached.clientId == "new-scope-client-id")
+        #expect(Set(cached.scopes) == Set(requestedScopes))
+    }
+
     // MARK: - Invalid cached client triggers re-registration + retry
 
     @Test("Cached OIDC client rejected as invalid re-registers and retries device authorization")
@@ -345,4 +391,3 @@ struct SignInTests {
     }
 }
 }
-

@@ -154,20 +154,16 @@ struct SignOutTests {
 
     @Test("In-flight signIn is cancelled before sign-out proceeds")
     func cancelsInFlightSignIn() async throws {
-        defer { StubURLProtocol.reset() }
         let keychain = InMemoryKeychainStore()
         let sleeper = MockSleeper()
-        let stubSession = StubURLProtocol.makeSession()
+        let oidc = StubOIDCRequesting()
+        await oidc.setCreateTokenBlock { throw IAMIdentityCenterError.authorizationPending }
         let service = IdentityCenterService(
             keychain: keychain,
-            oidcClientProvider: makeStubOIDCProvider(StubOIDCRequesting()),
-            sleeper: sleeper,
-            urlSession: stubSession
+            oidcClientProvider: makeStubOIDCProvider(oidc),
+            sleeper: sleeper
         )
 
-        try registerStub()
-        try deviceAuthStub(expiresIn: 600, interval: 5)
-        try StubURLProtocol.registerOAuthError(urlSubstring: "/token", error: "authorization_pending")
         // No /logout stub needed — no token in keychain so signOut exits early after cancelling sign-in
 
         // Start sign-in in the background
@@ -259,4 +255,3 @@ private func makeToken(sessionName: String = "test-session") -> StoredSSOToken {
         sessionName: sessionName
     )
 }
-
