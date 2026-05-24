@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "featureId": "feat_test-suite_bad259340c",
+  "title": "Apple test suite ./ckages/QuorraCore/Tests/AWSConfigINITests",
+  "summary": "Apple Swift test group ./ckages/QuorraCore/Tests/AWSConfigINITests with 12 files.",
+  "kind": "test-suite",
+  "source": "apple-test-group",
+  "confidence": "medium",
+  "entrypoints": [
+    {
+      "path": "Packages/QuorraCore/Tests/AWSConfigINITests/AWSConfigINIErrorTests.swift",
+      "symbol": "./ckages/QuorraCore/Tests/AWSConfigINITests",
+      "route": null,
+      "command": null
+    }
+  ],
+  "ownedFiles": [
+    {
+      "path": "Packages/QuorraCore/Tests/AWSConfigINITests/AWSConfigINIErrorTests.swift",
+      "reason": "apple test group ./ckages/QuorraCore/Tests/AWSConfigINITests"
+    },
+    {
+      "path": "Packages/QuorraCore/Tests/AWSConfigINITests/BOMTests.swift",
+      "reason": "apple test group ./ckages/QuorraCore/Tests/AWSConfigINITests"
+    },
+    {
+      "path": "Packages/QuorraCore/Tests/AWSConfigINITests/CodableTests.swift",
+      "reason": "apple test group ./ckages/QuorraCore/Tests/AWSConfigINITests"
+    },
+    {
+      "path": "Packages/QuorraCore/Tests/AWSConfigINITests/FileIOTests.swift",
+      "reason": "apple test group ./ckages/QuorraCore/Tests/AWSConfigINITests"
+    },
+    {
+      "path": "Packages/QuorraCore/Tests/AWSConfigINITests/Helpers.swift",
+      "reason": "apple test group ./ckages/QuorraCore/Tests/AWSConfigINITests"
+    },
+    {
+      "path": "Packages/QuorraCore/Tests/AWSConfigINITests/ManagedModeTests.swift",
+      "reason": "apple test group ./ckages/QuorraCore/Tests/AWSConfigINITests"
+    },
+    {
+      "path": "Packages/QuorraCore/Tests/AWSConfigINITests/MutationTests.swift",
+      "reason": "apple test group ./ckages/QuorraCore/Tests/AWSConfigINITests"
+    },
+    {
+      "path": "Packages/QuorraCore/Tests/AWSConfigINITests/ParsingTests.swift",
+      "reason": "apple test group ./ckages/QuorraCore/Tests/AWSConfigINITests"
+    },
+    {
+      "path": "Packages/QuorraCore/Tests/AWSConfigINITests/ProfileCodableTests.swift",
+      "reason": "apple test group ./ckages/QuorraCore/Tests/AWSConfigINITests"
+    },
+    {
+      "path": "Packages/QuorraCore/Tests/AWSConfigINITests/StringHelperTests.swift",
+      "reason": "apple test group ./ckages/QuorraCore/Tests/AWSConfigINITests"
+    },
+    {
+      "path": "Packages/QuorraCore/Tests/AWSConfigINITests/TypedAccessorTests.swift",
+      "reason": "apple test group ./ckages/QuorraCore/Tests/AWSConfigINITests"
+    },
+    {
+      "path": "Packages/QuorraCore/Tests/AWSConfigINITests/WriterTests.swift",
+      "reason": "apple test group ./ckages/QuorraCore/Tests/AWSConfigINITests"
+    }
+  ],
+  "contextFiles": [],
+  "tests": [],
+  "tags": [
+    "apple",
+    "swift",
+    "test"
+  ],
+  "trustBoundaries": [],
+  "status": "needs-fix",
+  "lock": null,
+  "findingIds": [
+    "fnd_sig-feat-test-suite-bad259340c-5_5ba7d7899c",
+    "fnd_sig-feat-test-suite-bad259340c-4_aea629f059",
+    "fnd_sig-feat-test-suite-bad259340c-b_f334bf0228"
+  ],
+  "patchAttemptIds": [],
+  "analysisHistory": [
+    {
+      "runId": "20260522T003850-99b02a",
+      "kind": "review",
+      "summary": "3 finding(s)",
+      "provider": "codex",
+      "model": null,
+      "reasoningEffort": null,
+      "createdAt": "2026-05-22T00:41:20.734Z"
+    }
+  ],
+  "createdAt": "2026-05-22T00:38:31.601Z",
+  "updatedAt": "2026-05-22T00:41:20.734Z"
+}

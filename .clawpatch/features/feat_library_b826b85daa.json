@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "featureId": "feat_library_b826b85daa",
+  "title": "Swift target AWSConfigINI (Packages/QuorraCore)",
+  "summary": "SwiftPM target AWSConfigINI at Sources/AWSConfigINI/AWS/Profile.swift. Package root: Packages/QuorraCore.",
+  "kind": "library",
+  "source": "swiftpm-target",
+  "confidence": "medium",
+  "entrypoints": [
+    {
+      "path": "Packages/QuorraCore/Sources/AWSConfigINI/AWS/Profile.swift",
+      "symbol": null,
+      "route": null,
+      "command": null
+    }
+  ],
+  "ownedFiles": [
+    {
+      "path": "Packages/QuorraCore/Sources/AWSConfigINI/AWS/Profile.swift",
+      "reason": "entrypoint"
+    }
+  ],
+  "contextFiles": [
+    {
+      "path": "Packages/QuorraCore/Tests/AWSConfigINITests/AWSConfigINIErrorTests.swift",
+      "reason": "nearby test"
+    },
+    {
+      "path": "Packages/QuorraCore/Tests/AWSConfigINITests/BOMTests.swift",
+      "reason": "nearby test"
+    },
+    {
+      "path": "Packages/QuorraCore/Tests/AWSConfigINITests/CodableTests.swift",
+      "reason": "nearby test"
+    },
+    {
+      "path": "Packages/QuorraCore/Tests/AWSConfigINITests/FileIOTests.swift",
+      "reason": "nearby test"
+    },
+    {
+      "path": "Packages/QuorraCore/Tests/AWSConfigINITests/Helpers.swift",
+      "reason": "nearby test"
+    }
+  ],
+  "tests": [
+    {
+      "path": "Packages/QuorraCore/Tests/AWSConfigINITests/AWSConfigINIErrorTests.swift",
+      "command": "swift test --package-path Packages/QuorraCore"
+    },
+    {
+      "path": "Packages/QuorraCore/Tests/AWSConfigINITests/BOMTests.swift",
+      "command": "swift test --package-path Packages/QuorraCore"
+    },
+    {
+      "path": "Packages/QuorraCore/Tests/AWSConfigINITests/CodableTests.swift",
+      "command": "swift test --package-path Packages/QuorraCore"
+    },
+    {
+      "path": "Packages/QuorraCore/Tests/AWSConfigINITests/FileIOTests.swift",
+      "command": "swift test --package-path Packages/QuorraCore"
+    },
+    {
+      "path": "Packages/QuorraCore/Tests/AWSConfigINITests/Helpers.swift",
+      "command": "swift test --package-path Packages/QuorraCore"
+    }
+  ],
+  "tags": [
+    "swift",
+    "swiftpm"
+  ],
+  "trustBoundaries": [
+    "filesystem",
+    "database"
+  ],
+  "status": "needs-fix",
+  "lock": null,
+  "findingIds": [
+    "fnd_sig-feat-library-b826b85daa-8338_16b9c7d4b3"
+  ],
+  "patchAttemptIds": [],
+  "analysisHistory": [
+    {
+      "runId": "20260522T003850-99b02a",
+      "kind": "review",
+      "summary": "1 finding(s)",
+      "provider": "codex",
+      "model": null,
+      "reasoningEffort": null,
+      "createdAt": "2026-05-22T00:40:34.233Z"
+    }
+  ],
+  "createdAt": "2026-05-22T00:38:31.601Z",
+  "updatedAt": "2026-05-22T00:40:34.233Z"
+}

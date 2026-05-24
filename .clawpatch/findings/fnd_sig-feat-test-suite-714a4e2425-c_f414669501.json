@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "findingId": "fnd_sig-feat-test-suite-714a4e2425-c_f414669501",
+  "featureId": "feat_test-suite_714a4e2425",
+  "title": "Cross-session lock test does not detect global serialization",
+  "category": "test-gap",
+  "severity": "medium",
+  "confidence": "high",
+  "triage": "test-gap",
+  "evidence": [
+    {
+      "path": "Packages/QuorraCore/Tests/IAMIdentityCenterTests/SessionLockTests.swift",
+      "startLine": 112,
+      "endLine": 120,
+      "symbol": "SessionLockTests.differentSessionsDontBlockEachOther",
+      "quote": "let elapsed = Date().timeIntervalSince(start)"
+    },
+    {
+      "path": "Packages/QuorraCore/Tests/IAMIdentityCenterTests/SessionLockTests.swift",
+      "startLine": 129,
+      "endLine": 133,
+      "symbol": "SessionLockTests.differentSessionsDontBlockEachOther",
+      "quote": "// Both operations completed — the test itself passing within .timeLimit(.minutes(1)) is\n        // evidence that cross-session blocking didn't occur. We don't need a strict wall-clock\n        // assertion since test infra timing varies.\n        _ = elapsed  // referenced to avoid compiler warning"
+    }
+  ],
+  "reasoning": "This test claims to prove independent session locks do not block each other, but the two signOut operations are immediate stubbed operations and the measured elapsed time is intentionally unused. A production regression to one global session lock would still run both sign-outs sequentially and almost certainly complete within the one-minute suite limit, so the test would pass while the intended concurrency guarantee is broken.",
+  "reproduction": null,
+  "recommendation": "Make one session operation hold its lock behind a deterministic gate while starting an operation for another session, then assert the second session completes before releasing the first gate. Avoid relying on broad suite timeout as proof of concurrency.",
+  "whyTestsDoNotAlreadyCoverThis": "The existing test only verifies both sessions eventually sign out; it has no assertion that session s2 can progress while session s1 is blocked.",
+  "suggestedRegressionTest": "Add a test that starts a gated signOut/refresh for s1, waits until it has entered the locked section, starts signOut for s2, asserts s2 completes within a short deterministic timeout, then releases s1 and awaits completion.",
+  "minimumFixScope": "Update SessionLockTests.differentSessionsDontBlockEachOther to include a deterministic blocking stub or test hook and a completion-order assertion.",
+  "status": "open",
+  "history": [],
+  "signature": "sig_feat-test-suite-714a4e2425_c9ac51c282",
+  "linkedPatchAttemptIds": [],
+  "createdByRunId": "20260522T003850-99b02a",
+  "createdAt": "2026-05-22T00:40:06.075Z",
+  "updatedAt": "2026-05-22T00:40:06.075Z"
+}

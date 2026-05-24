@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "findingId": "fnd_sig-feat-test-suite-5398d7494c-1_fc97c584a0",
+  "featureId": "feat_test-suite_5398d7494c",
+  "title": "Expected signIn failure errors are not asserted",
+  "category": "test-gap",
+  "severity": "medium",
+  "confidence": "high",
+  "triage": "test-gap",
+  "evidence": [
+    {
+      "path": "Packages/QuorraCore/Tests/IAMIdentityCenterTests/AuthEventStreamTests.swift",
+      "startLine": 73,
+      "endLine": 85,
+      "symbol": "failedSignInEmitsEvents",
+      "quote": "_ = try await service.signIn("
+    },
+    {
+      "path": "Packages/QuorraCore/Tests/IAMIdentityCenterTests/AuthEventStreamTests.swift",
+      "startLine": 129,
+      "endLine": 133,
+      "symbol": "cancelledSignInEmitsEvents",
+      "quote": "_ = try await signInTask.value"
+    }
+  ],
+  "reasoning": "Both tests treat specific thrown errors as expected, but neither fails if the signIn call returns successfully after emitting the terminal failure/cancellation event. A regression that emits .signInFailed or .signInCancelled but returns a token would satisfy the event assertions and let the test pass, leaving the async API contract unprotected.",
+  "reproduction": null,
+  "recommendation": "Track whether the expected error was thrown and record an issue on success, or use a helper like expectThrows that asserts the exact IAMIdentityCenterError case before checking emitted events.",
+  "whyTestsDoNotAlreadyCoverThis": "The existing assertions only inspect the event stream and absence of selected success events; the success path of the throwing API call is not marked as a failure.",
+  "suggestedRegressionTest": "In both tests, assert that service.signIn throws the expected IAMIdentityCenterError and explicitly fail if it returns normally.",
+  "minimumFixScope": "Update AuthEventStreamTests.swift to assert the expected thrown error in failedSignInEmitsEvents and cancelledSignInEmitsEvents.",
+  "status": "open",
+  "history": [],
+  "signature": "sig_feat-test-suite-5398d7494c_169b9138c5",
+  "linkedPatchAttemptIds": [],
+  "createdByRunId": "20260522T003850-99b02a",
+  "createdAt": "2026-05-22T00:40:30.584Z",
+  "updatedAt": "2026-05-22T00:40:30.584Z"
+}

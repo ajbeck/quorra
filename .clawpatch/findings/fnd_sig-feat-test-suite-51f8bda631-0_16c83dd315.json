@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "findingId": "fnd_sig-feat-test-suite-51f8bda631-0_16c83dd315",
+  "featureId": "feat_test-suite_51f8bda631",
+  "title": "Forced unwraps can turn expected assertion failures into test crashes",
+  "category": "maintainability",
+  "severity": "low",
+  "confidence": "high",
+  "triage": "risk",
+  "evidence": [
+    {
+      "path": "Packages/QuorraCore/Tests/AWSConfigINITests/AWSConfigINIErrorTests.swift",
+      "startLine": 13,
+      "endLine": 17,
+      "symbol": "fileNotFoundDescriptionContainsFullPath",
+      "quote": "#expect(desc != nil)\n        // fileNotFound surfaces the full path (not just lastPathComponent) so the\n        // user can tell which `~/.aws` they're missing.\n        #expect(desc!.contains(\"/Users/test/.aws/config\"))"
+    },
+    {
+      "path": "Packages/QuorraCore/Tests/AWSConfigINITests/AWSConfigINIErrorTests.swift",
+      "startLine": 21,
+      "endLine": 24,
+      "symbol": "ioErrorDescriptionContainsLastPathComponent",
+      "quote": "let desc = error.errorDescription\n        #expect(desc != nil)\n        #expect(desc!.contains(\"config\"))"
+    },
+    {
+      "path": "Packages/QuorraCore/Tests/AWSConfigINITests/AWSConfigINIErrorTests.swift",
+      "startLine": 42,
+      "endLine": 45,
+      "symbol": "decodeErrorDescriptionContainsMessage",
+      "quote": "let desc = error.errorDescription\n        #expect(desc != nil)\n        #expect(desc!.contains(sampleMessage))"
+    }
+  ],
+  "reasoning": "Swift Testing `#expect` records an expectation failure but does not provide a safely unwrapped value for subsequent assertions. If `errorDescription` regresses to nil, these tests immediately force-unwrap `desc!`, producing a runtime trap instead of a clean assertion that pinpoints the missing localized description. The same pattern is repeated across all description tests.",
+  "reproduction": "Change any tested `errorDescription` branch to return nil, then run the AWSConfigINITests target; the test will hit the forced unwrap after the nil expectation rather than using a structured require failure.",
+  "recommendation": "Make the description tests throwing and unwrap with `try #require(error.errorDescription)` before checking contents. This preserves the intended nil check while avoiding fatal unwraps.",
+  "whyTestsDoNotAlreadyCoverThis": "The issue is in the test implementation itself: the nil assertion is followed by an unsafe unwrap in the same test, so there is no separate coverage for the failure mode.",
+  "suggestedRegressionTest": null,
+  "minimumFixScope": "Update each `let desc = error.errorDescription; #expect(desc != nil); #expect(desc!.contains(...))` sequence in `AWSConfigINIErrorTests` to `let desc = try #require(error.errorDescription)` and mark those test methods as throwing.",
+  "status": "open",
+  "history": [],
+  "signature": "sig_feat-test-suite-51f8bda631_0f6112e6f1",
+  "linkedPatchAttemptIds": [],
+  "createdByRunId": "20260522T003850-99b02a",
+  "createdAt": "2026-05-22T00:40:23.002Z",
+  "updatedAt": "2026-05-22T00:40:23.002Z"
+}

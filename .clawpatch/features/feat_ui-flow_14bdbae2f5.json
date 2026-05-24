@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "featureId": "feat_ui-flow_14bdbae2f5",
+  "title": "Apple source App/Root",
+  "summary": "Apple Swift source group App/Root with 4 files.",
+  "kind": "ui-flow",
+  "source": "apple-source-group",
+  "confidence": "medium",
+  "entrypoints": [
+    {
+      "path": "Quorra.xcworkspace",
+      "symbol": "App/Root",
+      "route": null,
+      "command": null
+    }
+  ],
+  "ownedFiles": [
+    {
+      "path": "App/Root/AppError.swift",
+      "reason": "apple source group App/Root"
+    },
+    {
+      "path": "App/Root/AppModel.swift",
+      "reason": "apple source group App/Root"
+    },
+    {
+      "path": "App/Root/AppPhase.swift",
+      "reason": "apple source group App/Root"
+    },
+    {
+      "path": "App/Root/RootView.swift",
+      "reason": "apple source group App/Root"
+    }
+  ],
+  "contextFiles": [
+    {
+      "path": "Tests/QuorraAppTests/AppModelTests.swift",
+      "reason": "associated apple test"
+    }
+  ],
+  "tests": [
+    {
+      "path": "Tests/QuorraAppTests/AppModelTests.swift",
+      "command": null
+    }
+  ],
+  "tags": [
+    "apple",
+    "swift",
+    "xcode"
+  ],
+  "trustBoundaries": [
+    "filesystem"
+  ],
+  "status": "pending",
+  "lock": null,
+  "findingIds": [],
+  "patchAttemptIds": [],
+  "analysisHistory": [],
+  "createdAt": "2026-05-22T00:38:31.601Z",
+  "updatedAt": "2026-05-22T00:38:31.601Z"
+}

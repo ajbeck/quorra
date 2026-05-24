@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "findingId": "fnd_sig-feat-library-b826b85daa-8338_16b9c7d4b3",
+  "featureId": "feat_library_b826b85daa",
+  "title": "Profile drops legacy inline SSO settings on encode",
+  "category": "data-loss",
+  "severity": "medium",
+  "confidence": "medium",
+  "triage": "risk",
+  "evidence": [
+    {
+      "path": "Packages/QuorraCore/Sources/AWSConfigINI/AWS/Profile.swift",
+      "startLine": 15,
+      "endLine": 30,
+      "symbol": "Profile",
+      "quote": "public var ssoSession: String?\npublic var ssoAccountId: String?\npublic var ssoRoleName: String?\n...\npublic var mfaSerial: String?"
+    },
+    {
+      "path": "Packages/QuorraCore/Tests/AWSConfigINITests/CodableTests.swift",
+      "startLine": 312,
+      "endLine": 325,
+      "symbol": "CodableTests.sectionReplaceDropsExtraKeysAndPreservesLeadingComments",
+      "quote": "#expect(s.key(\"extra_key\") == nil, \"section-replace must drop unrelated keys\")"
+    },
+    {
+      "path": "Packages/QuorraCore/Tests/AWSConfigINITests/CodableTests.swift",
+      "startLine": 420,
+      "endLine": 435,
+      "symbol": "AWSOverlayTests.profileFullRoundTrip",
+      "quote": "let original = Profile(\n    region: \"us-east-1\",\n    output: \"json\",\n    ssoSession: \"corp-sso\",\n    credentialProcess: nil,\n    sourceProfile: nil,\n    roleArn: nil,\n    roleSessionName: \"my-session\",\n    mfaSerial: nil\n)"
+    }
+  ],
+  "reasoning": "The Profile model claims to cover SSO profiles, but it has no properties for legacy inline SSO keys such as sso_start_url and sso_region. Because the encoder's documented and tested behavior is section replacement, encoding a decoded Profile back into an existing profile section will remove unmodeled keys. That turns an otherwise valid legacy inline SSO profile into a section missing the SSO start URL/region. The confidence is medium because the model comment says other settings are accessible via raw Section/Key accessors, but the provided encodeProfile tests exercise Profile directly with replacement semantics, which is the hazardous path.",
+  "reproduction": "Create a config document containing `[profile legacy]` with `sso_start_url` and `sso_region`, decode it with `AWSConfigINIDecoder().decodeProfile(Profile.self, named: \"legacy\", from: doc)`, then encode it back with `AWSConfigINIEncoder().encodeProfile(profile, named: \"legacy\", into: &doc)`. The resulting section will not contain those inline SSO keys.",
+  "recommendation": "Add `ssoStartUrl` and `ssoRegion` to `Profile` if inline SSO profiles are supported by Quorra, or change profile-writing code/encoder semantics so unmodeled keys in a profile section are preserved when updating known fields.",
+  "whyTestsDoNotAlreadyCoverThis": "The linked Profile tests cover modern `sso_session` round-tripping and section-replace deletion of an unrelated key, but none use a legacy inline SSO profile with `sso_start_url` and `sso_region` and then encode it back through `Profile`.",
+  "suggestedRegressionTest": "Add an AWS overlay test that decodes `[profile legacy]` containing `sso_start_url`, `sso_region`, `sso_account_id`, and `sso_role_name`, re-encodes it with `encodeProfile`, and asserts the inline SSO keys are still present with their original values.",
+  "minimumFixScope": "Update `Profile.swift` and its AWS overlay Codable tests; if preserving arbitrary unknown keys is chosen instead, update the encoder/profile update path and add a regression test for unknown-key preservation.",
+  "status": "open",
+  "history": [],
+  "signature": "sig_feat-library-b826b85daa_8338add637",
+  "linkedPatchAttemptIds": [],
+  "createdByRunId": "20260522T003850-99b02a",
+  "createdAt": "2026-05-22T00:40:34.231Z",
+  "updatedAt": "2026-05-22T00:40:34.231Z"
+}

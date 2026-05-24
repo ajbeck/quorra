@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "featureId": "feat_ui-flow_b1aae6b604",
+  "title": "Apple source App/Preferences",
+  "summary": "Apple Swift source group App/Preferences with 1 files.",
+  "kind": "ui-flow",
+  "source": "apple-source-group",
+  "confidence": "medium",
+  "entrypoints": [
+    {
+      "path": "Quorra.xcworkspace",
+      "symbol": "App/Preferences",
+      "route": null,
+      "command": null
+    }
+  ],
+  "ownedFiles": [
+    {
+      "path": "App/Preferences/ModePreferenceStorage.swift",
+      "reason": "apple source group App/Preferences"
+    }
+  ],
+  "contextFiles": [
+    {
+      "path": "Tests/QuorraAppTests/ModePreferenceStorageTests.swift",
+      "reason": "associated apple test"
+    }
+  ],
+  "tests": [
+    {
+      "path": "Tests/QuorraAppTests/ModePreferenceStorageTests.swift",
+      "command": null
+    }
+  ],
+  "tags": [
+    "apple",
+    "swift",
+    "xcode"
+  ],
+  "trustBoundaries": [
+    "filesystem"
+  ],
+  "status": "pending",
+  "lock": null,
+  "findingIds": [],
+  "patchAttemptIds": [],
+  "analysisHistory": [],
+  "createdAt": "2026-05-22T00:38:31.601Z",
+  "updatedAt": "2026-05-22T00:38:31.601Z"
+}
