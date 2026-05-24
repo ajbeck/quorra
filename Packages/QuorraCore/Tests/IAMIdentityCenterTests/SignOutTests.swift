@@ -178,7 +178,7 @@ struct SignOutTests {
         }
 
         // Wait until polling loop enters first sleep
-        await sleeper.waitForNextSleep()
+        await sleeper.waitForSleepCount(atLeast: 1)
 
         // Now sign out — should cancel the in-flight sign-in
         // No token in Keychain yet so signOut returns after emitting signedOut

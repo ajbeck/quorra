@@ -117,10 +117,10 @@ struct MintTimerTests {
         )
 
         // Wait for the timer task to call sleeper.sleep(until:). MockSleeper auto-advances
-        // synthetic time to the deadline and signals waitForNextSleep() waiters. The whole
+        // synthetic time to the deadline and signals sleep-count waiters. The whole
         // point of the Sleeper seam (D19): tests can verify the production-skew deadline
         // without waiting real seconds.
-        await sleeper.waitForNextSleep()
+        await sleeper.waitForSleepCount(atLeast: 1)
 
         // Cancel any further timer activity so we don't trigger an unintended mint chain.
         let key = "s:123456789012:stub-role"
