@@ -34,3 +34,15 @@ approval_mode = "approve"
 
 [mcp_servers.xcode.tools.XcodeListNavigatorIssues]
 approval_mode = "approve"
+
+[mcp_servers.xcode.tools.RenderPreview]
+approval_mode = "approve"
+
+[mcp_servers.xcode.tools.XcodeRefreshCodeIssuesInFile]
+approval_mode = "approve"
+
+[mcp_servers.xcode.tools.GetTestList]
+approval_mode = "approve"
+
+[mcp_servers.xcode.tools.RunSomeTests]
+approval_mode = "approve"
