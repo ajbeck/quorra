@@ -256,4 +256,32 @@ sso_role_name = DevAccess
         #expect(model.loadState == .loaded)
         #expect(model.groups == .empty)
     }
+
+    #if DEBUG
+    @Test func seed_loaded_for_testing_matches_loaded_model_shape() throws {
+        let folder = URL(filePath: "/preview/.aws", directoryHint: .isDirectory)
+        let cfg = try AWSConfigINIDocument("""
+[sso-session corp]
+sso_region = us-east-1
+
+[default]
+sso_session = corp
+sso_account_id = 123456789012
+sso_role_name = DevAccess
+""", flavor: .config)
+        let creds = AWSConfigINIDocument(empty: .credentials)
+
+        let model = ProfilesModel()
+        let groups = model.seedLoadedForTesting(config: cfg, credentials: creds, folder: folder)
+
+        #expect(model.loadState == .loaded)
+        #expect(model.currentFolder == folder)
+        #expect(model.configDocument?.flavor == cfg.flavor)
+        #expect(model.configDocument?.sections.map(\.name) == cfg.sections.map(\.name))
+        #expect(model.credentialsDocument?.flavor == creds.flavor)
+        #expect(model.credentialsDocument?.sections.map(\.name) == creds.sections.map(\.name))
+        #expect(model.groups == groups)
+        #expect(model.findProfile(named: "default") != nil)
+    }
+    #endif
 }

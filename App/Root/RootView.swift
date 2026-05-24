@@ -15,10 +15,21 @@ struct RootView: View {
             }
         }
         .task {
+            #if DEBUG
+            guard !ProcessInfo.processInfo.isRunningForPreviews else { return }
+            #endif
             await appModel.resolveStoredBookmark()
         }
     }
 }
+
+#if DEBUG
+extension ProcessInfo {
+    var isRunningForPreviews: Bool {
+        environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
+    }
+}
+#endif
 
 #Preview("Root – setup") {
     RootView()
