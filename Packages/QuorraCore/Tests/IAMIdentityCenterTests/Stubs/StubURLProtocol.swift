@@ -20,7 +20,7 @@ internal final class StubURLProtocol: URLProtocol {
     /// Registers a stubbed response for URLs containing the given substring.
     ///
     /// - Parameters:
-    ///   - urlSubstring: Substring to match (e.g. "/client/register")
+    ///   - urlSubstring: Substring to match (e.g. "/logout")
     ///   - response: Stubbed response data
     static func register(urlSubstring: String, response: StubResponse) {
         lock.lock()
@@ -100,7 +100,7 @@ extension StubURLProtocol {
         json: [String: Any]
     ) throws {
         let data = try JSONSerialization.data(withJSONObject: json)
-        let url = URL(string: "https://oidc.us-east-1.amazonaws.com\(urlSubstring)")!
+        let url = URL(string: "https://stub.local\(urlSubstring)")!
         let response = HTTPURLResponse(
             url: url,
             statusCode: statusCode,
@@ -108,43 +108,6 @@ extension StubURLProtocol {
             headerFields: ["Content-Type": "application/json"]
         )!
         register(urlSubstring: urlSubstring, response: .success(data, response))
-    }
-
-    /// Convenience: register an OAuth error response.
-    static func registerOAuthError(
-        urlSubstring: String,
-        statusCode: Int = 400,
-        error: String,
-        errorDescription: String? = nil
-    ) throws {
-        var json: [String: Any] = ["error": error]
-        if let desc = errorDescription {
-            json["error_description"] = desc
-        }
-        let data = try JSONSerialization.data(withJSONObject: json)
-        let url = URL(string: "https://oidc.us-east-1.amazonaws.com\(urlSubstring)")!
-        let response = HTTPURLResponse(
-            url: url,
-            statusCode: statusCode,
-            httpVersion: "HTTP/1.1",
-            headerFields: ["Content-Type": "application/json"]
-        )!
-        register(urlSubstring: urlSubstring, response: .success(data, response))
-    }
-
-    /// Convenience: register a 5xx error with no body.
-    static func register5xxError(
-        urlSubstring: String,
-        statusCode: Int = 500
-    ) {
-        let url = URL(string: "https://oidc.us-east-1.amazonaws.com\(urlSubstring)")!
-        let response = HTTPURLResponse(
-            url: url,
-            statusCode: statusCode,
-            httpVersion: "HTTP/1.1",
-            headerFields: nil
-        )!
-        register(urlSubstring: urlSubstring, response: .success(Data(), response))
     }
 
     /// Convenience: register a network failure.

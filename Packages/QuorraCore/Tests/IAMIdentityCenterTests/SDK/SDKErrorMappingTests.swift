@@ -1,90 +1,46 @@
 import Testing
+import AWSSSOOIDC
 @testable import IAMIdentityCenter
 
-/// Tests for the pure error-classification table.
-///
-/// No SDK imports — the mapper operates on `(typeName, message)` strings, so the test
-/// surface is string-in / enum-out. That's the entire point of structuring
-/// `SDKErrorMapping` as a pure function over a discriminator pair: SDK exception
-/// construction is undocumented/private, but classification is exhaustively testable
-/// in isolation.
 @Suite struct SDKErrorMappingTests {
+    @Test func knownOIDCErrorsMapToDomainErrors() {
+        let cases: [(String, String?, IAMIdentityCenterError)] = [
+            ("InvalidClientException", nil, .invalidClient),
+            ("AuthorizationPendingException", nil, .authorizationPending),
+            ("SlowDownException", nil, .slowDown),
+            ("AccessDeniedException", nil, .accessDenied),
+            ("ExpiredTokenException", nil, .expiredDeviceCode),
+            ("InvalidGrantException", nil, .invalidGrant),
+            ("InvalidRequestException", "Invalid start url provided", .awsError(code: "invalid_request", description: "Invalid start url provided")),
+            ("UnauthorizedClientException", "client revoked", .awsError(code: "unauthorized_client", description: "client revoked")),
+            ("InternalServerException", "boom", .awsError(code: "server_error", description: "boom")),
+            ("InvalidScopeException", "bad scope", .awsError(code: "invalid_scope", description: "bad scope")),
+            ("UnsupportedGrantTypeException", "unsupported", .awsError(code: "unsupported_grant_type", description: "unsupported")),
+        ]
 
-    // MARK: - OIDC table
-
-    @Test func oidcInvalidClient() {
-        #expect(SDKErrorMapping.mapOIDC(typeName: "InvalidClientException", message: nil) == .invalidClient)
+        for (typeName, message, expected) in cases {
+            #expect(SDKErrorMapping.mapOIDC(typeName: typeName, message: message) == expected)
+        }
     }
 
-    @Test func oidcAuthorizationPending() {
-        #expect(SDKErrorMapping.mapOIDC(typeName: "AuthorizationPendingException", message: nil) == .authorizationPending)
-    }
-
-    @Test func oidcSlowDown() {
-        #expect(SDKErrorMapping.mapOIDC(typeName: "SlowDownException", message: nil) == .slowDown)
-    }
-
-    @Test func oidcAccessDenied() {
-        #expect(SDKErrorMapping.mapOIDC(typeName: "AccessDeniedException", message: nil) == .accessDenied)
-    }
-
-    @Test func oidcExpiredToken() {
-        #expect(SDKErrorMapping.mapOIDC(typeName: "ExpiredTokenException", message: nil) == .expiredDeviceCode)
-    }
-
-    @Test func oidcInvalidGrant() {
-        #expect(SDKErrorMapping.mapOIDC(typeName: "InvalidGrantException", message: nil) == .invalidGrant)
-    }
-
-    @Test func oidcInvalidRequestCarriesMessage() {
-        let mapped = SDKErrorMapping.mapOIDC(
-            typeName: "InvalidRequestException",
-            message: "Invalid start url provided"
+    @Test func unknownOIDCErrorsPreserveDiagnostics() {
+        #expect(
+            SDKErrorMapping.mapOIDC(typeName: "FutureSDKException", message: "msg")
+            == .awsError(code: "unknown", description: "msg")
         )
-        guard case .awsError(let code, let desc) = mapped else {
-            Issue.record("expected .awsError, got \(mapped)")
-            return
-        }
-        #expect(code == "invalid_request")
-        #expect(desc == "Invalid start url provided")
+        #expect(
+            SDKErrorMapping.mapOIDC(typeName: "FutureSDKException", message: nil)
+            == .awsError(code: "unknown", description: "FutureSDKException")
+        )
     }
 
-    @Test func oidcUnauthorizedClient() {
-        let mapped = SDKErrorMapping.mapOIDC(typeName: "UnauthorizedClientException", message: "client revoked")
-        guard case .awsError(let code, let desc) = mapped else {
-            Issue.record("expected .awsError, got \(mapped)")
-            return
-        }
-        #expect(code == "unauthorized_client")
-        #expect(desc == "client revoked")
-    }
+    @Test func extractPreservesSDKServiceErrorMessage() {
+        var error = InvalidRequestException()
+        error.message = "Invalid start url provided"
 
-    @Test func oidcInternalServer() {
-        let mapped = SDKErrorMapping.mapOIDC(typeName: "InternalServerException", message: "boom")
-        guard case .awsError(let code, _) = mapped else {
-            Issue.record("expected .awsError, got \(mapped)")
-            return
-        }
-        #expect(code == "server_error")
-    }
+        let extracted = SDKErrorMapping.extract(from: error)
 
-    @Test func oidcUnknownFallsThrough() {
-        let mapped = SDKErrorMapping.mapOIDC(typeName: "FutureSDKException", message: "msg")
-        guard case .awsError(let code, let desc) = mapped else {
-            Issue.record("expected .awsError, got \(mapped)")
-            return
-        }
-        #expect(code == "unknown")
-        #expect(desc == "msg")
-    }
-
-    @Test func oidcUnknownFallsThroughEmptyMessage() {
-        let mapped = SDKErrorMapping.mapOIDC(typeName: "FutureSDKException", message: nil)
-        guard case .awsError(let code, let desc) = mapped else {
-            Issue.record("expected .awsError, got \(mapped)")
-            return
-        }
-        #expect(code == "unknown")
-        #expect(desc == "FutureSDKException")
+        #expect(extracted.typeName == "InvalidRequestException")
+        #expect(extracted.message == "Invalid start url provided")
     }
 }
