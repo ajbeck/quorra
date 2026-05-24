@@ -251,3 +251,45 @@ extension ProfilesModel.LoadState: Equatable {
         }
     }
 }
+
+#if DEBUG
+extension ProfilesModel {
+    /// Seeds a fully-loaded state synchronously for previews and tests — no file I/O and
+    /// no async `.task` flip. SwiftUI's macOS sidebar `List`/`NSOutlineView` bridge crashes
+    /// when `loadState`/`groups` mutate mid-layout, so previews must start already-loaded.
+    @discardableResult
+    func seedLoadedForTesting(
+        config: AWSConfigINIDocument,
+        credentials: AWSConfigINIDocument,
+        folder: URL? = nil
+    ) -> SidebarGroups {
+        let groups = Self.derive(config: config, credentials: credentials)
+        self.currentFolder = folder
+        self.configDocument = config
+        self.credentialsDocument = credentials
+        self.groups = groups
+        self.loadState = .loaded
+        return groups
+    }
+
+    /// Builds a `.loaded` model from sample `config`/`credentials` text using the real
+    /// `derive(_:)` path — parsing only, no file system, no async work.
+    static func previewLoaded(
+        config: String,
+        credentials: String = "",
+        folder: URL? = nil
+    ) -> ProfilesModel {
+        do {
+            let model = ProfilesModel()
+            let cfg = try AWSConfigINIDocument(config, flavor: .config)
+            let creds = credentials.isEmpty
+                ? AWSConfigINIDocument(empty: .credentials)
+                : try AWSConfigINIDocument(credentials, flavor: .credentials)
+            model.seedLoadedForTesting(config: cfg, credentials: creds, folder: folder)
+            return model
+        } catch {
+            preconditionFailure("Invalid ProfilesModel preview fixture: \(error)")
+        }
+    }
+}
+#endif
