@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "patchAttemptId": "pat_fnd-sig-feat-test-suite-bad25934_2fff534bf7",
+  "findingIds": [
+    "fnd_sig-feat-test-suite-bad259340c-5_5ba7d7899c"
+  ],
+  "featureIds": [
+    "feat_test-suite_bad259340c"
+  ],
+  "status": "applied",
+  "plan": "Added an active cross-process FileIO regression path: a small SwiftPM helper executable now holds fcntl locks or performs AWSConfigINIDocument.update from separate processes, and FileIOTests asserts lock timeout plus two-process increment serialization.",
+  "filesChanged": [
+    "Packages/QuorraCore/Package.swift",
+    "Packages/QuorraCore/Tests/AWSConfigINILockTestHelper/main.swift",
+    "Packages/QuorraCore/Tests/AWSConfigINITests/FileIOTests.swift"
+  ],
+  "commandsRun": [],
+  "testResults": [],
+  "provider": {
+    "name": "codex",
+    "model": null,
+    "reasoningEffort": null,
+    "requestId": null,
+    "startedAt": "2026-05-24T10:58:13.882Z",
+    "finishedAt": "2026-05-24T11:03:40.121Z"
+  },
+  "git": {
+    "baseSha": "253a2da47e760ab53de079fa3ff6d0d84f8d0f41",
+    "commitSha": null,
+    "branchName": "getting-started",
+    "prUrl": null
+  },
+  "createdAt": "2026-05-24T10:58:13.878Z",
+  "updatedAt": "2026-05-24T11:03:40.122Z"
+}
