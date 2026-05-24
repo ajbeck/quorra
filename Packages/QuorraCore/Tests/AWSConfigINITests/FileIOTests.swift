@@ -2,7 +2,7 @@
 //
 // Covers Document.update(at:flavor:_:) round-trip, file-not-found-as-empty,
 // atomic-rename hygiene (no leftover .tmp), sequential read-modify-write
-// accumulation, and the .lockTimeout path (skipped — see comment in test).
+// accumulation, cross-process serialization, and the .lockTimeout path.
 
 import Testing
 import Foundation
@@ -22,6 +22,40 @@ struct FileIOTests {
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: dir) }
         try body(dir)
+    }
+
+    private func lockHelperURL() throws -> URL {
+        var directory = URL(fileURLWithPath: CommandLine.arguments[0]).deletingLastPathComponent()
+        while directory.path != "/" {
+            let candidate = directory.appendingPathComponent("AWSConfigINILockTestHelper")
+            if FileManager.default.isExecutableFile(atPath: candidate.path) {
+                return candidate
+            }
+            directory.deleteLastPathComponent()
+        }
+        throw CocoaError(.fileNoSuchFile)
+    }
+
+    @discardableResult
+    private func runHelper(_ arguments: [String]) throws -> Process {
+        let process = Process()
+        process.executableURL = try lockHelperURL()
+        process.arguments = arguments
+        process.standardOutput = Pipe()
+        process.standardError = Pipe()
+        try process.run()
+        return process
+    }
+
+    private func waitForFile(at url: URL, timeout: TimeInterval = 2.0) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if FileManager.default.fileExists(atPath: url.path) {
+                return true
+            }
+            Thread.sleep(forTimeInterval: 0.01)
+        }
+        return false
     }
 
     // MARK: - Single-threaded round-trip (plan §11.3 DoD item 1)
@@ -135,7 +169,7 @@ struct FileIOTests {
     //   This means in-process concurrent Tasks cannot race-test the fcntl path.
     //   The real-world serialization guarantee is cross-process: app vs. CLI
     //   (CLAUDE.md "App ↔ CLI Architecture"). Cross-process serialization is
-    //   verified manually or in an integration test that spawns two processes.
+    //   verified below by integration-style tests that spawn helper processes.
     //
     // What this test verifies:
     //   - The read-modify-write cycle in update(at:_:) is correct end-to-end.
@@ -177,4 +211,54 @@ struct FileIOTests {
     }
 
     // MARK: - lockTimeout test (plan §11.3 DoD item 3)
+
+    @Test func lockTimeoutThrownWhenLockHeldByAnotherProcess() throws {
+        try withTempDir { dir in
+            let url = dir.appendingPathComponent("config")
+            let readyURL = dir.appendingPathComponent("holder.ready")
+            let holder = try runHelper(["hold-lock", url.path, readyURL.path, "2.0"])
+            defer {
+                if holder.isRunning {
+                    holder.terminate()
+                }
+                holder.waitUntilExit()
+            }
+
+            #expect(waitForFile(at: readyURL), "helper process must acquire the lock before timeout assertion")
+
+            let thrown = #expect(throws: AWSConfigINIError.self) {
+                try FileLock.exclusive(on: url, timeout: 0.1) {
+                    Issue.record("lock block must not execute while another process holds the lock")
+                }
+            }
+            guard case .lockTimeout(let timedOutURL) = thrown else {
+                Issue.record("Expected .lockTimeout, got: \(String(describing: thrown))")
+                return
+            }
+            #expect(timedOutURL == url)
+        }
+    }
+
+    @Test func crossProcessUpdatesSerializeWithoutLostIncrement() throws {
+        try withTempDir { dir in
+            let url = dir.appendingPathComponent("config")
+
+            try AWSConfigINIDocument.update(at: url, flavor: .config) { doc in
+                doc.ensureSection("state")
+                doc.update("state") { s in s.setKey("counter", value: "0") }
+            }
+
+            let first = try runHelper(["increment", url.path, "0.2"])
+            let second = try runHelper(["increment", url.path, "0.2"])
+            first.waitUntilExit()
+            second.waitUntilExit()
+
+            #expect(first.terminationStatus == 0)
+            #expect(second.terminationStatus == 0)
+
+            let final = try AWSConfigINIDocument(contentsOf: url)
+            let count = final.section("state")?.key("counter")?.intValue()
+            #expect(count == 2, "cross-process update(at:) calls must serialize: expected counter=2, got \(count as Any)")
+        }
+    }
 }

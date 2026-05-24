@@ -19,9 +19,14 @@ let package = Package(
     ],
     targets: [
         .target(name: "AWSConfigINI"),
+        .executableTarget(
+            name: "AWSConfigINILockTestHelper",
+            dependencies: ["AWSConfigINI"],
+            path: "Tests/AWSConfigINILockTestHelper"
+        ),
         .testTarget(
             name: "AWSConfigINITests",
-            dependencies: ["AWSConfigINI"],
+            dependencies: ["AWSConfigINI", "AWSConfigINILockTestHelper"],
             resources: [
                 .copy("Resources"),
             ]
