@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "findingId": "fnd_sig-feat-test-suite-ca7e335e57-b_bbb09fa837",
+  "featureId": "feat_test-suite_ca7e335e57",
+  "title": "MockSleeper waiters can miss an already-started sleep and hang tests",
+  "category": "concurrency",
+  "severity": "medium",
+  "confidence": "high",
+  "triage": "confirmed-bug",
+  "evidence": [
+    {
+      "path": "Packages/QuorraCore/Tests/IAMIdentityCenterTests/Stubs/MockSleeper.swift",
+      "startLine": 28,
+      "endLine": 30,
+      "symbol": "MockSleeper.sleep(for:)",
+      "quote": "let waiters = nextSleepWaiters\nnextSleepWaiters.removeAll()\nfor waiter in waiters { waiter.resume() }"
+    },
+    {
+      "path": "Packages/QuorraCore/Tests/IAMIdentityCenterTests/Stubs/MockSleeper.swift",
+      "startLine": 47,
+      "endLine": 49,
+      "symbol": "MockSleeper.sleep(until:)",
+      "quote": "let waiters = nextSleepWaiters\nnextSleepWaiters.removeAll()\nfor waiter in waiters { waiter.resume() }"
+    },
+    {
+      "path": "Packages/QuorraCore/Tests/IAMIdentityCenterTests/Stubs/MockSleeper.swift",
+      "startLine": 56,
+      "endLine": 59,
+      "symbol": "MockSleeper.waitForNextSleep()",
+      "quote": "await withCheckedContinuation { continuation in\n    nextSleepWaiters.append(continuation)\n}"
+    }
+  ],
+  "reasoning": "The helper only resumes continuations that are already registered at the exact moment sleep(for:) or sleep(until:) runs. If a background task reaches and completes the mock sleep before the test task calls waitForNextSleep(), the later continuation is appended with no future sleep guaranteed to resume it. That turns a scheduler ordering race into a permanent test hang rather than a deterministic synchronization point.",
+  "reproduction": "Start a task that calls MockSleeper.sleep(for:), allow it to run before the test awaits waitForNextSleep(), then await waitForNextSleep(); no continuation is resumed unless another sleep happens.",
+  "recommendation": "Replace the bare continuation list with generation-based waiting, such as a monotonically increasing sleepSequence and a waitForSleep(after:) or waitForSleepCount(atLeast:) helper. Tests should capture the current sequence before starting the producer task or wait for a minimum count, so late registration cannot lose the signal.",
+  "whyTestsDoNotAlreadyCoverThis": "The existing helper is itself used as the synchronization primitive, so a missed wakeup manifests as a timeout or hang. There is no dedicated meta-test covering the late-waiter path.",
+  "suggestedRegressionTest": "Add a test that performs a sleep before registering a waiter and verifies a new generation/count-based API can observe the completed sleep or fail fast instead of suspending indefinitely.",
+  "minimumFixScope": "Packages/QuorraCore/Tests/IAMIdentityCenterTests/Stubs/MockSleeper.swift plus call sites that use waitForNextSleep() as a background-task synchronization point.",
+  "status": "open",
+  "history": [],
+  "signature": "sig_feat-test-suite-ca7e335e57_bcd9bfbd98",
+  "linkedPatchAttemptIds": [],
+  "createdByRunId": "20260522T003850-99b02a",
+  "createdAt": "2026-05-22T00:41:42.817Z",
+  "updatedAt": "2026-05-22T00:41:42.817Z"
+}

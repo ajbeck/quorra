@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "featureId": "feat_ui-flow_93314b318b",
+  "title": "Apple source App/Profiles",
+  "summary": "Apple Swift source group App/Profiles with 7 files.",
+  "kind": "ui-flow",
+  "source": "apple-source-group",
+  "confidence": "medium",
+  "entrypoints": [
+    {
+      "path": "Quorra.xcworkspace",
+      "symbol": "App/Profiles",
+      "route": null,
+      "command": null
+    }
+  ],
+  "ownedFiles": [
+    {
+      "path": "App/Profiles/EditorState.swift",
+      "reason": "apple source group App/Profiles"
+    },
+    {
+      "path": "App/Profiles/ProfileNode.swift",
+      "reason": "apple source group App/Profiles"
+    },
+    {
+      "path": "App/Profiles/ProfilesModel+Save.swift",
+      "reason": "apple source group App/Profiles"
+    },
+    {
+      "path": "App/Profiles/ProfilesModel.swift",
+      "reason": "apple source group App/Profiles"
+    },
+    {
+      "path": "App/Profiles/SSOSessionNode.swift",
+      "reason": "apple source group App/Profiles"
+    },
+    {
+      "path": "App/Profiles/SidebarGroups.swift",
+      "reason": "apple source group App/Profiles"
+    },
+    {
+      "path": "App/Profiles/SidebarSelection.swift",
+      "reason": "apple source group App/Profiles"
+    }
+  ],
+  "contextFiles": [],
+  "tests": [],
+  "tags": [
+    "apple",
+    "swift",
+    "xcode"
+  ],
+  "trustBoundaries": [
+    "filesystem"
+  ],
+  "status": "pending",
+  "lock": null,
+  "findingIds": [],
+  "patchAttemptIds": [],
+  "analysisHistory": [],
+  "createdAt": "2026-05-22T00:38:31.601Z",
+  "updatedAt": "2026-05-22T00:38:31.601Z"
+}

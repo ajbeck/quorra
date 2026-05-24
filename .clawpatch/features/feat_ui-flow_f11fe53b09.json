@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "featureId": "feat_ui-flow_f11fe53b09",
+  "title": "Apple source App/Views/Detail",
+  "summary": "Apple Swift source group App/Views/Detail with 5 files.",
+  "kind": "ui-flow",
+  "source": "apple-source-group",
+  "confidence": "medium",
+  "entrypoints": [
+    {
+      "path": "Quorra.xcworkspace",
+      "symbol": "App/Views/Detail",
+      "route": null,
+      "command": null
+    }
+  ],
+  "ownedFiles": [
+    {
+      "path": "App/Views/Detail/CredentialsRevealSection.swift",
+      "reason": "apple source group App/Views/Detail"
+    },
+    {
+      "path": "App/Views/Detail/OptionalStringBinding.swift",
+      "reason": "apple source group App/Views/Detail"
+    },
+    {
+      "path": "App/Views/Detail/ProfileDetailView.swift",
+      "reason": "apple source group App/Views/Detail"
+    },
+    {
+      "path": "App/Views/Detail/SessionDetailView.swift",
+      "reason": "apple source group App/Views/Detail"
+    },
+    {
+      "path": "App/Views/Detail/SignInPanel.swift",
+      "reason": "apple source group App/Views/Detail"
+    }
+  ],
+  "contextFiles": [],
+  "tests": [],
+  "tags": [
+    "apple",
+    "swift",
+    "xcode"
+  ],
+  "trustBoundaries": [
+    "filesystem"
+  ],
+  "status": "pending",
+  "lock": null,
+  "findingIds": [],
+  "patchAttemptIds": [],
+  "analysisHistory": [],
+  "createdAt": "2026-05-22T00:38:31.601Z",
+  "updatedAt": "2026-05-22T00:38:31.601Z"
+}

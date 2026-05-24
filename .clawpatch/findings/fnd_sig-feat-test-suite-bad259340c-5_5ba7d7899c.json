@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "findingId": "fnd_sig-feat-test-suite-bad259340c-5_5ba7d7899c",
+  "featureId": "feat_test-suite_bad259340c",
+  "title": "Cross-process file locking behavior is not exercised by the active suite",
+  "category": "test-gap",
+  "severity": "medium",
+  "confidence": "high",
+  "triage": "test-gap",
+  "evidence": [
+    {
+      "path": "Packages/QuorraCore/Tests/AWSConfigINITests/FileIOTests.swift",
+      "startLine": 131,
+      "endLine": 138,
+      "symbol": "FileIOTests.lockContentionCounterReachesTwo",
+      "quote": "This means in-process concurrent Tasks cannot race-test the fcntl path. The real-world serialization guarantee is cross-process: app vs. CLI"
+    },
+    {
+      "path": "Packages/QuorraCore/Tests/AWSConfigINITests/FileIOTests.swift",
+      "startLine": 145,
+      "endLine": 176,
+      "symbol": "FileIOTests.lockContentionCounterReachesTwo",
+      "quote": "Two sequential update(at:_:) calls each increment a counter key."
+    },
+    {
+      "path": "Packages/QuorraCore/Tests/AWSConfigINITests/FileIOTests.swift",
+      "startLine": 194,
+      "endLine": 205,
+      "symbol": "FileIOTests.lockTimeoutThrownWhenLockHeld",
+      "quote": "To properly test .lockTimeout, a helper subprocess that holds the lock must be spawned... @Test(.disabled"
+    }
+  ],
+  "reasoning": "The project relies on file locks for app/CLI shared mutable AWS config state, but the active test only proves sequential read-modify-write accumulation in one process. The only timeout/contention test is explicitly disabled, so an implementation that omits or breaks cross-process fcntl locking could still pass this suite.",
+  "reproduction": null,
+  "recommendation": "Add an integration-style Swift test that spawns a helper subprocess to hold the lock, then asserts a second process times out; also add a two-process increment test to prove updates serialize without lost writes.",
+  "whyTestsDoNotAlreadyCoverThis": "The file documents that same-process locking cannot model the real behavior, and the subprocess-based test that would cover it is disabled.",
+  "suggestedRegressionTest": "Spawn a small helper executable or Process invocation that opens `<url>.lock` and holds an exclusive fcntl lock while the parent calls `FileLock.exclusive(on:timeout:)`; assert `.lockTimeout`, then run two helper processes that each call `AWSConfigINIDocument.update` to increment the same key and assert the final count is 2.",
+  "minimumFixScope": "Add cross-process File IO tests and any minimal test helper target/script needed to hold the fcntl lock.",
+  "status": "open",
+  "history": [],
+  "signature": "sig_feat-test-suite-bad259340c_5941d7c03c",
+  "linkedPatchAttemptIds": [],
+  "createdByRunId": "20260522T003850-99b02a",
+  "createdAt": "2026-05-22T00:41:20.731Z",
+  "updatedAt": "2026-05-22T00:41:20.731Z"
+}

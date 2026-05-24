@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "featureId": "feat_ui-flow_7a799661c7",
+  "title": "Apple project quorra.xcodeproj",
+  "summary": "Apple/Xcode project rooted at quorra.xcodeproj.",
+  "kind": "ui-flow",
+  "source": "apple-project",
+  "confidence": "medium",
+  "entrypoints": [
+    {
+      "path": "quorra.xcodeproj/project.xcworkspace",
+      "symbol": "quorra.xcodeproj",
+      "route": null,
+      "command": null
+    }
+  ],
+  "ownedFiles": [
+    {
+      "path": "quorra.xcodeproj/project.xcworkspace",
+      "reason": "project manifest"
+    }
+  ],
+  "contextFiles": [],
+  "tests": [],
+  "tags": [
+    "apple",
+    "swift",
+    "xcode"
+  ],
+  "trustBoundaries": [
+    "filesystem"
+  ],
+  "status": "pending",
+  "lock": null,
+  "findingIds": [],
+  "patchAttemptIds": [],
+  "analysisHistory": [],
+  "createdAt": "2026-05-22T00:38:31.601Z",
+  "updatedAt": "2026-05-22T00:38:31.601Z"
+}

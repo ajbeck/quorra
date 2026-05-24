@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "findingId": "fnd_sig-feat-test-suite-183828e846-b_ff885a0784",
+  "featureId": "feat_test-suite_183828e846",
+  "title": "Event-stream tests depend on fixed sleeps instead of deterministic synchronization",
+  "category": "test-gap",
+  "severity": "medium",
+  "confidence": "high",
+  "triage": "test-gap",
+  "evidence": [
+    {
+      "path": "Tests/QuorraAppTests/CredentialsModelTests.swift",
+      "startLine": 279,
+      "endLine": 282,
+      "symbol": "streamConsumerUpdatesStatusOnSignedInEvent",
+      "quote": "try await Task.sleep(for: .milliseconds(100))"
+    },
+    {
+      "path": "Tests/QuorraAppTests/CredentialsModelTests.swift",
+      "startLine": 298,
+      "endLine": 303,
+      "symbol": "streamConsumerSetsSignOutFailureOnEvent",
+      "quote": "try await Task.sleep(for: .milliseconds(100))"
+    },
+    {
+      "path": "Tests/QuorraAppTests/CredentialsModelTests.swift",
+      "startLine": 318,
+      "endLine": 323,
+      "symbol": "mintingCredentialsEventPopulatesMintingNow",
+      "quote": "try await Task.sleep(for: .milliseconds(100))"
+    }
+  ],
+  "reasoning": "The stream-consumer assertions rely on a 100 ms scheduling window for multiple async hops. That can produce false failures on a loaded CI machine or under a slower sanitizer run, even when the production behavior is correct. The same file already uses continuations for sign-in synchronization, so the event path has a weaker synchronization contract than the rest of the suite.",
+  "reproduction": "Run the affected tests repeatedly under high CPU load or with an injected delay in the stub status/profileStatus calls longer than 100 ms; the assertions can observe stale model state before the consumer task finishes.",
+  "recommendation": "Replace the sleeps with deterministic test hooks: have the stub expose continuations/counters resumed from status(forSession:) and status(forProfile:), or add a bounded awaitEventually helper that polls the exact model state until it changes or times out with diagnostics.",
+  "whyTestsDoNotAlreadyCoverThis": "These are the tests for the event consumer, but they assert after elapsed wall-clock time rather than after observing that the event was processed.",
+  "suggestedRegressionTest": "Update at least one stream event test to inject a status call delay greater than 100 ms and prove the new synchronization waits for completion without flaking.",
+  "minimumFixScope": "CredentialsModelTests event-stream synchronization helper and the tests that currently call Task.sleep.",
+  "status": "open",
+  "history": [],
+  "signature": "sig_feat-test-suite-183828e846_ba3f49ce86",
+  "linkedPatchAttemptIds": [],
+  "createdByRunId": "20260522T003850-99b02a",
+  "createdAt": "2026-05-22T00:41:41.383Z",
+  "updatedAt": "2026-05-22T00:41:41.383Z"
+}

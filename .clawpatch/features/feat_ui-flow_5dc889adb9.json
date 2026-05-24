@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "featureId": "feat_ui-flow_5dc889adb9",
+  "title": "Apple source Packages/QuorraCore/Sources/IAMIdentityCenter/Wire",
+  "summary": "Apple Swift source group Packages/QuorraCore/Sources/IAMIdentityCenter/Wire with 6 files.",
+  "kind": "ui-flow",
+  "source": "apple-source-group",
+  "confidence": "medium",
+  "entrypoints": [
+    {
+      "path": "Quorra.xcworkspace",
+      "symbol": "Packages/QuorraCore/Sources/IAMIdentityCenter/Wire",
+      "route": null,
+      "command": null
+    }
+  ],
+  "ownedFiles": [
+    {
+      "path": "Packages/QuorraCore/Sources/IAMIdentityCenter/Wire/AWSServiceErrorResponse.swift",
+      "reason": "apple source group Packages/QuorraCore/Sources/IAMIdentityCenter/Wire"
+    },
+    {
+      "path": "Packages/QuorraCore/Sources/IAMIdentityCenter/Wire/GetRoleCredentials.swift",
+      "reason": "apple source group Packages/QuorraCore/Sources/IAMIdentityCenter/Wire"
+    },
+    {
+      "path": "Packages/QuorraCore/Sources/IAMIdentityCenter/Wire/ListAccountRoles.swift",
+      "reason": "apple source group Packages/QuorraCore/Sources/IAMIdentityCenter/Wire"
+    },
+    {
+      "path": "Packages/QuorraCore/Sources/IAMIdentityCenter/Wire/ListAccounts.swift",
+      "reason": "apple source group Packages/QuorraCore/Sources/IAMIdentityCenter/Wire"
+    },
+    {
+      "path": "Packages/QuorraCore/Sources/IAMIdentityCenter/Wire/OAuthErrorResponse.swift",
+      "reason": "apple source group Packages/QuorraCore/Sources/IAMIdentityCenter/Wire"
+    },
+    {
+      "path": "Packages/QuorraCore/Sources/IAMIdentityCenter/Wire/Wire.swift",
+      "reason": "apple source group Packages/QuorraCore/Sources/IAMIdentityCenter/Wire"
+    }
+  ],
+  "contextFiles": [],
+  "tests": [],
+  "tags": [
+    "apple",
+    "swift",
+    "xcode"
+  ],
+  "trustBoundaries": [
+    "filesystem"
+  ],
+  "status": "pending",
+  "lock": null,
+  "findingIds": [],
+  "patchAttemptIds": [],
+  "analysisHistory": [],
+  "createdAt": "2026-05-22T00:38:31.601Z",
+  "updatedAt": "2026-05-22T00:38:31.601Z"
+}

@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "featureId": "feat_ui-flow_f777a6fd70",
+  "title": "Apple source App/Views/SidebarRows",
+  "summary": "Apple Swift source group App/Views/SidebarRows with 4 files.",
+  "kind": "ui-flow",
+  "source": "apple-source-group",
+  "confidence": "medium",
+  "entrypoints": [
+    {
+      "path": "Quorra.xcworkspace",
+      "symbol": "App/Views/SidebarRows",
+      "route": null,
+      "command": null
+    }
+  ],
+  "ownedFiles": [
+    {
+      "path": "App/Views/SidebarRows/ProfileRow.swift",
+      "reason": "apple source group App/Views/SidebarRows"
+    },
+    {
+      "path": "App/Views/SidebarRows/ProfileStatusIcon.swift",
+      "reason": "apple source group App/Views/SidebarRows"
+    },
+    {
+      "path": "App/Views/SidebarRows/SessionRow.swift",
+      "reason": "apple source group App/Views/SidebarRows"
+    },
+    {
+      "path": "App/Views/SidebarRows/SessionStatusIcon.swift",
+      "reason": "apple source group App/Views/SidebarRows"
+    }
+  ],
+  "contextFiles": [
+    {
+      "path": "Tests/QuorraAppTests/SessionStatusIconTests.swift",
+      "reason": "associated apple test"
+    }
+  ],
+  "tests": [
+    {
+      "path": "Tests/QuorraAppTests/SessionStatusIconTests.swift",
+      "command": null
+    }
+  ],
+  "tags": [
+    "apple",
+    "swift",
+    "xcode"
+  ],
+  "trustBoundaries": [
+    "filesystem"
+  ],
+  "status": "pending",
+  "lock": null,
+  "findingIds": [],
+  "patchAttemptIds": [],
+  "analysisHistory": [],
+  "createdAt": "2026-05-22T00:38:31.601Z",
+  "updatedAt": "2026-05-22T00:38:31.601Z"
+}

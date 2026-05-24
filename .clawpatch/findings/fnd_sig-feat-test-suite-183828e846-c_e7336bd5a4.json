@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "findingId": "fnd_sig-feat-test-suite-183828e846-c_e7336bd5a4",
+  "featureId": "feat_test-suite_183828e846",
+  "title": "Bookmark storage tests only round-trip raw bytes, not usable or malformed bookmarks",
+  "category": "test-gap",
+  "severity": "medium",
+  "confidence": "medium",
+  "triage": "test-gap",
+  "evidence": [
+    {
+      "path": "Tests/QuorraAppTests/BookmarkStorageTests.swift",
+      "startLine": 22,
+      "endLine": 26,
+      "symbol": "saveAndLoadRoundTrip",
+      "quote": "let payload = Data([0x01, 0x02, 0x03, 0x04])"
+    },
+    {
+      "path": "Tests/QuorraAppTests/BookmarkStorageTests.swift",
+      "startLine": 29,
+      "endLine": 33,
+      "symbol": "saveOverwritesExistingValue",
+      "quote": "storage.save(Data([0xAA]))"
+    },
+    {
+      "path": "Tests/QuorraAppTests/BookmarkStorageTests.swift",
+      "startLine": 36,
+      "endLine": 45,
+      "symbol": "clearRemovesStoredData",
+      "quote": null
+    }
+  ],
+  "reasoning": "The tests validate UserDefaults persistence of arbitrary Data, but they do not verify that BookmarkStorage can create and resolve a security-scoped bookmark, nor that malformed stored data fails in a controlled way. Since first-launch setup depends on bookmark resolution, a regression that drops `.withSecurityScope` or mishandles corrupt bookmark data would pass this suite.",
+  "reproduction": null,
+  "recommendation": "Add coverage for `makeBookmark(for:)` plus `resolve(_:)` against a temporary directory, and add a malformed-data case that stores invalid Data and verifies the expected thrown error or AppModel recovery path.",
+  "whyTestsDoNotAlreadyCoverThis": "The existing tests stop at `load()` returning the same bytes that were saved; they never exercise bookmark creation, bookmark resolution, stale/error handling, or corrupt input.",
+  "suggestedRegressionTest": "Create a temp directory, call `makeBookmark(for:)`, save/load/resolve it, and assert the resolved URL matches; then assert `resolve(Data([0x01, 0x02]))` throws.",
+  "minimumFixScope": "BookmarkStorageTests, with a small temp-directory cleanup helper if needed.",
+  "status": "open",
+  "history": [],
+  "signature": "sig_feat-test-suite-183828e846_ccec5db521",
+  "linkedPatchAttemptIds": [],
+  "createdByRunId": "20260522T003850-99b02a",
+  "createdAt": "2026-05-22T00:41:41.383Z",
+  "updatedAt": "2026-05-22T00:41:41.383Z"
+}
