@@ -36,11 +36,38 @@
   "whyTestsDoNotAlreadyCoverThis": "The existing helper is itself used as the synchronization primitive, so a missed wakeup manifests as a timeout or hang. There is no dedicated meta-test covering the late-waiter path.",
   "suggestedRegressionTest": "Add a test that performs a sleep before registering a waiter and verifies a new generation/count-based API can observe the completed sleep or fail fast instead of suspending indefinitely.",
   "minimumFixScope": "Packages/QuorraCore/Tests/IAMIdentityCenterTests/Stubs/MockSleeper.swift plus call sites that use waitForNextSleep() as a background-task synchronization point.",
-  "status": "open",
-  "history": [],
+  "status": "fixed",
+  "history": [
+    {
+      "runId": "20260524T111755-78b7e7",
+      "kind": "revalidate",
+      "status": "fixed",
+      "note": null,
+      "reasoning": "Original evidence path still exists, but the quoted nextSleepWaiters implementation is gone. MockSleeper now tracks sleepCount and target-count waiters; sleep(for:) and sleep(until:) call signalSleepWaiters(), which increments the count and resumes waiters whose target count has been reached. waitForSleepCount(atLeast:) returns immediately when the requested count already occurred, so a late waiter does not lose a completed sleep. Current test call sites use waitForSleepCount(atLeast: 1), and MockSleeperTests.waitForSleepCountHandlesLateWaiter covers the late-waiter case by sleeping before registering the waiter. I attempted to run the focused test, but swift test was blocked by the read-only sandbox/xcrun cache permission error, and Xcode RunSomeTests failed before execution due an unrelated AWSConfigINILockTestHelper/main.swift build error.",
+      "commands": [
+        "sed -n '1,220p' /Users/aj/.codex/plugins/cache/openai-curated/build-macos-apps/6188456f/skills/test-triage/SKILL.md",
+        "rg --files | rg 'MockSleeper|IAMIdentityCenterTests|Package.swift|\\.xcodeproj|\\.xcworkspace'",
+        "git status --short",
+        "rg -n \"waitForNextSleep|nextSleepWaiters|sleepSequence|waitForSleep|MockSleeper\" Packages/QuorraCore/Tests",
+        "nl -ba Packages/QuorraCore/Tests/IAMIdentityCenterTests/Stubs/MockSleeper.swift | sed -n '1,140p'",
+        "nl -ba Packages/QuorraCore/Tests/IAMIdentityCenterTests/MockSleeperTests.swift | sed -n '1,120p'",
+        "rg -n \"waitForNextSleep\\(|waitForSleepCount\\(|waitForSleep\\(\" Packages/QuorraCore/Tests/IAMIdentityCenterTests",
+        "swift test --package-path Packages/QuorraCore --filter MockSleeperTests",
+        "mcp__xcode__.GetTestList(tabIdentifier: windowtab1)",
+        "rg -n \"MockSleeper\" /var/folders/12/85njspp52jzgtckc32d1jczm0000gn/T/ActionArtifacts/default/GetTestList/C07F0941-CFA5-456E-BD1E-D336BF3536CF.txt",
+        "mcp__xcode__.RunSomeTests(IAMIdentityCenterTests/IAMIdentityCenterTestSuite/MockSleeperTests/waitForSleepCountHandlesLateWaiter())",
+        "mcp__xcode__.GetBuildLog(tabIdentifier: windowtab1, severity: error, pattern: MockSleeper|error|IAMIdentityCenterTests|cannot|failed)",
+        "git diff -- Packages/QuorraCore/Tests/IAMIdentityCenterTests/Stubs/MockSleeper.swift Packages/QuorraCore/Tests/IAMIdentityCenterTests/MockSleeperTests.swift",
+        "rg -n \"nextSleepWaiters|withCheckedContinuation|sleepWaiters|waitForNextSleep\\(\" Packages/QuorraCore/Tests/IAMIdentityCenterTests/Stubs/MockSleeper.swift Packages/QuorraCore/Tests/IAMIdentityCenterTests"
+      ],
+      "createdAt": "2026-05-24T11:20:18.313Z"
+    }
+  ],
   "signature": "sig_feat-test-suite-ca7e335e57_bcd9bfbd98",
-  "linkedPatchAttemptIds": [],
+  "linkedPatchAttemptIds": [
+    "pat_fnd-sig-feat-test-suite-ca7e335e_075f623556"
+  ],
   "createdByRunId": "20260522T003850-99b02a",
   "createdAt": "2026-05-22T00:41:42.817Z",
-  "updatedAt": "2026-05-22T00:41:42.817Z"
+  "updatedAt": "2026-05-24T11:20:18.313Z"
 }

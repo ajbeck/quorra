@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "runId": "20260524T111755-78b7e7",
+  "command": "revalidate",
+  "args": [
+    "revalidate",
+    "--finding",
+    "fnd_sig-feat-test-suite-ca7e335e57-b_bbb09fa837"
+  ],
+  "rootPath": "/Users/aj/Developer/repos/ajbeck/quorra",
+  "headSha": "4079fc95c2ee1535e38434077ac8558e28be9983",
+  "startedAt": "2026-05-24T11:17:55.482Z",
+  "finishedAt": "2026-05-24T11:20:18.326Z",
+  "status": "completed",
+  "claimedFeatureIds": [],
+  "findingIds": [
+    "fnd_sig-feat-test-suite-ca7e335e57-b_bbb09fa837"
+  ],
+  "patchAttemptIds": [],
+  "errors": []
+}
