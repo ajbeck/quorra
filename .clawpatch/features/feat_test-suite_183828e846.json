@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "featureId": "feat_test-suite_183828e846",
   "title": "Apple test suite ./sts",
-  "summary": "Apple Swift test group ./sts with 8 files.",
+  "summary": "Apple Swift test group ./sts with 9 files.",
   "kind": "test-suite",
   "source": "apple-test-group",
   "confidence": "medium",
@@ -46,6 +46,10 @@
     {
       "path": "Tests/QuorraAppTests/SessionStatusIconTests.swift",
       "reason": "apple test group ./sts"
+    },
+    {
+      "path": "Tests/QuorraAppTests/SidebarFlatProfilesTests.swift",
+      "reason": "apple test group ./sts"
     }
   ],
   "contextFiles": [],
@@ -76,5 +80,5 @@
     }
   ],
   "createdAt": "2026-05-22T00:38:31.601Z",
-  "updatedAt": "2026-05-22T00:41:41.386Z"
+  "updatedAt": "2026-05-24T10:50:46.797Z"
 }

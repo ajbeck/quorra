@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "findingId": "fnd_sig-feat-ui-flow-14bdbae2f5-bb2c_13ea74fbfa",
+  "featureId": "feat_ui-flow_14bdbae2f5",
+  "title": "First-launch setup does not activate the selected folder's security scope",
+  "category": "bug",
+  "severity": "medium",
+  "confidence": "medium",
+  "triage": "risk",
+  "evidence": [
+    {
+      "path": "App/Root/AppModel.swift",
+      "startLine": 67,
+      "endLine": 75,
+      "symbol": "completeSetup(selectedFolder:mode:)",
+      "quote": null
+    },
+    {
+      "path": "App/Root/AppModel.swift",
+      "startLine": 40,
+      "endLine": 61,
+      "symbol": "resolveStoredBookmark()",
+      "quote": null
+    }
+  ],
+  "reasoning": "The stored-bookmark path resolves the bookmark and calls startAccessingSecurityScopedResource before publishing .ready, but the first-launch setup path saves a bookmark and immediately publishes .ready without starting security-scoped access for the selected folder. In a sandboxed app, downstream views that read or write ~/.aws after setup can therefore run without the same access guarantee they get on later launches. The inconsistency also means first-launch behavior can differ from restart behavior.",
+  "reproduction": null,
+  "recommendation": "In completeSetup, call startAccessingSecurityScopedResource on the selected URL before setting currentAccessURL and phase to .ready. If access cannot be started, publish .error(.folderAccessDenied). If replacing an existing currentAccessURL, stop the old scope before storing the new one.",
+  "whyTestsDoNotAlreadyCoverThis": "The included AppModel tests cover mode persistence and reset behavior only; they do not exercise completeSetup or assert that security-scoped access is started before entering .ready.",
+  "suggestedRegressionTest": "Add an AppModel test using an injectable bookmark/access helper or URL access abstraction that verifies completeSetup starts access before publishing .ready and emits .folderAccessDenied when access fails.",
+  "minimumFixScope": "App/Root/AppModel.swift plus a focused AppModel test seam for security-scope access.",
+  "status": "open",
+  "history": [],
+  "signature": "sig_feat-ui-flow-14bdbae2f5_bb2c5a9ce8",
+  "linkedPatchAttemptIds": [],
+  "createdByRunId": "20260524T105054-7a497a",
+  "createdAt": "2026-05-24T10:51:28.074Z",
+  "updatedAt": "2026-05-24T10:51:28.074Z"
+}

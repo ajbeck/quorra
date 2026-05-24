@@ -52,11 +52,23 @@
   "trustBoundaries": [
     "filesystem"
   ],
-  "status": "pending",
+  "status": "needs-fix",
   "lock": null,
-  "findingIds": [],
+  "findingIds": [
+    "fnd_sig-feat-ui-flow-14bdbae2f5-bb2c_13ea74fbfa"
+  ],
   "patchAttemptIds": [],
-  "analysisHistory": [],
+  "analysisHistory": [
+    {
+      "runId": "20260524T105054-7a497a",
+      "kind": "review",
+      "summary": "1 finding(s); prompt=13458 bytes; approxTokens=3362; includedFiles=5; omittedFiles=0",
+      "provider": "codex",
+      "model": null,
+      "reasoningEffort": null,
+      "createdAt": "2026-05-24T10:51:28.076Z"
+    }
+  ],
   "createdAt": "2026-05-22T00:38:31.601Z",
-  "updatedAt": "2026-05-22T00:38:31.601Z"
+  "updatedAt": "2026-05-24T10:51:28.076Z"
 }
