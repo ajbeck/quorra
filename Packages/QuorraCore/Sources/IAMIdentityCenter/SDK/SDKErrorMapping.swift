@@ -1,18 +1,16 @@
 import Foundation
+import protocol ClientRuntime.ServiceError
 
 /// Containment boundary for AWS SDK for Swift exceptions.
 ///
 /// Two responsibilities, separated for testability:
 ///
-/// 1. `mapOIDC` / `mapPortal` are **pure functions** over a `(typeName, message)` discriminator
-///    pair. No SDK imports in their signatures — they're exhaustively unit-testable in
+/// 1. `mapOIDC` is a pure function over a `(typeName, message)` discriminator pair.
+///    No SDK imports in its signature — it's exhaustively unit-testable in
 ///    `SDKErrorMappingTests` with plain strings.
-/// 2. `extract(from:)` pulls the discriminator out of a thrown error. It uses a benign
-///    `String(describing: type(of: error))` fallback that yields a sensible discriminator
-///    like `"InvalidClientException"` for any SDK exception whose Swift type name matches
-///    the Smithy type name. If a future SDK exposes a public protocol with a typed
-///    `typeName: String` / `message: String?` property pair, swap the fallback at the call
-///    site — the mapping table and its tests are unaffected.
+/// 2. `extract(from:)` pulls the discriminator out of the SDK's public `ServiceError`
+///    protocol, preserving the service message for diagnostics. It falls back to the
+///    Swift type name for non-service errors.
 ///
 /// SDK version drift only affects `extract(from:)` and the type-name strings in the mapping
 /// table — the test surface is stable.
@@ -37,6 +35,10 @@ enum SDKErrorMapping {
             return .awsError(code: "unauthorized_client", description: message)
         case "InternalServerException":
             return .awsError(code: "server_error", description: message)
+        case "InvalidScopeException":
+            return .awsError(code: "invalid_scope", description: message)
+        case "UnsupportedGrantTypeException":
+            return .awsError(code: "unsupported_grant_type", description: message)
         default:
             return .awsError(code: "unknown", description: message ?? typeName)
         }
@@ -44,11 +46,16 @@ enum SDKErrorMapping {
 
     /// Pulls a `(typeName, message)` discriminator out of an SDK exception.
     ///
-    /// Uses the Swift type name as the discriminator — for `aws-sdk-swift`-generated
-    /// service exceptions, this matches the Smithy type name (e.g. `InvalidClientException`,
-    /// `AccessDeniedException`). Misclassification is benign: the mapping table's default
-    /// case yields `.awsError("unknown", ...)` with the type name as the description.
+    /// Uses the SDK's `ServiceError` protocol when available. Misclassification is benign:
+    /// the mapping table's default case yields `.awsError("unknown", ...)` with the type
+    /// name as the description.
     static func extract(from error: any Error) -> (typeName: String, message: String?) {
-        (String(describing: type(of: error)), nil)
+        if let serviceError = error as? any ServiceError {
+            return (
+                serviceError.typeName ?? String(describing: type(of: error)),
+                serviceError.message
+            )
+        }
+        return (String(describing: type(of: error)), nil)
     }
 }
