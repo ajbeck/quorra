@@ -16,6 +16,16 @@ Quorra is a macOS app (and companion Swift CLI) for managing AWS credentials on 
 - **Persistence**: macOS Keychain (`Security` framework) for secrets; direct file I/O for `~/.aws/` files
 - **Xcode MCP server**: use `mcp__xcode__*` tools for build, diagnostics, preview, grep, file ops — prefer these over raw `bash` for anything touching the Xcode project
 
+## Build Philosophy: Native First, Custom When Warranted
+
+Quorra is a **functional, good-looking developer tool** — neither slavishly stock nor gratuitously custom. The decision order for any feature or UI element:
+
+1. **Reach for the out-of-the-box feature first.** Use the native SwiftUI/AppKit control, modifier, or behavior (e.g. `List(.sidebar)`, `Picker`, `.searchable`, system selection, Liquid Glass materials) and evaluate whether it meets the need.
+2. **Only build custom when the stock feature genuinely falls short.** When you do, name the specific gap the native control can't close — don't rebuild something the platform already gives you for free (keyboard nav, accessibility, system materials).
+3. **Stay coherent with the platform.** Custom work should still feel like a stock macOS utility and must not fight system behavior (e.g. don't paint a solid surface over the Liquid Glass sidebar material).
+
+Design mockups define the **target look and structure**; this philosophy defines **how** we get there. Treat mockups as structure-and-intent-faithful, realized with native machinery wherever it suffices.
+
 ## Bundle Identifiers
 
 - App: `dev.ajbeck.quorra` — produces `quorra.app`
