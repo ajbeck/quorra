@@ -36,11 +36,34 @@
   "whyTestsDoNotAlreadyCoverThis": "The file documents that same-process locking cannot model the real behavior, and the subprocess-based test that would cover it is disabled.",
   "suggestedRegressionTest": "Spawn a small helper executable or Process invocation that opens `<url>.lock` and holds an exclusive fcntl lock while the parent calls `FileLock.exclusive(on:timeout:)`; assert `.lockTimeout`, then run two helper processes that each call `AWSConfigINIDocument.update` to increment the same key and assert the final count is 2.",
   "minimumFixScope": "Add cross-process File IO tests and any minimal test helper target/script needed to hold the fcntl lock.",
-  "status": "open",
-  "history": [],
+  "status": "fixed",
+  "history": [
+    {
+      "runId": "20260524T110408-1c8556",
+      "kind": "revalidate",
+      "status": "fixed",
+      "note": null,
+      "reasoning": "The original evidence file still exists, but the cited lines have changed. The old disabled subprocess lock-timeout test is no longer present. Current FileIOTests.swift now has active @Test methods lockTimeoutThrownWhenLockHeldByAnotherProcess at lines 215-240 and crossProcessUpdatesSerializeWithoutLostIncrement at lines 242-263. A new AWSConfigINILockTestHelper executable exists at Packages/QuorraCore/Tests/AWSConfigINILockTestHelper/main.swift and Package.swift wires it into AWSConfigINITests. A search found no @Test(.disabled)/disabled marker in these lock tests. I attempted to run the FileIOTests filter, but this read-only sandbox could not create Swift/xcrun cache files, so runtime verification was blocked by the environment rather than by the repository code.",
+      "commands": [
+        "pwd && rg --files | rg '(^|/)(FileIOTests|.*Lock.*Tests|Package.swift|.*\\\\.swift)$'",
+        "nl -ba Packages/QuorraCore/Tests/AWSConfigINITests/FileIOTests.swift | sed -n '1,280p'",
+        "nl -ba Packages/QuorraCore/Tests/AWSConfigINILockTestHelper/main.swift | sed -n '1,260p'",
+        "nl -ba Packages/QuorraCore/Package.swift | sed -n '1,240p'",
+        "rg -n \"lockContention|lockTimeout|LockTestHelper|cross-process|subprocess|disabled|FileLock|fcntl|exclusive\\\\(\" Packages/QuorraCore -S",
+        "swift test --package-path Packages/QuorraCore --filter FileIOTests",
+        "nl -ba Packages/QuorraCore/Sources/AWSConfigINI/IO/FileLock.swift | sed -n '1,190p'",
+        "nl -ba Packages/QuorraCore/Sources/AWSConfigINI/Document.swift | sed -n '248,330p'",
+        "rg -n \"@Test\\\\(\\\\.disabled|disabled\\\\(\" Packages/QuorraCore/Tests/AWSConfigINITests/FileIOTests.swift Packages/QuorraCore/Tests/AWSConfigINILockTestHelper/main.swift Packages/QuorraCore/Package.swift",
+        "git status --short && git diff -- Packages/QuorraCore/Tests/AWSConfigINITests/FileIOTests.swift Packages/QuorraCore/Tests/AWSConfigINILockTestHelper/main.swift Packages/QuorraCore/Package.swift"
+      ],
+      "createdAt": "2026-05-24T11:05:15.128Z"
+    }
+  ],
   "signature": "sig_feat-test-suite-bad259340c_5941d7c03c",
-  "linkedPatchAttemptIds": [],
+  "linkedPatchAttemptIds": [
+    "pat_fnd-sig-feat-test-suite-bad25934_2fff534bf7"
+  ],
   "createdByRunId": "20260522T003850-99b02a",
   "createdAt": "2026-05-22T00:41:20.731Z",
-  "updatedAt": "2026-05-22T00:41:20.731Z"
+  "updatedAt": "2026-05-24T11:05:15.128Z"
 }
