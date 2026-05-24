@@ -3,7 +3,7 @@ import Foundation
 /// Cached OIDC client registration from RegisterClient.
 ///
 /// Persisted in the Keychain and reused until `secretExpiresAt` approaches (< 7 days remaining).
-/// The client is regional — one per (region, start-url) pair.
+/// The client is regional and scoped; scope mismatches force re-registration.
 public struct StoredOIDCClient: Sendable, Hashable, Codable {
     /// OIDC client ID.
     public let clientId: String

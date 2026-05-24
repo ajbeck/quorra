@@ -7,16 +7,15 @@ import AWSSSOOIDC
 /// is constructed once per region and lives behind `SDKOIDCClientProvider`. Translates
 /// Quorra domain types ↔ SDK Input/Output. Errors route through `SDKErrorMapping`.
 ///
-/// **Sendability.** `SSOOIDCClient` is a class with internal state (signer, retry strategy,
-/// HTTP client) but is documented thread-safe. We do not mutate after init, so the
-/// adapter is `@unchecked Sendable`.
-public final class SDKOIDCClient: OIDCRequesting, @unchecked Sendable {
+/// **Sendability.** The adapter is an actor so the SDK client remains isolated behind
+/// async methods without needing an unchecked Sendable assertion.
+public actor SDKOIDCClient: OIDCRequesting {
     private let region: String
     private let client: SSOOIDCClient
 
     public init(region: String) async throws {
         self.region = region
-        let config = try await SSOOIDCClient.SSOOIDCClientConfiguration(region: region)
+        let config = try await SSOOIDCClient.SSOOIDCClientConfig(region: region)
         self.client = SSOOIDCClient(config: config)
     }
 

@@ -287,7 +287,8 @@ public actor IdentityCenterService: IdentityCenterServicing {
         ) {
             let leadTime = ServiceConstants.oidcClientReregistrationLeadTime
             let withinLeadTime = cached.secretExpiresAt.timeIntervalSinceNow < leadTime
-            if !withinLeadTime {
+            let scopeMatches = Set(cached.scopes) == Set(scopes)
+            if !withinLeadTime, scopeMatches {
                 return cached
             }
         }
