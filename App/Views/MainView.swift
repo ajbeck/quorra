@@ -6,7 +6,8 @@ struct MainView: View {
     let loadsProfilesOnAppear: Bool
     @Environment(AppModel.self) private var appModel
     @Environment(ProfilesModel.self) private var profilesModel
-    @State private var selection: SidebarSelection? = nil
+    @State private var sessionFilter: SessionFilter = .all
+    @State private var selection: DetailSelection? = nil
 
     init(folderURL: URL, loadsProfilesOnAppear: Bool = true) {
         self.folderURL = folderURL
@@ -15,10 +16,14 @@ struct MainView: View {
 
     var body: some View {
         NavigationSplitView {
-            SidebarView(selection: $selection)
-                .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 320)
+            SessionRailView(filter: $sessionFilter)
+                .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 260)
+        } content: {
+            ProfileListView(sessionFilter: $sessionFilter, selection: $selection)
+                .navigationSplitViewColumnWidth(min: 240, ideal: 300, max: 380)
         } detail: {
             DetailView(selection: $selection)
+                .navigationSplitViewColumnWidth(min: 520, ideal: 760)
         }
         .toolbar { toolbarContent }
         .task(id: folderURL) {
@@ -47,14 +52,7 @@ struct MainView: View {
 
     private func selectDefaultProfileIfNeeded() {
         guard selection == nil, profilesModel.loadState == .loaded else { return }
-        let groups = profilesModel.groups
-        if let firstSession = groups.ssoSessions.first, let firstProfile = firstSession.profiles.first {
-            selection = .profile(name: firstProfile.id)
-        } else if let firstLTK = groups.longTermKeys.first {
-            selection = .profile(name: firstLTK.id)
-        } else if let firstOther = groups.other.first {
-            selection = .profile(name: firstOther.id)
-        }
+        selection = profilesModel.groups.flatProfiles.first.map { .profile(name: $0.id) }
     }
 }
 
@@ -65,6 +63,7 @@ struct MainView: View {
         .environment(ProfilesModel.previewLoaded(config: "", folder: folderURL))
         .environment(EditorState())
         .environment(CredentialsModel(service: PreviewIdentityCenterService()))
+        .environment(IMDSModel())
 }
 
 #Preview("Main – with sample data") {
@@ -77,25 +76,33 @@ private struct MainViewSampleDataHarness: View {
     @State private var profilesModel: ProfilesModel
     @State private var editorState: EditorState
     @State private var credentialsModel: CredentialsModel
+    @State private var imdsModel: IMDSModel
 
     init() {
         let folderURL = URL(filePath: "/preview/.aws", directoryHint: .isDirectory)
         let profiles = ProfilesModel.previewLoaded(
-            config: Self.sampleConfig,
-            credentials: Self.sampleCredentials,
+            config: PreviewAWSFixtures.mockupConfig,
+            credentials: PreviewAWSFixtures.mockupCredentials,
             folder: folderURL
         )
         let creds = CredentialsModel(service: PreviewIdentityCenterService())
-        creds.seedProfileStatusForTesting(.ready(expiresAt: Date().addingTimeInterval(6 * 3600)), key: "acme:412903117204:AdministratorAccess")
-        creds.seedProfileStatusForTesting(.ready(expiresAt: Date().addingTimeInterval(6 * 3600)), key: "acme:412903117204:ReadOnlyAccess")
-        creds.seedProfileStatusForTesting(.notSignedIn(sessionName: "blueriver"), key: "blueriver:928104400211:DeveloperAccess")
-        creds.seedStatusForTesting(.signedIn(expiresAt: Date().addingTimeInterval(6 * 3600), canRefresh: true), sessionName: "acme")
-        creds.seedStatusForTesting(.expired(expiredAt: Date().addingTimeInterval(-2 * 86400), canRefresh: false), sessionName: "blueriver")
+        creds.seedProfileStatusForTesting(.ready(expiresAt: Date().addingTimeInterval(6 * 3600 + 12 * 60)), key: "astrocompute:699475923216:OrganizationAdmin")
+        creds.seedProfileStatusForTesting(.ready(expiresAt: Date().addingTimeInterval(6 * 3600 + 12 * 60)), key: "astrocompute:699475923216:ManagementAdmin")
+        creds.seedProfileStatusForTesting(.ready(expiresAt: Date().addingTimeInterval(6 * 3600 + 12 * 60)), key: "astrocompute:699475923216:ManagementOrganizationAdmin")
+        creds.seedProfileStatusForTesting(.ready(expiresAt: Date().addingTimeInterval(6 * 3600 + 12 * 60)), key: "astrocompute:699475923216:PersonalOrganizationAdmin")
+        creds.seedProfileStatusForTesting(.ready(expiresAt: Date().addingTimeInterval(6 * 3600 + 12 * 60)), key: "astrocompute:699475923216:SpaceportOrganizationAdmin")
+        creds.seedProfileStatusForTesting(.notSignedIn(sessionName: "orion-labs"), key: "orion-labs:824177590102:ReadOnlyAccess")
+        creds.seedStatusForTesting(.signedIn(expiresAt: Date().addingTimeInterval(6 * 3600 + 12 * 60), canRefresh: true), sessionName: "astrocompute")
+        creds.seedStatusForTesting(.signedOut, sessionName: "orion-labs")
+
+        let imds = IMDSModel()
+        imds.setState(.active(port: 9678), forProfile: "ac:cp:org_admin")
 
         _appModel = State(initialValue: AppModel(initialPhase: .ready(folderURL)))
         _profilesModel = State(initialValue: profiles)
         _editorState = State(initialValue: EditorState())
         _credentialsModel = State(initialValue: creds)
+        _imdsModel = State(initialValue: imds)
     }
 
     var body: some View {
@@ -104,55 +111,6 @@ private struct MainViewSampleDataHarness: View {
             .environment(profilesModel)
             .environment(editorState)
             .environment(credentialsModel)
+            .environment(imdsModel)
     }
-
-    private static let sampleConfig = """
-    [sso-session acme]
-    sso_start_url = https://acme.awsapps.com/start
-    sso_region = us-east-1
-    sso_registration_scopes = sso:account:access
-
-    [sso-session blueriver]
-    sso_start_url = https://blueriver.awsapps.com/start
-    sso_region = eu-west-1
-
-    [default]
-    sso_session = acme
-    sso_account_id = 412903117204
-    sso_role_name = AdministratorAccess
-    region = us-east-1
-    output = json
-
-    [profile acme-prod-admin]
-    sso_session = acme
-    sso_account_id = 412903117204
-    sso_role_name = AdministratorAccess
-    region = us-east-1
-
-    [profile acme-prod-readonly]
-    sso_session = acme
-    sso_account_id = 412903117204
-    sso_role_name = ReadOnlyAccess
-    region = us-east-1
-
-    [profile blueriver-dev]
-    sso_session = blueriver
-    sso_account_id = 928104400211
-    sso_role_name = DeveloperAccess
-    region = eu-west-1
-
-    [profile assume-billing]
-    role_arn = arn:aws:iam::412903117204:role/Billing
-    source_profile = default
-    """
-
-    private static let sampleCredentials = """
-    [ci-deploy]
-    aws_access_key_id = AKIAIOSFODNN7EXAMPLE
-    aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-
-    [homelab-backup]
-    aws_access_key_id = AKIAJK4OOIK4OOIK4OOI
-    aws_secret_access_key = SECRET-DO-NOT-USE-THIS-EXAMPLE-KEY
-    """
 }

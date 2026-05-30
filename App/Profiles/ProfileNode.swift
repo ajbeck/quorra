@@ -5,7 +5,7 @@ struct ProfileNode: Identifiable, Hashable {
     let profile: Profile
     let origin: Origin
 
-    enum Origin: Hashable {
+    nonisolated enum Origin: Hashable {
         case configOnly
         case credentialsOnly
         case both

@@ -1,6 +1,6 @@
 /// The credential source of a profile, as shown by the row's `via` badge.
 /// `.session` is colored (per SSO org); `.longTerm` / `.other` render neutral.
-enum ProfileVia: Hashable {
+nonisolated enum ProfileVia: Hashable {
     case session(String)
     case longTerm
     case other
