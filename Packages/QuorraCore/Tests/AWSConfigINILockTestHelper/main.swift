@@ -2,18 +2,15 @@ import Darwin
 import Foundation
 import AWSConfigINI
 
-@main
-struct AWSConfigINILockTestHelper {
-    static func main() {
-        do {
-            try run()
-        } catch {
-            fputs("AWSConfigINILockTestHelper: \(error)\n", stderr)
-            Darwin.exit(1)
-        }
-    }
+do {
+    try AWSConfigINILockTestHelper.run()
+} catch {
+    fputs("AWSConfigINILockTestHelper: \(error)\n", stderr)
+    Darwin.exit(1)
+}
 
-    private static func run() throws {
+private enum AWSConfigINILockTestHelper {
+    static func run() throws {
         let arguments = CommandLine.arguments
         guard arguments.count >= 3 else {
             throw HelperError.usage
