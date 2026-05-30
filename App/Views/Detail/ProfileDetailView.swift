@@ -3,7 +3,7 @@ import AWSConfigINI
 
 struct ProfileDetailView: View {
     let node: ProfileNode
-    @Binding var sidebarSelection: SidebarSelection?
+    @Binding var detailSelection: DetailSelection?
     @Environment(AppModel.self) private var appModel
     @Environment(ProfilesModel.self) private var profilesModel
     @Environment(EditorState.self) private var editorState
@@ -13,9 +13,9 @@ struct ProfileDetailView: View {
     @State private var isPresentingSaveError = false
     @State private var saveError: AWSConfigINIError?
 
-    init(node: ProfileNode, sidebarSelection: Binding<SidebarSelection?>) {
+    init(node: ProfileNode, detailSelection: Binding<DetailSelection?>) {
         self.node = node
-        self._sidebarSelection = sidebarSelection
+        self._detailSelection = detailSelection
         self._draft = State(initialValue: node.profile)
     }
 
@@ -162,7 +162,7 @@ struct ProfileDetailView: View {
             LabeledContent("Session", value: draft.ssoSession ?? "—")
             if let sessionName = draft.ssoSession {
                 Button("View session…") {
-                    sidebarSelection = .session(name: sessionName)
+                    detailSelection = .session(name: sessionName)
                 }
                 .controlSize(.small)
             }
@@ -211,7 +211,7 @@ struct ProfileDetailView: View {
 
 private struct ProfileDetailPreviewHarness: View {
     let mode: ManagedMode
-    @State private var selection: SidebarSelection? = .profile(name: "default")
+    @State private var selection: DetailSelection? = .profile(name: "default")
     @State private var appModel: AppModel
     @State private var profilesModel = ProfilesModel()
     @State private var editorState = EditorState()
@@ -227,7 +227,7 @@ private struct ProfileDetailPreviewHarness: View {
         Group {
             if case .loaded = profilesModel.loadState,
                let node = profilesModel.findProfile(named: "default") {
-                ProfileDetailView(node: node, sidebarSelection: $selection)
+                ProfileDetailView(node: node, detailSelection: $selection)
                     .environment(appModel)
                     .environment(profilesModel)
                     .environment(editorState)
