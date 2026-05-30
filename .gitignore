@@ -16,6 +16,7 @@ Package.resolved
 # Claude Code / agent tooling
 .agents/
 .pi/
+.clawpatch/
 .claude/settings.local.json
 .claude/skills/
 
