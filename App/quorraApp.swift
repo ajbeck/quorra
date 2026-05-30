@@ -7,6 +7,7 @@ struct quorraApp: App {
     @State private var profilesModel = ProfilesModel()
     @State private var editorState = EditorState()
     @State private var imdsModel = IMDSModel()
+    @State private var authBrowserPresenter = AuthBrowserPresenter()
     @State private var credentialsModel = CredentialsModel(
         service: IdentityCenterService(
             keychain: Keychain(accessGroup: KeychainAccessGroup.shared),
@@ -22,6 +23,7 @@ struct quorraApp: App {
                 .environment(editorState)
                 .environment(credentialsModel)
                 .environment(imdsModel)
+                .environment(\.authBrowserPresenter, authBrowserPresenter)
         }
         .defaultSize(width: 1280, height: 760)
         .windowResizability(.contentMinSize)
