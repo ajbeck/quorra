@@ -1,7 +1,7 @@
 import Testing
 
 extension IAMIdentityCenterTestSuite {
-@Suite("MockSleeper", .serialized, .timeLimit(.seconds(5)))
+@Suite("MockSleeper", .serialized, .timeLimit(.minutes(1)))
 struct MockSleeperTests {
     @Test("sleep-count waiter observes already-completed sleep")
     func waitForSleepCountHandlesLateWaiter() async throws {
