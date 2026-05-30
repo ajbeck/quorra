@@ -1,7 +1,6 @@
 import SwiftUI
 import AWSConfigINI
 import IAMIdentityCenter
-import AppKit
 
 struct SessionDetailView: View {
     let node: SSOSessionNode
@@ -41,12 +40,6 @@ struct SessionDetailView: View {
         }
         .onDisappear {
             editorState.dirtyDescription = nil
-        }
-        .onChange(of: credentialsModel.inFlight[node.id]) { oldValue, newValue in
-            // Only open the browser on the nil → non-nil transition. A non-nil → non-nil
-            // transition would double-open Safari if the model ever swaps progress in place.
-            guard oldValue == nil, let progress = newValue else { return }
-            NSWorkspace.shared.open(progress.verificationUriComplete)
         }
         .alert(
             "Couldn't save",

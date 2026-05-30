@@ -6,6 +6,8 @@ struct MainView: View {
     let loadsProfilesOnAppear: Bool
     @Environment(AppModel.self) private var appModel
     @Environment(ProfilesModel.self) private var profilesModel
+    @Environment(CredentialsModel.self) private var credentialsModel
+    @Environment(\.authBrowserPresenter) private var authBrowserPresenter
     @State private var sessionFilter: SessionFilter = .all
     @State private var selection: DetailSelection? = nil
 
@@ -37,6 +39,9 @@ struct MainView: View {
             guard newState == .loaded else { return }
             selectDefaultProfileIfNeeded()
         }
+        .onChange(of: credentialsModel.inFlight) { oldValue, newValue in
+            handleSignInPresentationChange(from: oldValue, to: newValue)
+        }
     }
 
     @ToolbarContentBuilder private var toolbarContent: some ToolbarContent {
@@ -54,6 +59,20 @@ struct MainView: View {
         guard selection == nil, profilesModel.loadState == .loaded else { return }
         selection = profilesModel.groups.flatProfiles.first.map { .profile(name: $0.id) }
     }
+
+    private func handleSignInPresentationChange(
+        from oldValue: [String: SignInProgress],
+        to newValue: [String: SignInProgress]
+    ) {
+        for (sessionName, progress) in newValue where oldValue[sessionName] == nil {
+            authBrowserPresenter.present(progress.verificationUriComplete)
+            return
+        }
+
+        if oldValue.contains(where: { newValue[$0.key] == nil }) {
+            authBrowserPresenter.dismiss()
+        }
+    }
 }
 
 #Preview("Main – empty folder") {
@@ -64,6 +83,7 @@ struct MainView: View {
         .environment(EditorState())
         .environment(CredentialsModel(service: PreviewIdentityCenterService()))
         .environment(IMDSModel())
+        .environment(\.authBrowserPresenter, AuthBrowserPresenter())
 }
 
 #Preview("Main – with sample data") {
@@ -112,5 +132,6 @@ private struct MainViewSampleDataHarness: View {
             .environment(editorState)
             .environment(credentialsModel)
             .environment(imdsModel)
+            .environment(\.authBrowserPresenter, AuthBrowserPresenter())
     }
 }
