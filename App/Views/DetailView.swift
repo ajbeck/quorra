@@ -2,7 +2,7 @@ import SwiftUI
 import AWSConfigINI
 
 struct DetailView: View {
-    @Binding var selection: SidebarSelection?
+    @Binding var selection: DetailSelection?
     @Environment(AppModel.self) private var appModel
     @Environment(ProfilesModel.self) private var profilesModel
 
@@ -24,11 +24,11 @@ struct DetailView: View {
                     Text("Quorra will read profiles from ~/.aws/config and ~/.aws/credentials. Add profiles using the AWS CLI to see them here.")
                 }
             } else {
-                ContentUnavailableView("Select a profile or session", systemImage: "sidebar.leading")
+                ContentUnavailableView("Select an item", systemImage: "sidebar.leading")
             }
         case (.loaded, .profile(let name)):
             if let node = profilesModel.findProfile(named: name) {
-                ProfileDetailView(node: node, sidebarSelection: $selection)
+                ProfileDetailView(node: node, detailSelection: $selection)
             } else {
                 ContentUnavailableView("Profile not found", systemImage: "questionmark.circle")
             }
@@ -38,6 +38,8 @@ struct DetailView: View {
             } else {
                 ContentUnavailableView("Session not found", systemImage: "questionmark.circle")
             }
+        case (.loaded, .imds(let profileName)):
+            IMDSDetailView(profileName: profileName)
         }
     }
 }
@@ -57,20 +59,25 @@ struct DetailView: View {
     )
 }
 
+#Preview("Detail – IMDS selected") {
+    DetailViewPreviewHarness(selection: .imds(profileName: "default"))
+}
+
 #Preview("Detail – no profiles yet") {
     DetailViewPreviewHarness(selection: nil, forceEmpty: true)
 }
 
 private struct DetailViewPreviewHarness: View {
-    let initialSelection: SidebarSelection?
+    let initialSelection: DetailSelection?
     let mode: ManagedMode
     let forceEmpty: Bool
-    @State private var selection: SidebarSelection?
+    @State private var selection: DetailSelection?
     @State private var appModel: AppModel
     @State private var profilesModel = ProfilesModel()
     @State private var editorState = EditorState()
+    @State private var imdsModel = IMDSModel()
 
-    init(selection: SidebarSelection?, mode: ManagedMode = .managed, forceEmpty: Bool = false) {
+    init(selection: DetailSelection?, mode: ManagedMode = .managed, forceEmpty: Bool = false) {
         self.initialSelection = selection
         self.mode = mode
         self.forceEmpty = forceEmpty
@@ -84,6 +91,8 @@ private struct DetailViewPreviewHarness: View {
             .environment(appModel)
             .environment(profilesModel)
             .environment(editorState)
+            .environment(CredentialsModel(service: PreviewIdentityCenterService()))
+            .environment(imdsModel)
             .task {
                 let tmp = FileManager.default.temporaryDirectory
                     .appending(path: UUID().uuidString, directoryHint: .isDirectory)
