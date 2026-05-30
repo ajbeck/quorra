@@ -25,15 +25,42 @@ struct FileIOTests {
     }
 
     private func lockHelperURL() throws -> URL {
-        var directory = URL(fileURLWithPath: CommandLine.arguments[0]).deletingLastPathComponent()
-        while directory.path != "/" {
-            let candidate = directory.appendingPathComponent("AWSConfigINILockTestHelper")
-            if FileManager.default.isExecutableFile(atPath: candidate.path) {
-                return candidate
+        let fileManager = FileManager.default
+        for searchRoot in lockHelperSearchRoots() {
+            var directory = searchRoot
+            while directory.path != "/" {
+                let candidate = directory.appendingPathComponent("AWSConfigINILockTestHelper")
+                if fileManager.isExecutableFile(atPath: candidate.path) {
+                    return candidate
+                }
+                directory.deleteLastPathComponent()
             }
-            directory.deleteLastPathComponent()
         }
         throw CocoaError(.fileNoSuchFile)
+    }
+
+    private func lockHelperSearchRoots() -> [URL] {
+        var roots: [URL] = []
+
+        func appendDirectory(_ url: URL?) {
+            guard let url else { return }
+            let directory = url.hasDirectoryPath ? url : url.deletingLastPathComponent()
+            if !roots.contains(directory) {
+                roots.append(directory)
+            }
+        }
+
+        appendDirectory(URL(fileURLWithPath: CommandLine.arguments[0]))
+        appendDirectory(Bundle.main.executableURL)
+        appendDirectory(Bundle.main.bundleURL)
+        appendDirectory(Bundle.module.bundleURL)
+
+        for key in ["BUILT_PRODUCTS_DIR", "TARGET_BUILD_DIR", "CONFIGURATION_BUILD_DIR", "TEST_HOST"] {
+            guard let value = ProcessInfo.processInfo.environment[key], !value.isEmpty else { continue }
+            appendDirectory(URL(fileURLWithPath: value))
+        }
+
+        return roots
     }
 
     @discardableResult
