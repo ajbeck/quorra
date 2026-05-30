@@ -146,7 +146,13 @@ struct ProfileDetailView: View {
                 sessionName: coords.session,
                 accountId: coords.account,
                 roleName: coords.role,
-                region: coords.region
+                region: coords.region,
+                onSignIn: {
+                    signIn(sessionName: coords.session)
+                },
+                onViewSession: {
+                    detailSelection = .session(name: coords.session)
+                }
             )
             .environment(credentialsModel)
         }
@@ -281,6 +287,26 @@ struct ProfileDetailView: View {
         } catch {
             saveError = .malformedInput(error.localizedDescription)
             isPresentingSaveError = true
+        }
+    }
+
+    private func signIn(sessionName: String) {
+        guard let session = profilesModel.findSession(named: sessionName),
+              let startURLString = session.session?.ssoStartUrl,
+              let startURL = URL(string: startURLString),
+              let region = session.session?.ssoRegion else {
+            detailSelection = .session(name: sessionName)
+            return
+        }
+
+        let scopes = session.session?.ssoRegistrationScopes ?? ["sso:account:access"]
+        Task {
+            await credentialsModel.signIn(
+                sessionName: sessionName,
+                startUrl: startURL,
+                region: region,
+                scopes: scopes
+            )
         }
     }
 }
