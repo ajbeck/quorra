@@ -19,6 +19,8 @@ struct CredentialsRevealSection: View {
     let accountId: String
     let roleName: String
     let region: String
+    var onSignIn: (() -> Void)?
+    var onViewSession: (() -> Void)?
 
     @Environment(CredentialsModel.self) private var model
 
@@ -38,23 +40,31 @@ struct CredentialsRevealSection: View {
     private var isMinting: Bool { model.mintingNow.contains(key) }
     private var hasMintFailure: Bool { model.mintFailure.contains(key) }
     private var isRoleRejected: Bool { model.roleRejected.contains(key) }
+    private var sessionStatus: SessionAuthStatus? { model.status[sessionName] }
+    private var signInProgress: SignInProgress? { model.inFlight[sessionName] }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            switch status {
-            case .notSignedIn(let session), .signInExpired(let session):
-                signInRequired(session: session)
-            case .ready where isRoleRejected:
-                advisory(
-                    systemImage: "xmark.shield",
-                    tint: .red,
-                    text: "This role is no longer available. Contact your administrator.",
-                    retry: false
-                )
-            case .ready:
-                DisclosureGroup("Show credentials", isExpanded: $expanded) {
-                    disclosureBody
-                        .padding(.top, 12)
+            if case .signingIn = sessionStatus {
+                signingInView(progress: signInProgress)
+            } else {
+                switch status {
+                case .notSignedIn(let session):
+                    signInRequired(session: session, reason: .notSignedIn)
+                case .signInExpired(let session):
+                    signInRequired(session: session, reason: .expired)
+                case .ready where isRoleRejected:
+                    advisory(
+                        systemImage: "xmark.shield",
+                        tint: .red,
+                        text: "This role is no longer available. Contact your administrator.",
+                        retry: false
+                    )
+                case .ready:
+                    DisclosureGroup("Show credentials", isExpanded: $expanded) {
+                        disclosureBody
+                            .padding(.top, 12)
+                    }
                 }
             }
         }
@@ -72,19 +82,104 @@ struct CredentialsRevealSection: View {
             creds = nil
             revealed.removeAll()
         }
+        .task {
+            await model.observeProfileStatus(forSession: sessionName, accountId: accountId, roleName: roleName)
+        }
+        .onChange(of: status) { oldValue, newValue in
+            guard case .ready = newValue else { return }
+            fetchError = nil
+            if case .ready = oldValue {
+                return
+            }
+            guard expanded else { return }
+            Task { await fetch(force: true) }
+        }
     }
 
     // MARK: - Not-signed-in state
 
-    @ViewBuilder private func signInRequired(session: String) -> some View {
-        Label {
-            Text("Sign in to **\(session)** to mint credentials for this profile.")
-        } icon: {
-            Image(systemName: "person.crop.circle.badge.exclamationmark")
-                .foregroundStyle(.secondary)
+    private enum SignInReason {
+        case notSignedIn
+        case expired
+    }
+
+    @ViewBuilder private func signInRequired(session: String, reason: SignInReason) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: reason == .expired ? "exclamationmark.triangle.fill" : "person.crop.circle.badge.exclamationmark")
+                .foregroundStyle(reason == .expired ? Color.orange : Color.secondary)
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(reason == .expired ? "Session expired" : "Sign in required")
+                        .font(.callout.weight(.semibold))
+                    Text(reason == .expired
+                         ? "Sign in to \(session) again to refresh this profile's credentials."
+                         : "Sign in to \(session) to mint credentials for this profile.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+
+                HStack(spacing: 8) {
+                    Button {
+                        onSignIn?()
+                    } label: {
+                        Label(reason == .expired ? "Sign in to refresh credentials" : "Sign in", systemImage: "arrow.clockwise")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(onSignIn == nil)
+
+                    if let onViewSession {
+                        Button {
+                            onViewSession()
+                        } label: {
+                            Label("View SSO session", systemImage: "arrow.up.right.square")
+                        }
+                    }
+                }
+                .controlSize(.small)
+            }
         }
-        .font(.callout)
-        .foregroundStyle(.secondary)
+    }
+
+    @ViewBuilder private func signingInView(progress: SignInProgress?) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                ProgressView()
+                    .controlSize(.small)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Waiting for IAM Identity Center sign-in")
+                        .font(.callout.weight(.semibold))
+                    Text("Complete the browser step to refresh this profile's credentials.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            if let progress {
+                LabeledContent("User code") {
+                    Text(progress.userCode)
+                        .font(.body.monospaced().weight(.semibold))
+                        .textSelection(.enabled)
+                }
+
+                HStack(spacing: 8) {
+                    Link("Open browser again", destination: progress.verificationUriComplete)
+
+                    Text("Expires in")
+                        .foregroundStyle(.secondary)
+                    Text(timerInterval: Date.now...progress.expiresAt, countsDown: true)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+                .font(.caption)
+            }
+
+            Button("Cancel", role: .cancel) {
+                Task { await model.cancelSignIn(sessionName: sessionName) }
+            }
+            .controlSize(.small)
+        }
     }
 
     // MARK: - Disclosure body (ready state)
@@ -267,6 +362,9 @@ struct CredentialsRevealSection: View {
         if e.isTerminalRoleError {
             return "This role is no longer available. Contact your administrator."
         }
+        if e.requiresSignIn {
+            return "Session expired. Sign in again to refresh this profile's credentials."
+        }
         return "Couldn't fetch credentials. \(e.localizedDescription)"
     }
 }
@@ -276,6 +374,15 @@ private extension IAMIdentityCenterError {
     var isTerminalRoleError: Bool {
         switch self {
         case .roleNotAssigned, .accountNotFound:
+            return true
+        default:
+            return false
+        }
+    }
+
+    var requiresSignIn: Bool {
+        switch self {
+        case .tokenExpired, .invalidGrant, .invalidClient, .expiredDeviceCode, .deviceFlowTimedOut:
             return true
         default:
             return false
@@ -295,7 +402,9 @@ private struct RevealPreviewHarness: View {
                 sessionName: "acme",
                 accountId: "123456789012",
                 roleName: "AdministratorAccess",
-                region: "us-east-1"
+                region: "us-east-1",
+                onSignIn: {},
+                onViewSession: {}
             )
             .environment(model)
         }
@@ -315,6 +424,34 @@ private struct RevealPreviewHarness: View {
     RevealPreviewHarness { m in
         m.seedProfileStatusForTesting(.notSignedIn(sessionName: "acme"),
                                       key: "acme:123456789012:AdministratorAccess")
+    }
+}
+
+#Preview("expired") {
+    RevealPreviewHarness { m in
+        m.seedProfileStatusForTesting(.signInExpired(sessionName: "acme"),
+                                      key: "acme:123456789012:AdministratorAccess")
+    }
+}
+
+#Preview("signing in") {
+    RevealPreviewHarness { m in
+        m.seedProfileStatusForTesting(.signInExpired(sessionName: "acme"),
+                                      key: "acme:123456789012:AdministratorAccess")
+        m.seedStatusForTesting(.signingIn, sessionName: "acme")
+        m.seedInFlightForTesting(
+            SignInProgress(
+                sessionName: "acme",
+                verification: DeviceVerification(
+                    userCode: "ABCD-EFGH",
+                    verificationUri: URL(string: "https://device.sso.us-east-1.amazonaws.com")!,
+                    verificationUriComplete: URL(string: "https://device.sso.us-east-1.amazonaws.com?user_code=ABCD-EFGH")!,
+                    expiresAt: Date().addingTimeInterval(600),
+                    interval: 5
+                )
+            ),
+            sessionName: "acme"
+        )
     }
 }
 
