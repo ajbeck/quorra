@@ -23,6 +23,7 @@ struct CredentialsRevealSection: View {
     var onViewSession: (() -> Void)?
 
     @Environment(CredentialsModel.self) private var model
+    @Environment(\.authBrowserPresenter) private var authBrowserPresenter
 
     @State private var expanded = false
     @State private var creds: RoleCredentials?
@@ -164,7 +165,9 @@ struct CredentialsRevealSection: View {
                 }
 
                 HStack(spacing: 8) {
-                    Link("Open browser again", destination: progress.verificationUriComplete)
+                    Button("Open browser again") {
+                        authBrowserPresenter.present(progress.verificationUriComplete)
+                    }
 
                     Text("Expires in")
                         .foregroundStyle(.secondary)

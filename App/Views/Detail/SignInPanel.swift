@@ -1,6 +1,5 @@
 import SwiftUI
 import IAMIdentityCenter
-import AppKit
 
 /// Inline sign-in panel for SSO sessions.
 ///
@@ -35,6 +34,7 @@ struct SignInPanel: View {
     let onSignOut: () -> Void
     /// A2: invoked when the user taps "Refresh now" in the transient-failure advisory (D16)
     var onRefreshNow: (() -> Void)? = nil
+    @Environment(\.authBrowserPresenter) private var authBrowserPresenter
 
     var body: some View {
         switch authStatus {
@@ -118,8 +118,10 @@ struct SignInPanel: View {
                     .textSelection(.enabled)
             }
 
-            Link("Open browser again", destination: progress.verificationUriComplete)
-                .controlSize(.small)
+            Button("Open browser again") {
+                authBrowserPresenter.present(progress.verificationUriComplete)
+            }
+            .controlSize(.small)
 
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
