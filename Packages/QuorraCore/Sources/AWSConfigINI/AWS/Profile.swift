@@ -14,6 +14,10 @@ public struct Profile: Codable, Sendable, Hashable {
     public var output: String?
     /// Corresponds to the `sso_session` INI key.
     public var ssoSession: String?
+    /// Corresponds to the legacy inline `sso_start_url` INI key.
+    public var ssoStartUrl: String?
+    /// Corresponds to the legacy inline `sso_region` INI key.
+    public var ssoRegion: String?
     /// Corresponds to the `sso_account_id` INI key.
     public var ssoAccountId: String?
     /// Corresponds to the `sso_role_name` INI key.
@@ -33,6 +37,8 @@ public struct Profile: Codable, Sendable, Hashable {
         region: String? = nil,
         output: String? = nil,
         ssoSession: String? = nil,
+        ssoStartUrl: String? = nil,
+        ssoRegion: String? = nil,
         ssoAccountId: String? = nil,
         ssoRoleName: String? = nil,
         credentialProcess: String? = nil,
@@ -44,6 +50,8 @@ public struct Profile: Codable, Sendable, Hashable {
         self.region = region
         self.output = output
         self.ssoSession = ssoSession
+        self.ssoStartUrl = ssoStartUrl
+        self.ssoRegion = ssoRegion
         self.ssoAccountId = ssoAccountId
         self.ssoRoleName = ssoRoleName
         self.credentialProcess = credentialProcess
