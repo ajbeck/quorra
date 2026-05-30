@@ -1,5 +1,6 @@
 import SwiftUI
 import AWSConfigINI
+import IAMIdentityCenter
 
 struct ProfileDetailView: View {
     let node: ProfileNode
@@ -10,6 +11,7 @@ struct ProfileDetailView: View {
     @Environment(CredentialsModel.self) private var credentialsModel
     @Environment(\.openSettings) private var openSettings
     @State private var draft: Profile
+    @State private var isEditing = false
     @State private var isPresentingSaveError = false
     @State private var saveError: AWSConfigINIError?
 
@@ -21,22 +23,27 @@ struct ProfileDetailView: View {
 
     private var isReadOnly: Bool { appModel.mode == .readOnly }
     private var isDirty: Bool { draft != node.profile }
+    private var showsEditors: Bool { !isReadOnly && isEditing }
 
     var body: some View {
-        Form {
-            if isReadOnly { readOnlyBanner }
-            identitySection
-            if draft.ssoSession != nil { sessionLinkSection }
-            if let coords = ssoCredentialCoordinates { credentialsSection(coords) }
-            if draft.roleArn != nil || draft.sourceProfile != nil { roleSection }
-            if draft.credentialProcess != nil { credentialProcessSection }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                header
+                if isReadOnly { readOnlyNotice }
+                if let coords = ssoCredentialCoordinates { credentialsCard(coords) }
+                identityCard
+                if draft.ssoSession != nil { sessionCard }
+                if draft.roleArn != nil || draft.sourceProfile != nil { roleCard }
+                if draft.credentialProcess != nil { credentialProcessCard }
+            }
+            .padding(32)
+            .frame(maxWidth: 960, alignment: .leading)
         }
-        .formStyle(.grouped)
         .navigationTitle(node.id)
         .navigationSubtitle(isDirty ? "Edited" : "")
-        .toolbar { editorToolbar }
         .onChange(of: node) { _, newValue in
             draft = newValue.profile
+            isEditing = false
         }
         .onChange(of: isDirty) { _, newValue in
             editorState.dirtyDescription = newValue ? "changes to profile \(node.id)" : nil
@@ -57,77 +64,64 @@ struct ProfileDetailView: View {
         }
     }
 
-    @ToolbarContentBuilder private var editorToolbar: some ToolbarContent {
-        if !isReadOnly {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Discard", role: .destructive) {
-                    draft = node.profile
+    private var header: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 16) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(node.id)
+                    .font(.largeTitle.weight(.semibold))
+                    .lineLimit(1)
+                if isDirty {
+                    Text("Unsaved changes")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.orange)
                 }
-                .disabled(!isDirty)
             }
-            ToolbarItem(placement: .confirmationAction) {
-                Button("Save") {
-                    Task { await save() }
+
+            Spacer(minLength: 16)
+
+            if isEditing {
+                HStack(spacing: 8) {
+                    Button("Discard", role: .destructive) {
+                        draft = node.profile
+                        isEditing = false
+                    }
+                    .disabled(!isDirty)
+
+                    Button("Save") {
+                        Task { await save() }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!isDirty)
+                    .keyboardShortcut(.defaultAction)
                 }
-                .disabled(!isDirty)
-                .keyboardShortcut(.defaultAction)
+            } else if !isReadOnly {
+                Button {
+                    isEditing = true
+                } label: {
+                    Label("Edit", systemImage: "pencil")
+                }
             }
         }
     }
 
-    private func save() async {
-        do {
-            try await profilesModel.save(draft, for: node)
-        } catch let err as AWSConfigINIError {
-            saveError = err
-            isPresentingSaveError = true
-        } catch {
-            saveError = .malformedInput(error.localizedDescription)
-            isPresentingSaveError = true
-        }
-    }
-
-    @ViewBuilder private var readOnlyBanner: some View {
-        Section {
-            HStack(spacing: 10) {
-                Image(systemName: "lock.fill")
+    private var readOnlyNotice: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "lock.fill")
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Read Only mode")
+                    .font(.callout.weight(.semibold))
+                Text("Quorra won't write to your AWS files.")
+                    .font(.caption)
                     .foregroundStyle(.secondary)
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Read Only mode").font(.callout.weight(.semibold))
-                    Text("Quorra won't write to your AWS files.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 0)
-                Button("Open Settings…") { openSettings() }
-                    .controlSize(.small)
             }
+            Spacer(minLength: 0)
+            Button("Open Settings…") { openSettings() }
+                .controlSize(.small)
         }
-    }
-
-    @ViewBuilder private var identitySection: some View {
-        Section("Identity") {
-            if isReadOnly {
-                LabeledContent("Region", value: draft.region ?? "—")
-                LabeledContent("Output", value: draft.output ?? "—")
-                LabeledContent("SSO Account ID", value: draft.ssoAccountId ?? "—")
-                LabeledContent("SSO Role Name", value: draft.ssoRoleName ?? "—")
-            } else {
-                TextField("Region", text: $draft.region.unwrapped(), prompt: Text("us-east-1"))
-                    .fontDesign(.monospaced)
-                Picker("Output", selection: $draft.output.unwrapped()) {
-                    Text("(default)").tag("")
-                    Text("json").tag("json")
-                    Text("text").tag("text")
-                    Text("table").tag("table")
-                    Text("yaml").tag("yaml")
-                    Text("yaml-stream").tag("yaml-stream")
-                }
-                TextField("SSO Account ID", text: $draft.ssoAccountId.unwrapped(), prompt: Text("123456789012"))
-                TextField("SSO Role Name", text: $draft.ssoRoleName.unwrapped(), prompt: Text("AdministratorAccess"))
-            }
-        }
+        .padding(14)
+        .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
     }
 
     /// SSO-backed profiles expose the credentials reveal section (D31). Non-SSO profiles
@@ -140,59 +134,153 @@ struct ProfileDetailView: View {
             return nil
         }
         // The Portal call is region-scoped. The profile's own region is the documented
-        // input; absent that, default to us-east-1 (a wrong region surfaces as a
-        // transient/terminal error the reveal section's advisory already handles).
+        // input; absent that, default to us-east-1.
         return (session, account, role, draft.region ?? "us-east-1")
     }
 
-    @ViewBuilder private func credentialsSection(
+    private func credentialsCard(
         _ coords: (session: String, account: String, role: String, region: String)
     ) -> some View {
-        CredentialsRevealSection(
-            sessionName: coords.session,
-            accountId: coords.account,
-            roleName: coords.role,
-            region: coords.region
-        )
-        .environment(credentialsModel)
+        DetailCard("Credentials") {
+            CredentialsRevealSection(
+                sessionName: coords.session,
+                accountId: coords.account,
+                roleName: coords.role,
+                region: coords.region
+            )
+            .environment(credentialsModel)
+        }
     }
 
-    @ViewBuilder private var sessionLinkSection: some View {
-        Section("SSO Session") {
-            LabeledContent("Session", value: draft.ssoSession ?? "—")
-            if let sessionName = draft.ssoSession {
-                Button("View session…") {
-                    detailSelection = .session(name: sessionName)
+    private var identityCard: some View {
+        DetailCard("Identity") {
+            DetailField("Region") {
+                if !showsEditors {
+                    valueText(draft.region)
+                } else {
+                    TextField("us-east-1", text: $draft.region.unwrapped())
+                        .fontDesign(.monospaced)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(maxWidth: 260)
                 }
-                .controlSize(.small)
+            }
+            DetailDivider()
+            DetailField("Output") {
+                if !showsEditors {
+                    valueText(draft.output)
+                } else {
+                    Picker("Output", selection: $draft.output.unwrapped()) {
+                        Text("(default)").tag("")
+                        Text("json").tag("json")
+                        Text("text").tag("text")
+                        Text("table").tag("table")
+                        Text("yaml").tag("yaml")
+                        Text("yaml-stream").tag("yaml-stream")
+                    }
+                    .labelsHidden()
+                    .frame(maxWidth: 180)
+                }
+            }
+            DetailDivider()
+            DetailField("SSO Account ID") {
+                if !showsEditors {
+                    valueText(draft.ssoAccountId)
+                } else {
+                    TextField("123456789012", text: $draft.ssoAccountId.unwrapped())
+                        .fontDesign(.monospaced)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(maxWidth: 260)
+                }
+            }
+            DetailDivider()
+            DetailField("SSO Role Name") {
+                if !showsEditors {
+                    valueText(draft.ssoRoleName)
+                } else {
+                    TextField("AdministratorAccess", text: $draft.ssoRoleName.unwrapped())
+                        .textFieldStyle(.roundedBorder)
+                        .frame(maxWidth: 320)
+                }
             }
         }
     }
 
-    @ViewBuilder private var roleSection: some View {
-        Section("Role") {
-            if isReadOnly {
-                LabeledContent("Role ARN", value: draft.roleArn ?? "—")
-                LabeledContent("Source Profile", value: draft.sourceProfile ?? "—")
-                LabeledContent("Role Session Name", value: draft.roleSessionName ?? "—")
-                LabeledContent("MFA Serial", value: draft.mfaSerial ?? "—")
-            } else {
-                TextField("Role ARN", text: $draft.roleArn.unwrapped(), prompt: Text("arn:aws:iam::123456789012:role/MyRole"))
-                TextField("Source Profile", text: $draft.sourceProfile.unwrapped(), prompt: Text("default"))
-                TextField("Role Session Name", text: $draft.roleSessionName.unwrapped(), prompt: Text("my-session"))
-                TextField("MFA Serial", text: $draft.mfaSerial.unwrapped(), prompt: Text("arn:aws:iam::123456789012:mfa/user"))
+    private var sessionCard: some View {
+        DetailCard("SSO Session") {
+            DetailField("Session") {
+                HStack(spacing: 8) {
+                    valueText(draft.ssoSession)
+                    if let sessionName = draft.ssoSession {
+                        Button {
+                            detailSelection = .session(name: sessionName)
+                        } label: {
+                            Label("View", systemImage: "arrow.up.right.square")
+                        }
+                        .controlSize(.small)
+                    }
+                }
             }
         }
     }
 
-    @ViewBuilder private var credentialProcessSection: some View {
-        Section("Credential Process") {
-            if isReadOnly {
-                LabeledContent("Command", value: draft.credentialProcess ?? "—")
+    private var roleCard: some View {
+        DetailCard("Role") {
+            editableTextField("Role ARN", value: $draft.roleArn, prompt: "arn:aws:iam::123456789012:role/MyRole")
+            DetailDivider()
+            editableTextField("Source Profile", value: $draft.sourceProfile, prompt: "default")
+            DetailDivider()
+            editableTextField("Role Session Name", value: $draft.roleSessionName, prompt: "my-session")
+            DetailDivider()
+            editableTextField("MFA Serial", value: $draft.mfaSerial, prompt: "arn:aws:iam::123456789012:mfa/user")
+        }
+    }
+
+    private var credentialProcessCard: some View {
+        DetailCard("Credential Process") {
+            editableTextField("Command", value: $draft.credentialProcess, prompt: "/path/to/helper --profile name", monospaced: true)
+        }
+    }
+
+    private func editableTextField(
+        _ label: String,
+        value: Binding<String?>,
+        prompt: String,
+        monospaced: Bool = false
+    ) -> some View {
+        DetailField(label) {
+            if !showsEditors {
+                valueText(value.wrappedValue)
             } else {
-                TextField("Command", text: $draft.credentialProcess.unwrapped(), prompt: Text("/path/to/helper --profile name"))
-                    .fontDesign(.monospaced)
+                TextField(prompt, text: value.unwrapped())
+                    .fontDesign(monospaced ? .monospaced : .default)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: 520)
             }
+        }
+    }
+
+    private func valueText(_ value: String?) -> some View {
+        let displayValue = displayValue(for: value)
+        return Text(displayValue)
+            .foregroundStyle(displayValue == "—" ? .secondary : .primary)
+            .textSelection(.enabled)
+    }
+
+    private func displayValue(for value: String?) -> String {
+        guard let value, !value.isEmpty else { return "—" }
+        return value
+    }
+
+    private func save() async {
+        do {
+            try await profilesModel.save(draft, for: node)
+            isEditing = false
+        } catch let err as AWSConfigINIError {
+            saveError = err
+            isPresentingSaveError = true
+        } catch {
+            saveError = .malformedInput(error.localizedDescription)
+            isPresentingSaveError = true
         }
     }
 }
@@ -211,62 +299,43 @@ struct ProfileDetailView: View {
 
 private struct ProfileDetailPreviewHarness: View {
     let mode: ManagedMode
-    @State private var selection: DetailSelection? = .profile(name: "default")
+    @State private var selection: DetailSelection? = .profile(name: "ac:cp:org_admin")
     @State private var appModel: AppModel
-    @State private var profilesModel = ProfilesModel()
+    @State private var profilesModel: ProfilesModel
     @State private var editorState = EditorState()
-    @State private var credentialsModel = CredentialsModel(service: PreviewIdentityCenterService())
+    @State private var credentialsModel: CredentialsModel
 
     init(mode: ManagedMode) {
         self.mode = mode
-        let tmp = URL(filePath: "/nonexistent/aws-folder")
-        _appModel = State(initialValue: AppModel(initialPhase: .ready(tmp), initialMode: mode))
+        let folderURL = URL(filePath: "/preview/.aws", directoryHint: .isDirectory)
+        let profilesModel = ProfilesModel.previewLoaded(
+            config: PreviewAWSFixtures.mockupConfig,
+            credentials: PreviewAWSFixtures.mockupCredentials,
+            folder: folderURL
+        )
+        let credentialsModel = CredentialsModel(service: PreviewIdentityCenterService())
+        credentialsModel.seedProfileStatusForTesting(
+            .ready(expiresAt: Date().addingTimeInterval(6 * 3600 + 12 * 60)),
+            key: "astrocompute:699475923216:OrganizationAdmin"
+        )
+
+        _appModel = State(initialValue: AppModel(initialPhase: .ready(folderURL), initialMode: mode))
+        _profilesModel = State(initialValue: profilesModel)
+        _credentialsModel = State(initialValue: credentialsModel)
     }
 
     var body: some View {
         Group {
-            if case .loaded = profilesModel.loadState,
-               let node = profilesModel.findProfile(named: "default") {
+            if let node = profilesModel.findProfile(named: "ac:cp:org_admin") {
                 ProfileDetailView(node: node, detailSelection: $selection)
                     .environment(appModel)
                     .environment(profilesModel)
                     .environment(editorState)
                     .environment(credentialsModel)
             } else {
-                ProgressView().controlSize(.small)
+                ContentUnavailableView("Profile not found", systemImage: "questionmark.circle")
             }
         }
-        .task {
-            let tmp = FileManager.default.temporaryDirectory
-                .appending(path: UUID().uuidString, directoryHint: .isDirectory)
-            try? FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
-            try? sampleConfig.write(
-                to: tmp.appending(path: "config", directoryHint: .notDirectory),
-                atomically: true,
-                encoding: .utf8
-            )
-            appModel = AppModel(initialPhase: .ready(tmp), initialMode: mode)
-            await profilesModel.load(folder: tmp)
-        }
-    }
-
-    private var sampleConfig: String {
-        """
-        [sso-session acme]
-        sso_start_url = https://acme.awsapps.com/start
-        sso_region = us-east-1
-        sso_registration_scopes = sso:account:access
-
-        [default]
-        sso_session = acme
-        sso_account_id = 412903117204
-        sso_role_name = AdministratorAccess
-        region = us-east-1
-        output = json
-
-        [profile assume-billing]
-        role_arn = arn:aws:iam::412903117204:role/Billing
-        source_profile = default
-        """
+        .frame(width: 900, height: 720)
     }
 }

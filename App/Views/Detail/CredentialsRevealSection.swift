@@ -40,17 +40,11 @@ struct CredentialsRevealSection: View {
     private var isRoleRejected: Bool { model.roleRejected.contains(key) }
 
     var body: some View {
-        Section("Credentials") {
+        VStack(alignment: .leading, spacing: 12) {
             switch status {
-            case .notSignedIn(let s), .signInExpired(let s):
-                signInRequired(session: s)
+            case .notSignedIn(let session), .signInExpired(let session):
+                signInRequired(session: session)
             case .ready where isRoleRejected:
-                // Terminal access-denied is essential blocking status, not advanced detail.
-                // Per HIG (Disclosure controls → Best practices: "place controls people are
-                // most likely to use at the top… with more advanced functionality hidden"),
-                // it's surfaced at the section level — consistent with notSignedIn /
-                // signInExpired — rather than behind the disclosure. D31 amended after the
-                // chunk-6b HIG review (see IAMIdentityCenterPlan.html).
                 advisory(
                     systemImage: "xmark.shield",
                     tint: .red,
@@ -60,6 +54,7 @@ struct CredentialsRevealSection: View {
             case .ready:
                 DisclosureGroup("Show credentials", isExpanded: $expanded) {
                     disclosureBody
+                        .padding(.top, 12)
                 }
             }
         }
@@ -295,7 +290,7 @@ private struct RevealPreviewHarness: View {
     @State private var model = CredentialsModel(service: PreviewIdentityCenterService())
 
     var body: some View {
-        Form {
+        DetailCard("Credentials") {
             CredentialsRevealSection(
                 sessionName: "acme",
                 accountId: "123456789012",
@@ -304,7 +299,6 @@ private struct RevealPreviewHarness: View {
             )
             .environment(model)
         }
-        .formStyle(.grouped)
         .frame(width: 460)
         .task { seed(model) }
     }
