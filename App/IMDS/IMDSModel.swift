@@ -32,6 +32,11 @@ final class IMDSModel {
         startEndpoint(forProfile: name, port: port)
     }
 
+    func restartEndpoint(forProfile name: String) {
+        let port = state(forProfile: name).port ?? 9678
+        startEndpoint(forProfile: name, port: port)
+    }
+
     private func finishStartingEndpoint(forProfile name: String) {
         guard case .starting(let port) = state(forProfile: name) else { return }
         endpointsByProfile[name] = .active(port: port)
