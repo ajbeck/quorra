@@ -283,6 +283,49 @@ struct CredentialsModelTests {
         }
     }
 
+    @Test func signedInEventRefreshesObservedProfileStatuses() async throws {
+        let stub = StubIdentityCenterService()
+        let expiresAt = Date().addingTimeInterval(3600)
+        await stub.setStatusToReturn(.signedIn(expiresAt: expiresAt, canRefresh: false))
+        await stub.setProfileStatusToReturn(.ready(expiresAt: expiresAt))
+        let model = CredentialsModel(service: stub)
+        let key = "session-a:111111111111:r1"
+
+        model.seedProfileStatusForTesting(.signInExpired(sessionName: "session-a"), key: key)
+
+        await model.processEventForTesting(.signedIn(sessionName: "session-a"))
+
+        if case .ready = model.profileStatus[key] {
+            // expected
+        } else {
+            Issue.record("Expected observed profile status to refresh to .ready after sign-in, got \(String(describing: model.profileStatus[key]))")
+        }
+    }
+
+    @Test func expiredEventRefreshesObservedProfileStatusesForSessionOnly() async throws {
+        let stub = StubIdentityCenterService()
+        await stub.setStatusToReturn(.expired(expiredAt: Date().addingTimeInterval(-60), canRefresh: false))
+        await stub.setProfileStatusToReturn(.signInExpired(sessionName: "session-a"))
+        let model = CredentialsModel(service: stub)
+        let keyA1 = "session-a:111111111111:r1"
+        let keyA2 = "session-a:222222222222:r2"
+        let keyB = "session-b:333333333333:r3"
+
+        model.seedProfileStatusForTesting(.ready(expiresAt: Date().addingTimeInterval(3600)), key: keyA1)
+        model.seedProfileStatusForTesting(.ready(expiresAt: Date().addingTimeInterval(3600)), key: keyA2)
+        model.seedProfileStatusForTesting(.ready(expiresAt: Date().addingTimeInterval(3600)), key: keyB)
+
+        await model.processEventForTesting(.expired(sessionName: "session-a"))
+
+        #expect(model.profileStatus[keyA1] == .signInExpired(sessionName: "session-a"))
+        #expect(model.profileStatus[keyA2] == .signInExpired(sessionName: "session-a"))
+        if case .ready = model.profileStatus[keyB] {
+            // expected: other sessions are untouched
+        } else {
+            Issue.record("Expected unrelated profile status to stay .ready, got \(String(describing: model.profileStatus[keyB]))")
+        }
+    }
+
     @Test func signOutFailureEventSetsAdvisory() async throws {
         let stub = StubIdentityCenterService()
         let model = CredentialsModel(service: stub)
@@ -364,6 +407,8 @@ struct CredentialsModelTests {
         let keyA2 = "session-a:222222222222:r2"
         let keyB = "session-b:333333333333:r3"
 
+        model.seedProfileStatusForTesting(.ready(expiresAt: Date().addingTimeInterval(3600)), key: keyA1)
+        model.seedProfileStatusForTesting(.ready(expiresAt: Date().addingTimeInterval(3600)), key: keyB)
         model.seedMintingNowForTesting(key: keyA1)
         model.seedMintFailureForTesting(key: keyA2)
         model.seedRoleRejectedForTesting(key: keyA1)
@@ -377,6 +422,13 @@ struct CredentialsModelTests {
         #expect(!model.roleRejected.contains(keyA1))
         // session-b key untouched (prefix isolation)
         #expect(model.roleRejected.contains(keyB))
+        #expect(model.profileStatus[keyA1] == .notSignedIn(sessionName: "session-a"))
+        if case .ready = model.profileStatus[keyB] {
+            // expected
+        } else {
+            Issue.record("Expected unrelated profile status to stay .ready, got \(String(describing: model.profileStatus[keyB]))")
+        }
+        #expect(model.status["session-a"] == .signedOut)
     }
 
     // MARK: - observeProfileStatus populates the profileStatus cache

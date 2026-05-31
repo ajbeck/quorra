@@ -222,7 +222,7 @@ final class CredentialsModel {
         switch event {
         case .signInStarted(let name):
             // Status will flip to .signingIn — re-pull from actor
-            await refreshStatus(for: name)
+            await refreshStatusAndObservedProfiles(forSession: name)
 
         case .signedIn(let name):
             if inFlight[name] != nil { inFlight[name] = nil }
@@ -230,15 +230,15 @@ final class CredentialsModel {
             if signOutFailure.contains(name) { signOutFailure.remove(name) }
             if refreshFailure.contains(name) { refreshFailure.remove(name) }
             if refreshingNow.contains(name) { refreshingNow.remove(name) }
-            await refreshStatus(for: name)
+            await refreshStatusAndObservedProfiles(forSession: name)
 
         case .signInCancelled(let name):
             if inFlight[name] != nil { inFlight[name] = nil }
-            await refreshStatus(for: name)
+            await refreshStatusAndObservedProfiles(forSession: name)
 
         case .signInFailed(let name):
             if inFlight[name] != nil { inFlight[name] = nil }
-            await refreshStatus(for: name)
+            await refreshStatusAndObservedProfiles(forSession: name)
 
         case .signedOut(let name):
             if signOutFailure.contains(name) { signOutFailure.remove(name) }
@@ -250,11 +250,11 @@ final class CredentialsModel {
             mintingNow = mintingNow.filter { !$0.hasPrefix(prefix) }
             mintFailure = mintFailure.filter { !$0.hasPrefix(prefix) }
             roleRejected = roleRejected.filter { !$0.hasPrefix(prefix) }
-            profileStatus = profileStatus.filter { !$0.key.hasPrefix(prefix) }
-            await refreshStatus(for: name)
+            markObservedProfileStatuses(forSession: name, as: .notSignedIn(sessionName: name))
+            status[name] = .signedOut
 
         case .expired(let name):
-            await refreshStatus(for: name)
+            await refreshStatusAndObservedProfiles(forSession: name)
 
         case .signOutServerSideFailed(let name):
             signOutFailure.insert(name)
@@ -263,19 +263,19 @@ final class CredentialsModel {
             // D17: populate the refreshingNow overlay; status stays signedIn
             refreshingNow.insert(name)
             // Still re-pull status in case Keychain was updated between events
-            await refreshStatus(for: name)
+            await refreshStatusAndObservedProfiles(forSession: name)
 
         case .refreshed(let name):
             // Clear both overlays; re-pull status (new token's expiresAt)
             if refreshingNow.contains(name) { refreshingNow.remove(name) }
             if refreshFailure.contains(name) { refreshFailure.remove(name) }
-            await refreshStatus(for: name)
+            await refreshStatusAndObservedProfiles(forSession: name)
 
         case .refreshFailed(let name):
             // D17: clear refreshingNow; D16: set refreshFailure for transient advisory
             if refreshingNow.contains(name) { refreshingNow.remove(name) }
             refreshFailure.insert(name)
-            await refreshStatus(for: name)
+            await refreshStatusAndObservedProfiles(forSession: name)
 
         // MARK: B events (D30)
 
@@ -313,6 +313,50 @@ final class CredentialsModel {
         let s = await service.status(forSession: sessionName)
         if status[sessionName] != s {
             status[sessionName] = s
+        }
+    }
+
+    /// Re-pulls both the session status and every already-observed profile status for that
+    /// session. A session token transition changes the readiness of all role profiles under it,
+    /// so the per-profile cache must move in lockstep with the session cache.
+    private func refreshStatusAndObservedProfiles(forSession sessionName: String) async {
+        await refreshStatus(for: sessionName)
+        await refreshObservedProfileStatuses(forSession: sessionName)
+    }
+
+    /// Re-pulls every cached profile-status entry whose key belongs to `sessionName`.
+    private func refreshObservedProfileStatuses(forSession sessionName: String) async {
+        for profileKey in observedProfileKeys(forSession: sessionName) {
+            let s = await service.status(
+                forProfile: sessionName,
+                accountId: profileKey.accountId,
+                roleName: profileKey.roleName
+            )
+            if profileStatus[profileKey.key] != s {
+                profileStatus[profileKey.key] = s
+            }
+        }
+    }
+
+    /// Writes a known profile status into every cached profile-status entry for `sessionName`.
+    /// Used for sign-out because the sign-out event is intentionally emitted before Keychain
+    /// deletion completes, so reading the actor immediately could momentarily see the old token.
+    private func markObservedProfileStatuses(forSession sessionName: String, as newStatus: ProfileAuthStatus) {
+        for profileKey in observedProfileKeys(forSession: sessionName) {
+            if profileStatus[profileKey.key] != newStatus {
+                profileStatus[profileKey.key] = newStatus
+            }
+        }
+    }
+
+    private func observedProfileKeys(forSession sessionName: String) -> [(key: String, accountId: String, roleName: String)] {
+        let prefix = "\(sessionName):"
+        return profileStatus.keys.compactMap { key in
+            guard key.hasPrefix(prefix) else { return nil }
+            let remainder = key.dropFirst(prefix.count)
+            let parts = remainder.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false)
+            guard parts.count == 2 else { return nil }
+            return (key, String(parts[0]), String(parts[1]))
         }
     }
 
