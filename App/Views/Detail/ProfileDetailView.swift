@@ -143,12 +143,16 @@ struct ProfileDetailView: View {
     ) -> some View {
         DetailCard("Credentials") {
             CredentialsRevealSection(
+                profileName: node.id,
                 sessionName: coords.session,
                 accountId: coords.account,
                 roleName: coords.role,
                 region: coords.region,
                 onSignIn: {
                     signIn(sessionName: coords.session)
+                },
+                onViewIMDS: {
+                    detailSelection = .imds(profileName: node.id)
                 },
                 onViewSession: {
                     detailSelection = .session(name: coords.session)
@@ -330,6 +334,7 @@ private struct ProfileDetailPreviewHarness: View {
     @State private var profilesModel: ProfilesModel
     @State private var editorState = EditorState()
     @State private var credentialsModel: CredentialsModel
+    @State private var imdsModel = IMDSModel()
 
     init(mode: ManagedMode) {
         self.mode = mode
@@ -358,10 +363,14 @@ private struct ProfileDetailPreviewHarness: View {
                     .environment(profilesModel)
                     .environment(editorState)
                     .environment(credentialsModel)
+                    .environment(imdsModel)
             } else {
                 ContentUnavailableView("Profile not found", systemImage: "questionmark.circle")
             }
         }
         .frame(width: 900, height: 720)
+        .task {
+            imdsModel.setState(.active(port: 9678), forProfile: "ac:cp:org_admin")
+        }
     }
 }
