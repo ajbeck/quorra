@@ -344,7 +344,7 @@ struct CredentialsRevealSection: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
-            .font(.body.monospaced())
+            .font(.callout.monospaced())
             .padding(.horizontal, 12)
             .frame(maxWidth: .infinity, minHeight: 36, alignment: .leading)
             .background(Color.black.opacity(0.28))
@@ -352,10 +352,14 @@ struct CredentialsRevealSection: View {
             Button {
                 copyToPasteboard(exportCommand)
             } label: {
-                Label("Copy", systemImage: "doc.on.doc")
+                ViewThatFits(in: .horizontal) {
+                    Label("Copy", systemImage: "doc.on.doc")
+                    Image(systemName: "doc.on.doc")
+                }
             }
             .buttonStyle(.bordered)
             .frame(minHeight: 36)
+            .help("Copy export command")
         }
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay {
