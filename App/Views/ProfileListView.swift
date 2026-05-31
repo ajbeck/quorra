@@ -283,7 +283,7 @@ private struct IMDSListRow: View {
 
             Spacer(minLength: 8)
 
-            if case .active(let port) = state {
+            if let port = state.port {
                 Text("127.0.0.1:\(port)")
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
@@ -317,7 +317,11 @@ private struct IMDSBadge: View {
         switch state {
         case .inactive:
             return "IMDS"
+        case .starting(let port):
+            return "IMDS : \(port)"
         case .active(let port):
+            return "IMDS : \(port)"
+        case .failed(let port, _):
             return "IMDS : \(port)"
         }
     }
@@ -325,21 +329,27 @@ private struct IMDSBadge: View {
     private var dotColor: Color {
         switch state {
         case .inactive: return .secondary.opacity(0.55)
+        case .starting: return .blue
         case .active: return .green
+        case .failed: return .orange
         }
     }
 
     private var textColor: Color {
         switch state {
         case .inactive: return .secondary
+        case .starting: return .blue
         case .active: return .green
+        case .failed: return .orange
         }
     }
 
     private var backgroundColor: Color {
         switch state {
         case .inactive: return Color.secondary.opacity(0.12)
+        case .starting: return Color.blue.opacity(0.16)
         case .active: return Color.green.opacity(0.18)
+        case .failed: return Color.orange.opacity(0.16)
         }
     }
 }
@@ -372,8 +382,12 @@ private extension IMDSEndpointState {
         switch self {
         case .inactive:
             return "imds inactive"
+        case .starting(let port):
+            return "imds starting 127.0.0.1 \(port)"
         case .active(let port):
             return "imds active 127.0.0.1 \(port)"
+        case .failed(let port, let message):
+            return "imds failed 127.0.0.1 \(port) \(message)"
         }
     }
 }

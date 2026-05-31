@@ -52,6 +52,9 @@ struct IMDSDetailView: View {
                         LabeledContent("Account ID", value: node.profile.ssoAccountId ?? "—")
                         LabeledContent("Role", value: node.profile.ssoRoleName ?? "—")
                         LabeledContent("Region", value: node.profile.region ?? "—")
+                        if let failureMessage = state.failureMessage {
+                            LabeledContent("Error", value: failureMessage)
+                        }
                     }
                     .padding(.top, 4)
                 }
@@ -65,14 +68,17 @@ struct IMDSDetailView: View {
     private func statusText(for state: IMDSEndpointState) -> String {
         switch state {
         case .inactive: return "Inactive"
+        case .starting: return "Starting"
         case .active: return "Serving"
+        case .failed: return "Failed"
         }
     }
 
     private func endpointText(for state: IMDSEndpointState) -> String {
         switch state {
         case .inactive: return "Not running"
-        case .active(let port): return "http://127.0.0.1:\(port)"
+        case .starting(let port), .active(let port), .failed(let port, _):
+            return "http://127.0.0.1:\(port)"
         }
     }
 }
@@ -86,6 +92,14 @@ struct IMDSDetailView: View {
 #Preview("IMDS Detail – active") {
     let model = IMDSModel()
     model.setState(.active(port: 9678), forProfile: "ac:cp:org_admin")
+    return IMDSDetailView(profileName: "ac:cp:org_admin")
+        .environment(ProfilesModel.previewLoaded(config: PreviewAWSFixtures.mockupConfig))
+        .environment(model)
+}
+
+#Preview("IMDS Detail – failed") {
+    let model = IMDSModel()
+    model.setState(.failed(port: 9678, message: "Port 9678 is already in use."), forProfile: "ac:cp:org_admin")
     return IMDSDetailView(profileName: "ac:cp:org_admin")
         .environment(ProfilesModel.previewLoaded(config: PreviewAWSFixtures.mockupConfig))
         .environment(model)

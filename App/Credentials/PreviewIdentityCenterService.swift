@@ -45,7 +45,17 @@ struct PreviewIdentityCenterService: IdentityCenterServicing {
         roleName: String,
         region: String
     ) async throws -> RoleCredentials {
-        throw IAMIdentityCenterError.notSignedIn
+        RoleCredentials(
+            accessKeyId: "ASIA00000000EXMPL",
+            secretAccessKey: "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY",
+            sessionToken: "IQoJb3JpZ2luX2VjEOr//////////wEaCXVzLWVhc3QtMiJIMEYCIQC-example-token",
+            expiresAt: Date().addingTimeInterval(6 * 3600 + 12 * 60),
+            accountId: accountId,
+            roleName: roleName,
+            region: region,
+            sessionName: sessionName,
+            issuedAt: Date().addingTimeInterval(-48 * 60)
+        )
     }
 
     @concurrent
