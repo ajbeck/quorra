@@ -33,6 +33,15 @@ struct CredentialsRevealSection: View {
     @State private var revealed: Set<Field> = []
 
     private enum Field: Hashable { case accessKeyId, secretAccessKey, sessionToken }
+    private enum DisplayState: Equatable {
+        case checking
+        case signingIn
+        case notSignedIn(sessionName: String)
+        case expired(sessionName: String)
+        case roleRejected
+        case ready
+    }
+
     private enum CredentialShell: String, CaseIterable, Identifiable {
         case bash
         case zsh
@@ -46,14 +55,37 @@ struct CredentialsRevealSection: View {
 
     private var key: String { "\(sessionName):\(accountId):\(roleName)" }
 
-    private var status: ProfileAuthStatus {
-        model.profileStatus[key] ?? .ready(expiresAt: nil)
-    }
+    private var status: ProfileAuthStatus? { model.profileStatus[key] }
     private var isMinting: Bool { model.mintingNow.contains(key) }
     private var hasMintFailure: Bool { model.mintFailure.contains(key) }
     private var isRoleRejected: Bool { model.roleRejected.contains(key) }
     private var sessionStatus: SessionAuthStatus? { model.status[sessionName] }
     private var signInProgress: SignInProgress? { model.inFlight[sessionName] }
+    private var displayState: DisplayState {
+        if case .signingIn = sessionStatus {
+            return .signingIn
+        }
+
+        guard let status else {
+            return .checking
+        }
+
+        switch status {
+        case .notSignedIn(let session):
+            return .notSignedIn(sessionName: session)
+        case .signInExpired(let session):
+            return .expired(sessionName: session)
+        case .ready where isRoleRejected:
+            return .roleRejected
+        case .ready:
+            return .ready
+        }
+    }
+
+    private var isCredentialReady: Bool {
+        displayState == .ready
+    }
+
     private var expiresAt: Date? {
         if let creds { return creds.expiresAt }
         if case .ready(let expiresAt) = status { return expiresAt }
@@ -64,33 +96,16 @@ struct CredentialsRevealSection: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if case .signingIn = sessionStatus {
-                signingInView(progress: signInProgress)
-            } else {
-                switch status {
-                case .notSignedIn(let session):
-                    signInRequired(session: session, reason: .notSignedIn)
-                case .signInExpired(let session):
-                    signInRequired(session: session, reason: .expired)
-                case .ready where isRoleRejected:
-                    advisory(
-                        systemImage: "xmark.shield",
-                        tint: .red,
-                        text: "This role is no longer available. Contact your administrator.",
-                        retry: false
-                    )
-                case .ready:
-                    readyCredentialsPanel
-                }
-            }
+        VStack(alignment: .leading, spacing: 14) {
+            credentialStatusHeader
+            shellAndCommand
+            imdsControlRow
+            credentialStateDetails
+            credentialMaterial
         }
         .onDisappear {
             creds = nil
             revealed.removeAll()
-        }
-        .task {
-            await model.observeProfileStatus(forSession: sessionName, accountId: accountId, roleName: roleName)
         }
         .onChange(of: status) { oldValue, newValue in
             guard case .ready = newValue else { return }
@@ -101,154 +116,271 @@ struct CredentialsRevealSection: View {
             Task { await fetch(force: true) }
         }
         .task(id: key) {
+            await model.observeProfileStatus(forSession: sessionName, accountId: accountId, roleName: roleName)
             guard case .ready = status else { return }
             await fetch()
         }
     }
 
-    // MARK: - Not-signed-in state
+    // MARK: - State-aware shell
 
-    private enum SignInReason {
-        case notSignedIn
-        case expired
+    private var credentialStatusHeader: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .center, spacing: 16) {
+                credentialStateBlock
+                credentialStateCaption
+                Spacer(minLength: 16)
+                credentialPrimaryAction
+            }
+
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .center, spacing: 16) {
+                    credentialStateBlock
+                    credentialStateCaption
+                    Spacer(minLength: 0)
+                }
+                credentialPrimaryAction
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+        }
     }
 
-    @ViewBuilder private func signInRequired(session: String, reason: SignInReason) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: reason == .expired ? "exclamationmark.triangle.fill" : "person.crop.circle.badge.exclamationmark")
-                .foregroundStyle(reason == .expired ? Color.orange : Color.secondary)
+    @ViewBuilder private var credentialStateBlock: some View {
+        switch displayState {
+        case .ready:
+            remainingTimeBlock
+        case .checking:
+            stateLabel("Checking", color: .secondary, systemImage: "hourglass")
+        case .signingIn:
+            HStack(spacing: 10) {
+                ProgressView()
+                    .controlSize(.small)
+                Text("Signing in")
+                    .font(.system(size: 28, weight: .regular))
+                    .foregroundStyle(.primary)
+            }
+            .accessibilityElement(children: .combine)
+        case .notSignedIn:
+            stateLabel("Sign in", color: .secondary, systemImage: "person.crop.circle.badge.exclamationmark")
+        case .expired:
+            stateLabel("Expired", color: .red, systemImage: "exclamationmark.triangle.fill")
+        case .roleRejected:
+            stateLabel("Unavailable", color: .red, systemImage: "xmark.shield")
+        }
+    }
+
+    private func stateLabel(_ text: String, color: Color, systemImage: String) -> some View {
+        HStack(spacing: 9) {
+            Image(systemName: systemImage)
+                .font(.title3)
+                .foregroundStyle(color)
                 .accessibilityHidden(true)
+            Text(text)
+                .font(.system(size: 28, weight: .regular))
+                .foregroundStyle(color)
+        }
+    }
 
-            VStack(alignment: .leading, spacing: 8) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(reason == .expired ? "Session expired" : "Sign in required")
-                        .font(.callout.weight(.semibold))
-                    Text(reason == .expired
-                         ? "Sign in to \(session) again to refresh this profile's credentials."
-                         : "Sign in to \(session) to mint credentials for this profile.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
+    private var credentialStateCaption: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(credentialStateTitle)
+                .font(.callout)
+                .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(credentialStateSubtitle)
+                .font(.caption.monospaced())
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+    }
 
-                HStack(spacing: 8) {
-                    Button {
-                        onSignIn?()
-                    } label: {
-                        Label(reason == .expired ? "Sign in to refresh credentials" : "Sign in", systemImage: "arrow.clockwise")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(onSignIn == nil)
+    private var credentialStateTitle: String {
+        switch displayState {
+        case .ready:
+            return "until temporary credentials expire"
+        case .checking:
+            return "checking credential availability"
+        case .signingIn:
+            return "waiting for IAM Identity Center"
+        case .notSignedIn:
+            return "sign in to mint temporary credentials"
+        case .expired:
+            return "temporary credentials are expired"
+        case .roleRejected:
+            return "role credentials cannot be minted"
+        }
+    }
 
-                    if let onViewSession {
-                        Button {
-                            onViewSession()
-                        } label: {
-                            Label("View SSO session", systemImage: "arrow.up.right.square")
-                        }
-                    }
+    private var credentialStateSubtitle: String {
+        switch displayState {
+        case .ready:
+            if let creds {
+                return "minted \(creds.issuedAt.formatted(date: .omitted, time: .shortened))  ·  expires \(creds.expiresAt.formatted(date: .omitted, time: .shortened))"
+            } else if let expiresAt {
+                return "expires \(expiresAt.formatted(date: .omitted, time: .shortened))"
+            }
+            return "expiration unavailable"
+        case .checking:
+            return "\(sessionName) · \(accountId) · \(roleName)"
+        case .signingIn:
+            if let progress = signInProgress {
+                return "code \(progress.userCode) · expires \(progress.expiresAt.formatted(date: .omitted, time: .shortened))"
+            }
+            return "\(sessionName) sign-in in progress"
+        case .notSignedIn(let session):
+            return "\(session) requires authentication"
+        case .expired(let session):
+            return "\(session) needs a fresh sign-in"
+        case .roleRejected:
+            return "\(accountId) · \(roleName)"
+        }
+    }
+
+    @ViewBuilder private var credentialPrimaryAction: some View {
+        switch displayState {
+        case .ready:
+            renewButton
+        case .notSignedIn:
+            Button {
+                onSignIn?()
+            } label: {
+                Label("Sign in", systemImage: "arrow.clockwise")
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            .disabled(onSignIn == nil)
+        case .expired:
+            Button {
+                onSignIn?()
+            } label: {
+                Label("Sign in to refresh credentials", systemImage: "arrow.clockwise")
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            .disabled(onSignIn == nil)
+        case .signingIn:
+            Button("Cancel", role: .cancel) {
+                Task { await model.cancelSignIn(sessionName: sessionName) }
+            }
+            .controlSize(.small)
+        case .checking:
+            ProgressView()
+                .controlSize(.small)
+        case .roleRejected:
+            if let onViewSession {
+                Button {
+                    onViewSession()
+                } label: {
+                    Label("View SSO session", systemImage: "arrow.up.right.square")
                 }
                 .controlSize(.small)
             }
         }
     }
 
-    @ViewBuilder private func signingInView(progress: SignInProgress?) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                ProgressView()
-                    .controlSize(.small)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Waiting for IAM Identity Center sign-in")
-                        .font(.callout.weight(.semibold))
-                    Text("Complete the browser step to refresh this profile's credentials.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
+    @ViewBuilder private var credentialStateDetails: some View {
+        switch displayState {
+        case .checking:
+            EmptyView()
+        case .ready:
+            if hasMintFailure {
+                advisory(
+                    systemImage: "exclamationmark.triangle",
+                    tint: .orange,
+                    text: "Last refresh failed. Showing the most recent credentials.",
+                    retry: true
+                )
             }
+        case .signingIn:
+            signingInDetails
+        case .notSignedIn:
+            recoveryDetails(
+                systemImage: "person.crop.circle.badge.exclamationmark",
+                tint: .secondary,
+                text: "Sign in to \(sessionName) to mint credentials for this profile."
+            )
+        case .expired:
+            recoveryDetails(
+                systemImage: "exclamationmark.triangle.fill",
+                tint: .orange,
+                text: "Sign in to \(sessionName) again to refresh this profile's credentials."
+            )
+        case .roleRejected:
+            advisory(
+                systemImage: "xmark.shield",
+                tint: .red,
+                text: "This role is no longer available. Contact your administrator.",
+                retry: false
+            )
+        }
+    }
 
-            if let progress {
+    private func recoveryDetails(systemImage: String, tint: Color, text: String) -> some View {
+        HStack(spacing: 8) {
+            Label {
+                Text(text)
+            } icon: {
+                Image(systemName: systemImage).foregroundStyle(tint)
+            }
+            .font(.callout)
+
+            if let onViewSession {
+                Button {
+                    onViewSession()
+                } label: {
+                    Label("View SSO session", systemImage: "arrow.up.right.square")
+                }
+                .controlSize(.small)
+            }
+        }
+    }
+
+    @ViewBuilder private var signingInDetails: some View {
+        if let progress = signInProgress {
+            HStack(spacing: 14) {
                 LabeledContent("User code") {
                     Text(progress.userCode)
                         .font(.body.monospaced().weight(.semibold))
                         .textSelection(.enabled)
                 }
 
-                HStack(spacing: 8) {
-                    Button("Open browser again") {
-                        authBrowserPresenter.present(progress.verificationUriComplete)
-                    }
-
-                    Text("Expires in")
-                        .foregroundStyle(.secondary)
-                    Text(timerInterval: Date.now...progress.expiresAt, countsDown: true)
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
+                Button("Open browser again") {
+                    authBrowserPresenter.present(progress.verificationUriComplete)
                 }
-                .font(.caption)
-            }
+                .controlSize(.small)
 
-            Button("Cancel", role: .cancel) {
-                Task { await model.cancelSignIn(sessionName: sessionName) }
+                Text("Expires in")
+                    .foregroundStyle(.secondary)
+                Text(timerInterval: Date.now...progress.expiresAt, countsDown: true)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
             }
-            .controlSize(.small)
+            .font(.caption)
         }
     }
 
-    // MARK: - Ready state
-
-    @ViewBuilder private var readyCredentialsPanel: some View {
-        // roleRejected is handled at the section level (HIG / D31 amendment) and never
-        // reaches the disclosure body.
-        VStack(alignment: .leading, spacing: 14) {
-            expiryAndRenewHeader
-            shellAndCommand
-            imdsControlRow
-
-            if isMinting || isFetching {
-                loadingRow(text: isMinting ? "Refreshing credentials..." : "Loading credentials...")
-            } else if let creds {
-                credentialFields(creds)
-                if hasMintFailure {
-                    advisory(
-                        systemImage: "exclamationmark.triangle",
-                        tint: .orange,
-                        text: "Last refresh failed. Showing the most recent credentials.",
-                        retry: true
-                    )
-                }
-            } else if let fetchError {
-                advisory(
-                    systemImage: "exclamationmark.triangle",
-                    tint: .orange,
-                    text: errorText(fetchError),
-                    retry: !fetchError.isTerminalRoleError
-                )
-            } else {
-                loadingRow(text: "Loading credentials...")
-            }
+    @ViewBuilder private var credentialMaterial: some View {
+        if isMinting || isFetching {
+            loadingCredentialFields(text: isMinting ? "Refreshing credentials..." : "Loading credentials...")
+        } else if isCredentialReady, let creds {
+            credentialFields(creds)
+        } else if isCredentialReady, let fetchError {
+            advisory(
+                systemImage: "exclamationmark.triangle",
+                tint: .orange,
+                text: errorText(fetchError),
+                retry: !fetchError.isTerminalRoleError
+            )
+            unavailableCredentialFields(message: unavailableCredentialMessage)
+        } else if isCredentialReady {
+            loadingCredentialFields(text: "Loading credentials...")
+        } else {
+            unavailableCredentialFields(message: unavailableCredentialMessage)
         }
     }
 
-    private var expiryAndRenewHeader: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .center, spacing: 16) {
-                remainingTimeBlock
-                expiryCaption
-                Spacer(minLength: 16)
-                renewButton
-            }
-
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .center, spacing: 16) {
-                    remainingTimeBlock
-                    expiryCaption
-                    Spacer(minLength: 0)
-                }
-                renewButton
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-            }
-        }
-    }
+    // MARK: - Header pieces
 
     private var remainingTimeBlock: some View {
         HStack(alignment: .firstTextBaseline, spacing: 5) {
@@ -268,30 +400,6 @@ struct CredentialsRevealSection: View {
                 .foregroundStyle(.secondary)
         }
         .accessibilityLabel("\(remainingComponents.hours) hours \(remainingComponents.minutes) minutes remaining")
-    }
-
-    private var expiryCaption: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text("until temporary credentials expire")
-                .font(.callout)
-                .foregroundStyle(.primary)
-                .fixedSize(horizontal: false, vertical: true)
-            if let creds {
-                Text("minted \(creds.issuedAt, format: .dateTime.hour().minute())  ·  expires \(creds.expiresAt, format: .dateTime.hour().minute())")
-                    .font(.caption.monospaced())
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            } else if let expiresAt {
-                Text("expires \(expiresAt, format: .dateTime.hour().minute())")
-                    .font(.caption.monospaced())
-                    .foregroundStyle(.secondary)
-            } else {
-                Text("expiration unavailable")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
     }
 
     private var renewButton: some View {
@@ -480,19 +588,21 @@ struct CredentialsRevealSection: View {
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
-        .disabled(state.isStarting)
+        .disabled(state.isStarting || (!isCredentialReady && !state.isActive))
         .help(imdsActionHelp(for: state))
     }
 
     private func performIMDSAction(for state: IMDSEndpointState) {
         switch state {
         case .inactive:
+            guard isCredentialReady else { return }
             Task { await startIMDSEndpoint() }
         case .starting:
             break
         case .active:
             imdsModel.stopEndpoint(forProfile: profileName)
         case .failed:
+            guard isCredentialReady else { return }
             Task {
                 await imdsModel.retryEndpoint(
                     profileName: profileName,
@@ -518,6 +628,19 @@ struct CredentialsRevealSection: View {
     }
 
     private func imdsSubtitle(for state: IMDSEndpointState) -> String {
+        if !isCredentialReady {
+            switch state {
+            case .active:
+                return "Endpoint is running; refresh credentials before serving new requests"
+            case .starting:
+                return "Starting local credential endpoint"
+            case .failed(_, let message):
+                return message
+            case .inactive:
+                return unavailableIMDSMessage
+            }
+        }
+
         switch state {
         case .inactive:
             return "Expose credentials on a local endpoint"
@@ -527,6 +650,21 @@ struct CredentialsRevealSection: View {
             return "Serving this profile's credentials"
         case .failed(_, let message):
             return message
+        }
+    }
+
+    private var unavailableIMDSMessage: String {
+        switch displayState {
+        case .checking:
+            return "Waiting for credential status"
+        case .signingIn:
+            return "Complete sign-in before serving credentials"
+        case .notSignedIn, .expired:
+            return "Sign in before serving credentials"
+        case .roleRejected:
+            return "Role unavailable for local serving"
+        case .ready:
+            return "Expose credentials on a local endpoint"
         }
     }
 
@@ -582,16 +720,69 @@ struct CredentialsRevealSection: View {
         }
     }
 
-    private func loadingRow(text: String) -> some View {
-        HStack(spacing: 8) {
-            ProgressView().controlSize(.small)
-            Text(text)
-                .font(.callout)
-                .foregroundStyle(.secondary)
+    // MARK: - Credential fields
+
+    private var unavailableCredentialMessage: String {
+        switch displayState {
+        case .checking:
+            return "Checking status"
+        case .signingIn:
+            return "Waiting for sign-in"
+        case .notSignedIn:
+            return "Sign in required"
+        case .expired:
+            return "Expired"
+        case .roleRejected:
+            return "Unavailable"
+        case .ready:
+            return "Unavailable"
         }
     }
 
-    // MARK: - Credential fields
+    private func loadingCredentialFields(text: String) -> some View {
+        placeholderCredentialFields(message: text, showsProgress: true)
+    }
+
+    private func unavailableCredentialFields(message: String) -> some View {
+        placeholderCredentialFields(message: message, showsProgress: false)
+    }
+
+    private func placeholderCredentialFields(message: String, showsProgress: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            placeholderCredentialRow("Access Key", message: message, showsProgress: showsProgress)
+            rowDivider
+            placeholderCredentialRow("Secret", message: message, showsProgress: false)
+            rowDivider
+            placeholderCredentialRow("Session Token", message: message, showsProgress: false)
+            rowDivider
+            sourceRow
+        }
+    }
+
+    private func placeholderCredentialRow(
+        _ label: String,
+        message: String,
+        showsProgress: Bool
+    ) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 24) {
+            Text(label)
+                .foregroundStyle(.secondary)
+                .frame(width: 140, alignment: .trailing)
+
+            HStack(spacing: 8) {
+                if showsProgress {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+                Text(message)
+                    .font(.body.monospaced())
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 8)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.vertical, 10)
+    }
 
     @ViewBuilder private func credentialFields(_ c: RoleCredentials) -> some View {
         VStack(alignment: .leading, spacing: 0) {

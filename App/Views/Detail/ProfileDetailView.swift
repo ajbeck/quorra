@@ -323,12 +323,21 @@ struct ProfileDetailView: View {
     ProfileDetailPreviewHarness(mode: .readOnly)
 }
 
+#Preview("Expired session") {
+    ProfileDetailPreviewHarness(
+        mode: .managed,
+        profileStatus: .signInExpired(sessionName: "astrocompute"),
+        imdsState: nil
+    )
+}
+
 #Preview("Profile not found") {
     ContentUnavailableView("Profile not found", systemImage: "questionmark.circle")
 }
 
 private struct ProfileDetailPreviewHarness: View {
     let mode: ManagedMode
+    let imdsState: IMDSEndpointState?
     @State private var selection: DetailSelection? = .profile(name: "ac:cp:org_admin")
     @State private var appModel: AppModel
     @State private var profilesModel: ProfilesModel
@@ -336,8 +345,13 @@ private struct ProfileDetailPreviewHarness: View {
     @State private var credentialsModel: CredentialsModel
     @State private var imdsModel = IMDSModel()
 
-    init(mode: ManagedMode) {
+    init(
+        mode: ManagedMode,
+        profileStatus: ProfileAuthStatus? = .ready(expiresAt: Date().addingTimeInterval(6 * 3600 + 12 * 60)),
+        imdsState: IMDSEndpointState? = .active(port: 9678)
+    ) {
         self.mode = mode
+        self.imdsState = imdsState
         let folderURL = URL(filePath: "/preview/.aws", directoryHint: .isDirectory)
         let profilesModel = ProfilesModel.previewLoaded(
             config: PreviewAWSFixtures.mockupConfig,
@@ -345,10 +359,12 @@ private struct ProfileDetailPreviewHarness: View {
             folder: folderURL
         )
         let credentialsModel = CredentialsModel(service: PreviewIdentityCenterService())
-        credentialsModel.seedProfileStatusForTesting(
-            .ready(expiresAt: Date().addingTimeInterval(6 * 3600 + 12 * 60)),
-            key: "astrocompute:699475923216:OrganizationAdmin"
-        )
+        if let profileStatus {
+            credentialsModel.seedProfileStatusForTesting(
+                profileStatus,
+                key: "astrocompute:699475923216:OrganizationAdmin"
+            )
+        }
 
         _appModel = State(initialValue: AppModel(initialPhase: .ready(folderURL), initialMode: mode))
         _profilesModel = State(initialValue: profilesModel)
@@ -370,7 +386,9 @@ private struct ProfileDetailPreviewHarness: View {
         }
         .frame(width: 900, height: 720)
         .task {
-            imdsModel.setState(.active(port: 9678), forProfile: "ac:cp:org_admin")
+            if let imdsState {
+                imdsModel.setState(imdsState, forProfile: "ac:cp:org_admin")
+            }
         }
     }
 }
