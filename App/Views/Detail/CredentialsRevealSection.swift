@@ -487,14 +487,34 @@ struct CredentialsRevealSection: View {
     private func performIMDSAction(for state: IMDSEndpointState) {
         switch state {
         case .inactive:
-            imdsModel.startEndpoint(forProfile: profileName)
+            Task { await startIMDSEndpoint() }
         case .starting:
             break
         case .active:
             imdsModel.stopEndpoint(forProfile: profileName)
         case .failed:
-            imdsModel.retryEndpoint(forProfile: profileName)
+            Task {
+                await imdsModel.retryEndpoint(
+                    profileName: profileName,
+                    sessionName: sessionName,
+                    accountId: accountId,
+                    roleName: roleName,
+                    region: region,
+                    credentialsModel: model
+                )
+            }
         }
+    }
+
+    private func startIMDSEndpoint() async {
+        await imdsModel.startEndpoint(
+            profileName: profileName,
+            sessionName: sessionName,
+            accountId: accountId,
+            roleName: roleName,
+            region: region,
+            credentialsModel: model
+        )
     }
 
     private func imdsSubtitle(for state: IMDSEndpointState) -> String {
@@ -539,13 +559,13 @@ struct CredentialsRevealSection: View {
     private func imdsActionHelp(for state: IMDSEndpointState) -> String {
         switch state {
         case .inactive:
-            return "Start serving this profile via IMDS. Currently a UI-only transition."
+            return "Start serving this profile via IMDS."
         case .starting:
             return "Starting the local IMDS endpoint."
         case .active:
-            return "Stop serving this profile via IMDS. Currently a UI-only transition."
+            return "Stop serving this profile via IMDS."
         case .failed:
-            return "Retry starting the local IMDS endpoint. Currently a UI-only transition."
+            return "Retry starting the local IMDS endpoint."
         }
     }
 

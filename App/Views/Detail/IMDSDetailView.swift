@@ -4,6 +4,7 @@ import AWSConfigINI
 struct IMDSDetailView: View {
     let profileName: String
     @Environment(ProfilesModel.self) private var profilesModel
+    @Environment(CredentialsModel.self) private var credentialsModel
     @Environment(IMDSModel.self) private var imdsModel
 
     var body: some View {
@@ -20,13 +21,14 @@ struct IMDSDetailView: View {
 
     private func detail(for node: ProfileNode) -> some View {
         let state = imdsModel.state(forProfile: node.id)
+        let runtime = imdsModel.runtimeInfo(forProfile: node.id)
         return ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                header(for: state)
-                serverStatusPanel(for: node, state: state)
+                header(for: node, state: state)
+                serverStatusPanel(for: node, state: state, runtime: runtime)
                 endpointCard(for: state)
                 configurationCard(for: state)
-                activityCard(for: state)
+                activityCard(for: state, runtime: runtime)
             }
             .padding(24)
             .frame(maxWidth: 980, alignment: .leading)
@@ -35,7 +37,7 @@ struct IMDSDetailView: View {
         .navigationTitle("IMDS Server")
     }
 
-    private func header(for state: IMDSEndpointState) -> some View {
+    private func header(for node: ProfileNode, state: IMDSEndpointState) -> some View {
         HStack(alignment: .firstTextBaseline) {
             Text("IMDS Server")
                 .font(.title.weight(.semibold))
@@ -55,7 +57,9 @@ struct IMDSDetailView: View {
                 switch state {
                 case .inactive:
                     Button {
-                        imdsModel.startEndpoint(forProfile: profileName)
+                        Task {
+                            await imdsModel.startEndpoint(for: node, credentialsModel: credentialsModel)
+                        }
                     } label: {
                         Label("Start Server", systemImage: "play.fill")
                     }
@@ -64,7 +68,9 @@ struct IMDSDetailView: View {
                         .disabled(true)
                 case .active:
                     Button {
-                        imdsModel.restartEndpoint(forProfile: profileName)
+                        Task {
+                            await imdsModel.restartEndpoint(for: node, credentialsModel: credentialsModel)
+                        }
                     } label: {
                         Label("Restart Server", systemImage: "arrow.clockwise")
                     }
@@ -75,7 +81,9 @@ struct IMDSDetailView: View {
                     }
                 case .failed:
                     Button {
-                        imdsModel.retryEndpoint(forProfile: profileName)
+                        Task {
+                            await imdsModel.retryEndpoint(for: node, credentialsModel: credentialsModel)
+                        }
                     } label: {
                         Label("Retry Server", systemImage: "arrow.clockwise")
                     }
@@ -93,17 +101,17 @@ struct IMDSDetailView: View {
         }
     }
 
-    private func serverStatusPanel(for node: ProfileNode, state: IMDSEndpointState) -> some View {
+    private func serverStatusPanel(for node: ProfileNode, state: IMDSEndpointState, runtime: IMDSRuntimeInfo?) -> some View {
         ViewThatFits(in: .horizontal) {
             HStack(spacing: 16) {
-                serverSummary(for: node, state: state)
+                serverSummary(for: node, state: state, runtime: runtime)
                 Spacer(minLength: 16)
-                serverActions(for: state)
+                serverActions(for: node, state: state)
             }
 
             VStack(alignment: .leading, spacing: 14) {
-                serverSummary(for: node, state: state)
-                serverActions(for: state)
+                serverSummary(for: node, state: state, runtime: runtime)
+                serverActions(for: node, state: state)
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
@@ -115,7 +123,7 @@ struct IMDSDetailView: View {
         }
     }
 
-    private func serverSummary(for node: ProfileNode, state: IMDSEndpointState) -> some View {
+    private func serverSummary(for node: ProfileNode, state: IMDSEndpointState, runtime: IMDSRuntimeInfo?) -> some View {
         HStack(spacing: 14) {
             statusIcon(for: state)
                 .frame(width: 34, height: 34)
@@ -136,7 +144,7 @@ struct IMDSDetailView: View {
                     .truncationMode(.middle)
                     .textSelection(.enabled)
 
-                Text(statusMetadata(for: state))
+                Text(statusMetadata(for: state, runtime: runtime))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
@@ -162,12 +170,14 @@ struct IMDSDetailView: View {
         }
     }
 
-    private func serverActions(for state: IMDSEndpointState) -> some View {
+    private func serverActions(for node: ProfileNode, state: IMDSEndpointState) -> some View {
         HStack(spacing: 10) {
             switch state {
             case .inactive:
                 Button {
-                    imdsModel.startEndpoint(forProfile: profileName)
+                    Task {
+                        await imdsModel.startEndpoint(for: node, credentialsModel: credentialsModel)
+                    }
                 } label: {
                     Label("Start", systemImage: "play.fill")
                 }
@@ -182,7 +192,9 @@ struct IMDSDetailView: View {
 
             case .active:
                 Button {
-                    imdsModel.restartEndpoint(forProfile: profileName)
+                    Task {
+                        await imdsModel.restartEndpoint(for: node, credentialsModel: credentialsModel)
+                    }
                 } label: {
                     Label("Restart", systemImage: "arrow.clockwise")
                 }
@@ -198,7 +210,9 @@ struct IMDSDetailView: View {
 
             case .failed:
                 Button {
-                    imdsModel.retryEndpoint(forProfile: profileName)
+                    Task {
+                        await imdsModel.retryEndpoint(for: node, credentialsModel: credentialsModel)
+                    }
                 } label: {
                     Label("Retry", systemImage: "arrow.clockwise")
                 }
@@ -306,13 +320,14 @@ struct IMDSDetailView: View {
         }
     }
 
-    private func activityCard(for state: IMDSEndpointState) -> some View {
-        DetailCard("Activity") {
-            if state.isActive {
+    private func activityCard(for state: IMDSEndpointState, runtime: IMDSRuntimeInfo?) -> some View {
+        let events = runtime?.activity ?? IMDSRequestLog.previewEvents
+        return DetailCard("Activity") {
+            if state.isActive, !events.isEmpty {
                 VStack(alignment: .leading, spacing: 0) {
-                    ForEach(IMDSActivityEvent.previewEvents) { event in
+                    ForEach(events) { event in
                         IMDSActivityRow(event: event)
-                        if event.id != IMDSActivityEvent.previewEvents.last?.id {
+                        if event.id != events.last?.id {
                             Divider()
                                 .padding(.leading, 118)
                         }
@@ -320,7 +335,7 @@ struct IMDSDetailView: View {
                 }
             } else {
                 ContentUnavailableView(
-                    "No Requests",
+                    state.isActive ? "No Requests Yet" : "No Requests",
                     systemImage: "list.bullet.rectangle",
                     description: Text("Start the endpoint to see IMDS requests.")
                 )
@@ -342,17 +357,29 @@ struct IMDSDetailView: View {
         }
     }
 
-    private func statusMetadata(for state: IMDSEndpointState) -> String {
+    private func statusMetadata(for state: IMDSEndpointState, runtime: IMDSRuntimeInfo?) -> String {
         switch state {
         case .inactive:
             return "ready to serve IMDSv2 on 127.0.0.1"
         case .starting:
             return "binding to 127.0.0.1 · IMDSv2"
         case .active:
+            if let runtime {
+                return "up \(relativeDuration(since: runtime.startedAt)) · \(runtime.requestCount.formatted()) requests served · IMDSv2"
+            }
             return "up 1h 48m · 1,243 requests served · IMDSv2"
         case .failed(_, let message):
             return message
         }
+    }
+
+    private func relativeDuration(since date: Date) -> String {
+        let seconds = max(0, Int(Date().timeIntervalSince(date)))
+        let hours = seconds / 3600
+        let minutes = (seconds % 3600) / 60
+        if hours > 0 { return "\(hours)h \(minutes)m" }
+        if minutes > 0 { return "\(minutes)m" }
+        return "\(seconds)s"
     }
 
     private func statusAccent(for state: IMDSEndpointState) -> Color {
@@ -394,34 +421,27 @@ private struct IMDSStatusBadge: View {
     }
 }
 
-private struct IMDSActivityEvent: Identifiable, Hashable {
-    let id: Int
-    let time: String
-    let method: String
-    let path: String
-    let client: String
-    let status: Int
-
-    static let previewEvents: [IMDSActivityEvent] = [
-        IMDSActivityEvent(
-            id: 1,
-            time: "12:04:31",
+private extension IMDSRequestLog {
+    static let previewEvents: [IMDSRequestLog] = [
+        IMDSRequestLog(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
+            timestamp: Date().addingTimeInterval(-3),
             method: "GET",
             path: "/latest/meta-data/iam/security-credentials/",
             client: "terraform",
             status: 200
         ),
-        IMDSActivityEvent(
-            id: 2,
-            time: "12:04:31",
+        IMDSRequestLog(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000002")!,
+            timestamp: Date().addingTimeInterval(-3),
             method: "GET",
             path: "/latest/meta-data/iam/security-credentials/OrganizationAdmin",
             client: "terraform",
             status: 200
         ),
-        IMDSActivityEvent(
-            id: 3,
-            time: "12:04:28",
+        IMDSRequestLog(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000003")!,
+            timestamp: Date().addingTimeInterval(-6),
             method: "PUT",
             path: "/latest/api/token",
             client: "boto3",
@@ -431,11 +451,11 @@ private struct IMDSActivityEvent: Identifiable, Hashable {
 }
 
 private struct IMDSActivityRow: View {
-    let event: IMDSActivityEvent
+    let event: IMDSRequestLog
 
     var body: some View {
         HStack(spacing: 14) {
-            Text(event.time)
+            Text(event.timestamp, format: .dateTime.hour().minute().second())
                 .font(.callout.monospacedDigit())
                 .foregroundStyle(.secondary)
                 .frame(width: 74, alignment: .leading)
@@ -473,6 +493,7 @@ private struct IMDSActivityRow: View {
 #Preview("IMDS Detail - inactive") {
     IMDSDetailView(profileName: "ac:cp:org_admin")
         .environment(ProfilesModel.previewLoaded(config: PreviewAWSFixtures.mockupConfig))
+        .environment(CredentialsModel(service: PreviewIdentityCenterService()))
         .environment(IMDSModel())
 }
 
@@ -481,6 +502,7 @@ private struct IMDSActivityRow: View {
     model.setState(.starting(port: 9678), forProfile: "ac:cp:org_admin")
     return IMDSDetailView(profileName: "ac:cp:org_admin")
         .environment(ProfilesModel.previewLoaded(config: PreviewAWSFixtures.mockupConfig))
+        .environment(CredentialsModel(service: PreviewIdentityCenterService()))
         .environment(model)
 }
 
@@ -489,6 +511,7 @@ private struct IMDSActivityRow: View {
     model.setState(.active(port: 9678), forProfile: "ac:cp:org_admin")
     return IMDSDetailView(profileName: "ac:cp:org_admin")
         .environment(ProfilesModel.previewLoaded(config: PreviewAWSFixtures.mockupConfig))
+        .environment(CredentialsModel(service: PreviewIdentityCenterService()))
         .environment(model)
 }
 
@@ -497,5 +520,6 @@ private struct IMDSActivityRow: View {
     model.setState(.failed(port: 9678, message: "Port 9678 is already in use."), forProfile: "ac:cp:org_admin")
     return IMDSDetailView(profileName: "ac:cp:org_admin")
         .environment(ProfilesModel.previewLoaded(config: PreviewAWSFixtures.mockupConfig))
+        .environment(CredentialsModel(service: PreviewIdentityCenterService()))
         .environment(model)
 }
