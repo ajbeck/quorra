@@ -1,11 +1,10 @@
 # Quorra
 
-Quorra is a macOS app (and companion Swift CLI) for managing AWS credentials on a developer machine. It covers four interconnected concerns:
+Quorra is a macOS app for managing AWS credentials on a developer machine. It covers three interconnected concerns:
 
 1. **AWS Config file management** — https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.md
 2. **AWS IMDS endpoint** — https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-metadata.md
 3. **Keychain storage** — persist sensitive credential material in the macOS Keychain; the config files hold only non-sensitive metadata, secrets live in the Keychain
-4. **Swift CLI tool** (`quorra-cli`) — a companion binary other apps and shell profiles can invoke; the primary integration point is the AWS `credential_process` config key
 
 ## Tech Stack
 
@@ -19,9 +18,8 @@ Quorra is a macOS app (and companion Swift CLI) for managing AWS credentials on 
 ## Bundle Identifiers
 
 - App: `dev.ajbeck.quorra` — produces `quorra.app`
-- CLI: `dev.ajbeck.quorra.cli` — produces `quorra-cli`, embedded into the app bundle at `quorra.app/Contents/MacOS/quorra-cli`
 
-Both are signed with the same Team ID and share the keychain access group `$(AppIdentifierPrefix)dev.ajbeck.quorra.shared` (`AppIdentifierPrefix` resolves to the Team ID at sign time).
+The app is signed with the Team ID and owns the keychain access group `$(AppIdentifierPrefix)dev.ajbeck.quorra.shared` (`AppIdentifierPrefix` resolves to the Team ID at sign time).
 
 ## Project Structure
 
@@ -29,7 +27,7 @@ Review the codebase and ask questions when needed.
 
 ## Distribution
 
-Initially via **Homebrew Cask** distributing `Quorra.app`. The CLI is **embedded inside the app bundle** at `Contents/MacOS/quorra-cli` and exposed on `$PATH` via a user-invoked symlink (`Tools/install-cli.sh`). App Store distribution is planned long-term — the build is configured today for App Store constraints (sandbox, hardened runtime, identifier-based signing, embedded CLI), so the binary itself is the same artifact for both channels. Only the upload target changes.
+Initially via **Homebrew Cask** distributing `Quorra.app`. App Store distribution is planned long-term — the build is configured today for App Store constraints: sandbox, hardened runtime, and identifier-based signing. The app artifact is the same; only the upload target changes.
 
 ## Setup Flow (First Launch)
 
@@ -38,7 +36,7 @@ On first launch the app has no security-scoped bookmark yet, so it shows `SetupV
 - **What the user picks:** the `~/.aws` folder (a single folder, not individual files). Sandbox access extends to everything inside, including files created later (important for `~/.aws/sso/cache/*.json` which are generated at runtime).
 - **Picker:** `NSOpenPanel` directly (not SwiftUI's `fileImporter`) so we can set `showsHiddenFiles = true`. Pre-fills `directoryURL = ~/.aws`. Presented via `withCheckedContinuation` around `panel.begin { ... }` — non-blocking, `async`-compatible.
 - **Non-standard folder handling:** accept any folder the user picks. If it's not `~/.aws`, show a non-blocking warning about `AWS_CONFIG_FILE` before persisting the bookmark.
-- **Bookmark storage:** `UserDefaults.standard` under key `dev.ajbeck.quorra.awsFolderBookmark`. Pure helper type `BookmarkStorage` owns the save/load/resolve plumbing (stateless, no SwiftUI dependency). Each sandboxed binary has its own UserDefaults — the app's bookmark is invisible to the CLI. Sharing the bookmark with the CLI is a planned follow-up via a Keychain item in the shared access group.
+- **Bookmark storage:** `UserDefaults.standard` under key `dev.ajbeck.quorra.awsFolderBookmark`. Pure helper type `BookmarkStorage` owns the save/load/resolve plumbing (stateless, no SwiftUI dependency).
 - **Security-scope lifetime:** resolve + `startAccessingSecurityScopedResource()` once at launch, hold for app lifetime. Matches "this app is authorised to read the user's AWS folder" semantically.
 
 ## Rules
@@ -55,15 +53,15 @@ On first launch the app has no security-scoped bookmark yet, so it shows `SetupV
 
 ## Sandbox & Dev Loop
 
-Both the app and the CLI are sandboxed. App Store distribution is the long-term target and sandboxing is an App Store requirement. Access to `~/.aws` is granted via the security-scoped bookmark chosen in `SetupView`.
+The app is sandboxed. App Store distribution is the long-term target and sandboxing is an App Store requirement. Access to `~/.aws` is granted via the security-scoped bookmark chosen in `SetupView`.
 
 **Reset to clean state** (Apple's documented approach for testing first-launch behaviour):
 
 ```
-rm -rf ~/Library/Containers/dev.ajbeck.quorra ~/Library/Containers/dev.ajbeck.quorra.cli
+rm -rf ~/Library/Containers/dev.ajbeck.quorra
 ```
 
-Relaunch the app/CLI afterwards — macOS recreates each container empty. This clears UserDefaults (including the bookmark), Application Support, Caches — everything the sandboxed binaries have written. **Does not clear Keychain items** (Keychain is system-scoped). When we add Keychain usage, a companion reset command will be needed.
+Relaunch the app afterwards — macOS recreates the container empty. This clears UserDefaults (including the bookmark), Application Support, Caches — everything the sandboxed app has written. **Does not clear Keychain items** (Keychain is system-scoped). When we add Keychain usage, a companion reset control will be needed.
 
 No macOS Simulator exists. Apps run natively via ⌘R in Xcode. Use SwiftUI `#Preview` for iterating on view code without launching the app.
 
@@ -73,17 +71,6 @@ No macOS Simulator exists. Apps run natively via ⌘R in Xcode. Use SwiftUI `#Pr
 
 First test target is `BookmarkStorage` — round-trip save/load, missing-key handling, malformed-data handling. Tests inject a `UserDefaults(suiteName:)` to avoid polluting real defaults.
 
-## App ↔ CLI Architecture
-
-The app (`quorra.app`) and the CLI (`quorra-cli`) are **independent binaries**. They do not share a process, do not speak over XPC, and do not share a Unix socket. The **only** surface they share is a **Keychain access group**, which both targets are entitled to read and write.
-
-Implications:
-
-- Any mutation of AWS config/credentials files, Keychain items, or SSO tokens may happen from either binary. Both must treat the filesystem and Keychain as shared mutable state and use file locks (`flock`/`fcntl`) for concurrent safety.
-- When the CLI needs user interaction (e.g. SSO login, MFA prompt) the CLI drives it itself — it does not hand off to the running app. This keeps the CLI independently usable even when the app is not running.
-- Both targets are code-signed with the same Team ID. Both declare `keychain-access-groups = $(AppIdentifierPrefix)dev.ajbeck.quorra.shared` in their entitlements files (`Configs/Quorra.entitlements`, `Configs/QuorraCLI.entitlements`).
-- Sandboxed binaries can't see each other's `UserDefaults`. The app's bookmark to `~/.aws` is therefore stored in a Keychain item the CLI also reads (planned — not yet implemented), since the access-group Keychain is the only writable surface both binaries can reach.
-
 ## Local IMDS Server
 
 Quorra binds the IMDS server to **`127.0.0.1:<port>`** (not the real link-local `169.254.169.254`). This avoids needing a loopback alias or elevated privileges, at the cost of requiring consumers to set `AWS_EC2_METADATA_SERVICE_ENDPOINT=http://127.0.0.1:<port>` in their shell.
@@ -92,7 +79,7 @@ Quorra binds the IMDS server to **`127.0.0.1:<port>`** (not the real link-local 
 - **IMDSv2 flow:** client does `PUT /latest/api/token` with header `X-aws-ec2-metadata-token-ttl-seconds: <n>`, server returns a token string; subsequent `GET /latest/meta-data/...` requests must include header `X-aws-ec2-metadata-token: <token>`.
 - **IMDSv1 flow:** plain `GET /latest/meta-data/...` with no token. Quorra responds to these too, but can surface a setting to reject them.
 - **Credentials path:** `GET /latest/meta-data/iam/security-credentials/` returns the role name as plain text; `GET /latest/meta-data/iam/security-credentials/<role-name>` returns the JSON credential document with `Code: "Success"`, `Type: "AWS-HMAC"`, `AccessKeyId`, `SecretAccessKey`, `Token`, `Expiration`.
-- The app publishes the port at a well-known location (e.g. a file under `~/Library/Application Support/Quorra/imds.port`) so the CLI and helper scripts can discover it.
+- The app publishes the port at a well-known location (e.g. a file under `~/Library/Application Support/Quorra/imds.port`) so user scripts can discover it.
 
 ### References
 

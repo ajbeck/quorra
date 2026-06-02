@@ -403,12 +403,12 @@ struct AWSOverlayTests {
     }
 
     @Test func decodeProfileFlavorProjection() throws {
-        let configIni = "[profile dev]\nregion = eu-west-1\nsso_session = my-sso\ncredential_process = /usr/local/bin/quorra-cli credentials --profile dev\n"
+        let configIni = "[profile dev]\nregion = eu-west-1\nsso_session = my-sso\ncredential_process = /usr/local/bin/aws-credential-helper --profile dev\n"
         let configDoc = try AWSConfigINIDocument(configIni, flavor: .config)
         let dev = try AWSConfigINIDecoder().decodeProfile(Profile.self, named: "dev", from: configDoc)
         #expect(dev.region == "eu-west-1")
         #expect(dev.ssoSession == "my-sso")
-        #expect(dev.credentialProcess == "/usr/local/bin/quorra-cli credentials --profile dev")
+        #expect(dev.credentialProcess == "/usr/local/bin/aws-credential-helper --profile dev")
 
         let credIni = "[prod]\nregion = us-west-2\nsource_profile = default\nrole_arn = arn:aws:iam::123456789012:role/MyRole\n"
         let credDoc = try AWSConfigINIDocument(credIni, flavor: .credentials)

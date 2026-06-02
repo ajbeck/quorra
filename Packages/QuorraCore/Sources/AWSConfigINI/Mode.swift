@@ -1,7 +1,7 @@
 // ManagedMode — managed vs read-only operating mode.
 //
-// Decision D02/D03. The mode itself is stored by app/CLI layers in shared Keychain;
-// this module enforces it when passed to write operations (M08).
+// Decision D02/D03. The app stores the mode preference; this module enforces
+// it when passed to write operations (M08).
 
 /// The operating mode for writing AWS INI files.
 ///

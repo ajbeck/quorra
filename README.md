@@ -1,15 +1,14 @@
 # Quorra
 
-A macOS app and companion CLI for managing AWS credentials on a developer machine.
+A macOS app for managing AWS credentials on a developer machine.
 
-Quorra owns four interconnected concerns:
+Quorra owns three interconnected concerns:
 
 1. **AWS shared-config files** — `~/.aws/config` and `~/.aws/credentials`
 2. **AWS Instance Metadata Service (IMDS) emulator** — serves credentials at the well-known endpoint
 3. **macOS Keychain** for sensitive credential material
-4. **Companion CLI** (`quorra-cli`) — invokable from `credential_process` config keys, shell profiles, or other apps
 
-The point of the tool: own the full SSO OIDC device-code flow natively (no shelling out to `aws sso login`), serve credentials through both the IMDS endpoint and `credential_process`, and edit profile files through a typed UI rather than a text editor.
+The point of the tool: own the full SSO OIDC device-code flow natively (no shelling out to `aws sso login`), serve credentials through a local IMDS endpoint, and edit profile files through a typed UI rather than a text editor.
 
 ---
 
@@ -44,13 +43,6 @@ See the [archived implementation plan](docs/archived/ConfigEditorPlan.html) for 
   - Mode-flip with unsaved changes shows a `confirmationDialog` with **Discard & Switch** / **Cancel**
 - **Save round-trip** — writes route through `AWSConfigINIDocument.update(at:flavor:_:)` for fcntl-locked atomic rename. The `# Managed by Quorra` header is prepended on first save and idempotent on subsequent saves.
 
-### CLI
-
-- `quorra-cli` binary embedded in `Quorra.app/Contents/MacOS/quorra-cli`
-- `Tools/install-cli.sh` symlinks the embedded binary onto `$PATH` (default `~/.local/bin`)
-- Sandboxed and signed with the same Team ID as the app, sharing the keychain access group `$(AppIdentifierPrefix)dev.ajbeck.quorra.shared`
-- **Currently a placeholder** — the CLI builds and signs but doesn't yet implement subcommands. Planned: `credentials --profile <name>` for `credential_process`, plus inspection commands.
-
 ### Package — `AWSConfigINI`
 
 Lives at `Packages/QuorraCore` as a local SwiftPM library. Implements:
@@ -68,15 +60,13 @@ Lives at `Packages/QuorraCore` as a local SwiftPM library. Implements:
 
 In rough priority order. Each is a candidate for its own implementation plan in `docs/` once it's the next thing.
 
-- **CLI implementation** — `credentials` subcommand for `credential_process`, plus inspection (`list`, `show <profile>`)
-- **App↔CLI bookmark sharing** via App Group (`group.dev.ajbeck.quorra.shared`) so the CLI can read the same `~/.aws` folder the app was granted access to
 - **SSO OIDC device-code flow** — register OIDC client → device authorization → browser → poll `/token` → persist to Keychain → refresh on expiry
 - **Keychain wiring** — store `aws_access_key_id` / `aws_secret_access_key` / `aws_session_token` outside the plaintext credentials file
 - **Local IMDS emulator** — bind to `127.0.0.1:<port>`, IMDSv2 by default with v1 fallback, publish port at `~/Library/Application Support/Quorra/imds.port` for consumer discovery
 - **Credentials tab** in the profile detail pane (depends on Keychain wiring)
 - **Activity tab** + an event log (request log from the IMDS server, SSO refresh events, save events)
 - **Add Profile / Delete Profile / Search** in the sidebar
-- **FSEvents file watching** — auto-refresh the sidebar when a CLI write changes the AWS files
+- **FSEvents file watching** — auto-refresh the sidebar when another process changes the AWS files
 - **Profile rename** (currently the section header isn't editable from the form)
 - **Region / source-profile / session autocomplete** in the editor
 - **Window-close confirmation** when an editor pane is dirty (uses the existing `EditorState.dirtyDescription`)
@@ -96,7 +86,7 @@ In rough priority order. Each is a candidate for its own implementation plan in 
 
 ## Distribution
 
-Initially **Homebrew Cask** distributing `Quorra.app`. The CLI is **embedded inside the app bundle** at `Contents/MacOS/quorra-cli`, exposed on `$PATH` via `Tools/install-cli.sh`. App Store distribution is the long-term target — the build is configured today for App Store constraints (sandbox, hardened runtime, identifier-based signing, embedded CLI).
+Initially **Homebrew Cask** distributing `Quorra.app`. App Store distribution is the long-term target — the build is configured today for App Store constraints: sandbox, hardened runtime, and identifier-based signing.
 
 ---
 
@@ -118,8 +108,6 @@ App/                              SwiftUI app sources
   Assets.xcassets/                AppIcon, AccentColor
   quorraApp.swift                 @main entry point
 
-quorra-cli/                       CLI sources (placeholder)
-
 Packages/QuorraCore/              local SwiftPM package
   Sources/AWSConfigINI/           parser, encoder, fcntl-locked atomic write
   Tests/AWSConfigINITests/        Swift Testing
@@ -128,7 +116,6 @@ Tests/QuorraAppTests/             app-level tests
                                   (target name: quorraTests)
 
 Configs/                          entitlements files
-Tools/install-cli.sh              user-invoked CLI symlink
 docs/                             AWSConfigINI.html (live) + archived/ plans
 ```
 
@@ -145,7 +132,7 @@ open Quorra.xcworkspace
 Reset to first-launch state (Apple's documented approach):
 
 ```sh
-rm -rf ~/Library/Containers/dev.ajbeck.quorra ~/Library/Containers/dev.ajbeck.quorra.cli
+rm -rf ~/Library/Containers/dev.ajbeck.quorra
 ```
 
 Tests:
