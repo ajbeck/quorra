@@ -184,11 +184,12 @@ struct IMDSDetailView: View {
                 .buttonStyle(.borderedProminent)
 
             case .starting:
-                Button {} label: {
-                    Label("Starting", systemImage: "clock")
+                Button(role: .cancel) {
+                    imdsModel.stopEndpoint(forProfile: profileName)
+                } label: {
+                    Label("Cancel", systemImage: "xmark")
                 }
                 .buttonStyle(.bordered)
-                .disabled(true)
 
             case .active:
                 Button {

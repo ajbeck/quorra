@@ -533,6 +533,17 @@ struct CredentialsRevealSection: View {
             }
 
             imdsActionButton(for: state)
+
+            if state.isFailed {
+                Button(role: .cancel) {
+                    imdsModel.stopEndpoint(forProfile: profileName)
+                } label: {
+                    Label("Dismiss", systemImage: "xmark")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .help("Clear the IMDS failure and return to configuration.")
+            }
         }
     }
 
@@ -581,14 +592,14 @@ struct CredentialsRevealSection: View {
     }
 
     private func imdsActionButton(for state: IMDSEndpointState) -> some View {
-        Button {
+        Button(role: imdsActionRole(for: state)) {
             performIMDSAction(for: state)
         } label: {
             Label(imdsActionTitle(for: state), systemImage: imdsActionIcon(for: state))
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
-        .disabled(state.isStarting || (!isCredentialReady && !state.isActive))
+        .disabled(!canPerformIMDSAction(for: state))
         .help(imdsActionHelp(for: state))
     }
 
@@ -598,7 +609,7 @@ struct CredentialsRevealSection: View {
             guard isCredentialReady else { return }
             Task { await startIMDSEndpoint() }
         case .starting:
-            break
+            imdsModel.stopEndpoint(forProfile: profileName)
         case .active:
             imdsModel.stopEndpoint(forProfile: profileName)
         case .failed:
@@ -613,6 +624,15 @@ struct CredentialsRevealSection: View {
                     credentialsModel: model
                 )
             }
+        }
+    }
+
+    private func canPerformIMDSAction(for state: IMDSEndpointState) -> Bool {
+        switch state {
+        case .inactive, .failed:
+            return isCredentialReady
+        case .starting, .active:
+            return true
         }
     }
 
@@ -673,7 +693,7 @@ struct CredentialsRevealSection: View {
         case .inactive:
             return "Start"
         case .starting:
-            return "Starting"
+            return "Cancel"
         case .active:
             return "Stop"
         case .failed:
@@ -686,11 +706,20 @@ struct CredentialsRevealSection: View {
         case .inactive:
             return "play.fill"
         case .starting:
-            return "clock"
+            return "xmark"
         case .active:
             return "stop.fill"
         case .failed:
             return "arrow.clockwise"
+        }
+    }
+
+    private func imdsActionRole(for state: IMDSEndpointState) -> ButtonRole? {
+        switch state {
+        case .starting:
+            return .cancel
+        default:
+            return nil
         }
     }
 
@@ -699,7 +728,7 @@ struct CredentialsRevealSection: View {
         case .inactive:
             return "Start serving this profile via IMDS."
         case .starting:
-            return "Starting the local IMDS endpoint."
+            return "Cancel starting the local IMDS endpoint."
         case .active:
             return "Stop serving this profile via IMDS."
         case .failed:

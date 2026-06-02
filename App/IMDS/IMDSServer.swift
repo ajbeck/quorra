@@ -375,11 +375,13 @@ final class LocalIMDSServer {
         }
 
         let parameters = NWParameters.tcp
+        let listener: NWListener
         if let loopback = IPv4Address("127.0.0.1") {
             parameters.requiredLocalEndpoint = .hostPort(host: .ipv4(loopback), port: nwPort)
+            listener = try NWListener(using: parameters)
+        } else {
+            listener = try NWListener(using: parameters, on: nwPort)
         }
-
-        let listener = try NWListener(using: parameters, on: nwPort)
         self.listener = listener
 
         try await withCheckedThrowingContinuation { continuation in

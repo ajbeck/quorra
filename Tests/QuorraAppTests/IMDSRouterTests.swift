@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import IAMIdentityCenter
 import Testing
@@ -125,6 +126,27 @@ struct IMDSRouterTests {
         #expect(String(data: credentialsData, encoding: .utf8)?.contains("ASIA00000000EXMPL") == true)
     }
 
+    @MainActor
+    @Test func localServerBindsConfiguredLoopbackPort() async throws {
+        let port = try availableLoopbackPort()
+        let server = LocalIMDSServer(
+            port: port,
+            servedProfile: servedProfile,
+            onRequest: { _ in },
+            onFailure: { _ in }
+        )
+        try await server.start()
+        defer { server.stop() }
+
+        #expect(server.boundPort == port)
+
+        let regionURL = try #require(URL(string: "http://127.0.0.1:\(server.boundPort)/latest/meta-data/placement/region"))
+        let (regionData, regionURLResponse) = try await URLSession.shared.data(from: regionURL)
+        let regionResponse = try #require(regionURLResponse as? HTTPURLResponse)
+        #expect(regionResponse.statusCode == 200)
+        #expect(String(data: regionData, encoding: .utf8) == "us-east-2\n")
+    }
+
     private var servedProfile: IMDSServedProfile {
         IMDSServedProfile(
             profileName: "ac:cp:org_admin",
@@ -152,5 +174,44 @@ struct IMDSRouterTests {
         headers: [String: String] = [:]
     ) -> IMDSHTTPRequest {
         IMDSHTTPRequest(method: method, path: path, headers: headers)
+    }
+
+    private func availableLoopbackPort() throws -> Int {
+        let descriptor = socket(AF_INET, SOCK_STREAM, 0)
+        guard descriptor >= 0 else {
+            throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+        }
+        defer { close(descriptor) }
+
+        var reuse = 1
+        setsockopt(descriptor, SOL_SOCKET, SO_REUSEADDR, &reuse, socklen_t(MemoryLayout<Int32>.size))
+
+        var address = sockaddr_in()
+        address.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+        address.sin_family = sa_family_t(AF_INET)
+        address.sin_port = in_port_t(0).bigEndian
+        address.sin_addr = in_addr(s_addr: inet_addr("127.0.0.1"))
+
+        let bindResult = withUnsafePointer(to: &address) { pointer in
+            pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPointer in
+                Darwin.bind(descriptor, sockaddrPointer, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
+        }
+        guard bindResult == 0 else {
+            throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+        }
+
+        var boundAddress = sockaddr_in()
+        var length = socklen_t(MemoryLayout<sockaddr_in>.size)
+        let nameResult = withUnsafeMutablePointer(to: &boundAddress) { pointer in
+            pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPointer in
+                getsockname(descriptor, sockaddrPointer, &length)
+            }
+        }
+        guard nameResult == 0 else {
+            throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+        }
+
+        return Int(in_port_t(bigEndian: boundAddress.sin_port))
     }
 }
