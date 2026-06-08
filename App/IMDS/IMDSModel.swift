@@ -6,6 +6,8 @@ import Observation
 @Observable
 @MainActor
 final class IMDSModel {
+    typealias RequestRecorder = @MainActor (_ endpointID: String, _ log: IMDSRequestLog) -> Void
+
     private(set) var endpointsByProfile: [String: IMDSEndpointState] = [:]
     private(set) var runtimeInfoByProfile: [String: IMDSRuntimeInfo] = [:]
     @ObservationIgnored private var serversByProfile: [String: LocalIMDSServer] = [:]
@@ -49,16 +51,24 @@ final class IMDSModel {
     func startEndpoint(
         for node: ProfileNode,
         credentialsModel: CredentialsModel,
-        port: Int = 9678
+        port: Int = 9678,
+        requestRecorder: RequestRecorder? = nil
     ) async {
-        await startEndpoint(endpointID: node.id, for: node, credentialsModel: credentialsModel, port: port)
+        await startEndpoint(
+            endpointID: node.id,
+            for: node,
+            credentialsModel: credentialsModel,
+            port: port,
+            requestRecorder: requestRecorder
+        )
     }
 
     func startEndpoint(
         endpointID: String,
         for node: ProfileNode,
         credentialsModel: CredentialsModel,
-        port: Int = 9678
+        port: Int = 9678,
+        requestRecorder: RequestRecorder? = nil
     ) async {
         guard let sessionName = node.profile.ssoSession,
               let accountId = node.profile.ssoAccountId,
@@ -75,7 +85,8 @@ final class IMDSModel {
             roleName: roleName,
             region: node.profile.region ?? "us-east-1",
             credentialsModel: credentialsModel,
-            port: port
+            port: port,
+            requestRecorder: requestRecorder
         )
     }
 
@@ -87,7 +98,8 @@ final class IMDSModel {
         roleName: String,
         region: String,
         credentialsModel: CredentialsModel,
-        port: Int = 9678
+        port: Int = 9678,
+        requestRecorder: RequestRecorder? = nil
     ) async {
         endpointsByProfile[endpointID] = .starting(port: port)
 
@@ -116,6 +128,7 @@ final class IMDSModel {
                 onRequest: { [weak self] log in
                     Task { @MainActor in
                         self?.recordRequest(log, forEndpointID: endpointID)
+                        requestRecorder?(endpointID, log)
                     }
                 },
                 onFailure: { [weak self] message in
@@ -183,7 +196,8 @@ final class IMDSModel {
         accountId: String,
         roleName: String,
         region: String,
-        credentialsModel: CredentialsModel
+        credentialsModel: CredentialsModel,
+        requestRecorder: RequestRecorder? = nil
     ) async {
         let endpointID = endpointID ?? profileName
         let port = state(forEndpointID: endpointID, profileName: profileName).port ?? 9678
@@ -195,7 +209,8 @@ final class IMDSModel {
             roleName: roleName,
             region: region,
             credentialsModel: credentialsModel,
-            port: port
+            port: port,
+            requestRecorder: requestRecorder
         )
     }
 

@@ -8,7 +8,9 @@ struct IMDSDetailView: View {
     @Environment(ProfilesModel.self) private var profilesModel
     @Environment(CredentialsModel.self) private var credentialsModel
     @Environment(IMDSModel.self) private var imdsModel
+    @Environment(\.modelContext) private var modelContext
     @Query private var endpointDefinitions: [IMDSEndpointDefinition]
+    @Query(sort: \IMDSEndpointLogEntry.timestamp, order: .reverse) private var endpointLogEntries: [IMDSEndpointLogEntry]
 
     var body: some View {
         if let node = profilesModel.findProfile(named: profileName) {
@@ -33,7 +35,7 @@ struct IMDSDetailView: View {
                 serverStatusPanel(for: node, endpointKey: endpointKey, state: state, runtime: runtime, definition: definition)
                 endpointCard(for: state, definition: definition)
                 configurationCard(for: state, definition: definition)
-                activityCard(for: state, runtime: runtime)
+                activityCard(for: state, runtime: runtime, endpointKey: endpointKey)
             }
             .padding(24)
             .frame(maxWidth: 980, alignment: .leading)
@@ -272,7 +274,8 @@ struct IMDSDetailView: View {
             endpointID: endpointKey,
             for: node,
             credentialsModel: credentialsModel,
-            port: definition?.port ?? 9678
+            port: definition?.port ?? 9678,
+            requestRecorder: persistRequestLog
         )
     }
 
@@ -368,10 +371,10 @@ struct IMDSDetailView: View {
         }
     }
 
-    private func activityCard(for state: IMDSEndpointState, runtime: IMDSRuntimeInfo?) -> some View {
-        let events = runtime?.activity ?? IMDSRequestLog.previewEvents
+    private func activityCard(for state: IMDSEndpointState, runtime: IMDSRuntimeInfo?, endpointKey: String) -> some View {
+        let events = activityEvents(endpointKey: endpointKey, runtime: runtime)
         return DetailCard("Activity") {
-            if state.isActive, !events.isEmpty {
+            if !events.isEmpty {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(events) { event in
                         IMDSActivityRow(event: event)
@@ -385,10 +388,47 @@ struct IMDSDetailView: View {
                 ContentUnavailableView(
                     state.isActive ? "No Requests Yet" : "No Requests",
                     systemImage: "list.bullet.rectangle",
-                    description: Text("Start the endpoint to see IMDS requests.")
+                    description: Text("Start the endpoint to see IMDS requests here.")
                 )
                 .frame(maxWidth: .infinity, minHeight: 92)
             }
+        }
+    }
+
+    private func activityEvents(endpointKey: String, runtime: IMDSRuntimeInfo?) -> [IMDSRequestLog] {
+        let persisted = persistedActivityEvents(endpointKey: endpointKey)
+        if !persisted.isEmpty {
+            return persisted
+        }
+        return runtime?.activity ?? []
+    }
+
+    private func persistedActivityEvents(endpointKey: String) -> [IMDSRequestLog] {
+        guard UUID(uuidString: endpointKey) != nil else { return [] }
+        return endpointLogEntries
+            .filter { $0.endpointIDString == endpointKey }
+            .prefix(IMDSEndpointLogStore.maxEntriesPerEndpoint)
+            .map(IMDSRequestLog.init(entry:))
+    }
+
+    private func persistRequestLog(endpointID: String, log: IMDSRequestLog) {
+        guard let endpointUUID = UUID(uuidString: endpointID) else { return }
+
+        do {
+            try IMDSEndpointLogStore.append(
+                IMDSEndpointLogEntry(
+                    id: log.id,
+                    endpointID: endpointUUID,
+                    timestamp: log.timestamp,
+                    method: log.method,
+                    path: log.path,
+                    statusCode: log.status,
+                    client: log.client
+                ),
+                in: modelContext
+            )
+        } catch {
+            // Request logging should never interrupt an already-running local endpoint.
         }
     }
 
@@ -478,6 +518,17 @@ private struct IMDSStatusBadge: View {
 }
 
 private extension IMDSRequestLog {
+    init(entry: IMDSEndpointLogEntry) {
+        self.init(
+            id: entry.stableID,
+            timestamp: entry.timestamp,
+            method: entry.method,
+            path: entry.path,
+            client: entry.client ?? "localhost",
+            status: entry.statusCode
+        )
+    }
+
     static let previewEvents: [IMDSRequestLog] = [
         IMDSRequestLog(
             id: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
