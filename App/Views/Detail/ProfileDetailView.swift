@@ -152,7 +152,7 @@ struct ProfileDetailView: View {
                     signIn(sessionName: coords.session)
                 },
                 onViewIMDS: {
-                    detailSelection = .imds(profileName: node.id)
+                    detailSelection = .imds(endpointID: node.id, profileName: node.id)
                 },
                 onViewSession: {
                     detailSelection = .session(name: coords.session)

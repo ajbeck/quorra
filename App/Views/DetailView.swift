@@ -1,10 +1,12 @@
 import SwiftUI
 import AWSConfigINI
+import SwiftData
 
 struct DetailView: View {
     @Binding var selection: DetailSelection?
     @Environment(AppModel.self) private var appModel
     @Environment(ProfilesModel.self) private var profilesModel
+    @Query private var endpointDefinitions: [IMDSEndpointDefinition]
 
     var body: some View {
         switch (profilesModel.loadState, selection) {
@@ -38,9 +40,16 @@ struct DetailView: View {
             } else {
                 ContentUnavailableView("Session not found", systemImage: "questionmark.circle")
             }
-        case (.loaded, .imds(let profileName)):
-            IMDSDetailView(profileName: profileName)
+        case (.loaded, .imds(let endpointID, let profileName)):
+            IMDSDetailView(
+                endpointID: endpointID,
+                profileName: endpointDefinition(id: endpointID)?.profileName ?? profileName
+            )
         }
+    }
+
+    private func endpointDefinition(id: String) -> IMDSEndpointDefinition? {
+        endpointDefinitions.first { $0.stableIDString == id }
     }
 }
 
@@ -60,7 +69,7 @@ struct DetailView: View {
 }
 
 #Preview("Detail – IMDS selected") {
-    DetailViewPreviewHarness(selection: .imds(profileName: "default"))
+    DetailViewPreviewHarness(selection: .imds(endpointID: "default", profileName: "default"))
 }
 
 #Preview("Detail – no profiles yet") {
@@ -93,6 +102,7 @@ private struct DetailViewPreviewHarness: View {
             .environment(editorState)
             .environment(CredentialsModel(service: PreviewIdentityCenterService()))
             .environment(imdsModel)
+            .modelContainer(try! QuorraMetadataSchema.makeContainer(inMemory: true))
             .task {
                 let tmp = FileManager.default.temporaryDirectory
                     .appending(path: UUID().uuidString, directoryHint: .isDirectory)

@@ -1,11 +1,14 @@
 import SwiftUI
 import AWSConfigINI
+import SwiftData
 
 struct IMDSDetailView: View {
+    var endpointID: String?
     let profileName: String
     @Environment(ProfilesModel.self) private var profilesModel
     @Environment(CredentialsModel.self) private var credentialsModel
     @Environment(IMDSModel.self) private var imdsModel
+    @Query private var endpointDefinitions: [IMDSEndpointDefinition]
 
     var body: some View {
         if let node = profilesModel.findProfile(named: profileName) {
@@ -22,12 +25,13 @@ struct IMDSDetailView: View {
     private func detail(for node: ProfileNode) -> some View {
         let state = imdsModel.state(forProfile: node.id)
         let runtime = imdsModel.runtimeInfo(forProfile: node.id)
+        let definition = endpointDefinition
         return ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                header(for: node, state: state)
-                serverStatusPanel(for: node, state: state, runtime: runtime)
-                endpointCard(for: state)
-                configurationCard(for: state)
+                header(for: node, state: state, definition: definition)
+                serverStatusPanel(for: node, state: state, runtime: runtime, definition: definition)
+                endpointCard(for: state, definition: definition)
+                configurationCard(for: state, definition: definition)
                 activityCard(for: state, runtime: runtime)
             }
             .padding(24)
@@ -37,9 +41,14 @@ struct IMDSDetailView: View {
         .navigationTitle("IMDS Server")
     }
 
-    private func header(for node: ProfileNode, state: IMDSEndpointState) -> some View {
+    private var endpointDefinition: IMDSEndpointDefinition? {
+        guard let endpointID else { return nil }
+        return endpointDefinitions.first { $0.stableIDString == endpointID }
+    }
+
+    private func header(for node: ProfileNode, state: IMDSEndpointState, definition: IMDSEndpointDefinition?) -> some View {
         HStack(alignment: .firstTextBaseline) {
-            Text("IMDS Server")
+            Text(definition?.name ?? "IMDS Server")
                 .font(.title.weight(.semibold))
                 .lineLimit(1)
 
@@ -47,7 +56,7 @@ struct IMDSDetailView: View {
 
             Menu {
                 Button {
-                    copyToPasteboard(endpointURL(for: state))
+                    copyToPasteboard(endpointURL(for: state, definition: definition))
                 } label: {
                     Label("Copy Endpoint URL", systemImage: "doc.on.doc")
                 }
@@ -101,16 +110,21 @@ struct IMDSDetailView: View {
         }
     }
 
-    private func serverStatusPanel(for node: ProfileNode, state: IMDSEndpointState, runtime: IMDSRuntimeInfo?) -> some View {
+    private func serverStatusPanel(
+        for node: ProfileNode,
+        state: IMDSEndpointState,
+        runtime: IMDSRuntimeInfo?,
+        definition: IMDSEndpointDefinition?
+    ) -> some View {
         ViewThatFits(in: .horizontal) {
             HStack(spacing: 16) {
-                serverSummary(for: node, state: state, runtime: runtime)
+                serverSummary(for: node, state: state, runtime: runtime, definition: definition)
                 Spacer(minLength: 16)
                 serverActions(for: node, state: state)
             }
 
             VStack(alignment: .leading, spacing: 14) {
-                serverSummary(for: node, state: state, runtime: runtime)
+                serverSummary(for: node, state: state, runtime: runtime, definition: definition)
                 serverActions(for: node, state: state)
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
@@ -123,7 +137,12 @@ struct IMDSDetailView: View {
         }
     }
 
-    private func serverSummary(for node: ProfileNode, state: IMDSEndpointState, runtime: IMDSRuntimeInfo?) -> some View {
+    private func serverSummary(
+        for node: ProfileNode,
+        state: IMDSEndpointState,
+        runtime: IMDSRuntimeInfo?,
+        definition: IMDSEndpointDefinition?
+    ) -> some View {
         HStack(spacing: 14) {
             statusIcon(for: state)
                 .frame(width: 34, height: 34)
@@ -138,13 +157,13 @@ struct IMDSDetailView: View {
                     }
                 }
 
-                Text(endpointURL(for: state))
+                Text(endpointURL(for: state, definition: definition))
                     .font(.title3.monospaced())
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .textSelection(.enabled)
 
-                Text(statusMetadata(for: state, runtime: runtime))
+                Text(statusMetadata(for: state, runtime: runtime, definition: definition))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
@@ -230,8 +249,8 @@ struct IMDSDetailView: View {
         .controlSize(.regular)
     }
 
-    private func endpointCard(for state: IMDSEndpointState) -> some View {
-        let endpoint = endpointURL(for: state)
+    private func endpointCard(for state: IMDSEndpointState, definition: IMDSEndpointDefinition?) -> some View {
+        let endpoint = endpointURL(for: state, definition: definition)
         return DetailCard("Endpoint") {
             VStack(alignment: .leading, spacing: 10) {
                 commandLineRow(prefix: "URL", value: endpoint)
@@ -282,10 +301,10 @@ struct IMDSDetailView: View {
         }
     }
 
-    private func configurationCard(for state: IMDSEndpointState) -> some View {
+    private func configurationCard(for state: IMDSEndpointState, definition: IMDSEndpointDefinition?) -> some View {
         DetailCard("Configuration") {
             DetailField("Port") {
-                Text(String(state.port ?? 9678))
+                Text(String(state.port ?? definition?.port ?? 9678))
                     .font(.body.monospacedDigit())
                     .padding(.horizontal, 10)
                     .padding(.vertical, 3)
@@ -295,27 +314,28 @@ struct IMDSDetailView: View {
             DetailDivider()
 
             DetailField("Bind address") {
-                Text("127.0.0.1")
+                Text(definition?.bindAddress ?? "127.0.0.1")
                     .font(.body.monospaced())
             }
 
             DetailDivider()
 
             DetailField("IMDS version") {
-                Picker("IMDS version", selection: .constant("v2")) {
+                Picker("IMDS version", selection: .constant(definition?.allowsIMDSv1 == true ? "v1+v2" : "v2")) {
                     Text("v1").tag("v1")
                     Text("v2").tag("v2")
+                    Text("v1 + v2").tag("v1+v2")
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                .frame(width: 108)
+                .frame(width: 164)
                 .disabled(true)
             }
 
             DetailDivider()
 
             DetailField("Hop limit") {
-                Text("2")
+                Text(String(definition?.hopLimit ?? 2))
                     .font(.body.monospacedDigit())
             }
         }
@@ -345,8 +365,10 @@ struct IMDSDetailView: View {
         }
     }
 
-    private func endpointURL(for state: IMDSEndpointState) -> String {
-        "http://127.0.0.1:\(state.port ?? 9678)"
+    private func endpointURL(for state: IMDSEndpointState, definition: IMDSEndpointDefinition?) -> String {
+        let bindAddress = definition?.bindAddress ?? "127.0.0.1"
+        let port = state.port ?? definition?.port ?? 9678
+        return "http://\(bindAddress):\(port)"
     }
 
     private func statusTitle(for state: IMDSEndpointState) -> String {
@@ -358,17 +380,23 @@ struct IMDSDetailView: View {
         }
     }
 
-    private func statusMetadata(for state: IMDSEndpointState, runtime: IMDSRuntimeInfo?) -> String {
+    private func statusMetadata(
+        for state: IMDSEndpointState,
+        runtime: IMDSRuntimeInfo?,
+        definition: IMDSEndpointDefinition?
+    ) -> String {
+        let bindAddress = definition?.bindAddress ?? "127.0.0.1"
+        let version = definition?.allowsIMDSv1 == true ? "IMDSv1 + IMDSv2" : "IMDSv2"
         switch state {
         case .inactive:
-            return "ready to serve IMDSv2 on 127.0.0.1"
+            return "ready to serve \(version) on \(bindAddress)"
         case .starting:
-            return "binding to 127.0.0.1 · IMDSv2"
+            return "binding to \(bindAddress) · \(version)"
         case .active:
             if let runtime {
-                return "up \(relativeDuration(since: runtime.startedAt)) · \(runtime.requestCount.formatted()) requests served · IMDSv2"
+                return "up \(relativeDuration(since: runtime.startedAt)) · \(runtime.requestCount.formatted()) requests served · \(version)"
             }
-            return "up 1h 48m · 1,243 requests served · IMDSv2"
+            return "up 1h 48m · 1,243 requests served · \(version)"
         case .failed(_, let message):
             return message
         }
@@ -496,6 +524,7 @@ private struct IMDSActivityRow: View {
         .environment(ProfilesModel.previewLoaded(config: PreviewAWSFixtures.mockupConfig))
         .environment(CredentialsModel(service: PreviewIdentityCenterService()))
         .environment(IMDSModel())
+        .modelContainer(try! QuorraMetadataSchema.makeContainer(inMemory: true))
 }
 
 #Preview("IMDS Detail - starting") {
@@ -505,6 +534,7 @@ private struct IMDSActivityRow: View {
         .environment(ProfilesModel.previewLoaded(config: PreviewAWSFixtures.mockupConfig))
         .environment(CredentialsModel(service: PreviewIdentityCenterService()))
         .environment(model)
+        .modelContainer(try! QuorraMetadataSchema.makeContainer(inMemory: true))
 }
 
 #Preview("IMDS Detail - active") {
@@ -514,6 +544,7 @@ private struct IMDSActivityRow: View {
         .environment(ProfilesModel.previewLoaded(config: PreviewAWSFixtures.mockupConfig))
         .environment(CredentialsModel(service: PreviewIdentityCenterService()))
         .environment(model)
+        .modelContainer(try! QuorraMetadataSchema.makeContainer(inMemory: true))
 }
 
 #Preview("IMDS Detail - failed") {
@@ -523,4 +554,5 @@ private struct IMDSActivityRow: View {
         .environment(ProfilesModel.previewLoaded(config: PreviewAWSFixtures.mockupConfig))
         .environment(CredentialsModel(service: PreviewIdentityCenterService()))
         .environment(model)
+        .modelContainer(try! QuorraMetadataSchema.makeContainer(inMemory: true))
 }

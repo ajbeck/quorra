@@ -10,7 +10,9 @@ struct ObjectListView: View {
     @Environment(AppModel.self) private var appModel
     @Environment(ProfilesModel.self) private var profilesModel
     @Environment(IMDSModel.self) private var imdsModel
+    @Environment(\.modelContext) private var modelContext
     @Query private var folderAssignments: [MetadataFolderAssignment]
+    @Query private var endpointDefinitions: [IMDSEndpointDefinition]
 
     @State private var presentedSheet: CreationSheet?
     @State private var pendingDeletion: ObjectListItem?
@@ -58,6 +60,18 @@ struct ObjectListView: View {
                     searchText = ""
                     sourceSelection = .profiles
                     detailSelection = .profile(name: name)
+                }
+            case .imdsEndpoint:
+                AddIMDSEndpointSheet(
+                    existingNames: Set(endpointDefinitions.map(\.name)),
+                    usedPorts: Set(endpointDefinitions.map(\.port)),
+                    profiles: profileItems.map(\.node)
+                ) { endpoint in
+                    modelContext.insert(endpoint)
+                    try modelContext.save()
+                    searchText = ""
+                    sourceSelection = .imdsEndpoints
+                    detailSelection = .imds(endpointID: endpoint.stableIDString, profileName: endpoint.profileName)
                 }
             }
         }
@@ -201,10 +215,11 @@ struct ObjectListView: View {
                 .disabled(isReadOnly)
 
                 Button {
+                    presentedSheet = .imdsEndpoint
                 } label: {
                     Label("New IMDS Endpoint", systemImage: "antenna.radiowaves.left.and.right")
                 }
-                .disabled(true)
+                .disabled(profileItems.isEmpty)
             } label: {
                 Label("Add Item", systemImage: "plus")
             }
@@ -259,15 +274,34 @@ struct ObjectListView: View {
     }
 
     private var imdsItems: [TemporaryIMDSEndpointItem] {
-        imdsModel.endpointsByProfile
+        let definitionProfileNames = Set(endpointDefinitions.map(\.profileName))
+        let persistedItems = endpointDefinitions.map { definition in
+            TemporaryIMDSEndpointItem(
+                endpointID: definition.stableIDString,
+                name: definition.name,
+                profileName: definition.profileName,
+                port: definition.port,
+                state: imdsModel.state(forProfile: definition.profileName),
+                profile: profilesModel.findProfile(named: definition.profileName),
+                isPersisted: true
+            )
+        }
+
+        let runtimeOnlyItems = imdsModel.endpointsByProfile
             .compactMap { profileName, state -> TemporaryIMDSEndpointItem? in
-                guard state.isConcreteEndpoint else { return nil }
+                guard state.isConcreteEndpoint, !definitionProfileNames.contains(profileName) else { return nil }
                 return TemporaryIMDSEndpointItem(
+                    endpointID: profileName,
+                    name: nil,
                     profileName: profileName,
+                    port: state.port,
                     state: state,
-                    profile: profilesModel.findProfile(named: profileName)
+                    profile: profilesModel.findProfile(named: profileName),
+                    isPersisted: false
                 )
             }
+
+        return (persistedItems + runtimeOnlyItems)
             .sorted {
                 $0.title.localizedStandardCompare($1.title) == .orderedAscending
             }
@@ -430,7 +464,10 @@ struct ObjectListView: View {
         case .profile(let profile):
             return "This removes \(profile.id) from your AWS config and credentials files. Any running IMDS endpoint for this profile will be stopped."
         case .imds(let endpoint):
-            return "This stops the temporary IMDS endpoint for \(endpoint.profileName). Persisted endpoint definitions are added in the metadata milestone."
+            if endpoint.isPersisted {
+                return "This removes the \(endpoint.title) IMDS endpoint definition from Quorra. It does not change ~/.aws/config."
+            }
+            return "This stops the temporary IMDS endpoint for \(endpoint.profileName)."
         }
     }
 
@@ -450,7 +487,13 @@ struct ObjectListView: View {
                     detailSelection = nil
                 }
             case .imds(let endpoint):
-                imdsModel.stopEndpoint(forProfile: endpoint.profileName)
+                if endpoint.isPersisted,
+                   let definition = endpointDefinitions.first(where: { $0.stableIDString == endpoint.endpointID }) {
+                    modelContext.delete(definition)
+                    try modelContext.save()
+                } else {
+                    imdsModel.stopEndpoint(forProfile: endpoint.profileName)
+                }
                 if detailSelection == item.detailSelection {
                     detailSelection = nil
                 }
@@ -468,11 +511,13 @@ struct ObjectListView: View {
 private enum CreationSheet: Identifiable {
     case session
     case profile
+    case imdsEndpoint
 
     var id: String {
         switch self {
         case .session: return "session"
         case .profile: return "profile"
+        case .imdsEndpoint: return "imdsEndpoint"
         }
     }
 }
@@ -500,7 +545,7 @@ private enum ObjectListItem: Identifiable, Hashable {
         case .profile(let profile):
             return .profile(name: profile.id)
         case .imds(let endpoint):
-            return .imds(profileName: endpoint.profileName)
+            return .imds(endpointID: endpoint.endpointID, profileName: endpoint.profileName)
         }
     }
 
@@ -539,21 +584,31 @@ private enum ObjectListItem: Identifiable, Hashable {
 }
 
 private struct TemporaryIMDSEndpointItem: Identifiable, Hashable {
+    let endpointID: String
+    let name: String?
     let profileName: String
+    let port: Int?
     let state: IMDSEndpointState
     let profile: ProfileNode?
+    let isPersisted: Bool
 
-    var id: String { profileName }
+    var id: String { endpointID }
 
     var title: String {
-        if let port = state.port {
+        if let name {
+            return name
+        }
+        if let port = state.port ?? port {
             return "localhost:\(port)"
         }
         return profileName
     }
 
     var subtitle: String {
-        "serving \(profileName)"
+        if let port = state.port ?? port {
+            return "localhost:\(port) -> \(profileName)"
+        }
+        return "serving \(profileName)"
     }
 }
 
@@ -864,6 +919,147 @@ private struct AddProfileSheet: View {
     private func nilIfBlank(_ value: String) -> String? {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
+    }
+}
+
+private struct AddIMDSEndpointSheet: View {
+    let existingNames: Set<String>
+    let usedPorts: Set<Int>
+    let profiles: [ProfileNode]
+    let onCreate: (IMDSEndpointDefinition) throws -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var name: String
+    @State private var selectedProfileName: String
+    @State private var bindAddress = "127.0.0.1"
+    @State private var port: Int
+    @State private var allowsIMDSv1 = true
+    @State private var hopLimit = 2
+    @State private var validationMessage: String?
+
+    init(
+        existingNames: Set<String>,
+        usedPorts: Set<Int>,
+        profiles: [ProfileNode],
+        onCreate: @escaping (IMDSEndpointDefinition) throws -> Void
+    ) {
+        self.existingNames = existingNames
+        self.usedPorts = usedPorts
+        self.profiles = profiles
+        self.onCreate = onCreate
+
+        let firstProfileName = profiles.first?.id ?? ""
+        _selectedProfileName = State(initialValue: firstProfileName)
+        _name = State(initialValue: firstProfileName.isEmpty ? "" : firstProfileName)
+        _port = State(initialValue: Self.firstAvailablePort(from: 9678, usedPorts: usedPorts))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("Add IMDS Endpoint")
+                .font(.title3.weight(.semibold))
+
+            Form {
+                TextField("Name", text: $name)
+
+                Picker("Profile", selection: $selectedProfileName) {
+                    ForEach(profiles.sortedByName) { profile in
+                        Text(profile.id).tag(profile.id)
+                    }
+                }
+
+                TextField("Bind address", text: $bindAddress)
+                    .fontDesign(.monospaced)
+
+                TextField("Port", value: $port, format: .number)
+                    .fontDesign(.monospaced)
+
+                Toggle("Allow IMDSv1 fallback", isOn: $allowsIMDSv1)
+
+                Stepper(value: $hopLimit, in: 1...64) {
+                    Text("Hop limit \(hopLimit)")
+                }
+            }
+            .formStyle(.grouped)
+            .onChange(of: selectedProfileName) { _, newValue in
+                guard name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+                name = newValue
+            }
+
+            if let validationMessage {
+                Label(validationMessage, systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+
+            HStack {
+                Spacer()
+                Button("Cancel", role: .cancel) { dismiss() }
+                Button("Add") { add() }
+                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(24)
+        .frame(width: 460)
+    }
+
+    private func add() {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedBindAddress = bindAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !trimmedName.isEmpty else {
+            validationMessage = "Endpoint name is required."
+            return
+        }
+        guard !existingNames.contains(trimmedName) else {
+            validationMessage = "An endpoint named \(trimmedName) already exists."
+            return
+        }
+        guard !selectedProfileName.isEmpty else {
+            validationMessage = "Select a profile to serve."
+            return
+        }
+        guard !trimmedBindAddress.isEmpty else {
+            validationMessage = "Bind address is required."
+            return
+        }
+        guard (1...65_535).contains(port) else {
+            validationMessage = "Port must be between 1 and 65535."
+            return
+        }
+        guard !usedPorts.contains(port) else {
+            validationMessage = "Port \(port) is already configured."
+            return
+        }
+
+        do {
+            try onCreate(IMDSEndpointDefinition(
+                name: trimmedName,
+                profileName: selectedProfileName,
+                port: port,
+                bindAddress: trimmedBindAddress,
+                allowsIMDSv1: allowsIMDSv1,
+                hopLimit: hopLimit
+            ))
+            dismiss()
+        } catch {
+            validationMessage = error.localizedDescription
+        }
+    }
+
+    private static func firstAvailablePort(from preferredPort: Int, usedPorts: Set<Int>) -> Int {
+        var candidate = preferredPort
+        while usedPorts.contains(candidate), candidate < 65_535 {
+            candidate += 1
+        }
+        return candidate
+    }
+}
+
+private extension [ProfileNode] {
+    var sortedByName: [ProfileNode] {
+        sorted { $0.id.localizedStandardCompare($1.id) == .orderedAscending }
     }
 }
 

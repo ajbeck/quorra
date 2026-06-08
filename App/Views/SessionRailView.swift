@@ -8,6 +8,7 @@ struct SourceSidebarView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var folders: [MetadataFolder]
     @Query private var assignments: [MetadataFolderAssignment]
+    @Query private var endpointDefinitions: [IMDSEndpointDefinition]
     @State private var folderCreationRequest: FolderCreationRequest?
     @State private var folderActionError: String?
 
@@ -149,7 +150,13 @@ struct SourceSidebarView: View {
     }
 
     private var imdsEndpointCount: Int {
-        imdsModel.endpointsByProfile.values.filter(\.isSourceSidebarEndpoint).count
+        let definitionProfileNames = Set(endpointDefinitions.map(\.profileName))
+        let runtimeOnlyEndpointCount = imdsModel.endpointsByProfile
+            .filter { profileName, state in
+                state.isSourceSidebarEndpoint && !definitionProfileNames.contains(profileName)
+            }
+            .count
+        return endpointDefinitions.count + runtimeOnlyEndpointCount
     }
 
     private func sortedFolders(for kind: MetadataObjectKind) -> [MetadataFolder] {
