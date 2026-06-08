@@ -4,6 +4,8 @@ import SwiftData
 
 struct DetailView: View {
     @Binding var selection: DetailSelection?
+    @Binding var sourceSelection: SourceSelection
+    @Binding var searchText: String
     @Environment(AppModel.self) private var appModel
     @Environment(ProfilesModel.self) private var profilesModel
     @Query private var endpointDefinitions: [IMDSEndpointDefinition]
@@ -30,7 +32,12 @@ struct DetailView: View {
             }
         case (.loaded, .profile(let name)):
             if let node = profilesModel.findProfile(named: name) {
-                ProfileDetailView(node: node, detailSelection: $selection)
+                ProfileDetailView(
+                    node: node,
+                    detailSelection: $selection,
+                    sourceSelection: $sourceSelection,
+                    searchText: $searchText
+                )
             } else {
                 ContentUnavailableView("Profile not found", systemImage: "questionmark.circle")
             }
@@ -81,6 +88,8 @@ private struct DetailViewPreviewHarness: View {
     let mode: ManagedMode
     let forceEmpty: Bool
     @State private var selection: DetailSelection?
+    @State private var sourceSelection: SourceSelection = .all
+    @State private var searchText = ""
     @State private var appModel: AppModel
     @State private var profilesModel = ProfilesModel()
     @State private var editorState = EditorState()
@@ -96,7 +105,11 @@ private struct DetailViewPreviewHarness: View {
     }
 
     var body: some View {
-        DetailView(selection: $selection)
+        DetailView(
+            selection: $selection,
+            sourceSelection: $sourceSelection,
+            searchText: $searchText
+        )
             .environment(appModel)
             .environment(profilesModel)
             .environment(editorState)

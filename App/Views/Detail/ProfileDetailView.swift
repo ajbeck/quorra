@@ -5,6 +5,8 @@ import IAMIdentityCenter
 struct ProfileDetailView: View {
     let node: ProfileNode
     @Binding var detailSelection: DetailSelection?
+    @Binding var sourceSelection: SourceSelection
+    @Binding var searchText: String
     @Environment(AppModel.self) private var appModel
     @Environment(ProfilesModel.self) private var profilesModel
     @Environment(EditorState.self) private var editorState
@@ -15,9 +17,16 @@ struct ProfileDetailView: View {
     @State private var isPresentingSaveError = false
     @State private var saveError: AWSConfigINIError?
 
-    init(node: ProfileNode, detailSelection: Binding<DetailSelection?>) {
+    init(
+        node: ProfileNode,
+        detailSelection: Binding<DetailSelection?>,
+        sourceSelection: Binding<SourceSelection>,
+        searchText: Binding<String>
+    ) {
         self.node = node
         self._detailSelection = detailSelection
+        self._sourceSelection = sourceSelection
+        self._searchText = searchText
         self._draft = State(initialValue: node.profile)
     }
 
@@ -152,7 +161,9 @@ struct ProfileDetailView: View {
                     signIn(sessionName: coords.session)
                 },
                 onViewIMDS: {
-                    detailSelection = .imds(endpointID: node.id, profileName: node.id)
+                    sourceSelection = .imdsEndpoints
+                    searchText = node.id
+                    detailSelection = nil
                 },
                 onViewSession: {
                     detailSelection = .session(name: coords.session)
@@ -339,6 +350,8 @@ private struct ProfileDetailPreviewHarness: View {
     let mode: ManagedMode
     let imdsState: IMDSEndpointState?
     @State private var selection: DetailSelection? = .profile(name: "ac:cp:org_admin")
+    @State private var sourceSelection: SourceSelection = .profiles
+    @State private var searchText = ""
     @State private var appModel: AppModel
     @State private var profilesModel: ProfilesModel
     @State private var editorState = EditorState()
@@ -374,7 +387,12 @@ private struct ProfileDetailPreviewHarness: View {
     var body: some View {
         Group {
             if let node = profilesModel.findProfile(named: "ac:cp:org_admin") {
-                ProfileDetailView(node: node, detailSelection: $selection)
+                ProfileDetailView(
+                    node: node,
+                    detailSelection: $selection,
+                    sourceSelection: $sourceSelection,
+                    searchText: $searchText
+                )
                     .environment(appModel)
                     .environment(profilesModel)
                     .environment(editorState)

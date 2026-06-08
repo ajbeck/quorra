@@ -30,7 +30,11 @@ struct MainView: View {
             )
                 .navigationSplitViewColumnWidth(min: 240, ideal: 300, max: 380)
         } detail: {
-            DetailView(selection: $selection)
+            DetailView(
+                selection: $selection,
+                sourceSelection: $sourceSelection,
+                searchText: $searchText
+            )
                 .navigationSplitViewColumnWidth(min: 520, ideal: 760)
         }
         .searchable(text: $searchText, placement: .toolbar, prompt: "Search")
