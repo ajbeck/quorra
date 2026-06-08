@@ -1,5 +1,6 @@
 import SwiftUI
 import IAMIdentityCenter
+import SwiftData
 
 @main
 struct quorraApp: App {
@@ -25,6 +26,7 @@ struct quorraApp: App {
                 .environment(imdsModel)
                 .environment(\.authBrowserPresenter, authBrowserPresenter)
         }
+        .modelContainer(for: QuorraMetadataSchema.modelTypes)
         .defaultSize(width: 1280, height: 760)
         .windowResizability(.contentMinSize)
 
@@ -33,5 +35,6 @@ struct quorraApp: App {
                 .environment(appModel)
                 .environment(editorState)
         }
+        .modelContainer(for: QuorraMetadataSchema.modelTypes)
     }
 }
