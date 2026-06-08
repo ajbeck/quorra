@@ -8,8 +8,9 @@ struct MainView: View {
     @Environment(ProfilesModel.self) private var profilesModel
     @Environment(CredentialsModel.self) private var credentialsModel
     @Environment(\.authBrowserPresenter) private var authBrowserPresenter
-    @State private var sessionFilter: SessionFilter = .all
+    @State private var sourceSelection: SourceSelection = .all
     @State private var selection: DetailSelection? = nil
+    @State private var searchText = ""
 
     init(folderURL: URL, loadsProfilesOnAppear: Bool = true) {
         self.folderURL = folderURL
@@ -18,46 +19,33 @@ struct MainView: View {
 
     var body: some View {
         NavigationSplitView {
-            SessionRailView(filter: $sessionFilter, selection: $selection)
-                .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 260)
+            SourceSidebarView(selection: $sourceSelection)
+                .navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 320)
         } content: {
-            ProfileListView(sessionFilter: $sessionFilter, selection: $selection)
+            ObjectListView(
+                sourceSelection: $sourceSelection,
+                detailSelection: $selection,
+                searchText: $searchText
+            )
                 .navigationSplitViewColumnWidth(min: 240, ideal: 300, max: 380)
         } detail: {
             DetailView(selection: $selection)
                 .navigationSplitViewColumnWidth(min: 520, ideal: 760)
         }
-        .toolbar { toolbarContent }
+        .searchable(text: $searchText, placement: .toolbar, prompt: "Search")
         .task(id: folderURL) {
             guard loadsProfilesOnAppear else { return }
             await profilesModel.load(folder: folderURL)
         }
-        .onAppear {
-            selectDefaultProfileIfNeeded()
+        .onChange(of: sourceSelection) { _, _ in
+            selection = nil
         }
-        .onChange(of: profilesModel.loadState) { _, newState in
-            guard newState == .loaded else { return }
-            selectDefaultProfileIfNeeded()
+        .onChange(of: searchText) { _, _ in
+            selection = nil
         }
         .onChange(of: credentialsModel.inFlight) { oldValue, newValue in
             handleSignInPresentationChange(from: oldValue, to: newValue)
         }
-    }
-
-    @ToolbarContentBuilder private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .primaryAction) {
-            Button {
-                Task { await profilesModel.reload() }
-            } label: {
-                Label("Refresh", systemImage: "arrow.clockwise")
-            }
-            .keyboardShortcut("r", modifiers: [.command])
-        }
-    }
-
-    private func selectDefaultProfileIfNeeded() {
-        guard selection == nil, profilesModel.loadState == .loaded else { return }
-        selection = profilesModel.groups.flatProfiles.first.map { .profile(name: $0.id) }
     }
 
     private func handleSignInPresentationChange(

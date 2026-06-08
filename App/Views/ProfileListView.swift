@@ -2,34 +2,18 @@ import SwiftUI
 import AWSConfigINI
 import IAMIdentityCenter
 
-enum ProfileListMode: Hashable {
-    case profiles
-    case imds
-}
-
-struct ProfileListView: View {
-    @Binding var sessionFilter: SessionFilter
-    @Binding var selection: DetailSelection?
+struct ObjectListView: View {
+    @Binding var sourceSelection: SourceSelection
+    @Binding var detailSelection: DetailSelection?
+    @Binding var searchText: String
     @Environment(AppModel.self) private var appModel
     @Environment(ProfilesModel.self) private var profilesModel
     @Environment(IMDSModel.self) private var imdsModel
 
-    @State private var mode: ProfileListMode
-    @State private var searchText: String = ""
-    @State private var isPresentingAddProfile = false
-    @State private var isConfirmingDeleteProfile = false
+    @State private var presentedSheet: CreationSheet?
+    @State private var pendingDeletion: ObjectListItem?
     @State private var actionError: AWSConfigINIError?
     @State private var isPresentingActionError = false
-
-    init(
-        sessionFilter: Binding<SessionFilter>,
-        selection: Binding<DetailSelection?>,
-        initialMode: ProfileListMode = .profiles
-    ) {
-        self._sessionFilter = sessionFilter
-        self._selection = selection
-        self._mode = State(initialValue: initialMode)
-    }
 
     var body: some View {
         switch profilesModel.loadState {
@@ -39,7 +23,7 @@ struct ProfileListView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .failed:
             ContentUnavailableView(
-                "Failed to Load Profiles",
+                "Failed to Load Items",
                 systemImage: "exclamationmark.triangle",
                 description: Text("Quorra couldn't read your AWS configuration.")
             )
@@ -50,70 +34,52 @@ struct ProfileListView: View {
 
     private var loadedView: some View {
         VStack(spacing: 0) {
-            TextField(searchPrompt, text: $searchText)
-                .textFieldStyle(.roundedBorder)
-            .padding(.horizontal, 12)
-            .padding(.top, 12)
-            .padding(.bottom, 8)
-
-            Picker("View", selection: $mode) {
-                Text("Profiles \(scopedProfileItems.count)").tag(ProfileListMode.profiles)
-                Text("IMDS • \(activeIMDSCount)").tag(ProfileListMode.imds)
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .padding(.horizontal, 12)
-
-            if let sessionName = sessionFilter.sessionName {
-                HStack {
-                    FilterChip(title: "via \(sessionName)") {
-                        sessionFilter = .all
-                    }
-                    Spacer(minLength: 0)
+            header
+            objectListContainer
+        }
+        .sheet(item: $presentedSheet) { sheet in
+            switch sheet {
+            case .session:
+                AddSessionSheet(existingNames: Set(sortedSessions.map(\.id))) { name, session in
+                    try await profilesModel.createSession(named: name, session: session, mode: appModel.mode)
+                    searchText = ""
+                    sourceSelection = .sessions
+                    detailSelection = .session(name: name)
                 }
-                .padding(.horizontal, 12)
-            }
-
-            profileListContainer
-        }
-        .onChange(of: sessionFilter) { _, _ in
-            clearSelectionIfNeeded()
-        }
-        .onChange(of: mode) { oldMode, newMode in
-            convertSelection(from: oldMode, to: newMode)
-        }
-        .onChange(of: profilesModel.loadState) { _, _ in
-            clearSelectionIfNeeded()
-        }
-        .sheet(isPresented: $isPresentingAddProfile) {
-            AddProfileSheet(
-                existingNames: Set(profilesModel.groups.flatProfiles.map(\.id)),
-                sessions: profilesModel.groups.ssoSessions,
-                defaultSessionName: sessionFilter.sessionName
-            ) { name, profile in
-                try await profilesModel.createProfile(named: name, profile: profile, mode: appModel.mode)
-                searchText = ""
-                selection = .profile(name: name)
+            case .profile:
+                AddProfileSheet(
+                    existingNames: Set(profileItems.map(\.id)),
+                    sessions: sortedSessions,
+                    defaultSessionName: nil
+                ) { name, profile in
+                    try await profilesModel.createProfile(named: name, profile: profile, mode: appModel.mode)
+                    searchText = ""
+                    sourceSelection = .profiles
+                    detailSelection = .profile(name: name)
+                }
             }
         }
         .confirmationDialog(
-            "Delete profile?",
-            isPresented: $isConfirmingDeleteProfile,
+            deletionTitle,
+            isPresented: Binding(
+                get: { pendingDeletion != nil },
+                set: { if !$0 { pendingDeletion = nil } }
+            ),
             titleVisibility: .visible
         ) {
-            if let selectedProfileName {
-                Button("Delete \(selectedProfileName)", role: .destructive) {
-                    Task { await deleteProfile(named: selectedProfileName) }
+            if let pendingDeletion {
+                Button(deletionButtonTitle(for: pendingDeletion), role: .destructive) {
+                    Task { await delete(pendingDeletion) }
                 }
             }
-            Button("Cancel", role: .cancel) { }
+            Button("Cancel", role: .cancel) { pendingDeletion = nil }
         } message: {
-            if let selectedProfileName {
-                Text("This removes \(selectedProfileName) from your AWS config and credentials files. Any running IMDS endpoint for this profile will be stopped.")
+            if let pendingDeletion {
+                Text(deletionMessage(for: pendingDeletion))
             }
         }
         .alert(
-            "Couldn't update profiles",
+            "Couldn't update items",
             isPresented: $isPresentingActionError,
             presenting: actionError
         ) { _ in
@@ -124,13 +90,30 @@ struct ProfileListView: View {
         }
     }
 
-    private var profileListContainer: some View {
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(isSearching ? "Searching" : sourceSelection.title)
+                .font(.headline.weight(.semibold))
+                .lineLimit(1)
+
+            Text(subtitle)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 14)
+        .padding(.top, 12)
+        .padding(.bottom, 8)
+    }
+
+    private var objectListContainer: some View {
         VStack(spacing: 0) {
             listContent
                 .frame(maxHeight: .infinity)
 
             Divider()
-            profileMutationBar
+            objectMutationBar
         }
         .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
         .overlay {
@@ -139,14 +122,107 @@ struct ProfileListView: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .padding(.horizontal, 12)
-        .padding(.top, 8)
         .padding(.bottom, 12)
         .frame(maxHeight: .infinity)
     }
 
-    private var profileMutationBar: some View {
+    @ViewBuilder private var listContent: some View {
+        if visibleItems.isEmpty {
+            emptyState
+        } else {
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 4) {
+                    if sourceSelection == .all {
+                        objectSection("Sessions", items: filteredSessionItems)
+                        objectSection("Profiles", items: filteredProfileItems)
+                        objectSection("IMDS Endpoints", items: filteredIMDSItems)
+                    } else {
+                        ForEach(visibleItems) { item in
+                            objectButton(for: item)
+                        }
+                    }
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 8)
+            }
+        }
+    }
+
+    @ViewBuilder private func objectSection(_ title: String, items: [ObjectListItem]) -> some View {
+        if !items.isEmpty {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+                .padding(.horizontal, 8)
+                .padding(.top, 8)
+                .padding(.bottom, 2)
+
+            ForEach(items) { item in
+                objectButton(for: item)
+            }
+        }
+    }
+
+    private func objectButton(for item: ObjectListItem) -> some View {
+        Button {
+            detailSelection = item.detailSelection
+        } label: {
+            ObjectListRow(item: item)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(
+            rowBackground(isSelected: detailSelection == item.detailSelection),
+            in: RoundedRectangle(cornerRadius: 6)
+        )
+    }
+
+    private var objectMutationBar: some View {
         HStack(spacing: 0) {
-            profileActions
+            Menu {
+                Button {
+                    presentedSheet = .session
+                } label: {
+                    Label("New Session", systemImage: "cloud")
+                }
+                .disabled(isReadOnly)
+
+                Button {
+                    presentedSheet = .profile
+                } label: {
+                    Label("New Profile", systemImage: "key")
+                }
+                .disabled(isReadOnly)
+
+                Button {
+                } label: {
+                    Label("New IMDS Endpoint", systemImage: "antenna.radiowaves.left.and.right")
+                }
+                .disabled(true)
+            } label: {
+                Label("Add Item", systemImage: "plus")
+            }
+            .menuStyle(.button)
+            .controlSize(.small)
+            .labelStyle(.iconOnly)
+            .help("Add session, profile, or IMDS endpoint")
+
+            Button {
+                if let selectedItem {
+                    pendingDeletion = selectedItem
+                }
+            } label: {
+                Label("Remove Item", systemImage: "minus")
+            }
+            .controlSize(.small)
+            .labelStyle(.iconOnly)
+            .disabled(!canDeleteSelectedItem)
+            .help(removeHelp)
+
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 8)
@@ -154,226 +230,203 @@ struct ProfileListView: View {
         .background(Color.secondary.opacity(0.10))
     }
 
-    private var profileActions: some View {
-        ControlGroup {
-            Button {
-                isPresentingAddProfile = true
-            } label: {
-                Label("Add Profile", systemImage: "plus")
-            }
-            .disabled(isReadOnly || mode != .profiles)
-            .help(addProfileHelp)
-
-            Button {
-                isConfirmingDeleteProfile = true
-            } label: {
-                Label("Remove Profile", systemImage: "minus")
-            }
-            .disabled(isReadOnly || mode != .profiles || selectedProfileName == nil)
-            .help(removeProfileHelp)
+    @ViewBuilder private var emptyState: some View {
+        if isSearching {
+            ContentUnavailableView.search(text: searchText)
+        } else {
+            ContentUnavailableView(
+                "No Items",
+                systemImage: sourceSelection.emptySystemImage,
+                description: Text(sourceSelection.emptyDescription)
+            )
         }
-        .controlSize(.small)
-        .labelStyle(.iconOnly)
-    }
-
-    @ViewBuilder private var listContent: some View {
-        switch mode {
-        case .profiles:
-            profileList
-        case .imds:
-            imdsList
-        }
-    }
-
-    private var profileList: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 6) {
-                ForEach(filteredProfileItems) { item in
-                    detailButton(for: .profile(name: item.id)) {
-                        ProfileListRow(
-                            item: item,
-                            imdsState: imdsModel.state(forProfile: item.id)
-                        )
-                    }
-                }
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 8)
-        }
-        .overlay { emptyProfilesOverlay }
-    }
-
-    private var imdsList: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 6) {
-                ForEach(filteredIMDSItems) { item in
-                    detailButton(for: .imds(profileName: item.id)) {
-                        IMDSListRow(
-                            item: item,
-                            state: imdsModel.state(forProfile: item.id)
-                        )
-                    }
-                }
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 8)
-        }
-        .overlay { emptyIMDSOverlay }
-    }
-
-    private func detailButton<Label: View>(
-        for candidate: DetailSelection,
-        @ViewBuilder label: () -> Label
-    ) -> some View {
-        Button {
-            selection = candidate
-        } label: {
-            label()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .background(rowBackground(isSelected: selection == candidate), in: RoundedRectangle(cornerRadius: 6))
     }
 
     private func rowBackground(isSelected: Bool) -> Color {
         isSelected ? Color.accentColor.opacity(0.18) : Color.clear
     }
 
-    @ViewBuilder private var emptyProfilesOverlay: some View {
-        if filteredProfileItems.isEmpty {
-            if searchText.isEmpty {
-                ContentUnavailableView("No Profiles", systemImage: "person.crop.circle.badge.questionmark")
-            } else {
-                ContentUnavailableView.search(text: searchText)
-            }
+    private var sortedSessions: [SSOSessionNode] {
+        profilesModel.groups.ssoSessions.sorted {
+            $0.id.localizedStandardCompare($1.id) == .orderedAscending
         }
     }
 
-    @ViewBuilder private var emptyIMDSOverlay: some View {
-        if filteredIMDSItems.isEmpty {
-            if searchText.isEmpty {
-                ContentUnavailableView("No IMDS Endpoints", systemImage: "antenna.radiowaves.left.and.right")
-            } else {
-                ContentUnavailableView.search(text: searchText)
-            }
-        }
+    private var profileItems: [SidebarProfileItem] {
+        profilesModel.groups.flatProfiles
     }
 
-    private var scopedProfileItems: [SidebarProfileItem] {
-        switch sessionFilter {
+    private var imdsItems: [TemporaryIMDSEndpointItem] {
+        imdsModel.endpointsByProfile
+            .compactMap { profileName, state -> TemporaryIMDSEndpointItem? in
+                guard state.isConcreteEndpoint else { return nil }
+                return TemporaryIMDSEndpointItem(
+                    profileName: profileName,
+                    state: state,
+                    profile: profilesModel.findProfile(named: profileName)
+                )
+            }
+            .sorted {
+                $0.title.localizedStandardCompare($1.title) == .orderedAscending
+            }
+    }
+
+    private var sessionItems: [ObjectListItem] {
+        sortedSessions.map { .session($0) }
+    }
+
+    private var profileObjectItems: [ObjectListItem] {
+        profileItems.map { .profile($0) }
+    }
+
+    private var imdsObjectItems: [ObjectListItem] {
+        imdsItems.map { .imds($0) }
+    }
+
+    private var filteredSessionItems: [ObjectListItem] {
+        filtered(sessionItems)
+    }
+
+    private var filteredProfileItems: [ObjectListItem] {
+        filtered(profileObjectItems)
+    }
+
+    private var filteredIMDSItems: [ObjectListItem] {
+        filtered(imdsObjectItems)
+    }
+
+    private var sourceItems: [ObjectListItem] {
+        switch sourceSelection {
         case .all:
-            return profilesModel.groups.flatProfiles
-        case .session(let name):
-            guard let session = profilesModel.findSession(named: name) else { return [] }
-            return session.profiles
-                .map { SidebarProfileItem(node: $0, via: .session(name)) }
-                .sorted(by: profileItemSortOrder)
+            return sessionItems + profileObjectItems + imdsObjectItems
+        case .sessions:
+            return sessionItems
+        case .profiles:
+            return profileObjectItems
+        case .imdsEndpoints:
+            return imdsObjectItems
         }
     }
 
-    private var filteredProfileItems: [SidebarProfileItem] {
-        guard !searchText.isEmpty else { return scopedProfileItems }
-        return scopedProfileItems.filter { item in
-            item.id.localizedCaseInsensitiveContains(searchText)
-                || item.via.label.localizedCaseInsensitiveContains(searchText)
+    private var visibleItems: [ObjectListItem] {
+        switch sourceSelection {
+        case .all:
+            return filteredSessionItems + filteredProfileItems + filteredIMDSItems
+        case .sessions:
+            return filteredSessionItems
+        case .profiles:
+            return filteredProfileItems
+        case .imdsEndpoints:
+            return filteredIMDSItems
         }
     }
 
-    private var scopedIMDSItems: [SidebarProfileItem] {
-        scopedProfileItems.filter { $0.via.isSSO }
-    }
-
-    private var filteredIMDSItems: [SidebarProfileItem] {
-        guard !searchText.isEmpty else { return scopedIMDSItems }
-        return scopedIMDSItems.filter { item in
-            let state = imdsModel.state(forProfile: item.id)
-            return item.id.localizedCaseInsensitiveContains(searchText)
-                || item.via.label.localizedCaseInsensitiveContains(searchText)
-                || state.searchText.localizedCaseInsensitiveContains(searchText)
+    private func filtered(_ items: [ObjectListItem]) -> [ObjectListItem] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return items }
+        return items.filter {
+            $0.searchText.localizedCaseInsensitiveContains(query)
         }
     }
 
-    private var activeIMDSCount: Int {
-        scopedIMDSItems.filter { imdsModel.state(forProfile: $0.id).isActive }.count
+    private var selectedItem: ObjectListItem? {
+        guard let detailSelection else { return nil }
+        return sourceItems.first { $0.detailSelection == detailSelection }
     }
 
-    private var selectedProfileName: String? {
-        guard case .profile(let name) = selection,
-              scopedProfileItems.contains(where: { $0.id == name }) else {
-            return nil
+    private var isSearching: Bool {
+        !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var subtitle: String {
+        if isSearching {
+            return "\(sourceSelection.title), \(visibleItems.count) \(visibleItems.count == 1 ? "result" : "results")"
         }
-        return name
+
+        let count = sourceItems.count
+        return "\(count) \(count == 1 ? "item" : "items")"
     }
 
     private var isReadOnly: Bool {
         appModel.mode == .readOnly
     }
 
-    private var searchPrompt: String {
-        mode == .imds ? "Filter servers" : "Filter profiles"
+    private var canDeleteSelectedItem: Bool {
+        guard let selectedItem else { return false }
+        switch selectedItem {
+        case .session, .profile:
+            return !isReadOnly
+        case .imds:
+            return true
+        }
     }
 
-    private var addProfileHelp: String {
-        if isReadOnly { return "Switch to Edit & Manage mode to add profiles." }
-        if mode != .profiles { return "Switch to Profiles to add a profile." }
-        return "Add profile"
-    }
-
-    private var removeProfileHelp: String {
-        if isReadOnly { return "Switch to Edit & Manage mode to remove profiles." }
-        if mode != .profiles { return "Switch to Profiles to remove a profile." }
-        if selectedProfileName == nil { return "Select a profile to remove." }
-        return "Remove selected profile"
-    }
-
-    private func profileItemSortOrder(_ a: SidebarProfileItem, _ b: SidebarProfileItem) -> Bool {
-        let aDefault = a.id == "default"
-        let bDefault = b.id == "default"
-        if aDefault != bDefault { return aDefault }
-        return a.id.localizedStandardCompare(b.id) == .orderedAscending
-    }
-
-    private func clearSelectionIfNeeded() {
-        guard let selection else { return }
-        switch selection {
-        case .profile(let name):
-            if !scopedProfileItems.contains(where: { $0.id == name }) {
-                self.selection = nil
-            }
-        case .imds(let profileName):
-            if !scopedIMDSItems.contains(where: { $0.id == profileName }) {
-                self.selection = nil
-            }
+    private var removeHelp: String {
+        guard let selectedItem else { return "Select an item to remove." }
+        switch selectedItem {
         case .session:
-            break
+            return isReadOnly ? "Switch to Edit & Manage mode to remove sessions." : "Remove selected session"
+        case .profile:
+            return isReadOnly ? "Switch to Edit & Manage mode to remove profiles." : "Remove selected profile"
+        case .imds:
+            return "Remove selected IMDS endpoint"
         }
     }
 
-    private func convertSelection(from oldMode: ProfileListMode, to newMode: ProfileListMode) {
-        guard oldMode != newMode, let selection else { return }
-        switch (newMode, selection) {
-        case (.imds, .profile(let name)):
-            self.selection = scopedIMDSItems.contains(where: { $0.id == name })
-                ? .imds(profileName: name)
-                : nil
-        case (.profiles, .imds(let profileName)):
-            self.selection = scopedProfileItems.contains(where: { $0.id == profileName })
-                ? .profile(name: profileName)
-                : nil
-        default:
-            break
+    private var deletionTitle: String {
+        guard let pendingDeletion else { return "Remove item?" }
+        switch pendingDeletion {
+        case .session:
+            return "Delete SSO session?"
+        case .profile:
+            return "Delete profile?"
+        case .imds:
+            return "Remove IMDS endpoint?"
         }
     }
 
-    private func deleteProfile(named name: String) async {
+    private func deletionButtonTitle(for item: ObjectListItem) -> String {
+        switch item {
+        case .session(let session):
+            return "Delete \(session.id)"
+        case .profile(let profile):
+            return "Delete \(profile.id)"
+        case .imds(let endpoint):
+            return "Remove \(endpoint.title)"
+        }
+    }
+
+    private func deletionMessage(for item: ObjectListItem) -> String {
+        switch item {
+        case .session(let session):
+            return "This removes the [sso-session \(session.id)] section. Profiles that reference it remain in your config."
+        case .profile(let profile):
+            return "This removes \(profile.id) from your AWS config and credentials files. Any running IMDS endpoint for this profile will be stopped."
+        case .imds(let endpoint):
+            return "This stops the temporary IMDS endpoint for \(endpoint.profileName). Persisted endpoint definitions are added in the metadata milestone."
+        }
+    }
+
+    private func delete(_ item: ObjectListItem) async {
+        pendingDeletion = nil
         do {
-            imdsModel.stopEndpoint(forProfile: name)
-            try await profilesModel.deleteProfile(named: name, mode: appModel.mode)
-            if selection == .profile(name: name) || selection == .imds(profileName: name) {
-                selection = scopedProfileItems.first.map { .profile(name: $0.id) }
+            switch item {
+            case .session(let session):
+                try await profilesModel.deleteSession(named: session.id, mode: appModel.mode)
+                if detailSelection == item.detailSelection {
+                    detailSelection = nil
+                }
+            case .profile(let profile):
+                imdsModel.stopEndpoint(forProfile: profile.id)
+                try await profilesModel.deleteProfile(named: profile.id, mode: appModel.mode)
+                if detailSelection == item.detailSelection {
+                    detailSelection = nil
+                }
+            case .imds(let endpoint):
+                imdsModel.stopEndpoint(forProfile: endpoint.profileName)
+                if detailSelection == item.detailSelection {
+                    detailSelection = nil
+                }
             }
         } catch let err as AWSConfigINIError {
             actionError = err
@@ -385,53 +438,136 @@ struct ProfileListView: View {
     }
 }
 
-private struct ProfileListRow: View {
-    let item: SidebarProfileItem
-    let imdsState: IMDSEndpointState
+private enum CreationSheet: Identifiable {
+    case session
+    case profile
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(item.id)
-                .lineLimit(1)
-
-            rowBadge
-        }
-        .padding(.vertical, 4)
-        .accessibilityElement(children: .combine)
-    }
-
-    @ViewBuilder private var rowBadge: some View {
-        if item.via.isSSO {
-            IMDSBadge(state: imdsState)
-        } else {
-            ViaBadge(label: item.via.label)
+    var id: String {
+        switch self {
+        case .session: return "session"
+        case .profile: return "profile"
         }
     }
 }
 
-private struct IMDSListRow: View {
-    let item: SidebarProfileItem
+private enum ObjectListItem: Identifiable, Hashable {
+    case session(SSOSessionNode)
+    case profile(SidebarProfileItem)
+    case imds(TemporaryIMDSEndpointItem)
+
+    var id: String {
+        switch self {
+        case .session(let session):
+            return "session:\(session.id)"
+        case .profile(let profile):
+            return "profile:\(profile.id)"
+        case .imds(let endpoint):
+            return "imds:\(endpoint.id)"
+        }
+    }
+
+    var detailSelection: DetailSelection {
+        switch self {
+        case .session(let session):
+            return .session(name: session.id)
+        case .profile(let profile):
+            return .profile(name: profile.id)
+        case .imds(let endpoint):
+            return .imds(profileName: endpoint.profileName)
+        }
+    }
+
+    var searchText: String {
+        switch self {
+        case .session(let session):
+            return "session \(session.id) \(session.session?.ssoStartUrl ?? "") \(session.session?.ssoRegion ?? "")"
+        case .profile(let profile):
+            return "profile \(profile.id) \(profile.via.label) \(profile.node.profile.ssoAccountId ?? "") \(profile.node.profile.ssoRoleName ?? "")"
+        case .imds(let endpoint):
+            return "imds endpoint \(endpoint.title) \(endpoint.profileName) \(endpoint.subtitle) \(endpoint.state.searchText)"
+        }
+    }
+}
+
+private struct TemporaryIMDSEndpointItem: Identifiable, Hashable {
+    let profileName: String
     let state: IMDSEndpointState
+    let profile: ProfileNode?
+
+    var id: String { profileName }
+
+    var title: String {
+        if let port = state.port {
+            return "localhost:\(port)"
+        }
+        return profileName
+    }
+
+    var subtitle: String {
+        "serving \(profileName)"
+    }
+}
+
+private struct ObjectListRow: View {
+    let item: ObjectListItem
 
     var body: some View {
-        HStack(spacing: 8) {
-            VStack(alignment: .leading, spacing: 5) {
-                Text(item.id)
-                    .lineLimit(1)
-                IMDSBadge(state: state)
-            }
-
-            Spacer(minLength: 8)
-
-            if let port = state.port {
-                Text("127.0.0.1:\(port)")
-                    .font(.caption.monospacedDigit())
+        switch item {
+        case .session(let session):
+            HStack(spacing: 8) {
+                Image(systemName: "cloud")
                     .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                    .frame(width: 18)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(session.id)
+                        .lineLimit(1)
+                    Text("\(session.profiles.count) \(session.profiles.count == 1 ? "profile" : "profiles")")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 8)
             }
+            .padding(.vertical, 3)
+
+        case .profile(let profile):
+            HStack(spacing: 8) {
+                Image(systemName: profile.via.isSSO ? "key" : "folder")
+                    .foregroundStyle(.secondary)
+                    .frame(width: 18)
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(profile.id)
+                        .lineLimit(1)
+                    ViaBadge(
+                        label: profile.via.label,
+                        color: profile.via.badgeColor
+                    )
+                }
+                Spacer(minLength: 8)
+            }
+            .padding(.vertical, 3)
+
+        case .imds(let endpoint):
+            HStack(spacing: 8) {
+                Image(systemName: "antenna.radiowaves.left.and.right")
+                    .foregroundStyle(endpoint.state.accent)
+                    .frame(width: 18)
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(endpoint.title)
+                        .fontDesign(.monospaced)
+                        .lineLimit(1)
+                    HStack(spacing: 6) {
+                        IMDSBadge(state: endpoint.state)
+                        Text(endpoint.profileName)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+                Spacer(minLength: 8)
+            }
+            .padding(.vertical, 3)
         }
-        .padding(.vertical, 4)
-        .accessibilityElement(children: .combine)
     }
 }
 
@@ -441,79 +577,120 @@ private struct IMDSBadge: View {
     var body: some View {
         HStack(spacing: 5) {
             Circle()
-                .fill(dotColor)
+                .fill(state.accent)
                 .frame(width: 6, height: 6)
             Text(text)
                 .font(.caption.weight(.semibold))
                 .monospacedDigit()
         }
-        .foregroundStyle(textColor)
+        .foregroundStyle(state.accent)
         .padding(.horizontal, 8)
         .padding(.vertical, 3)
-        .background(backgroundColor, in: Capsule())
+        .background(state.accent.opacity(0.16), in: Capsule())
     }
 
     private var text: String {
         switch state {
         case .inactive:
-            return "IMDS"
-        case .starting(let port):
-            return "IMDS : \(port)"
-        case .active(let port):
-            return "IMDS : \(port)"
-        case .failed(let port, _):
-            return "IMDS : \(port)"
-        }
-    }
-
-    private var dotColor: Color {
-        switch state {
-        case .inactive: return .secondary.opacity(0.55)
-        case .starting: return .blue
-        case .active: return .green
-        case .failed: return .orange
-        }
-    }
-
-    private var textColor: Color {
-        switch state {
-        case .inactive: return .secondary
-        case .starting: return .blue
-        case .active: return .green
-        case .failed: return .orange
-        }
-    }
-
-    private var backgroundColor: Color {
-        switch state {
-        case .inactive: return Color.secondary.opacity(0.12)
-        case .starting: return Color.blue.opacity(0.16)
-        case .active: return Color.green.opacity(0.18)
-        case .failed: return Color.orange.opacity(0.16)
+            return "off"
+        case .starting:
+            return "starting"
+        case .active:
+            return "live"
+        case .failed:
+            return "failed"
         }
     }
 }
 
-private struct FilterChip: View {
-    let title: String
-    let onClear: () -> Void
+private struct AddSessionSheet: View {
+    let existingNames: Set<String>
+    let onCreate: (String, SSOSession) async throws -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var name = ""
+    @State private var startURL = ""
+    @State private var region = ""
+    @State private var scopes = "sso:account:access"
+    @State private var validationMessage: String?
+    @State private var isSaving = false
 
     var body: some View {
-        HStack(spacing: 6) {
-            Text(title)
-                .lineLimit(1)
-            Button(action: onClear) {
-                Image(systemName: "xmark")
-                    .font(.caption.weight(.semibold))
+        VStack(alignment: .leading, spacing: 18) {
+            Text("Add SSO Session")
+                .font(.title3.weight(.semibold))
+
+            Form {
+                TextField("Name", text: $name)
+                TextField("Start URL", text: $startURL)
+                TextField("Region", text: $region)
+                TextField("Scopes", text: $scopes)
             }
-            .buttonStyle(.plain)
-            .help("Clear filter")
+            .formStyle(.grouped)
+
+            if let validationMessage {
+                Label(validationMessage, systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+
+            HStack {
+                Spacer()
+                Button("Cancel", role: .cancel) { dismiss() }
+                Button("Add") {
+                    Task { await add() }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(isSaving)
+                .keyboardShortcut(.defaultAction)
+            }
         }
-        .font(.caption.weight(.semibold))
-        .foregroundStyle(.tint)
-        .padding(.horizontal, 9)
-        .padding(.vertical, 5)
-        .background(Color.accentColor.opacity(0.15), in: Capsule())
+        .padding(24)
+        .frame(width: 440)
+    }
+
+    private func add() async {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            validationMessage = "Session name is required."
+            return
+        }
+        guard !existingNames.contains(trimmedName) else {
+            validationMessage = "A session named \(trimmedName) already exists."
+            return
+        }
+
+        isSaving = true
+        validationMessage = nil
+        do {
+            try await onCreate(
+                trimmedName,
+                SSOSession(
+                    ssoStartUrl: nilIfBlank(startURL),
+                    ssoRegion: nilIfBlank(region),
+                    ssoRegistrationScopes: scopesList
+                )
+            )
+            dismiss()
+        } catch let error as LocalizedError {
+            validationMessage = error.errorDescription ?? error.localizedDescription
+        } catch {
+            validationMessage = error.localizedDescription
+        }
+        isSaving = false
+    }
+
+    private var scopesList: [String]? {
+        let values = scopes
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        return values.isEmpty ? nil : values
+    }
+
+    private func nilIfBlank(_ value: String) -> String? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }
 
@@ -641,53 +818,113 @@ private struct AddProfileSheet: View {
     }
 }
 
+private extension SourceSelection {
+    var emptySystemImage: String {
+        switch self {
+        case .all:
+            return "square.grid.2x2"
+        case .sessions:
+            return "cloud"
+        case .profiles:
+            return "key"
+        case .imdsEndpoints:
+            return "antenna.radiowaves.left.and.right"
+        }
+    }
+
+    var emptyDescription: String {
+        switch self {
+        case .all:
+            return "Create a session, profile, or IMDS endpoint to see it here."
+        case .sessions:
+            return "Create an SSO session to see it here."
+        case .profiles:
+            return "Create a profile to see it here."
+        case .imdsEndpoints:
+            return "Start or create an IMDS endpoint to see it here."
+        }
+    }
+}
+
+private extension ProfileVia {
+    var badgeColor: Color? {
+        switch self {
+        case .session(let name):
+            return Theme.sessionBadgeColor(for: name)
+        case .longTerm, .other:
+            return nil
+        }
+    }
+}
+
 private extension IMDSEndpointState {
+    var isConcreteEndpoint: Bool {
+        switch self {
+        case .inactive:
+            return false
+        case .starting, .active, .failed:
+            return true
+        }
+    }
+
+    var accent: Color {
+        switch self {
+        case .inactive:
+            return .secondary
+        case .starting:
+            return .blue
+        case .active:
+            return .green
+        case .failed:
+            return .orange
+        }
+    }
+
     var searchText: String {
         switch self {
         case .inactive:
             return "imds inactive"
         case .starting(let port):
-            return "imds starting 127.0.0.1 \(port)"
+            return "imds starting localhost 127.0.0.1 \(port)"
         case .active(let port):
-            return "imds active 127.0.0.1 \(port)"
+            return "imds active live localhost 127.0.0.1 \(port)"
         case .failed(let port, let message):
-            return "imds failed 127.0.0.1 \(port) \(message)"
+            return "imds failed localhost 127.0.0.1 \(port) \(message)"
         }
     }
 }
 
-#Preview("ProfileList – all") {
-    ProfileListPreviewHarness(sessionFilter: .all)
+#Preview("Object List - all") {
+    ObjectListPreviewHarness(sourceSelection: .all)
 }
 
-#Preview("ProfileList – filtered") {
-    ProfileListPreviewHarness(
-        sessionFilter: .session(name: "astrocompute"),
-        selection: .profile(name: "ac:cp:org_admin"),
+#Preview("Object List - profiles") {
+    ObjectListPreviewHarness(
+        sourceSelection: .profiles,
+        detailSelection: .profile(name: "ac:cp:org_admin"),
         seedsActiveIMDS: true
     )
 }
 
-#Preview("ProfileList – IMDS") {
-    ProfileListPreviewHarness(
-        sessionFilter: .session(name: "astrocompute"),
-        selection: .imds(profileName: "ac:cp:org_admin"),
-        initialMode: .imds,
+#Preview("Object List - searching") {
+    ObjectListPreviewHarness(
+        sourceSelection: .all,
+        searchText: "ac:mgmt",
         seedsActiveIMDS: true
     )
 }
 
-private struct ProfileListPreviewHarness: View {
-    @State private var sessionFilter: SessionFilter
-    @State private var selection: DetailSelection?
+private struct ObjectListPreviewHarness: View {
+    @State private var sourceSelection: SourceSelection
+    @State private var detailSelection: DetailSelection?
+    @State private var searchText: String
     @State private var profilesModel: ProfilesModel
     @State private var imdsModel: IMDSModel
-    private let initialMode: ProfileListMode
 
     init(
-        sessionFilter: SessionFilter,
-        selection: DetailSelection? = nil,
-        initialMode: ProfileListMode = .profiles,
+        sourceSelection: SourceSelection,
+        detailSelection: DetailSelection? = nil,
+        searchText: String = "",
         seedsActiveIMDS: Bool = false
     ) {
         let imdsModel = IMDSModel()
@@ -695,26 +932,26 @@ private struct ProfileListPreviewHarness: View {
             imdsModel.setState(.active(port: 9678), forProfile: "ac:cp:org_admin")
         }
 
-        _sessionFilter = State(initialValue: sessionFilter)
-        _selection = State(initialValue: selection)
+        _sourceSelection = State(initialValue: sourceSelection)
+        _detailSelection = State(initialValue: detailSelection)
+        _searchText = State(initialValue: searchText)
         _profilesModel = State(initialValue: ProfilesModel.previewLoaded(
             config: PreviewAWSFixtures.mockupConfig,
             credentials: PreviewAWSFixtures.mockupCredentials
         ))
         _imdsModel = State(initialValue: imdsModel)
-        self.initialMode = initialMode
     }
 
     var body: some View {
         NavigationSplitView {
-            Text("Sessions")
+            Text("Sources")
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } content: {
-            ProfileListView(
-                sessionFilter: $sessionFilter,
-                selection: $selection,
-                initialMode: initialMode
+            ObjectListView(
+                sourceSelection: $sourceSelection,
+                detailSelection: $detailSelection,
+                searchText: $searchText
             )
         } detail: {
             Text("Detail")

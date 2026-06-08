@@ -86,7 +86,7 @@ struct ProfileRow: View {
 /// together — and compared across light/dark via the two previews above.
 ///
 /// Deliberately avoids `List` so this preview stays focused on row rendering instead of
-/// macOS list hosting. The real list chrome is validated by `ProfileListView` previews;
+/// macOS list hosting. The real list chrome is validated by `ObjectListView` previews;
 /// here we just need the row to render. Statuses are seeded in `init` so the first render
 /// is final.
 private struct ProfileRowGallery: View {
