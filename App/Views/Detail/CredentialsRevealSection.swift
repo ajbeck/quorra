@@ -95,8 +95,9 @@ struct CredentialsRevealSection: View {
         if case .ready(let expiresAt) = status { return expiresAt }
         return nil
     }
-    private var exportCommand: String {
-        #"eval "$(quorra export \#(profileName))""#
+
+    private var credentialExportPreview: String {
+        "export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN"
     }
 
     var body: some View {
@@ -458,7 +459,7 @@ struct CredentialsRevealSection: View {
             HStack(spacing: 10) {
                 Text("$")
                     .foregroundStyle(.secondary)
-                Text(exportCommand)
+                Text(credentialExportPreview)
                     .textSelection(.enabled)
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -469,16 +470,19 @@ struct CredentialsRevealSection: View {
             .background(Color.black.opacity(0.28))
 
             Button {
-                copyToPasteboard(exportCommand)
+                if let creds {
+                    copyToPasteboard(credentialEnvironmentExports(for: creds))
+                }
             } label: {
                 ViewThatFits(in: .horizontal) {
-                    Label("Copy", systemImage: "doc.on.doc")
+                    Label("Copy env", systemImage: "doc.on.doc")
                     Image(systemName: "doc.on.doc")
                 }
             }
             .buttonStyle(.bordered)
             .frame(minHeight: 36)
-            .help("Copy export command")
+            .disabled(creds == nil)
+            .help(creds == nil ? "Credentials are loading." : "Copy AWS credential environment exports")
         }
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay {
@@ -576,7 +580,26 @@ struct CredentialsRevealSection: View {
     }
 
     @ViewBuilder private func imdsEndpointGroup(for state: IMDSEndpointState) -> some View {
-        if let port = state.port {
+        if case .active(let port) = state {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(imdsAccent(for: state))
+                    .frame(width: 7, height: 7)
+                Text("localhost:\(String(port))")
+                    .font(.body.monospaced())
+                    .foregroundStyle(.primary)
+                Button {
+                    copyToPasteboard(imdsEndpointEnvironmentExport(port: port))
+                } label: {
+                    ViewThatFits(in: .horizontal) {
+                        Label("Copy env", systemImage: "doc.on.doc")
+                        Image(systemName: "doc.on.doc")
+                    }
+                }
+                .buttonStyle(.borderless)
+                .help("Copy IMDS endpoint environment export")
+            }
+        } else if let port = state.port {
             HStack(spacing: 6) {
                 Circle()
                     .fill(imdsAccent(for: state))
@@ -584,13 +607,6 @@ struct CredentialsRevealSection: View {
                 Text("localhost:\(String(port))")
                     .font(.body.monospaced())
                     .foregroundStyle(state.isFailed ? Color.secondary : Color.primary)
-                Button {
-                    copyToPasteboard("http://127.0.0.1:\(port)")
-                } label: {
-                    Image(systemName: "doc.on.doc")
-                }
-                .buttonStyle(.borderless)
-                .help("Copy endpoint URL")
             }
         } else {
             Text("localhost:9678")
@@ -994,6 +1010,24 @@ struct CredentialsRevealSection: View {
     }
 
     // MARK: - Clipboard
+
+    private func credentialEnvironmentExports(for c: RoleCredentials) -> String {
+        [
+            "export AWS_ACCESS_KEY_ID=\(shellQuoted(c.accessKeyId))",
+            "export AWS_SECRET_ACCESS_KEY=\(shellQuoted(c.secretAccessKey))",
+            "export AWS_SESSION_TOKEN=\(shellQuoted(c.sessionToken))",
+            "export AWS_REGION=\(shellQuoted(c.region))",
+            "export AWS_DEFAULT_REGION=\(shellQuoted(c.region))"
+        ].joined(separator: "\n")
+    }
+
+    private func imdsEndpointEnvironmentExport(port: Int) -> String {
+        "export AWS_EC2_METADATA_SERVICE_ENDPOINT=\(shellQuoted("http://127.0.0.1:\(port)"))"
+    }
+
+    private func shellQuoted(_ value: String) -> String {
+        "'\(value.replacingOccurrences(of: "'", with: "'\\''"))'"
+    }
 
     private func copyToPasteboard(_ value: String) {
         NSPasteboard.general.clearContents()
