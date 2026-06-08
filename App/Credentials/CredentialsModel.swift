@@ -215,6 +215,21 @@ final class CredentialsModel {
         )
     }
 
+    /// Forces a fresh role-credential mint for an explicit user renewal action.
+    func renewCredentials(
+        forSession sessionName: String,
+        accountId: String,
+        roleName: String,
+        region: String
+    ) async throws -> RoleCredentials {
+        try await service.renewCredentials(
+            forSession: sessionName,
+            accountId: accountId,
+            roleName: roleName,
+            region: region
+        )
+    }
+
     // MARK: - Private
 
     /// Reacts to an `AuthEvent` from the service. Runs on MainActor.
@@ -303,6 +318,7 @@ final class CredentialsModel {
         case .roleAccessDenied(let session, let accountId, let role):
             let key = "\(session):\(accountId):\(role)"
             if mintingNow.contains(key) { mintingNow.remove(key) }
+            if mintFailure.contains(key) { mintFailure.remove(key) }
             roleRejected.insert(key)
             await refreshProfileStatus(forSession: session, accountId: accountId, roleName: role)
         }

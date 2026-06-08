@@ -393,10 +393,12 @@ struct CredentialsModelTests {
         let key = "s:123456789012:r"
 
         model.seedMintingNowForTesting(key: key)
+        model.seedMintFailureForTesting(key: key)
 
         await model.processEventForTesting(.roleAccessDenied(sessionName: "s", accountId: "123456789012", roleName: "r"))
 
         #expect(!model.mintingNow.contains(key))
+        #expect(!model.mintFailure.contains(key))
         #expect(model.roleRejected.contains(key))
     }
 
@@ -564,6 +566,16 @@ actor StubIdentityCenterService: IdentityCenterServicing {
 
     @concurrent
     func liveCredentials(
+        forSession sessionName: String,
+        accountId: String,
+        roleName: String,
+        region: String
+    ) async throws -> RoleCredentials {
+        throw IAMIdentityCenterError.notSignedIn
+    }
+
+    @concurrent
+    func renewCredentials(
         forSession sessionName: String,
         accountId: String,
         roleName: String,

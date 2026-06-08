@@ -41,6 +41,26 @@ extension IdentityCenterService {
         )
     }
 
+    /// Forces a fresh role-credential mint, bypassing any cached row that is still outside the
+    /// normal refresh skew. Used by explicit UI renewal actions where returning the cached row
+    /// would make the user's command appear to do nothing.
+    @concurrent
+    public func renewCredentials(
+        forSession sessionName: String,
+        accountId: String,
+        roleName: String,
+        region: String
+    ) async throws -> RoleCredentials {
+        let key = "\(sessionName):\(accountId):\(roleName)"
+        return try await self.startInlineMint(
+            sessionName: sessionName,
+            accountId: accountId,
+            roleName: roleName,
+            region: region,
+            key: key
+        )
+    }
+
     func performLiveCredentials(
         sessionName: String,
         accountId: String,

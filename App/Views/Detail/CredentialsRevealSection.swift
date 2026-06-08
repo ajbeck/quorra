@@ -75,7 +75,7 @@ struct CredentialsRevealSection: View {
             return .notSignedIn(sessionName: session)
         case .signInExpired(let session):
             return .expired(sessionName: session)
-        case .ready where isRoleRejected:
+        case .ready where hasTerminalCredentialError:
             return .roleRejected
         case .ready:
             return .ready
@@ -84,6 +84,10 @@ struct CredentialsRevealSection: View {
 
     private var isCredentialReady: Bool {
         displayState == .ready
+    }
+
+    private var hasTerminalCredentialError: Bool {
+        isRoleRejected || fetchError?.isTerminalRoleError == true
     }
 
     private var expiresAt: Date? {
@@ -108,14 +112,16 @@ struct CredentialsRevealSection: View {
             revealed.removeAll()
         }
         .onChange(of: status) { oldValue, newValue in
-            guard case .ready = newValue else { return }
-            fetchError = nil
-            if case .ready = oldValue {
+            guard case .ready = newValue else {
+                creds = nil
+                fetchError = nil
                 return
             }
-            Task { await fetch(force: true) }
+            fetchError = nil
+            Task { await fetch(force: oldValue != newValue) }
         }
         .task(id: key) {
+            resetCredentialStateForProfileChange()
             await model.observeProfileStatus(forSession: sessionName, accountId: accountId, roleName: roleName)
             guard case .ready = status else { return }
             await fetch()
@@ -148,7 +154,9 @@ struct CredentialsRevealSection: View {
     @ViewBuilder private var credentialStateBlock: some View {
         switch displayState {
         case .ready:
-            remainingTimeBlock
+            TimelineView(.periodic(from: .now, by: 30)) { context in
+                remainingTimeBlock(at: context.date)
+            }
         case .checking:
             stateLabel("Checking", color: .secondary, systemImage: "hourglass")
         case .signingIn:
@@ -382,29 +390,32 @@ struct CredentialsRevealSection: View {
 
     // MARK: - Header pieces
 
-    private var remainingTimeBlock: some View {
+    @ViewBuilder private func remainingTimeBlock(at date: Date) -> some View {
+        let components = remainingComponents(at: date)
+        let textColor = remainingTextColor(at: date)
+
         HStack(alignment: .firstTextBaseline, spacing: 5) {
-            Text("\(remainingComponents.hours)")
+            Text("\(components.hours)")
                 .font(.system(size: 34, weight: .regular, design: .default))
                 .monospacedDigit()
-                .foregroundStyle(remainingTextColor)
+                .foregroundStyle(textColor)
             Text("h")
                 .font(.callout)
                 .foregroundStyle(.secondary)
-            Text("\(remainingComponents.minutes)")
+            Text("\(components.minutes)")
                 .font(.system(size: 34, weight: .regular, design: .default))
                 .monospacedDigit()
-                .foregroundStyle(remainingTextColor)
+                .foregroundStyle(textColor)
             Text("m")
                 .font(.callout)
                 .foregroundStyle(.secondary)
         }
-        .accessibilityLabel("\(remainingComponents.hours) hours \(remainingComponents.minutes) minutes remaining")
+        .accessibilityLabel("\(components.hours) hours \(components.minutes) minutes remaining")
     }
 
     private var renewButton: some View {
         Button {
-            Task { await fetch(force: true) }
+            Task { await fetch(force: true, renew: true) }
         } label: {
             Label("Renew", systemImage: "arrow.clockwise")
         }
@@ -912,29 +923,52 @@ struct CredentialsRevealSection: View {
 
     // MARK: - Fetch
 
-    private func fetch(force: Bool = false) async {
+    private func fetch(force: Bool = false, renew: Bool = false) async {
         // Terminal access-denied: a mint would just be re-rejected. Don't fire a doomed
         // Portal call — the roleRejected advisory (driven by the overlay) already explains
         // the state and offers no Retry (D31).
-        if isRoleRejected { return }
+        if hasTerminalCredentialError { return }
         if !force && creds != nil { return }
         isFetching = true
         fetchError = nil
         defer { isFetching = false }
         do {
-            creds = try await model.liveCredentials(
+            let fetched = try await fetchCredentials(renew: renew)
+            guard !Task.isCancelled else { return }
+            creds = fetched
+        } catch let e as IAMIdentityCenterError {
+            guard !Task.isCancelled else { return }
+            creds = nil
+            fetchError = e
+        } catch {
+            guard !Task.isCancelled else { return }
+            creds = nil
+            fetchError = .network(error as? URLError ?? URLError(.unknown))
+        }
+    }
+
+    private func fetchCredentials(renew: Bool) async throws -> RoleCredentials {
+        if renew {
+            return try await model.renewCredentials(
                 forSession: sessionName,
                 accountId: accountId,
                 roleName: roleName,
                 region: region
             )
-        } catch let e as IAMIdentityCenterError {
-            creds = nil
-            fetchError = e
-        } catch {
-            creds = nil
-            fetchError = .network(error as? URLError ?? URLError(.unknown))
         }
+
+        return try await model.liveCredentials(
+            forSession: sessionName,
+            accountId: accountId,
+            roleName: roleName,
+            region: region
+        )
+    }
+
+    private func resetCredentialStateForProfileChange() {
+        creds = nil
+        fetchError = nil
+        revealed.removeAll()
     }
 
     // MARK: - Masking
@@ -946,14 +980,14 @@ struct CredentialsRevealSection: View {
         return "\(value.prefix(4))••••••••\(value.suffix(4))"
     }
 
-    private var remainingComponents: (hours: Int, minutes: Int) {
-        let interval = max(0, expiresAt?.timeIntervalSinceNow ?? 0)
+    private func remainingComponents(at date: Date) -> (hours: Int, minutes: Int) {
+        let interval = max(0, expiresAt?.timeIntervalSince(date) ?? 0)
         let totalMinutes = Int(interval / 60)
         return (totalMinutes / 60, totalMinutes % 60)
     }
 
-    private var remainingTextColor: Color {
-        let interval = expiresAt?.timeIntervalSinceNow ?? 0
+    private func remainingTextColor(at date: Date) -> Color {
+        let interval = expiresAt?.timeIntervalSince(date) ?? 0
         if interval <= 0 { return .red }
         if interval < 30 * 60 { return .orange }
         return .primary
