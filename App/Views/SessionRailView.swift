@@ -10,6 +10,8 @@ struct SourceSidebarView: View {
     @Query private var assignments: [MetadataFolderAssignment]
     @Query private var endpointDefinitions: [IMDSEndpointDefinition]
     @State private var folderCreationRequest: FolderCreationRequest?
+    @State private var folderRenameRequest: FolderRenameRequest?
+    @State private var pendingFolderDeletion: FolderDeletionRequest?
     @State private var folderActionError: String?
 
     var body: some View {
@@ -77,6 +79,34 @@ struct SourceSidebarView: View {
                 try createFolder(kind: request.kind, name: name)
             }
         }
+        .sheet(item: $folderRenameRequest) { request in
+            RenameMetadataFolderSheet(
+                kind: request.kind,
+                currentName: request.name,
+                existingNames: folderNames(for: request.kind).subtracting([request.name])
+            ) { name in
+                try renameFolder(request, to: name)
+            }
+        }
+        .confirmationDialog(
+            deletionTitle,
+            isPresented: Binding(
+                get: { pendingFolderDeletion != nil },
+                set: { if !$0 { pendingFolderDeletion = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            if let pendingFolderDeletion {
+                Button("Delete \(pendingFolderDeletion.name)", role: .destructive) {
+                    deleteFolder(pendingFolderDeletion)
+                }
+            }
+            Button("Cancel", role: .cancel) { pendingFolderDeletion = nil }
+        } message: {
+            if let pendingFolderDeletion {
+                Text("Items assigned to \(pendingFolderDeletion.name) will stay in Quorra, but the folder and its assignments will be removed.")
+            }
+        }
         .alert(
             "Couldn't update folders",
             isPresented: Binding(
@@ -122,6 +152,7 @@ struct SourceSidebarView: View {
                 count: folderCount(folder)
             )
             .padding(.leading, 18)
+            .contextMenu { folderRowContextMenu(for: folder) }
         }
     }
 
@@ -130,6 +161,22 @@ struct SourceSidebarView: View {
             folderCreationRequest = FolderCreationRequest(kind: kind)
         } label: {
             Label("New Folder", systemImage: "folder.badge.plus")
+        }
+    }
+
+    @ViewBuilder private func folderRowContextMenu(for folder: MetadataFolder) -> some View {
+        Button {
+            folderRenameRequest = FolderRenameRequest(folder: folder)
+        } label: {
+            Label("Rename", systemImage: "pencil")
+        }
+
+        Divider()
+
+        Button(role: .destructive) {
+            pendingFolderDeletion = FolderDeletionRequest(folder: folder)
+        } label: {
+            Label("Delete", systemImage: "trash")
         }
     }
 
@@ -178,6 +225,11 @@ struct SourceSidebarView: View {
         assignments.filter { $0.folderIDString == folder.stableIDString }.count
     }
 
+    private var deletionTitle: String {
+        guard let pendingFolderDeletion else { return "Delete Folder?" }
+        return "Delete \(pendingFolderDeletion.name)?"
+    }
+
     private func createFolder(kind: MetadataObjectKind, name: String) throws {
         let sortIndex = (sortedFolders(for: kind).map(\.sortIndex).max() ?? -1) + 1
         modelContext.insert(MetadataFolder(kind: kind, name: name, sortIndex: sortIndex))
@@ -186,6 +238,57 @@ struct SourceSidebarView: View {
         } catch {
             folderActionError = error.localizedDescription
             throw error
+        }
+    }
+
+    private func renameFolder(_ request: FolderRenameRequest, to name: String) throws {
+        guard let folder = folders.first(where: { $0.stableIDString == request.id }) else { return }
+        folder.name = name
+        folder.updatedAt = .now
+
+        do {
+            try modelContext.save()
+            if case .folder(let kind, let folderID, _) = selection,
+               folderID.uuidString == request.id {
+                selection = .folder(kind: kind, folderID: folderID, name: name)
+            }
+        } catch {
+            folderActionError = error.localizedDescription
+            throw error
+        }
+    }
+
+    private func deleteFolder(_ request: FolderDeletionRequest) {
+        guard let folder = folders.first(where: { $0.stableIDString == request.id }) else {
+            pendingFolderDeletion = nil
+            return
+        }
+
+        for assignment in assignments where assignment.folderIDString == request.id {
+            modelContext.delete(assignment)
+        }
+        modelContext.delete(folder)
+
+        do {
+            try modelContext.save()
+            if case .folder(_, let folderID, _) = selection,
+               folderID.uuidString == request.id {
+                selection = parentSelection(for: request.kind)
+            }
+            pendingFolderDeletion = nil
+        } catch {
+            folderActionError = error.localizedDescription
+        }
+    }
+
+    private func parentSelection(for kind: MetadataObjectKind) -> SourceSelection {
+        switch kind {
+        case .session:
+            return .sessions
+        case .profile:
+            return .profiles
+        case .imdsEndpoint:
+            return .imdsEndpoints
         }
     }
 }
@@ -224,6 +327,30 @@ private struct SourceSidebarRow: View {
 private struct FolderCreationRequest: Identifiable {
     let id = UUID()
     let kind: MetadataObjectKind
+}
+
+private struct FolderRenameRequest: Identifiable {
+    let id: String
+    let kind: MetadataObjectKind
+    let name: String
+
+    init(folder: MetadataFolder) {
+        id = folder.stableIDString
+        kind = folder.kind
+        name = folder.name
+    }
+}
+
+private struct FolderDeletionRequest: Identifiable {
+    let id: String
+    let kind: MetadataObjectKind
+    let name: String
+
+    init(folder: MetadataFolder) {
+        id = folder.stableIDString
+        kind = folder.kind
+        name = folder.name
+    }
 }
 
 private struct AddMetadataFolderSheet: View {
@@ -273,6 +400,74 @@ private struct AddMetadataFolderSheet: View {
 
         do {
             try onCreate(trimmedName)
+            dismiss()
+        } catch {
+            validationMessage = error.localizedDescription
+        }
+    }
+}
+
+private struct RenameMetadataFolderSheet: View {
+    let kind: MetadataObjectKind
+    let currentName: String
+    let existingNames: Set<String>
+    let onRename: (String) throws -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var name: String
+    @State private var validationMessage: String?
+
+    init(
+        kind: MetadataObjectKind,
+        currentName: String,
+        existingNames: Set<String>,
+        onRename: @escaping (String) throws -> Void
+    ) {
+        self.kind = kind
+        self.currentName = currentName
+        self.existingNames = existingNames
+        self.onRename = onRename
+        _name = State(initialValue: currentName)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("Rename Folder")
+                .font(.title3.weight(.semibold))
+
+            TextField("\(kind.title) folder name", text: $name)
+
+            if let validationMessage {
+                Label(validationMessage, systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+
+            HStack {
+                Spacer()
+                Button("Cancel", role: .cancel) { dismiss() }
+                Button("Rename") { rename() }
+                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(24)
+        .frame(width: 360)
+    }
+
+    private func rename() {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            validationMessage = "Folder name is required."
+            return
+        }
+        guard !existingNames.contains(trimmedName) else {
+            validationMessage = "A folder named \(trimmedName) already exists."
+            return
+        }
+
+        do {
+            try onRename(trimmedName)
             dismiss()
         } catch {
             validationMessage = error.localizedDescription
