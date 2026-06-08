@@ -118,8 +118,6 @@
 			);
 			buildRules = (
 			);
-			dependencies = (
-			);
 			fileSystemSynchronizedGroups = (
 				1B5F7C8F2FACE2A100833D01 /* App */,
 			);

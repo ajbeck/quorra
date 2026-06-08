@@ -18,7 +18,7 @@ struct MainView: View {
 
     var body: some View {
         NavigationSplitView {
-            SessionRailView(filter: $sessionFilter)
+            SessionRailView(filter: $sessionFilter, selection: $selection)
                 .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 260)
         } content: {
             ProfileListView(sessionFilter: $sessionFilter, selection: $selection)

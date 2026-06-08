@@ -10,11 +10,16 @@ enum ProfileListMode: Hashable {
 struct ProfileListView: View {
     @Binding var sessionFilter: SessionFilter
     @Binding var selection: DetailSelection?
+    @Environment(AppModel.self) private var appModel
     @Environment(ProfilesModel.self) private var profilesModel
     @Environment(IMDSModel.self) private var imdsModel
 
     @State private var mode: ProfileListMode
     @State private var searchText: String = ""
+    @State private var isPresentingAddProfile = false
+    @State private var isConfirmingDeleteProfile = false
+    @State private var actionError: AWSConfigINIError?
+    @State private var isPresentingActionError = false
 
     init(
         sessionFilter: Binding<SessionFilter>,
@@ -44,11 +49,12 @@ struct ProfileListView: View {
     }
 
     private var loadedView: some View {
-        VStack(spacing: 8) {
-            TextField("Filter profiles", text: $searchText)
+        VStack(spacing: 0) {
+            TextField(searchPrompt, text: $searchText)
                 .textFieldStyle(.roundedBorder)
-                .padding(.horizontal, 12)
-                .padding(.top, 12)
+            .padding(.horizontal, 12)
+            .padding(.top, 12)
+            .padding(.bottom, 8)
 
             Picker("View", selection: $mode) {
                 Text("Profiles \(scopedProfileItems.count)").tag(ProfileListMode.profiles)
@@ -68,7 +74,7 @@ struct ProfileListView: View {
                 .padding(.horizontal, 12)
             }
 
-            listContent
+            profileListContainer
         }
         .onChange(of: sessionFilter) { _, _ in
             clearSelectionIfNeeded()
@@ -79,6 +85,95 @@ struct ProfileListView: View {
         .onChange(of: profilesModel.loadState) { _, _ in
             clearSelectionIfNeeded()
         }
+        .sheet(isPresented: $isPresentingAddProfile) {
+            AddProfileSheet(
+                existingNames: Set(profilesModel.groups.flatProfiles.map(\.id)),
+                sessions: profilesModel.groups.ssoSessions,
+                defaultSessionName: sessionFilter.sessionName
+            ) { name, profile in
+                try await profilesModel.createProfile(named: name, profile: profile, mode: appModel.mode)
+                searchText = ""
+                selection = .profile(name: name)
+            }
+        }
+        .confirmationDialog(
+            "Delete profile?",
+            isPresented: $isConfirmingDeleteProfile,
+            titleVisibility: .visible
+        ) {
+            if let selectedProfileName {
+                Button("Delete \(selectedProfileName)", role: .destructive) {
+                    Task { await deleteProfile(named: selectedProfileName) }
+                }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            if let selectedProfileName {
+                Text("This removes \(selectedProfileName) from your AWS config and credentials files. Any running IMDS endpoint for this profile will be stopped.")
+            }
+        }
+        .alert(
+            "Couldn't update profiles",
+            isPresented: $isPresentingActionError,
+            presenting: actionError
+        ) { _ in
+            Button("OK", role: .cancel) { }
+        } message: { error in
+            Text([error.errorDescription, error.recoverySuggestion]
+                .compactMap { $0 }.joined(separator: "\n\n"))
+        }
+    }
+
+    private var profileListContainer: some View {
+        VStack(spacing: 0) {
+            listContent
+                .frame(maxHeight: .infinity)
+
+            Divider()
+            profileMutationBar
+        }
+        .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+        .overlay {
+            RoundedRectangle(cornerRadius: 10)
+                .strokeBorder(Color.secondary.opacity(0.10))
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .padding(.horizontal, 12)
+        .padding(.top, 8)
+        .padding(.bottom, 12)
+        .frame(maxHeight: .infinity)
+    }
+
+    private var profileMutationBar: some View {
+        HStack(spacing: 0) {
+            profileActions
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 8)
+        .frame(height: 26)
+        .background(Color.secondary.opacity(0.10))
+    }
+
+    private var profileActions: some View {
+        ControlGroup {
+            Button {
+                isPresentingAddProfile = true
+            } label: {
+                Label("Add Profile", systemImage: "plus")
+            }
+            .disabled(isReadOnly || mode != .profiles)
+            .help(addProfileHelp)
+
+            Button {
+                isConfirmingDeleteProfile = true
+            } label: {
+                Label("Remove Profile", systemImage: "minus")
+            }
+            .disabled(isReadOnly || mode != .profiles || selectedProfileName == nil)
+            .help(removeProfileHelp)
+        }
+        .controlSize(.small)
+        .labelStyle(.iconOnly)
     }
 
     @ViewBuilder private var listContent: some View {
@@ -205,6 +300,35 @@ struct ProfileListView: View {
         scopedIMDSItems.filter { imdsModel.state(forProfile: $0.id).isActive }.count
     }
 
+    private var selectedProfileName: String? {
+        guard case .profile(let name) = selection,
+              scopedProfileItems.contains(where: { $0.id == name }) else {
+            return nil
+        }
+        return name
+    }
+
+    private var isReadOnly: Bool {
+        appModel.mode == .readOnly
+    }
+
+    private var searchPrompt: String {
+        mode == .imds ? "Filter servers" : "Filter profiles"
+    }
+
+    private var addProfileHelp: String {
+        if isReadOnly { return "Switch to Edit & Manage mode to add profiles." }
+        if mode != .profiles { return "Switch to Profiles to add a profile." }
+        return "Add profile"
+    }
+
+    private var removeProfileHelp: String {
+        if isReadOnly { return "Switch to Edit & Manage mode to remove profiles." }
+        if mode != .profiles { return "Switch to Profiles to remove a profile." }
+        if selectedProfileName == nil { return "Select a profile to remove." }
+        return "Remove selected profile"
+    }
+
     private func profileItemSortOrder(_ a: SidebarProfileItem, _ b: SidebarProfileItem) -> Bool {
         let aDefault = a.id == "default"
         let bDefault = b.id == "default"
@@ -241,6 +365,22 @@ struct ProfileListView: View {
                 : nil
         default:
             break
+        }
+    }
+
+    private func deleteProfile(named name: String) async {
+        do {
+            imdsModel.stopEndpoint(forProfile: name)
+            try await profilesModel.deleteProfile(named: name, mode: appModel.mode)
+            if selection == .profile(name: name) || selection == .imds(profileName: name) {
+                selection = scopedProfileItems.first.map { .profile(name: $0.id) }
+            }
+        } catch let err as AWSConfigINIError {
+            actionError = err
+            isPresentingActionError = true
+        } catch {
+            actionError = .malformedInput(error.localizedDescription)
+            isPresentingActionError = true
         }
     }
 }
@@ -377,6 +517,130 @@ private struct FilterChip: View {
     }
 }
 
+private struct AddProfileSheet: View {
+    private static let noSessionTag = "__quorra_no_sso_session__"
+
+    let existingNames: Set<String>
+    let sessions: [SSOSessionNode]
+    let onCreate: (String, Profile) async throws -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var name = ""
+    @State private var selectedSessionName: String
+    @State private var region: String
+    @State private var accountID = ""
+    @State private var roleName = ""
+    @State private var validationMessage: String?
+    @State private var isSaving = false
+
+    init(
+        existingNames: Set<String>,
+        sessions: [SSOSessionNode],
+        defaultSessionName: String?,
+        onCreate: @escaping (String, Profile) async throws -> Void
+    ) {
+        self.existingNames = existingNames
+        self.sessions = sessions
+        self.onCreate = onCreate
+
+        let initialSessionName = defaultSessionName ?? Self.noSessionTag
+        _selectedSessionName = State(initialValue: initialSessionName)
+        _region = State(initialValue: sessions.first(where: { $0.id == initialSessionName })?.session?.ssoRegion ?? "")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("Add Profile")
+                .font(.title3.weight(.semibold))
+
+            Form {
+                TextField("Name", text: $name)
+
+                Picker("SSO Session", selection: $selectedSessionName) {
+                    Text("None").tag(Self.noSessionTag)
+                    ForEach(sessions) { session in
+                        Text(session.id).tag(session.id)
+                    }
+                }
+
+                if selectedSessionName != Self.noSessionTag {
+                    TextField("Region", text: $region)
+                    TextField("SSO Account ID", text: $accountID)
+                    TextField("SSO Role Name", text: $roleName)
+                }
+            }
+            .formStyle(.grouped)
+            .onChange(of: selectedSessionName) { _, newValue in
+                guard region.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                      let sessionRegion = sessions.first(where: { $0.id == newValue })?.session?.ssoRegion else {
+                    return
+                }
+                region = sessionRegion
+            }
+
+            if let validationMessage {
+                Label(validationMessage, systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+
+            HStack {
+                Spacer()
+                Button("Cancel", role: .cancel) { dismiss() }
+                Button("Add") {
+                    Task { await add() }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(isSaving)
+                .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(24)
+        .frame(width: 460)
+    }
+
+    private func add() async {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            validationMessage = "Profile name is required."
+            return
+        }
+        guard !existingNames.contains(trimmedName) else {
+            validationMessage = "A profile named \(trimmedName) already exists."
+            return
+        }
+
+        isSaving = true
+        validationMessage = nil
+        do {
+            try await onCreate(trimmedName, profile)
+            dismiss()
+        } catch let error as LocalizedError {
+            validationMessage = error.errorDescription ?? error.localizedDescription
+        } catch {
+            validationMessage = error.localizedDescription
+        }
+        isSaving = false
+    }
+
+    private var profile: Profile {
+        guard selectedSessionName != Self.noSessionTag else {
+            return Profile()
+        }
+        return Profile(
+            region: nilIfBlank(region),
+            ssoSession: selectedSessionName,
+            ssoAccountId: nilIfBlank(accountID),
+            ssoRoleName: nilIfBlank(roleName)
+        )
+    }
+
+    private func nilIfBlank(_ value: String) -> String? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+}
+
 private extension IMDSEndpointState {
     var searchText: String {
         switch self {
@@ -459,6 +723,7 @@ private struct ProfileListPreviewHarness: View {
         }
         .environment(profilesModel)
         .environment(imdsModel)
+        .environment(AppModel(initialPhase: .ready(URL(filePath: "/preview/.aws"))))
         .frame(width: 860, height: 560)
     }
 }

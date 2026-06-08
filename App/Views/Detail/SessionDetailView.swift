@@ -74,7 +74,7 @@ struct SessionDetailView: View {
 
     private func save() async {
         do {
-            try await profilesModel.save(draft, for: node)
+            try await profilesModel.save(draft, for: node, mode: appModel.mode)
         } catch let err as AWSConfigINIError {
             saveError = err
             isPresentingSaveError = true
