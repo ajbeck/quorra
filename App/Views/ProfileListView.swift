@@ -11,6 +11,7 @@ struct ObjectListView: View {
     @Environment(ProfilesModel.self) private var profilesModel
     @Environment(IMDSModel.self) private var imdsModel
     @Environment(\.modelContext) private var modelContext
+    @Query private var folders: [MetadataFolder]
     @Query private var folderAssignments: [MetadataFolderAssignment]
     @Query private var endpointDefinitions: [IMDSEndpointDefinition]
 
@@ -195,6 +196,38 @@ struct ObjectListView: View {
             rowBackground(isSelected: detailSelection == item.detailSelection),
             in: RoundedRectangle(cornerRadius: 6)
         )
+        .contextMenu {
+            folderAssignmentMenu(for: item)
+        }
+    }
+
+    @ViewBuilder private func folderAssignmentMenu(for item: ObjectListItem) -> some View {
+        let targetFolders = sortedFolders(for: item.objectKind)
+        if targetFolders.isEmpty {
+            Text("No \(item.objectKind.title.lowercased()) folders")
+        } else {
+            Menu("Move to Folder") {
+                ForEach(targetFolders, id: \.stableIDString) { folder in
+                    Button {
+                        move(item, to: folder)
+                    } label: {
+                        if isAssigned(item, to: folder) {
+                            Label(folder.name, systemImage: "checkmark")
+                        } else {
+                            Text(folder.name)
+                        }
+                    }
+                }
+            }
+        }
+
+        if assignedFolder(for: item) != nil {
+            Button {
+                removeFolderAssignment(for: item)
+            } label: {
+                Label("Remove from Folder", systemImage: "xmark")
+            }
+        }
     }
 
     private var objectMutationBar: some View {
@@ -369,6 +402,66 @@ struct ObjectListView: View {
         )
 
         return items(for: kind).filter { assignedIDs.contains($0.objectID) }
+    }
+
+    private func sortedFolders(for kind: MetadataObjectKind) -> [MetadataFolder] {
+        folders
+            .filter { $0.kind == kind }
+            .sorted {
+                if $0.sortIndex != $1.sortIndex {
+                    return $0.sortIndex < $1.sortIndex
+                }
+                return $0.name.localizedStandardCompare($1.name) == .orderedAscending
+            }
+    }
+
+    private func assignedFolder(for item: ObjectListItem) -> MetadataFolder? {
+        guard let assignment = folderAssignments.first(where: {
+            $0.objectKind == item.objectKind && $0.objectID == item.objectID
+        }) else {
+            return nil
+        }
+        return folders.first { $0.stableIDString == assignment.folderIDString }
+    }
+
+    private func isAssigned(_ item: ObjectListItem, to folder: MetadataFolder) -> Bool {
+        assignedFolder(for: item)?.stableIDString == folder.stableIDString
+    }
+
+    private func move(_ item: ObjectListItem, to folder: MetadataFolder) {
+        do {
+            if let assignment = folderAssignments.first(where: {
+                $0.objectKind == item.objectKind && $0.objectID == item.objectID
+            }) {
+                assignment.move(to: folder.stableID)
+            } else {
+                modelContext.insert(MetadataFolderAssignment(
+                    objectKind: item.objectKind,
+                    objectID: item.objectID,
+                    folderID: folder.stableID
+                ))
+            }
+            try modelContext.save()
+        } catch {
+            actionError = .malformedInput(error.localizedDescription)
+            isPresentingActionError = true
+        }
+    }
+
+    private func removeFolderAssignment(for item: ObjectListItem) {
+        do {
+            for assignment in folderAssignments where assignment.objectKind == item.objectKind && assignment.objectID == item.objectID {
+                modelContext.delete(assignment)
+            }
+            try modelContext.save()
+
+            if case .folder = sourceSelection, detailSelection == item.detailSelection {
+                detailSelection = nil
+            }
+        } catch {
+            actionError = .malformedInput(error.localizedDescription)
+            isPresentingActionError = true
+        }
     }
 
     private func items(for kind: MetadataObjectKind) -> [ObjectListItem] {
