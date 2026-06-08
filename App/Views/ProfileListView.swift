@@ -314,7 +314,7 @@ struct ObjectListView: View {
                 name: definition.name,
                 profileName: definition.profileName,
                 port: definition.port,
-                state: imdsModel.state(forProfile: definition.profileName),
+                state: imdsModel.state(forEndpointID: definition.stableIDString, profileName: definition.profileName),
                 profile: profilesModel.findProfile(named: definition.profileName),
                 isPersisted: true
             )
@@ -582,10 +582,11 @@ struct ObjectListView: View {
             case .imds(let endpoint):
                 if endpoint.isPersisted,
                    let definition = endpointDefinitions.first(where: { $0.stableIDString == endpoint.endpointID }) {
+                    imdsModel.stopEndpoint(forEndpointID: definition.stableIDString)
                     modelContext.delete(definition)
                     try modelContext.save()
                 } else {
-                    imdsModel.stopEndpoint(forProfile: endpoint.profileName)
+                    imdsModel.stopEndpoint(forEndpointID: endpoint.endpointID)
                 }
                 if detailSelection == item.detailSelection {
                     detailSelection = nil

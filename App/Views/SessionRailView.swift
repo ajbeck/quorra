@@ -150,10 +150,10 @@ struct SourceSidebarView: View {
     }
 
     private var imdsEndpointCount: Int {
-        let definitionProfileNames = Set(endpointDefinitions.map(\.profileName))
+        let definitionIDs = Set(endpointDefinitions.map(\.stableIDString))
         let runtimeOnlyEndpointCount = imdsModel.endpointsByProfile
-            .filter { profileName, state in
-                state.isSourceSidebarEndpoint && !definitionProfileNames.contains(profileName)
+            .filter { endpointID, state in
+                state.isSourceSidebarEndpoint && !definitionIDs.contains(endpointID)
             }
             .count
         return endpointDefinitions.count + runtimeOnlyEndpointCount

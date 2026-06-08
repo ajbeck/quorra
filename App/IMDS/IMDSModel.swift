@@ -14,12 +14,36 @@ final class IMDSModel {
         endpointsByProfile[name] ?? .inactive
     }
 
+    func state(forEndpointID endpointID: String, profileName: String? = nil) -> IMDSEndpointState {
+        if let state = endpointsByProfile[endpointID] {
+            return state
+        }
+        if let profileName, profileName != endpointID {
+            return endpointsByProfile[profileName] ?? .inactive
+        }
+        return .inactive
+    }
+
     func runtimeInfo(forProfile name: String) -> IMDSRuntimeInfo? {
         runtimeInfoByProfile[name]
     }
 
+    func runtimeInfo(forEndpointID endpointID: String, profileName: String? = nil) -> IMDSRuntimeInfo? {
+        if let runtimeInfo = runtimeInfoByProfile[endpointID] {
+            return runtimeInfo
+        }
+        if let profileName, profileName != endpointID {
+            return runtimeInfoByProfile[profileName]
+        }
+        return nil
+    }
+
     func setState(_ state: IMDSEndpointState, forProfile name: String) {
         endpointsByProfile[name] = state
+    }
+
+    func setState(_ state: IMDSEndpointState, forEndpointID endpointID: String) {
+        endpointsByProfile[endpointID] = state
     }
 
     func startEndpoint(
@@ -27,14 +51,24 @@ final class IMDSModel {
         credentialsModel: CredentialsModel,
         port: Int = 9678
     ) async {
+        await startEndpoint(endpointID: node.id, for: node, credentialsModel: credentialsModel, port: port)
+    }
+
+    func startEndpoint(
+        endpointID: String,
+        for node: ProfileNode,
+        credentialsModel: CredentialsModel,
+        port: Int = 9678
+    ) async {
         guard let sessionName = node.profile.ssoSession,
               let accountId = node.profile.ssoAccountId,
               let roleName = node.profile.ssoRoleName else {
-            endpointsByProfile[node.id] = .failed(port: port, message: "Profile is missing SSO account, role, or session metadata.")
+            endpointsByProfile[endpointID] = .failed(port: port, message: "Profile is missing SSO account, role, or session metadata.")
             return
         }
 
         await startEndpoint(
+            endpointID: endpointID,
             profileName: node.id,
             sessionName: sessionName,
             accountId: accountId,
@@ -46,6 +80,7 @@ final class IMDSModel {
     }
 
     func startEndpoint(
+        endpointID: String,
         profileName: String,
         sessionName: String,
         accountId: String,
@@ -54,7 +89,7 @@ final class IMDSModel {
         credentialsModel: CredentialsModel,
         port: Int = 9678
     ) async {
-        endpointsByProfile[profileName] = .starting(port: port)
+        endpointsByProfile[endpointID] = .starting(port: port)
 
         do {
             let credentials = try await credentialsModel.liveCredentials(
@@ -72,56 +107,64 @@ final class IMDSModel {
                 credentials: credentials
             )
 
-            stopAllEndpoints(except: profileName)
-            serversByProfile[profileName]?.stop()
+            stopEndpoints(onPort: port, except: endpointID)
+            serversByProfile[endpointID]?.stop()
 
             let server = LocalIMDSServer(
                 port: port,
                 servedProfile: servedProfile,
                 onRequest: { [weak self] log in
                     Task { @MainActor in
-                        self?.recordRequest(log, forProfile: profileName)
+                        self?.recordRequest(log, forEndpointID: endpointID)
                     }
                 },
                 onFailure: { [weak self] message in
                     Task { @MainActor in
-                        self?.markEndpointFailed(forProfile: profileName, port: port, message: message)
+                        self?.markEndpointFailed(forEndpointID: endpointID, port: port, message: message)
                     }
                 }
             )
 
-            serversByProfile[profileName] = server
-            runtimeInfoByProfile[profileName] = IMDSRuntimeInfo(servedProfileName: profileName)
+            serversByProfile[endpointID] = server
+            runtimeInfoByProfile[endpointID] = IMDSRuntimeInfo(servedProfileName: profileName)
             try await server.start()
             let boundPort = server.boundPort
-            endpointsByProfile[profileName] = .active(port: boundPort)
+            endpointsByProfile[endpointID] = .active(port: boundPort)
             publishPort(boundPort)
         } catch is CancellationError {
-            stopEndpoint(forProfile: profileName)
+            stopEndpoint(forEndpointID: endpointID)
         } catch {
-            serversByProfile[profileName]?.stop()
-            serversByProfile[profileName] = nil
-            runtimeInfoByProfile[profileName] = nil
-            endpointsByProfile[profileName] = .failed(port: port, message: displayMessage(for: error))
+            serversByProfile[endpointID]?.stop()
+            serversByProfile[endpointID] = nil
+            runtimeInfoByProfile[endpointID] = nil
+            endpointsByProfile[endpointID] = .failed(port: port, message: displayMessage(for: error))
             unpublishPortIfNoActiveServers()
         }
     }
 
     func startEndpoint(forProfile name: String, port: Int = 9678) {
-        endpointsByProfile[name] = .starting(port: port)
+        startEndpoint(forEndpointID: name, port: port)
+    }
+
+    func startEndpoint(forEndpointID endpointID: String, port: Int = 9678) {
+        endpointsByProfile[endpointID] = .starting(port: port)
 
         // Preview-only transition for views that seed model state without a server runtime.
         Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(350))
-            self?.finishStartingEndpoint(forProfile: name)
+            self?.finishStartingEndpoint(forEndpointID: endpointID)
         }
     }
 
     func stopEndpoint(forProfile name: String) {
-        serversByProfile[name]?.stop()
-        serversByProfile[name] = nil
-        runtimeInfoByProfile[name] = nil
-        endpointsByProfile[name] = .inactive
+        stopEndpoint(forEndpointID: name)
+    }
+
+    func stopEndpoint(forEndpointID endpointID: String) {
+        serversByProfile[endpointID]?.stop()
+        serversByProfile[endpointID] = nil
+        runtimeInfoByProfile[endpointID] = nil
+        endpointsByProfile[endpointID] = .inactive
         unpublishPortIfNoActiveServers()
     }
 
@@ -135,14 +178,17 @@ final class IMDSModel {
 
     func retryEndpoint(
         profileName: String,
+        endpointID: String? = nil,
         sessionName: String,
         accountId: String,
         roleName: String,
         region: String,
         credentialsModel: CredentialsModel
     ) async {
-        let port = state(forProfile: profileName).port ?? 9678
+        let endpointID = endpointID ?? profileName
+        let port = state(forEndpointID: endpointID, profileName: profileName).port ?? 9678
         await startEndpoint(
+            endpointID: endpointID,
             profileName: profileName,
             sessionName: sessionName,
             accountId: accountId,
@@ -154,8 +200,12 @@ final class IMDSModel {
     }
 
     func retryEndpoint(forProfile name: String) {
-        let port = state(forProfile: name).port ?? 9678
-        startEndpoint(forProfile: name, port: port)
+        retryEndpoint(forEndpointID: name)
+    }
+
+    func retryEndpoint(forEndpointID endpointID: String) {
+        let port = state(forEndpointID: endpointID).port ?? 9678
+        startEndpoint(forEndpointID: endpointID, port: port)
     }
 
     func restartEndpoint(
@@ -168,41 +218,46 @@ final class IMDSModel {
     }
 
     func restartEndpoint(forProfile name: String) {
-        let port = state(forProfile: name).port ?? 9678
-        startEndpoint(forProfile: name, port: port)
+        restartEndpoint(forEndpointID: name)
     }
 
-    private func finishStartingEndpoint(forProfile name: String) {
-        guard case .starting(let port) = state(forProfile: name) else { return }
-        endpointsByProfile[name] = .active(port: port)
+    func restartEndpoint(forEndpointID endpointID: String) {
+        let port = state(forEndpointID: endpointID).port ?? 9678
+        startEndpoint(forEndpointID: endpointID, port: port)
     }
 
-    private func stopAllEndpoints(except keptProfileName: String) {
-        for profileName in Array(serversByProfile.keys) where profileName != keptProfileName {
-            stopEndpoint(forProfile: profileName)
+    private func finishStartingEndpoint(forEndpointID endpointID: String) {
+        guard case .starting(let port) = state(forEndpointID: endpointID) else { return }
+        endpointsByProfile[endpointID] = .active(port: port)
+    }
+
+    private func stopEndpoints(onPort port: Int, except keptEndpointID: String) {
+        for endpointID in Array(serversByProfile.keys) where endpointID != keptEndpointID {
+            guard endpointsByProfile[endpointID]?.port == port else { continue }
+            stopEndpoint(forEndpointID: endpointID)
         }
-        for profileName in Array(endpointsByProfile.keys) where profileName != keptProfileName {
-            if case .active = endpointsByProfile[profileName] {
-                endpointsByProfile[profileName] = .inactive
+        for endpointID in Array(endpointsByProfile.keys) where endpointID != keptEndpointID {
+            if case .active(let activePort) = endpointsByProfile[endpointID], activePort == port {
+                endpointsByProfile[endpointID] = .inactive
             }
         }
     }
 
-    private func recordRequest(_ log: IMDSRequestLog, forProfile name: String) {
-        guard var runtime = runtimeInfoByProfile[name] else { return }
+    private func recordRequest(_ log: IMDSRequestLog, forEndpointID endpointID: String) {
+        guard var runtime = runtimeInfoByProfile[endpointID] else { return }
         runtime.requestCount += 1
         runtime.activity.insert(log, at: 0)
         if runtime.activity.count > 50 {
             runtime.activity.removeLast(runtime.activity.count - 50)
         }
-        runtimeInfoByProfile[name] = runtime
+        runtimeInfoByProfile[endpointID] = runtime
     }
 
-    private func markEndpointFailed(forProfile name: String, port: Int, message: String) {
-        serversByProfile[name]?.stop()
-        serversByProfile[name] = nil
-        runtimeInfoByProfile[name] = nil
-        endpointsByProfile[name] = .failed(port: port, message: message)
+    private func markEndpointFailed(forEndpointID endpointID: String, port: Int, message: String) {
+        serversByProfile[endpointID]?.stop()
+        serversByProfile[endpointID] = nil
+        runtimeInfoByProfile[endpointID] = nil
+        endpointsByProfile[endpointID] = .failed(port: port, message: message)
         unpublishPortIfNoActiveServers()
     }
 

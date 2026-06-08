@@ -665,6 +665,7 @@ struct CredentialsRevealSection: View {
 
     private func startIMDSEndpoint() async {
         await imdsModel.startEndpoint(
+            endpointID: profileName,
             profileName: profileName,
             sessionName: sessionName,
             accountId: accountId,

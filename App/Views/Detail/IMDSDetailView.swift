@@ -23,13 +23,14 @@ struct IMDSDetailView: View {
     }
 
     private func detail(for node: ProfileNode) -> some View {
-        let state = imdsModel.state(forProfile: node.id)
-        let runtime = imdsModel.runtimeInfo(forProfile: node.id)
         let definition = endpointDefinition
+        let endpointKey = definition?.stableIDString ?? endpointID ?? node.id
+        let state = imdsModel.state(forEndpointID: endpointKey, profileName: node.id)
+        let runtime = imdsModel.runtimeInfo(forEndpointID: endpointKey, profileName: node.id)
         return ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                header(for: node, state: state, definition: definition)
-                serverStatusPanel(for: node, state: state, runtime: runtime, definition: definition)
+                header(for: node, endpointKey: endpointKey, state: state, definition: definition)
+                serverStatusPanel(for: node, endpointKey: endpointKey, state: state, runtime: runtime, definition: definition)
                 endpointCard(for: state, definition: definition)
                 configurationCard(for: state, definition: definition)
                 activityCard(for: state, runtime: runtime)
@@ -46,7 +47,12 @@ struct IMDSDetailView: View {
         return endpointDefinitions.first { $0.stableIDString == endpointID }
     }
 
-    private func header(for node: ProfileNode, state: IMDSEndpointState, definition: IMDSEndpointDefinition?) -> some View {
+    private func header(
+        for node: ProfileNode,
+        endpointKey: String,
+        state: IMDSEndpointState,
+        definition: IMDSEndpointDefinition?
+    ) -> some View {
         HStack(alignment: .firstTextBaseline) {
             Text(definition?.name ?? "IMDS Server")
                 .font(.title.weight(.semibold))
@@ -67,7 +73,7 @@ struct IMDSDetailView: View {
                 case .inactive:
                     Button {
                         Task {
-                            await imdsModel.startEndpoint(for: node, credentialsModel: credentialsModel)
+                            await startEndpoint(endpointKey: endpointKey, for: node, definition: definition)
                         }
                     } label: {
                         Label("Start Server", systemImage: "play.fill")
@@ -78,26 +84,27 @@ struct IMDSDetailView: View {
                 case .active:
                     Button {
                         Task {
-                            await imdsModel.restartEndpoint(for: node, credentialsModel: credentialsModel)
+                            imdsModel.stopEndpoint(forEndpointID: endpointKey)
+                            await startEndpoint(endpointKey: endpointKey, for: node, definition: definition)
                         }
                     } label: {
                         Label("Restart Server", systemImage: "arrow.clockwise")
                     }
                     Button(role: .destructive) {
-                        imdsModel.stopEndpoint(forProfile: profileName)
+                        imdsModel.stopEndpoint(forEndpointID: endpointKey)
                     } label: {
                         Label("Stop Server", systemImage: "stop.fill")
                     }
                 case .failed:
                     Button {
                         Task {
-                            await imdsModel.retryEndpoint(for: node, credentialsModel: credentialsModel)
+                            await startEndpoint(endpointKey: endpointKey, for: node, definition: definition)
                         }
                     } label: {
                         Label("Retry Server", systemImage: "arrow.clockwise")
                     }
                     Button {
-                        imdsModel.stopEndpoint(forProfile: profileName)
+                        imdsModel.stopEndpoint(forEndpointID: endpointKey)
                     } label: {
                         Label("Dismiss Failure", systemImage: "xmark")
                     }
@@ -112,6 +119,7 @@ struct IMDSDetailView: View {
 
     private func serverStatusPanel(
         for node: ProfileNode,
+        endpointKey: String,
         state: IMDSEndpointState,
         runtime: IMDSRuntimeInfo?,
         definition: IMDSEndpointDefinition?
@@ -120,12 +128,12 @@ struct IMDSDetailView: View {
             HStack(spacing: 16) {
                 serverSummary(for: node, state: state, runtime: runtime, definition: definition)
                 Spacer(minLength: 16)
-                serverActions(for: node, state: state)
+                serverActions(for: node, endpointKey: endpointKey, state: state, definition: definition)
             }
 
             VStack(alignment: .leading, spacing: 14) {
                 serverSummary(for: node, state: state, runtime: runtime, definition: definition)
-                serverActions(for: node, state: state)
+                serverActions(for: node, endpointKey: endpointKey, state: state, definition: definition)
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
@@ -189,13 +197,18 @@ struct IMDSDetailView: View {
         }
     }
 
-    private func serverActions(for node: ProfileNode, state: IMDSEndpointState) -> some View {
+    private func serverActions(
+        for node: ProfileNode,
+        endpointKey: String,
+        state: IMDSEndpointState,
+        definition: IMDSEndpointDefinition?
+    ) -> some View {
         HStack(spacing: 10) {
             switch state {
             case .inactive:
                 Button {
                     Task {
-                        await imdsModel.startEndpoint(for: node, credentialsModel: credentialsModel)
+                        await startEndpoint(endpointKey: endpointKey, for: node, definition: definition)
                     }
                 } label: {
                     Label("Start", systemImage: "play.fill")
@@ -204,7 +217,7 @@ struct IMDSDetailView: View {
 
             case .starting:
                 Button(role: .cancel) {
-                    imdsModel.stopEndpoint(forProfile: profileName)
+                    imdsModel.stopEndpoint(forEndpointID: endpointKey)
                 } label: {
                     Label("Cancel", systemImage: "xmark")
                 }
@@ -213,7 +226,8 @@ struct IMDSDetailView: View {
             case .active:
                 Button {
                     Task {
-                        await imdsModel.restartEndpoint(for: node, credentialsModel: credentialsModel)
+                        imdsModel.stopEndpoint(forEndpointID: endpointKey)
+                        await startEndpoint(endpointKey: endpointKey, for: node, definition: definition)
                     }
                 } label: {
                     Label("Restart", systemImage: "arrow.clockwise")
@@ -221,7 +235,7 @@ struct IMDSDetailView: View {
                 .buttonStyle(.bordered)
 
                 Button(role: .destructive) {
-                    imdsModel.stopEndpoint(forProfile: profileName)
+                    imdsModel.stopEndpoint(forEndpointID: endpointKey)
                 } label: {
                     Label("Stop", systemImage: "stop.fill")
                 }
@@ -231,7 +245,7 @@ struct IMDSDetailView: View {
             case .failed:
                 Button {
                     Task {
-                        await imdsModel.retryEndpoint(for: node, credentialsModel: credentialsModel)
+                        await startEndpoint(endpointKey: endpointKey, for: node, definition: definition)
                     }
                 } label: {
                     Label("Retry", systemImage: "arrow.clockwise")
@@ -239,7 +253,7 @@ struct IMDSDetailView: View {
                 .buttonStyle(.borderedProminent)
 
                 Button {
-                    imdsModel.stopEndpoint(forProfile: profileName)
+                    imdsModel.stopEndpoint(forEndpointID: endpointKey)
                 } label: {
                     Label("Dismiss", systemImage: "xmark")
                 }
@@ -247,6 +261,19 @@ struct IMDSDetailView: View {
             }
         }
         .controlSize(.regular)
+    }
+
+    private func startEndpoint(
+        endpointKey: String,
+        for node: ProfileNode,
+        definition: IMDSEndpointDefinition?
+    ) async {
+        await imdsModel.startEndpoint(
+            endpointID: endpointKey,
+            for: node,
+            credentialsModel: credentialsModel,
+            port: definition?.port ?? 9678
+        )
     }
 
     private func endpointCard(for state: IMDSEndpointState, definition: IMDSEndpointDefinition?) -> some View {
