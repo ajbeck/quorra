@@ -11,6 +11,7 @@ struct IMDSDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var endpointDefinitions: [IMDSEndpointDefinition]
     @Query(sort: \IMDSEndpointLogEntry.timestamp, order: .reverse) private var endpointLogEntries: [IMDSEndpointLogEntry]
+    @State private var isPresentingEndpointEditor = false
 
     var body: some View {
         if let node = profilesModel.findProfile(named: profileName) {
@@ -42,6 +43,19 @@ struct IMDSDetailView: View {
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .navigationTitle("IMDS Server")
+        .sheet(isPresented: $isPresentingEndpointEditor) {
+            if let definition {
+                IMDSEndpointEditorSheet(
+                    mode: .edit,
+                    existingNames: Set(endpointDefinitions.map(\.name)),
+                    usedPorts: Set(endpointDefinitions.map(\.port)),
+                    profiles: profilesModel.groups.flatProfiles.map(\.node),
+                    initialDraft: IMDSEndpointEditorDraft(endpoint: definition)
+                ) { draft in
+                    try saveEndpointDefinition(draft, to: definition, endpointKey: endpointKey)
+                }
+            }
+        }
     }
 
     private var endpointDefinition: IMDSEndpointDefinition? {
@@ -333,6 +347,21 @@ struct IMDSDetailView: View {
 
     private func configurationCard(for state: IMDSEndpointState, definition: IMDSEndpointDefinition?) -> some View {
         DetailCard("Configuration") {
+            if definition != nil {
+                HStack {
+                    Spacer()
+                    Button {
+                        isPresentingEndpointEditor = true
+                    } label: {
+                        Label("Edit", systemImage: "pencil")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .help("Edit endpoint configuration")
+                }
+                .padding(.bottom, 6)
+            }
+
             DetailField("Port") {
                 Text(String(state.port ?? definition?.port ?? 9678))
                     .font(.body.monospacedDigit())
@@ -368,6 +397,25 @@ struct IMDSDetailView: View {
                 Text(String(definition?.hopLimit ?? 2))
                     .font(.body.monospacedDigit())
             }
+        }
+    }
+
+    private func saveEndpointDefinition(
+        _ draft: IMDSEndpointEditorDraft,
+        to definition: IMDSEndpointDefinition,
+        endpointKey: String
+    ) throws {
+        let runtimeConfigurationChanged = definition.profileName != draft.profileName
+            || definition.port != draft.port
+            || definition.bindAddress != draft.bindAddress
+            || definition.allowsIMDSv1 != draft.allowsIMDSv1
+            || definition.hopLimit != draft.hopLimit
+
+        draft.apply(to: definition)
+        try modelContext.save()
+
+        if runtimeConfigurationChanged {
+            imdsModel.stopEndpoint(forEndpointID: endpointKey)
         }
     }
 

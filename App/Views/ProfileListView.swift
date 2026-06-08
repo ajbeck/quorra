@@ -63,11 +63,13 @@ struct ObjectListView: View {
                     detailSelection = .profile(name: name)
                 }
             case .imdsEndpoint:
-                AddIMDSEndpointSheet(
+                IMDSEndpointEditorSheet(
+                    mode: .create,
                     existingNames: Set(endpointDefinitions.map(\.name)),
                     usedPorts: Set(endpointDefinitions.map(\.port)),
                     profiles: profileItems.map(\.node)
-                ) { endpoint in
+                ) { draft in
+                    let endpoint = draft.makeEndpoint()
                     modelContext.insert(endpoint)
                     try modelContext.save()
                     searchText = ""
@@ -1013,147 +1015,6 @@ private struct AddProfileSheet: View {
     private func nilIfBlank(_ value: String) -> String? {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
-    }
-}
-
-private struct AddIMDSEndpointSheet: View {
-    let existingNames: Set<String>
-    let usedPorts: Set<Int>
-    let profiles: [ProfileNode]
-    let onCreate: (IMDSEndpointDefinition) throws -> Void
-
-    @Environment(\.dismiss) private var dismiss
-    @State private var name: String
-    @State private var selectedProfileName: String
-    @State private var bindAddress = "127.0.0.1"
-    @State private var port: Int
-    @State private var allowsIMDSv1 = true
-    @State private var hopLimit = 2
-    @State private var validationMessage: String?
-
-    init(
-        existingNames: Set<String>,
-        usedPorts: Set<Int>,
-        profiles: [ProfileNode],
-        onCreate: @escaping (IMDSEndpointDefinition) throws -> Void
-    ) {
-        self.existingNames = existingNames
-        self.usedPorts = usedPorts
-        self.profiles = profiles
-        self.onCreate = onCreate
-
-        let firstProfileName = profiles.first?.id ?? ""
-        _selectedProfileName = State(initialValue: firstProfileName)
-        _name = State(initialValue: firstProfileName.isEmpty ? "" : firstProfileName)
-        _port = State(initialValue: Self.firstAvailablePort(from: 9678, usedPorts: usedPorts))
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Text("Add IMDS Endpoint")
-                .font(.title3.weight(.semibold))
-
-            Form {
-                TextField("Name", text: $name)
-
-                Picker("Profile", selection: $selectedProfileName) {
-                    ForEach(profiles.sortedByName) { profile in
-                        Text(profile.id).tag(profile.id)
-                    }
-                }
-
-                TextField("Bind address", text: $bindAddress)
-                    .fontDesign(.monospaced)
-
-                TextField("Port", value: $port, format: .number)
-                    .fontDesign(.monospaced)
-
-                Toggle("Allow IMDSv1 fallback", isOn: $allowsIMDSv1)
-
-                Stepper(value: $hopLimit, in: 1...64) {
-                    Text("Hop limit \(hopLimit)")
-                }
-            }
-            .formStyle(.grouped)
-            .onChange(of: selectedProfileName) { _, newValue in
-                guard name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-                name = newValue
-            }
-
-            if let validationMessage {
-                Label(validationMessage, systemImage: "exclamationmark.triangle")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-            }
-
-            HStack {
-                Spacer()
-                Button("Cancel", role: .cancel) { dismiss() }
-                Button("Add") { add() }
-                    .buttonStyle(.borderedProminent)
-                    .keyboardShortcut(.defaultAction)
-            }
-        }
-        .padding(24)
-        .frame(width: 460)
-    }
-
-    private func add() {
-        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedBindAddress = bindAddress.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard !trimmedName.isEmpty else {
-            validationMessage = "Endpoint name is required."
-            return
-        }
-        guard !existingNames.contains(trimmedName) else {
-            validationMessage = "An endpoint named \(trimmedName) already exists."
-            return
-        }
-        guard !selectedProfileName.isEmpty else {
-            validationMessage = "Select a profile to serve."
-            return
-        }
-        guard !trimmedBindAddress.isEmpty else {
-            validationMessage = "Bind address is required."
-            return
-        }
-        guard (1...65_535).contains(port) else {
-            validationMessage = "Port must be between 1 and 65535."
-            return
-        }
-        guard !usedPorts.contains(port) else {
-            validationMessage = "Port \(port) is already configured."
-            return
-        }
-
-        do {
-            try onCreate(IMDSEndpointDefinition(
-                name: trimmedName,
-                profileName: selectedProfileName,
-                port: port,
-                bindAddress: trimmedBindAddress,
-                allowsIMDSv1: allowsIMDSv1,
-                hopLimit: hopLimit
-            ))
-            dismiss()
-        } catch {
-            validationMessage = error.localizedDescription
-        }
-    }
-
-    private static func firstAvailablePort(from preferredPort: Int, usedPorts: Set<Int>) -> Int {
-        var candidate = preferredPort
-        while usedPorts.contains(candidate), candidate < 65_535 {
-            candidate += 1
-        }
-        return candidate
-    }
-}
-
-private extension [ProfileNode] {
-    var sortedByName: [ProfileNode] {
-        sorted { $0.id.localizedStandardCompare($1.id) == .orderedAscending }
     }
 }
 
