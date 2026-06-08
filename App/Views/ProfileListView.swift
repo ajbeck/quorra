@@ -1,6 +1,7 @@
 import SwiftUI
 import AWSConfigINI
 import IAMIdentityCenter
+import SwiftData
 
 struct ObjectListView: View {
     @Binding var sourceSelection: SourceSelection
@@ -9,6 +10,7 @@ struct ObjectListView: View {
     @Environment(AppModel.self) private var appModel
     @Environment(ProfilesModel.self) private var profilesModel
     @Environment(IMDSModel.self) private var imdsModel
+    @Query private var folderAssignments: [MetadataFolderAssignment]
 
     @State private var presentedSheet: CreationSheet?
     @State private var pendingDeletion: ObjectListItem?
@@ -132,7 +134,7 @@ struct ObjectListView: View {
         } else {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 4) {
-                    if sourceSelection == .all {
+                    if case .all = sourceSelection {
                         objectSection("Sessions", items: filteredSessionItems)
                         objectSection("Profiles", items: filteredProfileItems)
                         objectSection("IMDS Endpoints", items: filteredIMDSItems)
@@ -305,6 +307,8 @@ struct ObjectListView: View {
             return profileObjectItems
         case .imdsEndpoints:
             return imdsObjectItems
+        case .folder(let kind, let folderID, _):
+            return assignedItems(kind: kind, folderID: folderID)
         }
     }
 
@@ -318,6 +322,29 @@ struct ObjectListView: View {
             return filteredProfileItems
         case .imdsEndpoints:
             return filteredIMDSItems
+        case .folder:
+            return filtered(sourceItems)
+        }
+    }
+
+    private func assignedItems(kind: MetadataObjectKind, folderID: UUID) -> [ObjectListItem] {
+        let assignedIDs = Set(
+            folderAssignments
+                .filter { $0.objectKind == kind && $0.folderID == folderID }
+                .map(\.objectID)
+        )
+
+        return items(for: kind).filter { assignedIDs.contains($0.objectID) }
+    }
+
+    private func items(for kind: MetadataObjectKind) -> [ObjectListItem] {
+        switch kind {
+        case .session:
+            return sessionItems
+        case .profile:
+            return profileObjectItems
+        case .imdsEndpoint:
+            return imdsObjectItems
         }
     }
 
@@ -485,6 +512,28 @@ private enum ObjectListItem: Identifiable, Hashable {
             return "profile \(profile.id) \(profile.via.label) \(profile.node.profile.ssoAccountId ?? "") \(profile.node.profile.ssoRoleName ?? "")"
         case .imds(let endpoint):
             return "imds endpoint \(endpoint.title) \(endpoint.profileName) \(endpoint.subtitle) \(endpoint.state.searchText)"
+        }
+    }
+
+    var objectKind: MetadataObjectKind {
+        switch self {
+        case .session:
+            return .session
+        case .profile:
+            return .profile
+        case .imds:
+            return .imdsEndpoint
+        }
+    }
+
+    var objectID: String {
+        switch self {
+        case .session(let session):
+            return session.id
+        case .profile(let profile):
+            return profile.id
+        case .imds(let endpoint):
+            return endpoint.id
         }
     }
 }
@@ -829,6 +878,8 @@ private extension SourceSelection {
             return "key"
         case .imdsEndpoints:
             return "antenna.radiowaves.left.and.right"
+        case .folder(let kind, _, _):
+            return kind.systemImage
         }
     }
 
@@ -842,6 +893,8 @@ private extension SourceSelection {
             return "Create a profile to see it here."
         case .imdsEndpoints:
             return "Start or create an IMDS endpoint to see it here."
+        case .folder:
+            return "Assign items to this folder to see them here."
         }
     }
 }
@@ -961,6 +1014,7 @@ private struct ObjectListPreviewHarness: View {
         .environment(profilesModel)
         .environment(imdsModel)
         .environment(AppModel(initialPhase: .ready(URL(filePath: "/preview/.aws"))))
+        .modelContainer(try! QuorraMetadataSchema.makeContainer(inMemory: true))
         .frame(width: 860, height: 560)
     }
 }

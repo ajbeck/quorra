@@ -1,9 +1,15 @@
 import SwiftUI
+import SwiftData
 
 struct SourceSidebarView: View {
     @Binding var selection: SourceSelection
     @Environment(ProfilesModel.self) private var profilesModel
     @Environment(IMDSModel.self) private var imdsModel
+    @Environment(\.modelContext) private var modelContext
+    @Query private var folders: [MetadataFolder]
+    @Query private var assignments: [MetadataFolderAssignment]
+    @State private var folderCreationRequest: FolderCreationRequest?
+    @State private var folderActionError: String?
 
     var body: some View {
         switch profilesModel.loadState {
@@ -41,7 +47,8 @@ struct SourceSidebarView: View {
                     systemImage: "cloud",
                     count: sessionCount
                 )
-                .contextMenu { folderContextMenu(for: .sessions) }
+                .contextMenu { folderContextMenu(for: .session) }
+                folderRows(for: .session)
 
                 sourceButton(
                     .profiles,
@@ -49,7 +56,8 @@ struct SourceSidebarView: View {
                     systemImage: "key",
                     count: profileCount
                 )
-                .contextMenu { folderContextMenu(for: .profiles) }
+                .contextMenu { folderContextMenu(for: .profile) }
+                folderRows(for: .profile)
 
                 sourceButton(
                     .imdsEndpoints,
@@ -57,10 +65,27 @@ struct SourceSidebarView: View {
                     systemImage: "antenna.radiowaves.left.and.right",
                     count: imdsEndpointCount
                 )
-                .contextMenu { folderContextMenu(for: .imdsEndpoints) }
+                .contextMenu { folderContextMenu(for: .imdsEndpoint) }
+                folderRows(for: .imdsEndpoint)
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 12)
+        }
+        .sheet(item: $folderCreationRequest) { request in
+            AddMetadataFolderSheet(kind: request.kind, existingNames: folderNames(for: request.kind)) { name in
+                try createFolder(kind: request.kind, name: name)
+            }
+        }
+        .alert(
+            "Couldn't update folders",
+            isPresented: Binding(
+                get: { folderActionError != nil },
+                set: { if !$0 { folderActionError = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) { folderActionError = nil }
+        } message: {
+            Text(folderActionError ?? "")
         }
     }
 
@@ -87,11 +112,24 @@ struct SourceSidebarView: View {
         .background(rowBackground(isSelected: selection == candidate), in: RoundedRectangle(cornerRadius: 6))
     }
 
-    @ViewBuilder private func folderContextMenu(for source: SourceSelection) -> some View {
-        Button("New Folder") { }
-            .disabled(true)
-        Divider()
-        Text("Folders arrive with metadata persistence")
+    @ViewBuilder private func folderRows(for kind: MetadataObjectKind) -> some View {
+        ForEach(sortedFolders(for: kind), id: \.stableIDString) { folder in
+            sourceButton(
+                .folder(kind: kind, folderID: folder.stableID, name: folder.name),
+                title: folder.name,
+                systemImage: "folder",
+                count: folderCount(folder)
+            )
+            .padding(.leading, 18)
+        }
+    }
+
+    @ViewBuilder private func folderContextMenu(for kind: MetadataObjectKind) -> some View {
+        Button {
+            folderCreationRequest = FolderCreationRequest(kind: kind)
+        } label: {
+            Label("New Folder", systemImage: "folder.badge.plus")
+        }
     }
 
     private func rowBackground(isSelected: Bool) -> Color {
@@ -112,6 +150,36 @@ struct SourceSidebarView: View {
 
     private var imdsEndpointCount: Int {
         imdsModel.endpointsByProfile.values.filter(\.isSourceSidebarEndpoint).count
+    }
+
+    private func sortedFolders(for kind: MetadataObjectKind) -> [MetadataFolder] {
+        folders
+            .filter { $0.kind == kind }
+            .sorted {
+                if $0.sortIndex != $1.sortIndex {
+                    return $0.sortIndex < $1.sortIndex
+                }
+                return $0.name.localizedStandardCompare($1.name) == .orderedAscending
+            }
+    }
+
+    private func folderNames(for kind: MetadataObjectKind) -> Set<String> {
+        Set(folders.filter { $0.kind == kind }.map(\.name))
+    }
+
+    private func folderCount(_ folder: MetadataFolder) -> Int {
+        assignments.filter { $0.folderIDString == folder.stableIDString }.count
+    }
+
+    private func createFolder(kind: MetadataObjectKind, name: String) throws {
+        let sortIndex = (sortedFolders(for: kind).map(\.sortIndex).max() ?? -1) + 1
+        modelContext.insert(MetadataFolder(kind: kind, name: name, sortIndex: sortIndex))
+        do {
+            try modelContext.save()
+        } catch {
+            folderActionError = error.localizedDescription
+            throw error
+        }
     }
 }
 
@@ -143,6 +211,65 @@ private struct SourceSidebarRow: View {
                 .accessibilityLabel("\(count) items")
         }
         .padding(.vertical, 2)
+    }
+}
+
+private struct FolderCreationRequest: Identifiable {
+    let id = UUID()
+    let kind: MetadataObjectKind
+}
+
+private struct AddMetadataFolderSheet: View {
+    let kind: MetadataObjectKind
+    let existingNames: Set<String>
+    let onCreate: (String) throws -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var name = ""
+    @State private var validationMessage: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("New Folder")
+                .font(.title3.weight(.semibold))
+
+            TextField("\(kind.title) folder name", text: $name)
+
+            if let validationMessage {
+                Label(validationMessage, systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+
+            HStack {
+                Spacer()
+                Button("Cancel", role: .cancel) { dismiss() }
+                Button("Add") { add() }
+                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(24)
+        .frame(width: 360)
+    }
+
+    private func add() {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            validationMessage = "Folder name is required."
+            return
+        }
+        guard !existingNames.contains(trimmedName) else {
+            validationMessage = "A folder named \(trimmedName) already exists."
+            return
+        }
+
+        do {
+            try onCreate(trimmedName)
+            dismiss()
+        } catch {
+            validationMessage = error.localizedDescription
+        }
     }
 }
 
@@ -185,6 +312,7 @@ private struct SourceSidebarPreviewHarness: View {
         }
         .environment(profilesModel)
         .environment(imdsModel)
+        .modelContainer(try! QuorraMetadataSchema.makeContainer(inMemory: true))
         .frame(width: 700, height: 500)
     }
 }

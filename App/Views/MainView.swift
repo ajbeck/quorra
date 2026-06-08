@@ -1,5 +1,6 @@
 import SwiftUI
 import IAMIdentityCenter
+import SwiftData
 
 struct MainView: View {
     let folderURL: URL
@@ -72,6 +73,7 @@ struct MainView: View {
         .environment(CredentialsModel(service: PreviewIdentityCenterService()))
         .environment(IMDSModel())
         .environment(\.authBrowserPresenter, AuthBrowserPresenter())
+        .modelContainer(try! QuorraMetadataSchema.makeContainer(inMemory: true))
 }
 
 #Preview("Main – with sample data") {
@@ -121,5 +123,6 @@ private struct MainViewSampleDataHarness: View {
             .environment(credentialsModel)
             .environment(imdsModel)
             .environment(\.authBrowserPresenter, AuthBrowserPresenter())
+            .modelContainer(try! QuorraMetadataSchema.makeContainer(inMemory: true))
     }
 }
