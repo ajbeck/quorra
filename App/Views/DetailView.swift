@@ -76,7 +76,10 @@ struct DetailView: View {
 }
 
 #Preview("Detail – IMDS selected") {
-    DetailViewPreviewHarness(selection: .imds(endpointID: "default", profileName: "default"))
+    DetailViewPreviewHarness(selection: .imds(
+        endpointID: "00000000-0000-0000-0000-000000009679",
+        profileName: "default"
+    ))
 }
 
 #Preview("Detail – no profiles yet") {
@@ -94,14 +97,28 @@ private struct DetailViewPreviewHarness: View {
     @State private var profilesModel = ProfilesModel()
     @State private var editorState = EditorState()
     @State private var imdsModel = IMDSModel()
+    private let metadataContainer: ModelContainer
 
     init(selection: DetailSelection?, mode: ManagedMode = .managed, forceEmpty: Bool = false) {
         self.initialSelection = selection
         self.mode = mode
         self.forceEmpty = forceEmpty
         let tmp = URL(filePath: "/nonexistent/aws-folder")
+        let metadataContainer = try! QuorraMetadataSchema.makeContainer(inMemory: true)
+        if case .imds(let endpointID, let profileName) = selection,
+           let uuid = UUID(uuidString: endpointID) {
+            metadataContainer.mainContext.insert(IMDSEndpointDefinition(
+                id: uuid,
+                name: "localhost:9678",
+                profileName: profileName,
+                port: 9678
+            ))
+            try! metadataContainer.mainContext.save()
+        }
+
         _appModel = State(initialValue: AppModel(initialPhase: .ready(tmp), initialMode: mode))
         _selection = State(initialValue: selection)
+        self.metadataContainer = metadataContainer
     }
 
     var body: some View {
@@ -115,7 +132,7 @@ private struct DetailViewPreviewHarness: View {
             .environment(editorState)
             .environment(CredentialsModel(service: PreviewIdentityCenterService()))
             .environment(imdsModel)
-            .modelContainer(try! QuorraMetadataSchema.makeContainer(inMemory: true))
+            .modelContainer(metadataContainer)
             .task {
                 let tmp = FileManager.default.temporaryDirectory
                     .appending(path: UUID().uuidString, directoryHint: .isDirectory)
