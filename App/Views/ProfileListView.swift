@@ -315,7 +315,7 @@ struct ObjectListView: View {
                 name: definition.name,
                 profileName: definition.profileName,
                 port: definition.port,
-                state: imdsModel.state(forEndpointID: definition.stableIDString, profileName: definition.profileName),
+                state: imdsModel.state(forEndpointID: definition.stableIDString),
                 profile: profilesModel.findProfile(named: definition.profileName)
             )
         }
