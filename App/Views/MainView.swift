@@ -85,12 +85,15 @@ struct MainView: View {
 }
 
 private struct MainViewSampleDataHarness: View {
+    private static let previewEndpointID = UUID(uuidString: "00000000-0000-0000-0000-000000009678")!
+
     private let folderURL = URL(filePath: "/preview/.aws", directoryHint: .isDirectory)
     @State private var appModel: AppModel
     @State private var profilesModel: ProfilesModel
     @State private var editorState: EditorState
     @State private var credentialsModel: CredentialsModel
     @State private var imdsModel: IMDSModel
+    private let metadataContainer: ModelContainer
 
     init() {
         let folderURL = URL(filePath: "/preview/.aws", directoryHint: .isDirectory)
@@ -110,13 +113,23 @@ private struct MainViewSampleDataHarness: View {
         creds.seedStatusForTesting(.signedOut, sessionName: "orion-labs")
 
         let imds = IMDSModel()
-        imds.setState(.active(port: 9678), forProfile: "ac:cp:org_admin")
+        let metadataContainer = try! QuorraMetadataSchema.makeContainer(inMemory: true)
+        let endpoint = IMDSEndpointDefinition(
+            id: Self.previewEndpointID,
+            name: "localhost:9678",
+            profileName: "ac:cp:org_admin",
+            port: 9678
+        )
+        metadataContainer.mainContext.insert(endpoint)
+        try! metadataContainer.mainContext.save()
+        imds.setState(.active(port: 9678), forEndpointID: endpoint.stableIDString)
 
         _appModel = State(initialValue: AppModel(initialPhase: .ready(folderURL)))
         _profilesModel = State(initialValue: profiles)
         _editorState = State(initialValue: EditorState())
         _credentialsModel = State(initialValue: creds)
         _imdsModel = State(initialValue: imds)
+        self.metadataContainer = metadataContainer
     }
 
     var body: some View {
@@ -127,6 +140,6 @@ private struct MainViewSampleDataHarness: View {
             .environment(credentialsModel)
             .environment(imdsModel)
             .environment(\.authBrowserPresenter, AuthBrowserPresenter())
-            .modelContainer(try! QuorraMetadataSchema.makeContainer(inMemory: true))
+            .modelContainer(metadataContainer)
     }
 }

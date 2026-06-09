@@ -197,13 +197,7 @@ struct SourceSidebarView: View {
     }
 
     private var imdsEndpointCount: Int {
-        let definitionIDs = Set(endpointDefinitions.map(\.stableIDString))
-        let runtimeOnlyEndpointCount = imdsModel.endpointsByProfile
-            .filter { endpointID, state in
-                state.isSourceSidebarEndpoint && !definitionIDs.contains(endpointID)
-            }
-            .count
-        return endpointDefinitions.count + runtimeOnlyEndpointCount
+        endpointDefinitions.count
     }
 
     private func sortedFolders(for kind: MetadataObjectKind) -> [MetadataFolder] {
@@ -475,33 +469,36 @@ private struct RenameMetadataFolderSheet: View {
     }
 }
 
-private extension IMDSEndpointState {
-    var isSourceSidebarEndpoint: Bool {
-        switch self {
-        case .inactive:
-            return false
-        case .starting, .active, .failed:
-            return true
-        }
-    }
-}
-
 #Preview("Source Sidebar - populated") {
     SourceSidebarPreviewHarness()
 }
 
 private struct SourceSidebarPreviewHarness: View {
+    private static let previewEndpointID = UUID(uuidString: "00000000-0000-0000-0000-000000009678")!
+
     @State private var selection: SourceSelection = .all
     @State private var profilesModel = ProfilesModel.previewLoaded(
         config: PreviewAWSFixtures.mockupConfig,
         credentials: PreviewAWSFixtures.mockupCredentials
     )
     @State private var imdsModel: IMDSModel
+    private let metadataContainer: ModelContainer
 
     init() {
         let imdsModel = IMDSModel()
-        imdsModel.setState(.active(port: 9678), forProfile: "ac:cp:org_admin")
+        let metadataContainer = try! QuorraMetadataSchema.makeContainer(inMemory: true)
+        let endpoint = IMDSEndpointDefinition(
+            id: Self.previewEndpointID,
+            name: "localhost:9678",
+            profileName: "ac:cp:org_admin",
+            port: 9678
+        )
+        metadataContainer.mainContext.insert(endpoint)
+        try! metadataContainer.mainContext.save()
+        imdsModel.setState(.active(port: 9678), forEndpointID: endpoint.stableIDString)
+
         _imdsModel = State(initialValue: imdsModel)
+        self.metadataContainer = metadataContainer
     }
 
     var body: some View {
@@ -514,7 +511,7 @@ private struct SourceSidebarPreviewHarness: View {
         }
         .environment(profilesModel)
         .environment(imdsModel)
-        .modelContainer(try! QuorraMetadataSchema.makeContainer(inMemory: true))
+        .modelContainer(metadataContainer)
         .frame(width: 700, height: 500)
     }
 }

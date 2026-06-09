@@ -308,35 +308,17 @@ struct ObjectListView: View {
         profilesModel.groups.flatProfiles
     }
 
-    private var imdsItems: [TemporaryIMDSEndpointItem] {
-        let definitionProfileNames = Set(endpointDefinitions.map(\.profileName))
-        let persistedItems = endpointDefinitions.map { definition in
-            TemporaryIMDSEndpointItem(
+    private var imdsItems: [IMDSEndpointListItem] {
+        endpointDefinitions.map { definition in
+            IMDSEndpointListItem(
                 endpointID: definition.stableIDString,
                 name: definition.name,
                 profileName: definition.profileName,
                 port: definition.port,
                 state: imdsModel.state(forEndpointID: definition.stableIDString, profileName: definition.profileName),
-                profile: profilesModel.findProfile(named: definition.profileName),
-                isPersisted: true
+                profile: profilesModel.findProfile(named: definition.profileName)
             )
         }
-
-        let runtimeOnlyItems = imdsModel.endpointsByProfile
-            .compactMap { profileName, state -> TemporaryIMDSEndpointItem? in
-                guard state.isConcreteEndpoint, !definitionProfileNames.contains(profileName) else { return nil }
-                return TemporaryIMDSEndpointItem(
-                    endpointID: profileName,
-                    name: nil,
-                    profileName: profileName,
-                    port: state.port,
-                    state: state,
-                    profile: profilesModel.findProfile(named: profileName),
-                    isPersisted: false
-                )
-            }
-
-        return (persistedItems + runtimeOnlyItems)
             .sorted {
                 $0.title.localizedStandardCompare($1.title) == .orderedAscending
             }
@@ -559,10 +541,7 @@ struct ObjectListView: View {
         case .profile(let profile):
             return "This removes \(profile.id) from your AWS config and credentials files. Any running IMDS endpoint for this profile will be stopped."
         case .imds(let endpoint):
-            if endpoint.isPersisted {
-                return "This removes the \(endpoint.title) IMDS endpoint definition from Quorra. It does not change ~/.aws/config."
-            }
-            return "This stops the temporary IMDS endpoint for \(endpoint.profileName)."
+            return "This removes the \(endpoint.title) IMDS endpoint definition from Quorra. It does not change ~/.aws/config."
         }
     }
 
@@ -576,19 +555,18 @@ struct ObjectListView: View {
                     detailSelection = nil
                 }
             case .profile(let profile):
-                imdsModel.stopEndpoint(forProfile: profile.id)
+                for definition in endpointDefinitions where definition.profileName == profile.id {
+                    imdsModel.stopEndpoint(forEndpointID: definition.stableIDString)
+                }
                 try await profilesModel.deleteProfile(named: profile.id, mode: appModel.mode)
                 if detailSelection == item.detailSelection {
                     detailSelection = nil
                 }
             case .imds(let endpoint):
-                if endpoint.isPersisted,
-                   let definition = endpointDefinitions.first(where: { $0.stableIDString == endpoint.endpointID }) {
+                if let definition = endpointDefinitions.first(where: { $0.stableIDString == endpoint.endpointID }) {
                     imdsModel.stopEndpoint(forEndpointID: definition.stableIDString)
                     modelContext.delete(definition)
                     try modelContext.save()
-                } else {
-                    imdsModel.stopEndpoint(forEndpointID: endpoint.endpointID)
                 }
                 if detailSelection == item.detailSelection {
                     detailSelection = nil
@@ -621,7 +599,7 @@ private enum CreationSheet: Identifiable {
 private enum ObjectListItem: Identifiable, Hashable {
     case session(SSOSessionNode)
     case profile(SidebarProfileItem)
-    case imds(TemporaryIMDSEndpointItem)
+    case imds(IMDSEndpointListItem)
 
     var id: String {
         switch self {
@@ -679,14 +657,13 @@ private enum ObjectListItem: Identifiable, Hashable {
     }
 }
 
-private struct TemporaryIMDSEndpointItem: Identifiable, Hashable {
+private struct IMDSEndpointListItem: Identifiable, Hashable {
     let endpointID: String
     let name: String?
     let profileName: String
     let port: Int?
     let state: IMDSEndpointState
     let profile: ProfileNode?
-    let isPersisted: Bool
 
     var id: String { endpointID }
 
@@ -1043,7 +1020,7 @@ private extension SourceSelection {
         case .profiles:
             return "Create a profile to see it here."
         case .imdsEndpoints:
-            return "Start or create an IMDS endpoint to see it here."
+            return "Create an IMDS endpoint to see it here."
         case .folder:
             return "Assign items to this folder to see them here."
         }
@@ -1062,15 +1039,6 @@ private extension ProfileVia {
 }
 
 private extension IMDSEndpointState {
-    var isConcreteEndpoint: Bool {
-        switch self {
-        case .inactive:
-            return false
-        case .starting, .active, .failed:
-            return true
-        }
-    }
-
     var accent: Color {
         switch self {
         case .inactive:
@@ -1105,8 +1073,7 @@ private extension IMDSEndpointState {
 #Preview("Object List - profiles") {
     ObjectListPreviewHarness(
         sourceSelection: .profiles,
-        detailSelection: .profile(name: "ac:cp:org_admin"),
-        seedsActiveIMDS: true
+        detailSelection: .profile(name: "ac:cp:org_admin")
     )
 }
 
@@ -1114,26 +1081,38 @@ private extension IMDSEndpointState {
     ObjectListPreviewHarness(
         sourceSelection: .all,
         searchText: "ac:mgmt",
-        seedsActiveIMDS: true
+        seedsEndpointDefinition: true
     )
 }
 
 private struct ObjectListPreviewHarness: View {
+    private static let previewEndpointID = UUID(uuidString: "00000000-0000-0000-0000-000000009678")!
+
     @State private var sourceSelection: SourceSelection
     @State private var detailSelection: DetailSelection?
     @State private var searchText: String
     @State private var profilesModel: ProfilesModel
     @State private var imdsModel: IMDSModel
+    private let metadataContainer: ModelContainer
 
     init(
         sourceSelection: SourceSelection,
         detailSelection: DetailSelection? = nil,
         searchText: String = "",
-        seedsActiveIMDS: Bool = false
+        seedsEndpointDefinition: Bool = false
     ) {
         let imdsModel = IMDSModel()
-        if seedsActiveIMDS {
-            imdsModel.setState(.active(port: 9678), forProfile: "ac:cp:org_admin")
+        let metadataContainer = try! QuorraMetadataSchema.makeContainer(inMemory: true)
+        if seedsEndpointDefinition {
+            let endpoint = IMDSEndpointDefinition(
+                id: Self.previewEndpointID,
+                name: "localhost:9678",
+                profileName: "ac:cp:org_admin",
+                port: 9678
+            )
+            metadataContainer.mainContext.insert(endpoint)
+            try! metadataContainer.mainContext.save()
+            imdsModel.setState(.active(port: 9678), forEndpointID: endpoint.stableIDString)
         }
 
         _sourceSelection = State(initialValue: sourceSelection)
@@ -1144,6 +1123,7 @@ private struct ObjectListPreviewHarness: View {
             credentials: PreviewAWSFixtures.mockupCredentials
         ))
         _imdsModel = State(initialValue: imdsModel)
+        self.metadataContainer = metadataContainer
     }
 
     var body: some View {
@@ -1165,7 +1145,7 @@ private struct ObjectListPreviewHarness: View {
         .environment(profilesModel)
         .environment(imdsModel)
         .environment(AppModel(initialPhase: .ready(URL(filePath: "/preview/.aws"))))
-        .modelContainer(try! QuorraMetadataSchema.makeContainer(inMemory: true))
+        .modelContainer(metadataContainer)
         .frame(width: 860, height: 560)
     }
 }

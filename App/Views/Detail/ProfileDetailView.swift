@@ -1,6 +1,7 @@
 import SwiftUI
 import AWSConfigINI
 import IAMIdentityCenter
+import SwiftData
 
 struct ProfileDetailView: View {
     let node: ProfileNode
@@ -11,9 +12,12 @@ struct ProfileDetailView: View {
     @Environment(ProfilesModel.self) private var profilesModel
     @Environment(EditorState.self) private var editorState
     @Environment(CredentialsModel.self) private var credentialsModel
+    @Environment(\.modelContext) private var modelContext
     @Environment(\.openSettings) private var openSettings
+    @Query private var endpointDefinitions: [IMDSEndpointDefinition]
     @State private var draft: Profile
     @State private var isEditing = false
+    @State private var isPresentingEndpointEditor = false
     @State private var isPresentingSaveError = false
     @State private var saveError: AWSConfigINIError?
 
@@ -50,6 +54,17 @@ struct ProfileDetailView: View {
         }
         .navigationTitle(node.id)
         .navigationSubtitle(isDirty ? "Edited" : "")
+        .sheet(isPresented: $isPresentingEndpointEditor) {
+            IMDSEndpointEditorSheet(
+                mode: .create,
+                existingNames: Set(endpointDefinitions.map(\.name)),
+                usedPorts: Set(endpointDefinitions.map(\.port)),
+                profiles: profilesModel.groups.flatProfiles.map(\.node),
+                initialDraft: endpointDraftForProfile()
+            ) { draft in
+                try createEndpoint(from: draft)
+            }
+        }
         .onChange(of: node) { _, newValue in
             draft = newValue.profile
             isEditing = false
@@ -157,6 +172,7 @@ struct ProfileDetailView: View {
                 accountId: coords.account,
                 roleName: coords.role,
                 region: coords.region,
+                imdsEndpointCount: profileEndpointDefinitions.count,
                 onSignIn: {
                     signIn(sessionName: coords.session)
                 },
@@ -164,6 +180,9 @@ struct ProfileDetailView: View {
                     sourceSelection = .imdsEndpoints
                     searchText = node.id
                     detailSelection = nil
+                },
+                onCreateIMDS: {
+                    isPresentingEndpointEditor = true
                 },
                 onViewSession: {
                     detailSelection = .session(name: coords.session)
@@ -324,6 +343,39 @@ struct ProfileDetailView: View {
             )
         }
     }
+
+    private var profileEndpointDefinitions: [IMDSEndpointDefinition] {
+        endpointDefinitions.filter { $0.profileName == node.id }
+    }
+
+    private func endpointDraftForProfile() -> IMDSEndpointEditorDraft {
+        IMDSEndpointEditorDraft(
+            name: node.id,
+            profileName: node.id,
+            port: firstAvailablePort(from: 9678),
+            bindAddress: "127.0.0.1",
+            allowsIMDSv1: true,
+            hopLimit: 2
+        )
+    }
+
+    private func createEndpoint(from draft: IMDSEndpointEditorDraft) throws {
+        let endpoint = draft.makeEndpoint()
+        modelContext.insert(endpoint)
+        try modelContext.save()
+        sourceSelection = .imdsEndpoints
+        searchText = node.id
+        detailSelection = .imds(endpointID: endpoint.stableIDString, profileName: endpoint.profileName)
+    }
+
+    private func firstAvailablePort(from preferredPort: Int) -> Int {
+        let usedPorts = Set(endpointDefinitions.map(\.port))
+        var candidate = preferredPort
+        while usedPorts.contains(candidate), candidate < 65_535 {
+            candidate += 1
+        }
+        return candidate
+    }
 }
 
 #Preview("Edit mode (clean)") {
@@ -337,8 +389,7 @@ struct ProfileDetailView: View {
 #Preview("Expired session") {
     ProfileDetailPreviewHarness(
         mode: .managed,
-        profileStatus: .signInExpired(sessionName: "astrocompute"),
-        imdsState: nil
+        profileStatus: .signInExpired(sessionName: "astrocompute")
     )
 }
 
@@ -348,7 +399,6 @@ struct ProfileDetailView: View {
 
 private struct ProfileDetailPreviewHarness: View {
     let mode: ManagedMode
-    let imdsState: IMDSEndpointState?
     @State private var selection: DetailSelection? = .profile(name: "ac:cp:org_admin")
     @State private var sourceSelection: SourceSelection = .profiles
     @State private var searchText = ""
@@ -356,15 +406,12 @@ private struct ProfileDetailPreviewHarness: View {
     @State private var profilesModel: ProfilesModel
     @State private var editorState = EditorState()
     @State private var credentialsModel: CredentialsModel
-    @State private var imdsModel = IMDSModel()
 
     init(
         mode: ManagedMode,
-        profileStatus: ProfileAuthStatus? = .ready(expiresAt: Date().addingTimeInterval(6 * 3600 + 12 * 60)),
-        imdsState: IMDSEndpointState? = .active(port: 9678)
+        profileStatus: ProfileAuthStatus? = .ready(expiresAt: Date().addingTimeInterval(6 * 3600 + 12 * 60))
     ) {
         self.mode = mode
-        self.imdsState = imdsState
         let folderURL = URL(filePath: "/preview/.aws", directoryHint: .isDirectory)
         let profilesModel = ProfilesModel.previewLoaded(
             config: PreviewAWSFixtures.mockupConfig,
@@ -397,16 +444,11 @@ private struct ProfileDetailPreviewHarness: View {
                     .environment(profilesModel)
                     .environment(editorState)
                     .environment(credentialsModel)
-                    .environment(imdsModel)
             } else {
                 ContentUnavailableView("Profile not found", systemImage: "questionmark.circle")
             }
         }
         .frame(width: 900, height: 720)
-        .task {
-            if let imdsState {
-                imdsModel.setState(imdsState, forProfile: "ac:cp:org_admin")
-            }
-        }
+        .modelContainer(try! QuorraMetadataSchema.makeContainer(inMemory: true))
     }
 }

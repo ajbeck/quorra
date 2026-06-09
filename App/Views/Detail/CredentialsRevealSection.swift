@@ -18,12 +18,13 @@ struct CredentialsRevealSection: View {
     let accountId: String
     let roleName: String
     let region: String
+    let imdsEndpointCount: Int
     var onSignIn: (() -> Void)?
     var onViewIMDS: (() -> Void)?
+    var onCreateIMDS: (() -> Void)?
     var onViewSession: (() -> Void)?
 
     @Environment(CredentialsModel.self) private var model
-    @Environment(IMDSModel.self) private var imdsModel
     @Environment(\.authBrowserPresenter) private var authBrowserPresenter
 
     @State private var selectedShell: CredentialShell = .bash
@@ -492,288 +493,88 @@ struct CredentialsRevealSection: View {
     }
 
     private var imdsControlRow: some View {
-        let state = imdsModel.state(forProfile: profileName)
-        return ViewThatFits(in: .horizontal) {
+        ViewThatFits(in: .horizontal) {
             HStack(spacing: 12) {
-                imdsSummary(for: state)
+                imdsSummary
                 Spacer(minLength: 12)
-                imdsControls(for: state)
+                imdsControls
             }
 
             VStack(alignment: .leading, spacing: 10) {
-                imdsSummary(for: state)
-                imdsControls(for: state)
+                imdsSummary
+                imdsControls
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
         .padding(12)
-        .background(imdsAccent(for: state).opacity(state.isActive ? 0.12 : 0.06), in: RoundedRectangle(cornerRadius: 10))
+        .background(Color.secondary.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
         .overlay {
             RoundedRectangle(cornerRadius: 10)
-                .strokeBorder(imdsAccent(for: state).opacity(state.isActive || state.isFailed ? 0.25 : 0.08))
+                .strokeBorder(Color.secondary.opacity(0.08))
         }
         .accessibilityElement(children: .combine)
     }
 
-    private func imdsSummary(for state: IMDSEndpointState) -> some View {
+    private var imdsSummary: some View {
         HStack(spacing: 12) {
-            statusIcon(for: state)
+            Image(systemName: "antenna.radiowaves.left.and.right")
+                .foregroundStyle(imdsEndpointCount > 0 ? Color.blue : Color.secondary)
                 .frame(width: 28, height: 28)
-                .background(imdsAccent(for: state).opacity(0.16), in: RoundedRectangle(cornerRadius: 7))
+                .background((imdsEndpointCount > 0 ? Color.blue : Color.secondary).opacity(0.16), in: RoundedRectangle(cornerRadius: 7))
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("Serve via IMDS")
+                Text("IMDS endpoints")
                     .font(.callout.weight(.semibold))
-                Text(imdsSubtitle(for: state))
+                Text(imdsSubtitle)
                     .font(.caption)
-                    .foregroundStyle(imdsAccent(for: state))
+                    .foregroundStyle(.secondary)
                     .lineLimit(2)
             }
         }
     }
 
-    private func imdsControls(for state: IMDSEndpointState) -> some View {
+    private var imdsControls: some View {
         HStack(spacing: 10) {
-            imdsEndpointGroup(for: state)
-
-            if let onViewIMDS {
+            if imdsEndpointCount > 0, let onViewIMDS {
                 Button {
                     onViewIMDS()
                 } label: {
-                    Label("View", systemImage: "arrow.up.right.square")
+                    Label("View Endpoints", systemImage: "arrow.up.right.square")
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
             }
 
-            imdsActionButton(for: state)
-
-            if state.isFailed {
-                Button(role: .cancel) {
-                    imdsModel.stopEndpoint(forProfile: profileName)
-                } label: {
-                    Label("Dismiss", systemImage: "xmark")
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .help("Clear the IMDS failure and return to configuration.")
-            }
-        }
-    }
-
-    @ViewBuilder private func statusIcon(for state: IMDSEndpointState) -> some View {
-        switch state {
-        case .inactive:
-            Image(systemName: "dot.radiowaves.left.and.right")
-                .foregroundStyle(.secondary)
-        case .starting:
-            ProgressView()
-                .controlSize(.small)
-        case .active:
-            Image(systemName: "dot.radiowaves.left.and.right")
-                .foregroundStyle(.green)
-        case .failed:
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
-        }
-    }
-
-    @ViewBuilder private func imdsEndpointGroup(for state: IMDSEndpointState) -> some View {
-        if case .active(let port) = state {
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(imdsAccent(for: state))
-                    .frame(width: 7, height: 7)
-                Text("localhost:\(String(port))")
-                    .font(.body.monospaced())
-                    .foregroundStyle(.primary)
+            if imdsEndpointCount == 0, let onCreateIMDS {
                 Button {
-                    copyToPasteboard(imdsEndpointEnvironmentExport(port: port))
+                    onCreateIMDS()
                 } label: {
-                    ViewThatFits(in: .horizontal) {
-                        Label("Copy env", systemImage: "doc.on.doc")
-                        Image(systemName: "doc.on.doc")
-                    }
+                    Label("Create Endpoint", systemImage: "plus")
                 }
-                .buttonStyle(.borderless)
-                .help("Copy IMDS endpoint environment export")
-            }
-        } else if let port = state.port {
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(imdsAccent(for: state))
-                    .frame(width: 7, height: 7)
-                Text("localhost:\(String(port))")
-                    .font(.body.monospaced())
-                    .foregroundStyle(state.isFailed ? Color.secondary : Color.primary)
-            }
-        } else {
-            Text("localhost:9678")
-                .font(.body.monospaced())
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 12)
-                .frame(minHeight: 32)
-                .background(Color.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 7))
-        }
-    }
-
-    private func imdsActionButton(for state: IMDSEndpointState) -> some View {
-        Button(role: imdsActionRole(for: state)) {
-            performIMDSAction(for: state)
-        } label: {
-            Label(imdsActionTitle(for: state), systemImage: imdsActionIcon(for: state))
-        }
-        .buttonStyle(.bordered)
-        .controlSize(.small)
-        .disabled(!canPerformIMDSAction(for: state))
-        .help(imdsActionHelp(for: state))
-    }
-
-    private func performIMDSAction(for state: IMDSEndpointState) {
-        switch state {
-        case .inactive:
-            guard isCredentialReady else { return }
-            Task { await startIMDSEndpoint() }
-        case .starting:
-            imdsModel.stopEndpoint(forProfile: profileName)
-        case .active:
-            imdsModel.stopEndpoint(forProfile: profileName)
-        case .failed:
-            guard isCredentialReady else { return }
-            Task {
-                await imdsModel.retryEndpoint(
-                    profileName: profileName,
-                    sessionName: sessionName,
-                    accountId: accountId,
-                    roleName: roleName,
-                    region: region,
-                    credentialsModel: model
-                )
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .help("Create an app-managed IMDS endpoint for this profile.")
             }
         }
     }
 
-    private func canPerformIMDSAction(for state: IMDSEndpointState) -> Bool {
-        switch state {
-        case .inactive, .failed:
-            return isCredentialReady
-        case .starting, .active:
-            return true
-        }
-    }
-
-    private func startIMDSEndpoint() async {
-        await imdsModel.startEndpoint(
-            endpointID: profileName,
-            profileName: profileName,
-            sessionName: sessionName,
-            accountId: accountId,
-            roleName: roleName,
-            region: region,
-            credentialsModel: model
-        )
-    }
-
-    private func imdsSubtitle(for state: IMDSEndpointState) -> String {
-        if !isCredentialReady {
-            switch state {
-            case .active:
-                return "Endpoint is running; refresh credentials before serving new requests"
-            case .starting:
-                return "Starting local credential endpoint"
-            case .failed(_, let message):
-                return message
-            case .inactive:
-                return unavailableIMDSMessage
-            }
+    private var imdsSubtitle: String {
+        if imdsEndpointCount > 0 {
+            return "\(imdsEndpointCount) app-managed \(imdsEndpointCount == 1 ? "endpoint" : "endpoints") configured for this profile"
         }
 
-        switch state {
-        case .inactive:
-            return "Expose credentials on a local endpoint"
-        case .starting:
-            return "Starting local credential endpoint"
-        case .active:
-            return "Serving this profile's credentials"
-        case .failed(_, let message):
-            return message
-        }
-    }
-
-    private var unavailableIMDSMessage: String {
         switch displayState {
         case .checking:
-            return "Waiting for credential status"
+            return "Create an app-managed endpoint, then start it when credentials are available"
         case .signingIn:
-            return "Complete sign-in before serving credentials"
+            return "Create an endpoint definition while sign-in finishes"
         case .notSignedIn, .expired:
-            return "Sign in before serving credentials"
+            return "Create an endpoint definition, then sign in before starting it"
         case .roleRejected:
-            return "Role unavailable for local serving"
+            return "Create an endpoint definition after role access is restored"
         case .ready:
-            return "Expose credentials on a local endpoint"
-        }
-    }
-
-    private func imdsActionTitle(for state: IMDSEndpointState) -> String {
-        switch state {
-        case .inactive:
-            return "Start"
-        case .starting:
-            return "Cancel"
-        case .active:
-            return "Stop"
-        case .failed:
-            return "Retry"
-        }
-    }
-
-    private func imdsActionIcon(for state: IMDSEndpointState) -> String {
-        switch state {
-        case .inactive:
-            return "play.fill"
-        case .starting:
-            return "xmark"
-        case .active:
-            return "stop.fill"
-        case .failed:
-            return "arrow.clockwise"
-        }
-    }
-
-    private func imdsActionRole(for state: IMDSEndpointState) -> ButtonRole? {
-        switch state {
-        case .starting:
-            return .cancel
-        default:
-            return nil
-        }
-    }
-
-    private func imdsActionHelp(for state: IMDSEndpointState) -> String {
-        switch state {
-        case .inactive:
-            return "Start serving this profile via IMDS."
-        case .starting:
-            return "Cancel starting the local IMDS endpoint."
-        case .active:
-            return "Stop serving this profile via IMDS."
-        case .failed:
-            return "Retry starting the local IMDS endpoint."
-        }
-    }
-
-    private func imdsAccent(for state: IMDSEndpointState) -> Color {
-        switch state {
-        case .inactive:
-            return .secondary
-        case .starting:
-            return .blue
-        case .active:
-            return .green
-        case .failed:
-            return .orange
+            return "Create an app-managed endpoint to serve these credentials locally"
         }
     }
 
@@ -1022,10 +823,6 @@ struct CredentialsRevealSection: View {
         ].joined(separator: "\n")
     }
 
-    private func imdsEndpointEnvironmentExport(port: Int) -> String {
-        "export AWS_EC2_METADATA_SERVICE_ENDPOINT=\(shellQuoted("http://127.0.0.1:\(port)"))"
-    }
-
     private func shellQuoted(_ value: String) -> String {
         "'\(value.replacingOccurrences(of: "'", with: "'\\''"))'"
     }
@@ -1070,16 +867,15 @@ private extension IAMIdentityCenterError {
 // MARK: - Previews
 
 private struct RevealPreviewHarness: View {
+    let imdsEndpointCount: Int
     let seed: (CredentialsModel) -> Void
-    let imdsState: IMDSEndpointState
     @State private var model = CredentialsModel(service: PreviewIdentityCenterService())
-    @State private var imdsModel = IMDSModel()
 
     init(
-        imdsState: IMDSEndpointState = .active(port: 9678),
+        imdsEndpointCount: Int = 1,
         seed: @escaping (CredentialsModel) -> Void
     ) {
-        self.imdsState = imdsState
+        self.imdsEndpointCount = imdsEndpointCount
         self.seed = seed
     }
 
@@ -1091,17 +887,17 @@ private struct RevealPreviewHarness: View {
                 accountId: "123456789012",
                 roleName: "AdministratorAccess",
                 region: "us-east-1",
+                imdsEndpointCount: imdsEndpointCount,
                 onSignIn: {},
                 onViewIMDS: {},
+                onCreateIMDS: {},
                 onViewSession: {}
             )
             .environment(model)
-            .environment(imdsModel)
         }
         .frame(width: 760)
         .task {
             seed(model)
-            imdsModel.setState(imdsState, forProfile: "ac:cp:org_admin")
         }
     }
 }
@@ -1113,15 +909,15 @@ private struct RevealPreviewHarness: View {
     }
 }
 
-#Preview("ready + imds starting") {
-    RevealPreviewHarness(imdsState: .starting(port: 9678)) { m in
+#Preview("ready + no endpoint") {
+    RevealPreviewHarness(imdsEndpointCount: 0) { m in
         m.seedProfileStatusForTesting(.ready(expiresAt: Date().addingTimeInterval(3000)),
                                       key: "acme:123456789012:AdministratorAccess")
     }
 }
 
-#Preview("ready + imds failed") {
-    RevealPreviewHarness(imdsState: .failed(port: 9678, message: "Port 9678 is already in use.")) { m in
+#Preview("ready + multiple endpoints") {
+    RevealPreviewHarness(imdsEndpointCount: 2) { m in
         m.seedProfileStatusForTesting(.ready(expiresAt: Date().addingTimeInterval(3000)),
                                       key: "acme:123456789012:AdministratorAccess")
     }
