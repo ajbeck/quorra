@@ -32,13 +32,6 @@
         "identifier" : "QuorraAppLogicTests",
         "name" : "QuorraAppLogicTests"
       }
-    },
-    {
-      "target" : {
-        "containerPath" : "container:quorra.xcodeproj",
-        "identifier" : "1B0E8B8D2FADF3FC002DC711",
-        "name" : "quorraTests"
-      }
     }
   ],
   "version" : 1
