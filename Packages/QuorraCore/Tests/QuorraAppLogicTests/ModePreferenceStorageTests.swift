@@ -1,7 +1,7 @@
-import Foundation
-import Testing
 import AWSConfigINI
-@testable import quorra
+import Foundation
+import QuorraAppLogic
+import Testing
 
 struct ModePreferenceStorageTests {
     let defaults: UserDefaults
@@ -11,9 +11,9 @@ struct ModePreferenceStorageTests {
     init() {
         let name = "dev.ajbeck.quorra.tests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: name)!
-        self.suiteName = name
+        suiteName = name
         self.defaults = defaults
-        self.storage = ModePreferenceStorage(defaults: defaults)
+        storage = ModePreferenceStorage(defaults: defaults)
     }
 
     @Test func loadReturnsManagedWhenNoValuePresent() {
@@ -43,7 +43,9 @@ struct ModePreferenceStorageTests {
         let bookmark = BookmarkStorage(defaults: defaults)
         let payload = Data([0xDE, 0xAD, 0xBE, 0xEF])
         bookmark.save(payload)
+
         storage.save(.readOnly)
+
         #expect(bookmark.load() == payload)
         #expect(storage.load() == .readOnly)
         tearDown()

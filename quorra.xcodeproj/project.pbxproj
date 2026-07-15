@@ -10,6 +10,7 @@
 		1B84B1B42FB1D87700D138C8 /* quorra.xctestplan in Resources */ = {isa = PBXBuildFile; fileRef = 1B84B1B32FB1D87700D138C8 /* quorra.xctestplan */; };
 		1B84B1E82FB38D8C00D138C8 /* IAMIdentityCenter in Frameworks */ = {isa = PBXBuildFile; productRef = 1B84B1E72FB38D8C00D138C8 /* IAMIdentityCenter */; };
 		1BA1B1C12FB0000000000001 /* AWSConfigINI in Frameworks */ = {isa = PBXBuildFile; productRef = 1BA1B1C22FB0000000000002 /* AWSConfigINI */; };
+		1BA1B1C42FC0000000000004 /* QuorraAppLogic in Frameworks */ = {isa = PBXBuildFile; productRef = 1BA1B1C52FC0000000000005 /* QuorraAppLogic */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -50,6 +51,7 @@
 		1B5F7C8A2FACE2A100833D01 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+				1BA1B1C42FC0000000000004 /* QuorraAppLogic in Frameworks */,
 				1BA1B1C12FB0000000000001 /* AWSConfigINI in Frameworks */,
 				1B84B1E82FB38D8C00D138C8 /* IAMIdentityCenter in Frameworks */,
 			);
@@ -125,6 +127,7 @@
 			packageProductDependencies = (
 				1BA1B1C22FB0000000000002 /* AWSConfigINI */,
 				1B84B1E72FB38D8C00D138C8 /* IAMIdentityCenter */,
+				1BA1B1C52FC0000000000005 /* QuorraAppLogic */,
 			);
 			productName = quorra;
 			productReference = 1B5F7C8D2FACE2A100833D01 /* quorra.app */;
@@ -487,6 +490,10 @@
 		1BA1B1C22FB0000000000002 /* AWSConfigINI */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = AWSConfigINI;
+		};
+		1BA1B1C52FC0000000000005 /* QuorraAppLogic */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = QuorraAppLogic;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

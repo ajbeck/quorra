@@ -1,6 +1,7 @@
 import SwiftUI
 import AWSConfigINI
 import IAMIdentityCenter
+import QuorraAppLogic
 import SwiftData
 
 struct ProfileDetailView: View {
@@ -44,6 +45,7 @@ struct ProfileDetailView: View {
                 header
                 if isReadOnly { readOnlyNotice }
                 if let coords = ssoCredentialCoordinates { credentialsCard(coords) }
+                organizationCard
                 identityCard
                 if draft.ssoSession != nil { sessionCard }
                 if draft.roleArn != nil || draft.sourceProfile != nil { roleCard }
@@ -245,6 +247,19 @@ struct ProfileDetailView: View {
         }
     }
 
+    private var organizationCard: some View {
+        DetailCard("Organization") {
+            DetailField("Folder") {
+                MetadataFolderPicker(
+                    objectKind: .profile,
+                    objectID: node.id,
+                    isEnabled: true
+                )
+                .labelsHidden()
+            }
+        }
+    }
+
     private var sessionCard: some View {
         DetailCard("SSO Session") {
             DetailField("Session") {
@@ -365,7 +380,7 @@ struct ProfileDetailView: View {
         try modelContext.save()
         sourceSelection = .imdsEndpoints
         searchText = node.id
-        detailSelection = .imds(endpointID: endpoint.stableIDString, profileName: endpoint.profileName)
+        detailSelection = .imds(endpointID: endpoint.stableIDString)
     }
 
     private func firstAvailablePort(from preferredPort: Int) -> Int {

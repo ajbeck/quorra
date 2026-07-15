@@ -1,4 +1,5 @@
 import SwiftUI
+import QuorraAppLogic
 
 struct SettingsView: View {
     var body: some View {

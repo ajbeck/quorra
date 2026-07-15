@@ -1,4 +1,5 @@
 import SwiftUI
+import QuorraAppLogic
 
 struct RootView: View {
     @Environment(AppModel.self) private var appModel

@@ -153,6 +153,9 @@ struct SourceSidebarView: View {
             )
             .padding(.leading, 18)
             .contextMenu { folderRowContextMenu(for: folder) }
+            .dropDestination(for: MetadataObjectDragPayload.self) { payloads, _ in
+                assign(payloads, to: folder)
+            }
         }
     }
 
@@ -272,6 +275,32 @@ struct SourceSidebarView: View {
             pendingFolderDeletion = nil
         } catch {
             folderActionError = error.localizedDescription
+        }
+    }
+
+    private func assign(_ payloads: [MetadataObjectDragPayload], to folder: MetadataFolder) -> Bool {
+        let compatiblePayloads = payloads.filter { $0.kind == folder.kind }
+        guard !compatiblePayloads.isEmpty else { return false }
+
+        do {
+            for payload in compatiblePayloads {
+                if let assignment = assignments.first(where: {
+                    $0.objectKind == payload.kind && $0.objectID == payload.objectID
+                }) {
+                    assignment.move(to: folder.stableID)
+                } else {
+                    modelContext.insert(MetadataFolderAssignment(
+                        objectKind: payload.kind,
+                        objectID: payload.objectID,
+                        folderID: folder.stableID
+                    ))
+                }
+            }
+            try modelContext.save()
+            return true
+        } catch {
+            folderActionError = error.localizedDescription
+            return false
         }
     }
 

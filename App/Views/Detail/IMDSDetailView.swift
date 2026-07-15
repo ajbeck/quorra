@@ -4,7 +4,6 @@ import SwiftData
 
 struct IMDSDetailView: View {
     let endpointID: String
-    let profileName: String
     @Environment(ProfilesModel.self) private var profilesModel
     @Environment(CredentialsModel.self) private var credentialsModel
     @Environment(IMDSModel.self) private var imdsModel
@@ -392,6 +391,17 @@ struct IMDSDetailView: View {
                 Text(String(definition.hopLimit))
                     .font(.body.monospacedDigit())
             }
+
+            DetailDivider()
+
+            DetailField("Folder") {
+                MetadataFolderPicker(
+                    objectKind: .imdsEndpoint,
+                    objectID: definition.stableIDString,
+                    isEnabled: true
+                )
+                .labelsHidden()
+            }
         }
     }
 
@@ -681,7 +691,7 @@ private struct IMDSDetailPreviewHarness: View {
     }
 
     var body: some View {
-        IMDSDetailView(endpointID: Self.endpointID.uuidString, profileName: "ac:cp:org_admin")
+        IMDSDetailView(endpointID: Self.endpointID.uuidString)
         .environment(ProfilesModel.previewLoaded(config: PreviewAWSFixtures.mockupConfig))
         .environment(CredentialsModel(service: PreviewIdentityCenterService()))
         .environment(model)

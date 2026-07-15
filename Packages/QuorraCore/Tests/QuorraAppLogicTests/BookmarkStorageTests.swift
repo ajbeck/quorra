@@ -1,6 +1,6 @@
 import Foundation
+import QuorraAppLogic
 import Testing
-@testable import quorra
 
 struct BookmarkStorageTests {
     let defaults: UserDefaults
@@ -10,9 +10,9 @@ struct BookmarkStorageTests {
     init() {
         let name = "dev.ajbeck.quorra.tests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: name)!
-        self.suiteName = name
+        suiteName = name
         self.defaults = defaults
-        self.storage = BookmarkStorage(defaults: defaults)
+        storage = BookmarkStorage(defaults: defaults)
     }
 
     @Test func loadReturnsNilWhenEmpty() {

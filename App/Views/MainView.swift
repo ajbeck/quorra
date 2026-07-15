@@ -1,5 +1,6 @@
 import SwiftUI
 import IAMIdentityCenter
+import QuorraAppLogic
 import SwiftData
 
 struct MainView: View {
@@ -9,13 +10,22 @@ struct MainView: View {
     @Environment(ProfilesModel.self) private var profilesModel
     @Environment(CredentialsModel.self) private var credentialsModel
     @Environment(\.authBrowserPresenter) private var authBrowserPresenter
-    @State private var sourceSelection: SourceSelection = .all
-    @State private var selection: DetailSelection? = nil
-    @State private var searchText = ""
+    @State private var sourceSelection: SourceSelection
+    @State private var selection: DetailSelection?
+    @State private var searchText: String
 
-    init(folderURL: URL, loadsProfilesOnAppear: Bool = true) {
+    init(
+        folderURL: URL,
+        loadsProfilesOnAppear: Bool = true,
+        initialSourceSelection: SourceSelection = .all,
+        initialDetailSelection: DetailSelection? = nil,
+        initialSearchText: String = ""
+    ) {
         self.folderURL = folderURL
         self.loadsProfilesOnAppear = loadsProfilesOnAppear
+        _sourceSelection = State(initialValue: initialSourceSelection)
+        _selection = State(initialValue: initialDetailSelection)
+        _searchText = State(initialValue: initialSearchText)
     }
 
     var body: some View {
@@ -84,10 +94,28 @@ struct MainView: View {
     MainViewSampleDataHarness()
 }
 
+#Preview("Main – Profiles source") {
+    MainViewSampleDataHarness(sourceSelection: .profiles)
+}
+
+#Preview("Main – Searching profiles") {
+    MainViewSampleDataHarness(sourceSelection: .profiles, searchText: "mgmt")
+}
+
+#Preview("Main – selected profile") {
+    MainViewSampleDataHarness(
+        sourceSelection: .profiles,
+        detailSelection: .profile(name: "ac:cp:org_admin")
+    )
+}
+
 private struct MainViewSampleDataHarness: View {
     private static let previewEndpointID = UUID(uuidString: "00000000-0000-0000-0000-000000009678")!
 
     private let folderURL = URL(filePath: "/preview/.aws", directoryHint: .isDirectory)
+    private let initialSourceSelection: SourceSelection
+    private let initialDetailSelection: DetailSelection?
+    private let initialSearchText: String
     @State private var appModel: AppModel
     @State private var profilesModel: ProfilesModel
     @State private var editorState: EditorState
@@ -95,7 +123,14 @@ private struct MainViewSampleDataHarness: View {
     @State private var imdsModel: IMDSModel
     private let metadataContainer: ModelContainer
 
-    init() {
+    init(
+        sourceSelection: SourceSelection = .all,
+        detailSelection: DetailSelection? = nil,
+        searchText: String = ""
+    ) {
+        initialSourceSelection = sourceSelection
+        initialDetailSelection = detailSelection
+        initialSearchText = searchText
         let folderURL = URL(filePath: "/preview/.aws", directoryHint: .isDirectory)
         let profiles = ProfilesModel.previewLoaded(
             config: PreviewAWSFixtures.mockupConfig,
@@ -133,7 +168,13 @@ private struct MainViewSampleDataHarness: View {
     }
 
     var body: some View {
-        MainView(folderURL: folderURL, loadsProfilesOnAppear: false)
+        MainView(
+            folderURL: folderURL,
+            loadsProfilesOnAppear: false,
+            initialSourceSelection: initialSourceSelection,
+            initialDetailSelection: initialDetailSelection,
+            initialSearchText: initialSearchText
+        )
             .environment(appModel)
             .environment(profilesModel)
             .environment(editorState)

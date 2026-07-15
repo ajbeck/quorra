@@ -1,5 +1,6 @@
 import SwiftUI
 import IAMIdentityCenter
+import QuorraAppLogic
 import SwiftData
 
 @main

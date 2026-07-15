@@ -1,5 +1,6 @@
 import AppKit
 import AWSConfigINI
+import QuorraAppLogic
 import SwiftUI
 
 struct GeneralSettingsTab: View {

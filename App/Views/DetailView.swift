@@ -1,5 +1,6 @@
 import SwiftUI
 import AWSConfigINI
+import QuorraAppLogic
 import SwiftData
 
 struct DetailView: View {
@@ -8,7 +9,6 @@ struct DetailView: View {
     @Binding var searchText: String
     @Environment(AppModel.self) private var appModel
     @Environment(ProfilesModel.self) private var profilesModel
-    @Query private var endpointDefinitions: [IMDSEndpointDefinition]
 
     var body: some View {
         switch (profilesModel.loadState, selection) {
@@ -47,17 +47,11 @@ struct DetailView: View {
             } else {
                 ContentUnavailableView("Session not found", systemImage: "questionmark.circle")
             }
-        case (.loaded, .imds(let endpointID, let profileName)):
-            IMDSDetailView(
-                endpointID: endpointID,
-                profileName: endpointDefinition(id: endpointID)?.profileName ?? profileName
-            )
+        case (.loaded, .imds(let endpointID)):
+            IMDSDetailView(endpointID: endpointID)
         }
     }
 
-    private func endpointDefinition(id: String) -> IMDSEndpointDefinition? {
-        endpointDefinitions.first { $0.stableIDString == id }
-    }
 }
 
 #Preview("Detail – loaded, no selection") {
@@ -76,10 +70,7 @@ struct DetailView: View {
 }
 
 #Preview("Detail – IMDS selected") {
-    DetailViewPreviewHarness(selection: .imds(
-        endpointID: "00000000-0000-0000-0000-000000009679",
-        profileName: "default"
-    ))
+    DetailViewPreviewHarness(selection: .imds(endpointID: "00000000-0000-0000-0000-000000009679"))
 }
 
 #Preview("Detail – no profiles yet") {
@@ -105,12 +96,12 @@ private struct DetailViewPreviewHarness: View {
         self.forceEmpty = forceEmpty
         let tmp = URL(filePath: "/nonexistent/aws-folder")
         let metadataContainer = try! QuorraMetadataSchema.makeContainer(inMemory: true)
-        if case .imds(let endpointID, let profileName) = selection,
+        if case .imds(let endpointID) = selection,
            let uuid = UUID(uuidString: endpointID) {
             metadataContainer.mainContext.insert(IMDSEndpointDefinition(
                 id: uuid,
                 name: "localhost:9678",
-                profileName: profileName,
+                profileName: "default",
                 port: 9678
             ))
             try! metadataContainer.mainContext.save()

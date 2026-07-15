@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import AWSConfigINI
+import QuorraAppLogic
 
 struct SetupView: View {
     @Environment(AppModel.self) private var appModel

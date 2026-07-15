@@ -1,6 +1,7 @@
 import SwiftUI
 import AWSConfigINI
 import IAMIdentityCenter
+import QuorraAppLogic
 import SwiftData
 
 struct ObjectListView: View {
@@ -74,7 +75,7 @@ struct ObjectListView: View {
                     try modelContext.save()
                     searchText = ""
                     sourceSelection = .imdsEndpoints
-                    detailSelection = .imds(endpointID: endpoint.stableIDString, profileName: endpoint.profileName)
+                    detailSelection = .imds(endpointID: endpoint.stableIDString)
                 }
             }
         }
@@ -201,6 +202,7 @@ struct ObjectListView: View {
         .contextMenu {
             folderAssignmentMenu(for: item)
         }
+        .draggable(item.dragPayload)
     }
 
     @ViewBuilder private func folderAssignmentMenu(for item: ObjectListItem) -> some View {
@@ -234,52 +236,105 @@ struct ObjectListView: View {
 
     private var objectMutationBar: some View {
         HStack(spacing: 0) {
-            Menu {
+            if let defaultCreationSheet {
                 Button {
-                    presentedSheet = .session
+                    presentedSheet = defaultCreationSheet
                 } label: {
-                    Label("New Session", systemImage: "cloud")
+                    Image(systemName: "plus")
+                        .frame(width: 18, height: 18)
                 }
-                .disabled(isReadOnly)
-
-                Button {
-                    presentedSheet = .profile
+                .frame(width: 26, height: 26)
+                .contentShape(.rect)
+                .disabled(isCreationDisabled(defaultCreationSheet))
+                .help("New \(defaultCreationSheet.title)")
+            } else {
+                Menu {
+                    creationMenu
                 } label: {
-                    Label("New Profile", systemImage: "key")
+                    Image(systemName: "plus")
+                        .frame(width: 18, height: 18)
                 }
-                .disabled(isReadOnly)
-
-                Button {
-                    presentedSheet = .imdsEndpoint
-                } label: {
-                    Label("New IMDS Endpoint", systemImage: "antenna.radiowaves.left.and.right")
-                }
-                .disabled(profileItems.isEmpty)
-            } label: {
-                Label("Add Item", systemImage: "plus")
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .frame(width: 26, height: 26)
+                .contentShape(.rect)
+                .help("Add session, profile, or IMDS endpoint")
             }
-            .menuStyle(.button)
-            .controlSize(.small)
-            .labelStyle(.iconOnly)
-            .help("Add session, profile, or IMDS endpoint")
+
+            Divider()
+                .frame(height: 14)
 
             Button {
                 if let selectedItem {
                     pendingDeletion = selectedItem
                 }
             } label: {
-                Label("Remove Item", systemImage: "minus")
+                Image(systemName: "minus")
+                    .frame(width: 18, height: 18)
             }
-            .controlSize(.small)
-            .labelStyle(.iconOnly)
+            .frame(width: 26, height: 26)
+            .contentShape(.rect)
             .disabled(!canDeleteSelectedItem)
             .help(removeHelp)
 
             Spacer(minLength: 0)
         }
+        .buttonStyle(.borderless)
+        .controlSize(.small)
         .padding(.horizontal, 8)
         .frame(height: 26)
         .background(Color.secondary.opacity(0.10))
+    }
+
+    @ViewBuilder private var creationMenu: some View {
+        Button {
+            presentedSheet = .session
+        } label: {
+            Label("New Session", systemImage: "cloud")
+        }
+        .disabled(isCreationDisabled(.session))
+
+        Button {
+            presentedSheet = .profile
+        } label: {
+            Label("New Profile", systemImage: "key")
+        }
+        .disabled(isCreationDisabled(.profile))
+
+        Button {
+            presentedSheet = .imdsEndpoint
+        } label: {
+            Label("New IMDS Endpoint", systemImage: "antenna.radiowaves.left.and.right")
+        }
+        .disabled(isCreationDisabled(.imdsEndpoint))
+    }
+
+    private var defaultCreationSheet: CreationSheet? {
+        switch sourceSelection {
+        case .all:
+            nil
+        case .sessions:
+            .session
+        case .profiles:
+            .profile
+        case .imdsEndpoints:
+            .imdsEndpoint
+        case .folder(let kind, _, _):
+            switch kind {
+            case .session: .session
+            case .profile: .profile
+            case .imdsEndpoint: .imdsEndpoint
+            }
+        }
+    }
+
+    private func isCreationDisabled(_ sheet: CreationSheet) -> Bool {
+        switch sheet {
+        case .session, .profile:
+            isReadOnly
+        case .imdsEndpoint:
+            profileItems.isEmpty
+        }
     }
 
     @ViewBuilder private var emptyState: some View {
@@ -594,6 +649,14 @@ private enum CreationSheet: Identifiable {
         case .imdsEndpoint: return "imdsEndpoint"
         }
     }
+
+    var title: String {
+        switch self {
+        case .session: "Session"
+        case .profile: "Profile"
+        case .imdsEndpoint: "IMDS Endpoint"
+        }
+    }
 }
 
 private enum ObjectListItem: Identifiable, Hashable {
@@ -619,7 +682,7 @@ private enum ObjectListItem: Identifiable, Hashable {
         case .profile(let profile):
             return .profile(name: profile.id)
         case .imds(let endpoint):
-            return .imds(endpointID: endpoint.endpointID, profileName: endpoint.profileName)
+            return .imds(endpointID: endpoint.endpointID)
         }
     }
 
@@ -654,6 +717,10 @@ private enum ObjectListItem: Identifiable, Hashable {
         case .imds(let endpoint):
             return endpoint.id
         }
+    }
+
+    var dragPayload: MetadataObjectDragPayload {
+        MetadataObjectDragPayload(kind: objectKind, objectID: objectID)
     }
 }
 

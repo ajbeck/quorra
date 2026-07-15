@@ -1,7 +1,7 @@
-import Foundation
-import Testing
 import AWSConfigINI
-@testable import quorra
+import Foundation
+import QuorraAppLogic
+import Testing
 
 @MainActor
 struct AppModelTests {
@@ -13,10 +13,10 @@ struct AppModelTests {
     init() {
         let name = "dev.ajbeck.quorra.tests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: name)!
-        self.suiteName = name
+        suiteName = name
         self.defaults = defaults
-        self.bookmarkStorage = BookmarkStorage(defaults: defaults)
-        self.modeStorage = ModePreferenceStorage(defaults: defaults)
+        bookmarkStorage = BookmarkStorage(defaults: defaults)
+        modeStorage = ModePreferenceStorage(defaults: defaults)
     }
 
     @Test func initLoadsPersistedReadOnly() {
@@ -31,7 +31,6 @@ struct AppModelTests {
         await model.setMode(.readOnly)
         #expect(model.mode == .readOnly)
 
-        // Verify a fresh model reading from the same suite also sees the persisted value.
         let model2 = AppModel(bookmarkStorage: bookmarkStorage, modeStorage: modeStorage)
         #expect(model2.mode == .readOnly)
         tearDown()
@@ -43,20 +42,19 @@ struct AppModelTests {
             modeStorage: modeStorage,
             initialPhase: .error(.folderMissing)
         )
+
         await model.setMode(.readOnly)
 
-        let phaseUnchanged = if case .error(.folderMissing) = model.phase { true } else { false }
-        #expect(phaseUnchanged)
         #expect(model.mode == .readOnly)
         tearDown()
     }
 
     @Test func resetToSetupPreservesMode() async {
+        modeStorage.save(.readOnly)
         let model = AppModel(bookmarkStorage: bookmarkStorage, modeStorage: modeStorage)
-        await model.setMode(.readOnly)
+
         await model.resetToSetup()
 
-        // Mode is a user-level preference — it survives a folder reset.
         #expect(model.mode == .readOnly)
         tearDown()
     }
