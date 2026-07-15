@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import IAMIdentityCenter
+import QuorraAppLogic
 
 /// The "Credentials" section of `ProfileDetailView` for SSO-backed profiles (D31).
 ///

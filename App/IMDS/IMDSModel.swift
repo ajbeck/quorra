@@ -2,6 +2,7 @@ import Foundation
 import AWSConfigINI
 import IAMIdentityCenter
 import Observation
+import QuorraAppLogic
 
 @Observable
 @MainActor

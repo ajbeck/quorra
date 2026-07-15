@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import quorra
+@testable import QuorraAppLogic
 
 @Suite("Metadata models")
 struct MetadataModelTests {
@@ -27,4 +27,3 @@ struct MetadataModelTests {
         #expect(IMDSEndpointLogStore.maxEntriesPerEndpoint == 1_000)
     }
 }
-

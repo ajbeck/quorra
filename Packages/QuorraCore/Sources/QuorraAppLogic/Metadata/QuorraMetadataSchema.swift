@@ -1,14 +1,16 @@
 import SwiftData
 
-enum QuorraMetadataSchema {
-    static let modelTypes: [any PersistentModel.Type] = [
+public enum QuorraMetadataSchema {
+    public static var modelTypes: [any PersistentModel.Type] {
+        [
         MetadataFolder.self,
         MetadataFolderAssignment.self,
         IMDSEndpointDefinition.self,
         IMDSEndpointLogEntry.self
-    ]
+        ]
+    }
 
-    static func makeContainer(inMemory: Bool = false) throws -> ModelContainer {
+    public static func makeContainer(inMemory: Bool = false) throws -> ModelContainer {
         let schema = Schema(modelTypes)
         let configuration = ModelConfiguration(
             schema: schema,
@@ -17,4 +19,3 @@ enum QuorraMetadataSchema {
         return try ModelContainer(for: schema, configurations: [configuration])
     }
 }
-

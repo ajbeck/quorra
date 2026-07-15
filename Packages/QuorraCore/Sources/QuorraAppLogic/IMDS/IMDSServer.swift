@@ -2,24 +2,40 @@ import Foundation
 import IAMIdentityCenter
 import Network
 
-struct IMDSServedProfile: Hashable, Sendable {
-    let profileName: String
-    let sessionName: String
-    let accountId: String
-    let roleName: String
-    let region: String
-    let credentials: RoleCredentials
+public struct IMDSServedProfile: Hashable, Sendable {
+    public let profileName: String
+    public let sessionName: String
+    public let accountId: String
+    public let roleName: String
+    public let region: String
+    public let credentials: RoleCredentials
+
+    public init(
+        profileName: String,
+        sessionName: String,
+        accountId: String,
+        roleName: String,
+        region: String,
+        credentials: RoleCredentials
+    ) {
+        self.profileName = profileName
+        self.sessionName = sessionName
+        self.accountId = accountId
+        self.roleName = roleName
+        self.region = region
+        self.credentials = credentials
+    }
 }
 
-struct IMDSRequestLog: Identifiable, Hashable, Sendable {
-    let id: UUID
-    let timestamp: Date
-    let method: String
-    let path: String
-    let client: String
-    let status: Int
+public struct IMDSRequestLog: Identifiable, Hashable, Sendable {
+    public let id: UUID
+    public let timestamp: Date
+    public let method: String
+    public let path: String
+    public let client: String
+    public let status: Int
 
-    init(
+    public init(
         id: UUID = UUID(),
         timestamp: Date = Date(),
         method: String,
@@ -36,13 +52,13 @@ struct IMDSRequestLog: Identifiable, Hashable, Sendable {
     }
 }
 
-struct IMDSRuntimeInfo: Hashable, Sendable {
-    let startedAt: Date
-    let servedProfileName: String
-    var requestCount: Int
-    var activity: [IMDSRequestLog]
+public struct IMDSRuntimeInfo: Hashable, Sendable {
+    public let startedAt: Date
+    public let servedProfileName: String
+    public var requestCount: Int
+    public var activity: [IMDSRequestLog]
 
-    init(startedAt: Date = Date(), servedProfileName: String) {
+    public init(startedAt: Date = Date(), servedProfileName: String) {
         self.startedAt = startedAt
         self.servedProfileName = servedProfileName
         self.requestCount = 0
@@ -342,7 +358,7 @@ struct IMDSRouter: Sendable {
 }
 
 @MainActor
-final class LocalIMDSServer {
+public final class LocalIMDSServer {
     private let port: Int
     private var router: IMDSRouter
     private let onRequest: (IMDSRequestLog) -> Void
@@ -351,9 +367,9 @@ final class LocalIMDSServer {
     private var listener: NWListener?
     private var connections: [ObjectIdentifier: NWConnection] = [:]
     private var startContinuation: CheckedContinuation<Void, Error>?
-    private(set) var boundPort: Int
+    public private(set) var boundPort: Int
 
-    init(
+    public init(
         port: Int,
         servedProfile: IMDSServedProfile,
         allowsIMDSv1: Bool = true,
@@ -367,7 +383,7 @@ final class LocalIMDSServer {
         self.onFailure = onFailure
     }
 
-    func start() async throws {
+    public func start() async throws {
         guard listener == nil else { return }
         guard let portValue = UInt16(exactly: port),
               let nwPort = NWEndpoint.Port(rawValue: portValue) else {
@@ -400,7 +416,7 @@ final class LocalIMDSServer {
         }
     }
 
-    func stop() {
+    public func stop() {
         startContinuation?.resume(throwing: CancellationError())
         startContinuation = nil
         listener?.cancel()

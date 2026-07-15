@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 import AWSConfigINI
-@testable import quorra
+@testable import QuorraAppLogic
 
 @MainActor
 struct ProfilesModelSaveTests {

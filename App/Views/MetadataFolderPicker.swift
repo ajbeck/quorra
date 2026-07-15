@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import QuorraAppLogic
 
 struct MetadataFolderPicker: View {
     let objectKind: MetadataObjectKind

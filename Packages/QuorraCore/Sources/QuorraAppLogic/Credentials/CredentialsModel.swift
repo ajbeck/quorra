@@ -23,52 +23,52 @@ import IAMIdentityCenter
 /// All public mutations go through MainActor methods.
 @Observable
 @MainActor
-final class CredentialsModel {
+public final class CredentialsModel {
     // MARK: - Observed state
 
     /// Cached auth status per session name. Primary source of truth for sidebar icon + panel mode.
-    private(set) var status: [String: SessionAuthStatus] = [:]
+    public private(set) var status: [String: SessionAuthStatus] = [:]
 
     /// Sessions for which the Portal /logout network call failed.
     /// Drives the soft advisory copy in `SignInPanel`'s `needsAction` mode.
-    private(set) var signOutFailure: Set<String> = []
+    public private(set) var signOutFailure: Set<String> = []
 
     /// Sessions with an active silent refresh in flight (D17).
     /// Drives the `isRefreshing` overlay on `SessionStatusIcon` and the "refreshing" caption in `SignInPanel`.
     /// Populated on `.refreshing`, cleared on `.refreshed` / `.refreshFailed`.
-    private(set) var refreshingNow: Set<String> = []
+    public private(set) var refreshingNow: Set<String> = []
 
     /// Sessions that had a transient refresh failure (D16).
     /// Drives the "Couldn't refresh your session. [Refresh now]" advisory in `SignInPanel`.
     /// Populated on `.refreshFailed`, cleared on `.refreshed` / next `.signedIn` / `.signedOut`.
-    private(set) var refreshFailure: Set<String> = []
+    public private(set) var refreshFailure: Set<String> = []
 
     // MARK: - B overlay sets (D30)
 
     /// Cached `ProfileAuthStatus` per `"<sessionName>:<accountId>:<roleName>"` key.
     /// Populated on demand by `observeProfileStatus` and invalidated by mint events.
-    private(set) var profileStatus: [String: ProfileAuthStatus] = [:]
+    public private(set) var profileStatus: [String: ProfileAuthStatus] = [:]
 
     /// Tuples with an active credential mint in flight.
     /// Keys are `"<sessionName>:<accountId>:<roleName>"`.
     /// Populated on `.mintingCredentials`, cleared on `.mintedCredentials` / `.mintCredentialsFailed` / `.roleAccessDenied`.
-    private(set) var mintingNow: Set<String> = []
+    public private(set) var mintingNow: Set<String> = []
 
     /// Tuples that had a transient mint failure.
     /// Keys are `"<sessionName>:<accountId>:<roleName>"`.
     /// Populated on `.mintCredentialsFailed`, cleared on `.mintingCredentials` / `.mintedCredentials`.
-    private(set) var mintFailure: Set<String> = []
+    public private(set) var mintFailure: Set<String> = []
 
     /// Tuples where role access was denied (terminal — `ForbiddenException` or `ResourceNotFoundException`).
     /// Keys are `"<sessionName>:<accountId>:<roleName>"`.
     /// Populated on `.roleAccessDenied`, cleared on `.mintingCredentials`.
-    private(set) var roleRejected: Set<String> = []
+    public private(set) var roleRejected: Set<String> = []
 
     /// In-flight device-flow progress per session (for the `inProgress` panel mode).
-    private(set) var inFlight: [String: SignInProgress] = [:]
+    public private(set) var inFlight: [String: SignInProgress] = [:]
 
     /// Last sign-in error per session.
-    private(set) var lastError: [String: IAMIdentityCenterError] = [:]
+    public private(set) var lastError: [String: IAMIdentityCenterError] = [:]
 
     // MARK: - Private stored
 
@@ -81,7 +81,7 @@ final class CredentialsModel {
 
     // MARK: - Init
 
-    init(service: any IdentityCenterServicing) {
+    public init(service: any IdentityCenterServicing) {
         self.service = service
         // Start the stream consumer Task. Captures [weak self] — if the model deallocates,
         // the guard-let at the top of the loop causes the task to exit naturally (D7).
@@ -101,7 +101,7 @@ final class CredentialsModel {
     /// Clears any prior `signOutFailure`, `refreshFailure`, and `lastError` for the session
     /// before starting. On the verificationHandler callback, populates `inFlight[sessionName]`.
     /// On success or failure, the event stream consumer updates `status` asynchronously.
-    func signIn(
+    public func signIn(
         sessionName: String,
         startUrl: URL,
         region: String,
@@ -137,12 +137,12 @@ final class CredentialsModel {
     }
 
     /// Cancels an in-flight sign-in. The corresponding `signIn(...)` call will throw `.userCancelled`.
-    func cancelSignIn(sessionName: String) async {
+    public func cancelSignIn(sessionName: String) async {
         await service.cancelSignIn(sessionName: sessionName)
     }
 
     /// Signs out the given session. Delegates to the service actor; results surface via the event stream.
-    func signOut(sessionName: String) async {
+    public func signOut(sessionName: String) async {
         do {
             try await service.signOut(sessionName: sessionName)
         } catch {
@@ -155,7 +155,7 @@ final class CredentialsModel {
     ///
     /// Called by the "Refresh now" button in `SignInPanel`'s transient-failure advisory.
     /// Clears `refreshFailure` before attempting so the UI returns to neutral immediately.
-    func refreshNow(sessionName: String) async {
+    public func refreshNow(sessionName: String) async {
         // Optimistically clear the failure advisory — the new attempt will either succeed
         // (refreshed event clears refreshingNow) or fail again (refreshFailed event re-sets it).
         if refreshFailure.contains(sessionName) { refreshFailure.remove(sessionName) }
@@ -173,7 +173,7 @@ final class CredentialsModel {
     /// subsequent updates. Skips the Keychain hop when a cached value already exists —
     /// the event stream owns invalidation, so a re-appear without an intervening event
     /// is guaranteed to see the same status.
-    func observeStatus(forSession sessionName: String) async {
+    public func observeStatus(forSession sessionName: String) async {
         if status[sessionName] != nil { return }
         let s = await service.status(forSession: sessionName)
         if status[sessionName] != s {
@@ -186,7 +186,7 @@ final class CredentialsModel {
     /// Mirrors `observeStatus(forSession:)` exactly but for the `(sessionName, accountId, roleName)`
     /// tuple. Skips the actor hop when a cached value already exists — the event stream owns
     /// invalidation (D30). Key is `"<sessionName>:<accountId>:<roleName>"`.
-    func observeProfileStatus(forSession sessionName: String, accountId: String, roleName: String) async {
+    public func observeProfileStatus(forSession sessionName: String, accountId: String, roleName: String) async {
         let key = "\(sessionName):\(accountId):\(roleName)"
         if profileStatus[key] != nil { return }
         let s = await service.status(forProfile: sessionName, accountId: accountId, roleName: roleName)
@@ -201,7 +201,7 @@ final class CredentialsModel {
     /// on the model: secret material is held only transiently in the calling view's `@State`
     /// and cleared when the credentials section collapses (D31 security posture). Mint
     /// progress/outcome still flows through the event stream into the overlay Sets.
-    func liveCredentials(
+    public func liveCredentials(
         forSession sessionName: String,
         accountId: String,
         roleName: String,
@@ -216,7 +216,7 @@ final class CredentialsModel {
     }
 
     /// Forces a fresh role-credential mint for an explicit user renewal action.
-    func renewCredentials(
+    public func renewCredentials(
         forSession sessionName: String,
         accountId: String,
         roleName: String,
@@ -403,53 +403,53 @@ final class CredentialsModel {
     }
 
     /// Test seam: write-access to `lastError` for setting up "prior failure" preconditions.
-    func seedLastErrorForTesting(_ error: IAMIdentityCenterError, sessionName: String) {
+    public func seedLastErrorForTesting(_ error: IAMIdentityCenterError, sessionName: String) {
         lastError[sessionName] = error
     }
 
     /// Test seam: write-access to `inFlight` for setting up "signing in" preconditions.
-    func seedInFlightForTesting(_ progress: SignInProgress, sessionName: String) {
+    public func seedInFlightForTesting(_ progress: SignInProgress, sessionName: String) {
         inFlight[sessionName] = progress
     }
 
     /// Test seam: write-access to `status` for setting up preconditions.
-    func seedStatusForTesting(_ authStatus: SessionAuthStatus, sessionName: String) {
+    public func seedStatusForTesting(_ authStatus: SessionAuthStatus, sessionName: String) {
         status[sessionName] = authStatus
     }
 
     /// Test seam: write-access to `signOutFailure` for setting up advisory preconditions.
-    func seedSignOutFailureForTesting(sessionName: String) {
+    public func seedSignOutFailureForTesting(sessionName: String) {
         signOutFailure.insert(sessionName)
     }
 
     /// Test seam: write-access to `refreshingNow` for setting up refreshing-overlay preconditions.
-    func seedRefreshingNowForTesting(sessionName: String) {
+    public func seedRefreshingNowForTesting(sessionName: String) {
         refreshingNow.insert(sessionName)
     }
 
     /// Test seam: write-access to `refreshFailure` for setting up refresh-failure advisory preconditions.
-    func seedRefreshFailureForTesting(sessionName: String) {
+    public func seedRefreshFailureForTesting(sessionName: String) {
         refreshFailure.insert(sessionName)
     }
 
     /// Test seam: write-access to `mintingNow` for setting up minting-overlay preconditions.
-    func seedMintingNowForTesting(key: String) {
+    public func seedMintingNowForTesting(key: String) {
         mintingNow.insert(key)
     }
 
     /// Test seam: write-access to `mintFailure` for setting up mint-failure advisory preconditions.
-    func seedMintFailureForTesting(key: String) {
+    public func seedMintFailureForTesting(key: String) {
         mintFailure.insert(key)
     }
 
     /// Test seam: write-access to `roleRejected` for setting up role-rejected advisory preconditions.
-    func seedRoleRejectedForTesting(key: String) {
+    public func seedRoleRejectedForTesting(key: String) {
         roleRejected.insert(key)
     }
 
     /// Test seam: write-access to `profileStatus` for SwiftUI previews of the profile row /
     /// credentials reveal section. Key is `"<sessionName>:<accountId>:<roleName>"`.
-    func seedProfileStatusForTesting(_ status: ProfileAuthStatus, key: String) {
+    public func seedProfileStatusForTesting(_ status: ProfileAuthStatus, key: String) {
         profileStatus[key] = status
     }
     #endif

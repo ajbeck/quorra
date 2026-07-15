@@ -1,7 +1,7 @@
 import Testing
 import Foundation
 import AWSConfigINI
-@testable import quorra
+@testable import QuorraAppLogic
 
 @Suite("ProfileVia")
 struct ProfileViaTests {

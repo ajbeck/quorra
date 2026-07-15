@@ -1,13 +1,13 @@
-import Foundation
 import AWSConfigINI
+import Foundation
 
-extension ProfilesModel {
+public extension ProfilesModel {
     func save(_ updated: Profile, for node: ProfileNode, mode: ManagedMode = .managed) async throws {
         let folder = try requireCurrentFolder()
         let flavor = node.writeFlavor
         let url = folder.appending(path: flavor == .config ? "config" : "credentials")
-        try AWSConfigINIDocument.update(at: url, flavor: flavor, mode: mode) { (doc: inout AWSConfigINIDocument) throws(AWSConfigINIError) in
-            try AWSConfigINIEncoder().encodeProfile(updated, named: node.id, into: &doc)
+        try AWSConfigINIDocument.update(at: url, flavor: flavor, mode: mode) { (document: inout AWSConfigINIDocument) throws(AWSConfigINIError) in
+            try AWSConfigINIEncoder().encodeProfile(updated, named: node.id, into: &document)
         }
         await reload()
     }
@@ -15,8 +15,8 @@ extension ProfilesModel {
     func save(_ updated: SSOSession, for node: SSOSessionNode, mode: ManagedMode = .managed) async throws {
         let folder = try requireCurrentFolder()
         let url = folder.appending(path: "config")
-        try AWSConfigINIDocument.update(at: url, flavor: .config, mode: mode) { (doc: inout AWSConfigINIDocument) throws(AWSConfigINIError) in
-            try AWSConfigINIEncoder().encode(updated, into: &doc, section: "sso-session \(node.id)")
+        try AWSConfigINIDocument.update(at: url, flavor: .config, mode: mode) { (document: inout AWSConfigINIDocument) throws(AWSConfigINIError) in
+            try AWSConfigINIEncoder().encode(updated, into: &document, section: "sso-session \(node.id)")
         }
         await reload()
     }
@@ -26,14 +26,12 @@ extension ProfilesModel {
         guard findProfile(named: name) == nil else {
             throw AWSConfigINIError.malformedInput("Profile '\(name)' already exists.")
         }
-
         let folder = try requireCurrentFolder()
-        let url = folder.appending(path: "config")
-        try AWSConfigINIDocument.update(at: url, flavor: .config, mode: mode) { (doc: inout AWSConfigINIDocument) throws(AWSConfigINIError) in
-            if doc.profileSection(named: name) != nil {
+        try AWSConfigINIDocument.update(at: folder.appending(path: "config"), flavor: .config, mode: mode) { (document: inout AWSConfigINIDocument) throws(AWSConfigINIError) in
+            if document.profileSection(named: name) != nil {
                 throw AWSConfigINIError.malformedInput("Profile '\(name)' already exists.")
             }
-            try AWSConfigINIEncoder().encodeProfile(profile, named: name, into: &doc)
+            try AWSConfigINIEncoder().encodeProfile(profile, named: name, into: &document)
         }
         await reload()
     }
@@ -43,40 +41,32 @@ extension ProfilesModel {
         guard findSession(named: name) == nil else {
             throw AWSConfigINIError.malformedInput("SSO session '\(name)' already exists.")
         }
-
         let folder = try requireCurrentFolder()
-        let url = folder.appending(path: "config")
-        try AWSConfigINIDocument.update(at: url, flavor: .config, mode: mode) { (doc: inout AWSConfigINIDocument) throws(AWSConfigINIError) in
+        try AWSConfigINIDocument.update(at: folder.appending(path: "config"), flavor: .config, mode: mode) { (document: inout AWSConfigINIDocument) throws(AWSConfigINIError) in
             let sectionName = "sso-session \(name)"
-            if doc.section(sectionName) != nil {
+            if document.section(sectionName) != nil {
                 throw AWSConfigINIError.malformedInput("SSO session '\(name)' already exists.")
             }
-            try AWSConfigINIEncoder().encode(session, into: &doc, section: sectionName)
+            try AWSConfigINIEncoder().encode(session, into: &document, section: sectionName)
         }
         await reload()
     }
 
     func deleteProfile(named name: String, mode: ManagedMode) async throws {
         let folder = try requireCurrentFolder()
-
-        let configURL = folder.appending(path: "config")
-        try AWSConfigINIDocument.update(at: configURL, flavor: .config, mode: mode) { (doc: inout AWSConfigINIDocument) throws(AWSConfigINIError) in
-            doc.deleteSection(doc.flavor.profileSectionName(for: name))
+        try AWSConfigINIDocument.update(at: folder.appending(path: "config"), flavor: .config, mode: mode) { (document: inout AWSConfigINIDocument) throws(AWSConfigINIError) in
+            document.deleteSection(document.flavor.profileSectionName(for: name))
         }
-
-        let credentialsURL = folder.appending(path: "credentials")
-        try AWSConfigINIDocument.update(at: credentialsURL, flavor: .credentials, mode: mode) { (doc: inout AWSConfigINIDocument) throws(AWSConfigINIError) in
-            doc.deleteSection(doc.flavor.profileSectionName(for: name))
+        try AWSConfigINIDocument.update(at: folder.appending(path: "credentials"), flavor: .credentials, mode: mode) { (document: inout AWSConfigINIDocument) throws(AWSConfigINIError) in
+            document.deleteSection(document.flavor.profileSectionName(for: name))
         }
-
         await reload()
     }
 
     func deleteSession(named name: String, mode: ManagedMode) async throws {
         let folder = try requireCurrentFolder()
-        let url = folder.appending(path: "config")
-        try AWSConfigINIDocument.update(at: url, flavor: .config, mode: mode) { (doc: inout AWSConfigINIDocument) throws(AWSConfigINIError) in
-            doc.deleteSection("sso-session \(name)")
+        try AWSConfigINIDocument.update(at: folder.appending(path: "config"), flavor: .config, mode: mode) { (document: inout AWSConfigINIDocument) throws(AWSConfigINIError) in
+            document.deleteSection("sso-session \(name)")
         }
         await reload()
     }

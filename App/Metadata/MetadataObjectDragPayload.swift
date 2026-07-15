@@ -1,5 +1,6 @@
 import CoreTransferable
 import UniformTypeIdentifiers
+import QuorraAppLogic
 
 struct MetadataObjectDragPayload: Codable, Hashable, Sendable, Transferable {
     let kind: MetadataObjectKind

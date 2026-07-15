@@ -1,12 +1,12 @@
 /// The credential source of a profile, as shown by the row's `via` badge.
 /// `.session` is colored (per SSO org); `.longTerm` / `.other` render neutral.
-nonisolated enum ProfileVia: Hashable {
+public nonisolated enum ProfileVia: Hashable {
     case session(String)
     case longTerm
     case other
 
     /// The text shown in the badge.
-    var label: String {
+    public var label: String {
         switch self {
         case .session(let name): return name
         case .longTerm: return "long-term"
@@ -15,7 +15,7 @@ nonisolated enum ProfileVia: Hashable {
     }
 
     /// Only SSO sessions carry a per-session hue; everything else is neutral.
-    var isSSO: Bool {
+    public var isSSO: Bool {
         if case .session = self { return true }
         return false
     }
@@ -24,19 +24,22 @@ nonisolated enum ProfileVia: Hashable {
 /// A profile flattened out of `SidebarGroups` for the single-column Profiles list,
 /// tagged with the `via` descriptor its row needs. Account/role are intentionally
 /// not carried here — they live in the detail pane, not the sidebar row.
-struct SidebarProfileItem: Identifiable, Hashable {
-    let node: ProfileNode
-    let via: ProfileVia
-    var id: String { node.id }
+public struct SidebarProfileItem: Identifiable, Hashable {
+    public let node: ProfileNode
+    public let via: ProfileVia
+    public var id: String { node.id }
+
+    public init(node: ProfileNode, via: ProfileVia) {
+        self.node = node
+        self.via = via
+    }
 }
 
-extension SidebarGroups {
+public extension SidebarGroups {
     /// All profiles as one flat, ordered list for the Profiles tab.
     ///
-    /// Order: `default` first, then alphabetical by name (matching the buckets'
-    /// `profileSortOrder`). Each profile is tagged from the bucket it came out of —
-    /// SSO-session profiles take the session's name as a colored `via`, long-term and
-    /// other profiles render neutral.
+    /// Order: `default` first, then alphabetical by name. Each profile is tagged
+    /// with the bucket it came from so the row can display its credential source.
     var flatProfiles: [SidebarProfileItem] {
         var items: [SidebarProfileItem] = []
         for session in ssoSessions {

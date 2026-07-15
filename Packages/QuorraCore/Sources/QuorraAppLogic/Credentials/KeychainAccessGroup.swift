@@ -1,20 +1,20 @@
 import Foundation
 import Security
 
-enum KeychainAccessGroup {
+public enum KeychainAccessGroup {
     /// Resolves the runtime keychain access group: `<TeamID>.dev.ajbeck.quorra.shared`.
     ///
     /// Reads the concrete group from the signed `keychain-access-groups` entitlement. Falls back
     /// to the older `AppIdentifierPrefix` Info.plist key, then the suffix-only group name in
     /// unsigned/test contexts.
-    static var shared: String {
+    public static var shared: String {
         resolve(
             infoDictionary: Bundle.main.infoDictionary ?? [:],
             keychainAccessGroups: currentKeychainAccessGroups()
         )
     }
 
-    static func resolve(
+    public static func resolve(
         infoDictionary: [String: Any],
         keychainAccessGroups: [String]
     ) -> String {

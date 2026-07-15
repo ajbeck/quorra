@@ -2,7 +2,7 @@ import Darwin
 import Foundation
 import IAMIdentityCenter
 import Testing
-@testable import quorra
+@testable import QuorraAppLogic
 
 struct IMDSRouterTests {
     @Test func imdsv2TokenAllowsCredentialLookup() throws {

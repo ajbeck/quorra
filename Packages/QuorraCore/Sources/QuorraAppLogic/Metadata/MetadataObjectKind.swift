@@ -1,11 +1,11 @@
 import Foundation
 
-enum MetadataObjectKind: String, CaseIterable, Codable, Sendable {
+public enum MetadataObjectKind: String, CaseIterable, Codable, Sendable {
     case session
     case profile
     case imdsEndpoint
 
-    var title: String {
+    public var title: String {
         switch self {
         case .session:
             return "Sessions"
@@ -16,7 +16,7 @@ enum MetadataObjectKind: String, CaseIterable, Codable, Sendable {
         }
     }
 
-    var systemImage: String {
+    public var systemImage: String {
         switch self {
         case .session:
             return "cloud"
@@ -27,4 +27,3 @@ enum MetadataObjectKind: String, CaseIterable, Codable, Sendable {
         }
     }
 }
-

@@ -2,15 +2,15 @@ import Foundation
 import SwiftData
 
 @Model
-final class MetadataFolder {
-    var stableIDString: String
-    var kindRawValue: String
-    var name: String
-    var sortIndex: Int
-    var createdAt: Date
-    var updatedAt: Date
+public final class MetadataFolder {
+    public var stableIDString: String
+    public var kindRawValue: String
+    public var name: String
+    public var sortIndex: Int
+    public var createdAt: Date
+    public var updatedAt: Date
 
-    init(
+    public init(
         id: UUID = UUID(),
         kind: MetadataObjectKind,
         name: String,
@@ -26,7 +26,7 @@ final class MetadataFolder {
         self.updatedAt = updatedAt
     }
 
-    var stableID: UUID {
+    public var stableID: UUID {
         get { UUID(uuidString: stableIDString) ?? UUID() }
         set {
             stableIDString = newValue.uuidString
@@ -34,7 +34,7 @@ final class MetadataFolder {
         }
     }
 
-    var kind: MetadataObjectKind {
+    public var kind: MetadataObjectKind {
         get { MetadataObjectKind(rawValue: kindRawValue) ?? .profile }
         set {
             kindRawValue = newValue.rawValue
@@ -44,16 +44,16 @@ final class MetadataFolder {
 }
 
 @Model
-final class MetadataFolderAssignment {
-    var objectKey: String
-    var stableIDString: String
-    var objectKindRawValue: String
-    var objectID: String
-    var folderIDString: String
-    var createdAt: Date
-    var updatedAt: Date
+public final class MetadataFolderAssignment {
+    public var objectKey: String
+    public var stableIDString: String
+    public var objectKindRawValue: String
+    public var objectID: String
+    public var folderIDString: String
+    public var createdAt: Date
+    public var updatedAt: Date
 
-    init(
+    public init(
         id: UUID = UUID(),
         objectKind: MetadataObjectKind,
         objectID: String,
@@ -70,7 +70,7 @@ final class MetadataFolderAssignment {
         self.updatedAt = updatedAt
     }
 
-    var stableID: UUID {
+    public var stableID: UUID {
         get { UUID(uuidString: stableIDString) ?? UUID() }
         set {
             stableIDString = newValue.uuidString
@@ -78,7 +78,7 @@ final class MetadataFolderAssignment {
         }
     }
 
-    var folderID: UUID {
+    public var folderID: UUID {
         get { UUID(uuidString: folderIDString) ?? UUID() }
         set {
             folderIDString = newValue.uuidString
@@ -86,7 +86,7 @@ final class MetadataFolderAssignment {
         }
     }
 
-    var objectKind: MetadataObjectKind {
+    public var objectKind: MetadataObjectKind {
         get { MetadataObjectKind(rawValue: objectKindRawValue) ?? .profile }
         set {
             objectKindRawValue = newValue.rawValue
@@ -95,30 +95,30 @@ final class MetadataFolderAssignment {
         }
     }
 
-    func move(to folderID: UUID) {
+    public func move(to folderID: UUID) {
         self.folderIDString = folderID.uuidString
         updatedAt = .now
     }
 
-    static func objectKey(kind: MetadataObjectKind, objectID: String) -> String {
+    public static func objectKey(kind: MetadataObjectKind, objectID: String) -> String {
         "\(kind.rawValue):\(objectID)"
     }
 }
 
 @Model
-final class IMDSEndpointDefinition {
-    var stableIDString: String
-    var port: Int
-    var name: String
-    var profileName: String
-    var bindAddress: String
-    var allowsIMDSv1: Bool
-    var hopLimit: Int
-    var folderIDString: String?
-    var createdAt: Date
-    var updatedAt: Date
+public final class IMDSEndpointDefinition {
+    public var stableIDString: String
+    public var port: Int
+    public var name: String
+    public var profileName: String
+    public var bindAddress: String
+    public var allowsIMDSv1: Bool
+    public var hopLimit: Int
+    public var folderIDString: String?
+    public var createdAt: Date
+    public var updatedAt: Date
 
-    init(
+    public init(
         id: UUID = UUID(),
         name: String,
         profileName: String,
@@ -142,7 +142,7 @@ final class IMDSEndpointDefinition {
         self.updatedAt = updatedAt
     }
 
-    var stableID: UUID {
+    public var stableID: UUID {
         get { UUID(uuidString: stableIDString) ?? UUID() }
         set {
             stableIDString = newValue.uuidString
@@ -150,7 +150,7 @@ final class IMDSEndpointDefinition {
         }
     }
 
-    var folderID: UUID? {
+    public var folderID: UUID? {
         get {
             guard let folderIDString else { return nil }
             return UUID(uuidString: folderIDString)
@@ -161,24 +161,24 @@ final class IMDSEndpointDefinition {
         }
     }
 
-    var endpointURL: URL? {
+    public var endpointURL: URL? {
         URL(string: "http://\(bindAddress):\(port)")
     }
 }
 
 @Model
-final class IMDSEndpointLogEntry {
-    var stableIDString: String
-    var endpointIDString: String
-    var timestamp: Date
-    var method: String
-    var path: String
-    var statusCode: Int
-    var client: String?
-    var userAgent: String?
-    var message: String?
+public final class IMDSEndpointLogEntry {
+    public var stableIDString: String
+    public var endpointIDString: String
+    public var timestamp: Date
+    public var method: String
+    public var path: String
+    public var statusCode: Int
+    public var client: String?
+    public var userAgent: String?
+    public var message: String?
 
-    init(
+    public init(
         id: UUID = UUID(),
         endpointID: UUID,
         timestamp: Date = .now,
@@ -200,12 +200,12 @@ final class IMDSEndpointLogEntry {
         self.message = message
     }
 
-    var stableID: UUID {
+    public var stableID: UUID {
         get { UUID(uuidString: stableIDString) ?? UUID() }
         set { stableIDString = newValue.uuidString }
     }
 
-    var endpointID: UUID {
+    public var endpointID: UUID {
         get { UUID(uuidString: endpointIDString) ?? UUID() }
         set { endpointIDString = newValue.uuidString }
     }

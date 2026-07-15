@@ -1,4 +1,5 @@
 import SwiftUI
+import QuorraAppLogic
 
 struct IMDSEndpointEditorDraft {
     var name: String

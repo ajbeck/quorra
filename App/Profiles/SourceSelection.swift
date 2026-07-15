@@ -1,4 +1,5 @@
 import Foundation
+import QuorraAppLogic
 
 enum SourceSelection: Hashable, Sendable {
     case all

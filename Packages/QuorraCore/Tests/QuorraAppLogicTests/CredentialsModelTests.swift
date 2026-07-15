@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 import IAMIdentityCenter
-@testable import quorra
+@testable import QuorraAppLogic
 
 @MainActor
 struct CredentialsModelTests {

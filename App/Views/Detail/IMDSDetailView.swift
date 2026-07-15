@@ -1,6 +1,7 @@
 import SwiftUI
 import AWSConfigINI
 import SwiftData
+import QuorraAppLogic
 
 struct IMDSDetailView: View {
     let endpointID: String

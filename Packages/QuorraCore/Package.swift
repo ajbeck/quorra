@@ -41,11 +41,11 @@ let package = Package(
         ),
         .target(
             name: "QuorraAppLogic",
-            dependencies: ["AWSConfigINI"]
+            dependencies: ["AWSConfigINI", "IAMIdentityCenter"]
         ),
         .testTarget(
             name: "QuorraAppLogicTests",
-            dependencies: ["QuorraAppLogic", "AWSConfigINI"]
+            dependencies: ["QuorraAppLogic", "AWSConfigINI", "IAMIdentityCenter"]
         ),
         .testTarget(
             name: "IAMIdentityCenterTests",

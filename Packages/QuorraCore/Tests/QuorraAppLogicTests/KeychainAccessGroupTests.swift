@@ -1,5 +1,5 @@
 import Testing
-@testable import quorra
+@testable import QuorraAppLogic
 
 struct KeychainAccessGroupTests {
     @Test func resolvesSharedGroupFromEntitlementsWhenInfoPlistPrefixIsMissing() {
