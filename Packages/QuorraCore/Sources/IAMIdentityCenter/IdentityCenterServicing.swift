@@ -99,6 +99,19 @@ public protocol IdentityCenterServicing: Sendable {
         region: String
     ) async throws -> RoleCredentials
 
+    /// Forces a fresh role-credential mint for `(sessionName, accountId, roleName, region)`.
+    ///
+    /// Unlike `liveCredentials`, this ignores a still-fresh cached role-credential row. It keeps
+    /// the same single-flight, Keychain-write, terminal-error purge, and event semantics as the
+    /// normal inline mint path.
+    @concurrent
+    func renewCredentials(
+        forSession sessionName: String,
+        accountId: String,
+        roleName: String,
+        region: String
+    ) async throws -> RoleCredentials
+
     /// Returns the `ProfileAuthStatus` for a `(sessionName, accountId, roleName)` tuple.
     ///
     /// Contract per D29:

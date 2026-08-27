@@ -1,8 +1,12 @@
 import SwiftUI
 import AWSConfigINI
+import QuorraAppLogic
+import SwiftData
 
 struct DetailView: View {
     @Binding var selection: DetailSelection?
+    @Binding var sourceSelection: SourceSelection
+    @Binding var searchText: String
     @Environment(AppModel.self) private var appModel
     @Environment(ProfilesModel.self) private var profilesModel
 
@@ -28,7 +32,12 @@ struct DetailView: View {
             }
         case (.loaded, .profile(let name)):
             if let node = profilesModel.findProfile(named: name) {
-                ProfileDetailView(node: node, detailSelection: $selection)
+                ProfileDetailView(
+                    node: node,
+                    detailSelection: $selection,
+                    sourceSelection: $sourceSelection,
+                    searchText: $searchText
+                )
             } else {
                 ContentUnavailableView("Profile not found", systemImage: "questionmark.circle")
             }
@@ -38,10 +47,11 @@ struct DetailView: View {
             } else {
                 ContentUnavailableView("Session not found", systemImage: "questionmark.circle")
             }
-        case (.loaded, .imds(let profileName)):
-            IMDSDetailView(profileName: profileName)
+        case (.loaded, .imds(let endpointID)):
+            IMDSDetailView(endpointID: endpointID)
         }
     }
+
 }
 
 #Preview("Detail – loaded, no selection") {
@@ -60,7 +70,7 @@ struct DetailView: View {
 }
 
 #Preview("Detail – IMDS selected") {
-    DetailViewPreviewHarness(selection: .imds(profileName: "default"))
+    DetailViewPreviewHarness(selection: .imds(endpointID: "00000000-0000-0000-0000-000000009679"))
 }
 
 #Preview("Detail – no profiles yet") {
@@ -72,27 +82,48 @@ private struct DetailViewPreviewHarness: View {
     let mode: ManagedMode
     let forceEmpty: Bool
     @State private var selection: DetailSelection?
+    @State private var sourceSelection: SourceSelection = .all
+    @State private var searchText = ""
     @State private var appModel: AppModel
     @State private var profilesModel = ProfilesModel()
     @State private var editorState = EditorState()
     @State private var imdsModel = IMDSModel()
+    private let metadataContainer: ModelContainer
 
     init(selection: DetailSelection?, mode: ManagedMode = .managed, forceEmpty: Bool = false) {
         self.initialSelection = selection
         self.mode = mode
         self.forceEmpty = forceEmpty
         let tmp = URL(filePath: "/nonexistent/aws-folder")
+        let metadataContainer = try! QuorraMetadataSchema.makeContainer(inMemory: true)
+        if case .imds(let endpointID) = selection,
+           let uuid = UUID(uuidString: endpointID) {
+            metadataContainer.mainContext.insert(IMDSEndpointDefinition(
+                id: uuid,
+                name: "localhost:9678",
+                profileName: "default",
+                port: 9678
+            ))
+            try! metadataContainer.mainContext.save()
+        }
+
         _appModel = State(initialValue: AppModel(initialPhase: .ready(tmp), initialMode: mode))
         _selection = State(initialValue: selection)
+        self.metadataContainer = metadataContainer
     }
 
     var body: some View {
-        DetailView(selection: $selection)
+        DetailView(
+            selection: $selection,
+            sourceSelection: $sourceSelection,
+            searchText: $searchText
+        )
             .environment(appModel)
             .environment(profilesModel)
             .environment(editorState)
             .environment(CredentialsModel(service: PreviewIdentityCenterService()))
             .environment(imdsModel)
+            .modelContainer(metadataContainer)
             .task {
                 let tmp = FileManager.default.temporaryDirectory
                     .appending(path: UUID().uuidString, directoryHint: .isDirectory)

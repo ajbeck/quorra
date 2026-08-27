@@ -1,6 +1,7 @@
 import SwiftUI
 import AWSConfigINI
 import IAMIdentityCenter
+import QuorraAppLogic
 
 /// A session row in the SSO Sessions list. Two lines: status icon + name + live
 /// expiry tag (line 1), and "N profiles · region" (line 2). Reuses the shipped
@@ -94,7 +95,7 @@ struct SessionRow: View {
 
 /// Renders the session row across its statuses. Like `ProfileRow`, it deliberately avoids
 /// a `.sidebar` `List` (the row preview stays focused on the row; list chrome is
-/// validated by the `SessionRailView` preview) and seeds statuses in `init` so the first frame
+/// validated by the `SourceSidebarView` preview) and seeds statuses in `init` so the first frame
 /// is final — no async mutation mid-layout.
 private struct SessionRowGallery: View {
     private func node(_ id: String, region: String?, profiles: Int) -> SSOSessionNode {

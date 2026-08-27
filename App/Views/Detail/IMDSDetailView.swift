@@ -1,16 +1,23 @@
 import SwiftUI
 import AWSConfigINI
+import SwiftData
+import QuorraAppLogic
 
 struct IMDSDetailView: View {
-    let profileName: String
+    let endpointID: String
     @Environment(ProfilesModel.self) private var profilesModel
     @Environment(CredentialsModel.self) private var credentialsModel
     @Environment(IMDSModel.self) private var imdsModel
+    @Environment(\.modelContext) private var modelContext
+    @Query private var endpointDefinitions: [IMDSEndpointDefinition]
+    @Query(sort: \IMDSEndpointLogEntry.timestamp, order: .reverse) private var endpointLogEntries: [IMDSEndpointLogEntry]
+    @State private var isPresentingEndpointEditor = false
 
     var body: some View {
-        if let node = profilesModel.findProfile(named: profileName) {
+        if let definition = endpointDefinition,
+           let node = profilesModel.findProfile(named: definition.profileName) {
             if node.profile.ssoSession != nil {
-                detail(for: node)
+                detail(for: node, definition: definition)
             } else {
                 ContentUnavailableView("IMDS unavailable", systemImage: "antenna.radiowaves.left.and.right.slash")
             }
@@ -19,27 +26,48 @@ struct IMDSDetailView: View {
         }
     }
 
-    private func detail(for node: ProfileNode) -> some View {
-        let state = imdsModel.state(forProfile: node.id)
-        let runtime = imdsModel.runtimeInfo(forProfile: node.id)
+    private func detail(for node: ProfileNode, definition: IMDSEndpointDefinition) -> some View {
+        let endpointKey = definition.stableIDString
+        let state = imdsModel.state(forEndpointID: endpointKey)
+        let runtime = imdsModel.runtimeInfo(forEndpointID: endpointKey)
         return ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                header(for: node, state: state)
-                serverStatusPanel(for: node, state: state, runtime: runtime)
-                endpointCard(for: state)
-                configurationCard(for: state)
-                activityCard(for: state, runtime: runtime)
+                header(for: node, endpointKey: endpointKey, state: state, definition: definition)
+                serverStatusPanel(for: node, endpointKey: endpointKey, state: state, runtime: runtime, definition: definition)
+                endpointCard(for: state, definition: definition)
+                configurationCard(for: state, definition: definition)
+                activityCard(for: state, runtime: runtime, endpointKey: endpointKey)
             }
             .padding(24)
             .frame(maxWidth: 980, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .navigationTitle("IMDS Server")
+        .sheet(isPresented: $isPresentingEndpointEditor) {
+            IMDSEndpointEditorSheet(
+                mode: .edit,
+                existingNames: Set(endpointDefinitions.map(\.name)),
+                usedPorts: Set(endpointDefinitions.map(\.port)),
+                profiles: profilesModel.groups.flatProfiles.map(\.node),
+                initialDraft: IMDSEndpointEditorDraft(endpoint: definition)
+            ) { draft in
+                try saveEndpointDefinition(draft, to: definition, endpointKey: endpointKey)
+            }
+        }
     }
 
-    private func header(for node: ProfileNode, state: IMDSEndpointState) -> some View {
+    private var endpointDefinition: IMDSEndpointDefinition? {
+        return endpointDefinitions.first { $0.stableIDString == endpointID }
+    }
+
+    private func header(
+        for node: ProfileNode,
+        endpointKey: String,
+        state: IMDSEndpointState,
+        definition: IMDSEndpointDefinition
+    ) -> some View {
         HStack(alignment: .firstTextBaseline) {
-            Text("IMDS Server")
+            Text(definition.name)
                 .font(.title.weight(.semibold))
                 .lineLimit(1)
 
@@ -47,7 +75,7 @@ struct IMDSDetailView: View {
 
             Menu {
                 Button {
-                    copyToPasteboard(endpointURL(for: state))
+                    copyToPasteboard(endpointURL(for: state, definition: definition))
                 } label: {
                     Label("Copy Endpoint URL", systemImage: "doc.on.doc")
                 }
@@ -58,7 +86,7 @@ struct IMDSDetailView: View {
                 case .inactive:
                     Button {
                         Task {
-                            await imdsModel.startEndpoint(for: node, credentialsModel: credentialsModel)
+                            await startEndpoint(endpointKey: endpointKey, for: node, definition: definition)
                         }
                     } label: {
                         Label("Start Server", systemImage: "play.fill")
@@ -69,26 +97,27 @@ struct IMDSDetailView: View {
                 case .active:
                     Button {
                         Task {
-                            await imdsModel.restartEndpoint(for: node, credentialsModel: credentialsModel)
+                            imdsModel.stopEndpoint(forEndpointID: endpointKey)
+                            await startEndpoint(endpointKey: endpointKey, for: node, definition: definition)
                         }
                     } label: {
                         Label("Restart Server", systemImage: "arrow.clockwise")
                     }
                     Button(role: .destructive) {
-                        imdsModel.stopEndpoint(forProfile: profileName)
+                        imdsModel.stopEndpoint(forEndpointID: endpointKey)
                     } label: {
                         Label("Stop Server", systemImage: "stop.fill")
                     }
                 case .failed:
                     Button {
                         Task {
-                            await imdsModel.retryEndpoint(for: node, credentialsModel: credentialsModel)
+                            await startEndpoint(endpointKey: endpointKey, for: node, definition: definition)
                         }
                     } label: {
                         Label("Retry Server", systemImage: "arrow.clockwise")
                     }
                     Button {
-                        imdsModel.stopEndpoint(forProfile: profileName)
+                        imdsModel.stopEndpoint(forEndpointID: endpointKey)
                     } label: {
                         Label("Dismiss Failure", systemImage: "xmark")
                     }
@@ -101,17 +130,23 @@ struct IMDSDetailView: View {
         }
     }
 
-    private func serverStatusPanel(for node: ProfileNode, state: IMDSEndpointState, runtime: IMDSRuntimeInfo?) -> some View {
+    private func serverStatusPanel(
+        for node: ProfileNode,
+        endpointKey: String,
+        state: IMDSEndpointState,
+        runtime: IMDSRuntimeInfo?,
+        definition: IMDSEndpointDefinition
+    ) -> some View {
         ViewThatFits(in: .horizontal) {
             HStack(spacing: 16) {
-                serverSummary(for: node, state: state, runtime: runtime)
+                serverSummary(for: node, state: state, runtime: runtime, definition: definition)
                 Spacer(minLength: 16)
-                serverActions(for: node, state: state)
+                serverActions(for: node, endpointKey: endpointKey, state: state, definition: definition)
             }
 
             VStack(alignment: .leading, spacing: 14) {
-                serverSummary(for: node, state: state, runtime: runtime)
-                serverActions(for: node, state: state)
+                serverSummary(for: node, state: state, runtime: runtime, definition: definition)
+                serverActions(for: node, endpointKey: endpointKey, state: state, definition: definition)
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
@@ -123,7 +158,12 @@ struct IMDSDetailView: View {
         }
     }
 
-    private func serverSummary(for node: ProfileNode, state: IMDSEndpointState, runtime: IMDSRuntimeInfo?) -> some View {
+    private func serverSummary(
+        for node: ProfileNode,
+        state: IMDSEndpointState,
+        runtime: IMDSRuntimeInfo?,
+        definition: IMDSEndpointDefinition
+    ) -> some View {
         HStack(spacing: 14) {
             statusIcon(for: state)
                 .frame(width: 34, height: 34)
@@ -138,13 +178,13 @@ struct IMDSDetailView: View {
                     }
                 }
 
-                Text(endpointURL(for: state))
+                Text(endpointURL(for: state, definition: definition))
                     .font(.title3.monospaced())
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .textSelection(.enabled)
 
-                Text(statusMetadata(for: state, runtime: runtime))
+                Text(statusMetadata(for: state, runtime: runtime, definition: definition))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
@@ -170,13 +210,18 @@ struct IMDSDetailView: View {
         }
     }
 
-    private func serverActions(for node: ProfileNode, state: IMDSEndpointState) -> some View {
+    private func serverActions(
+        for node: ProfileNode,
+        endpointKey: String,
+        state: IMDSEndpointState,
+        definition: IMDSEndpointDefinition
+    ) -> some View {
         HStack(spacing: 10) {
             switch state {
             case .inactive:
                 Button {
                     Task {
-                        await imdsModel.startEndpoint(for: node, credentialsModel: credentialsModel)
+                        await startEndpoint(endpointKey: endpointKey, for: node, definition: definition)
                     }
                 } label: {
                     Label("Start", systemImage: "play.fill")
@@ -184,16 +229,18 @@ struct IMDSDetailView: View {
                 .buttonStyle(.borderedProminent)
 
             case .starting:
-                Button {} label: {
-                    Label("Starting", systemImage: "clock")
+                Button(role: .cancel) {
+                    imdsModel.stopEndpoint(forEndpointID: endpointKey)
+                } label: {
+                    Label("Cancel", systemImage: "xmark")
                 }
                 .buttonStyle(.bordered)
-                .disabled(true)
 
             case .active:
                 Button {
                     Task {
-                        await imdsModel.restartEndpoint(for: node, credentialsModel: credentialsModel)
+                        imdsModel.stopEndpoint(forEndpointID: endpointKey)
+                        await startEndpoint(endpointKey: endpointKey, for: node, definition: definition)
                     }
                 } label: {
                     Label("Restart", systemImage: "arrow.clockwise")
@@ -201,7 +248,7 @@ struct IMDSDetailView: View {
                 .buttonStyle(.bordered)
 
                 Button(role: .destructive) {
-                    imdsModel.stopEndpoint(forProfile: profileName)
+                    imdsModel.stopEndpoint(forEndpointID: endpointKey)
                 } label: {
                     Label("Stop", systemImage: "stop.fill")
                 }
@@ -211,7 +258,7 @@ struct IMDSDetailView: View {
             case .failed:
                 Button {
                     Task {
-                        await imdsModel.retryEndpoint(for: node, credentialsModel: credentialsModel)
+                        await startEndpoint(endpointKey: endpointKey, for: node, definition: definition)
                     }
                 } label: {
                     Label("Retry", systemImage: "arrow.clockwise")
@@ -219,7 +266,7 @@ struct IMDSDetailView: View {
                 .buttonStyle(.borderedProminent)
 
                 Button {
-                    imdsModel.stopEndpoint(forProfile: profileName)
+                    imdsModel.stopEndpoint(forEndpointID: endpointKey)
                 } label: {
                     Label("Dismiss", systemImage: "xmark")
                 }
@@ -229,8 +276,22 @@ struct IMDSDetailView: View {
         .controlSize(.regular)
     }
 
-    private func endpointCard(for state: IMDSEndpointState) -> some View {
-        let endpoint = endpointURL(for: state)
+    private func startEndpoint(
+        endpointKey: String,
+        for node: ProfileNode,
+        definition: IMDSEndpointDefinition
+    ) async {
+        await imdsModel.startEndpoint(
+            endpointID: endpointKey,
+            for: node,
+            credentialsModel: credentialsModel,
+            port: definition.port,
+            requestRecorder: persistRequestLog
+        )
+    }
+
+    private func endpointCard(for state: IMDSEndpointState, definition: IMDSEndpointDefinition) -> some View {
+        let endpoint = endpointURL(for: state, definition: definition)
         return DetailCard("Endpoint") {
             VStack(alignment: .leading, spacing: 10) {
                 commandLineRow(prefix: "URL", value: endpoint)
@@ -281,10 +342,23 @@ struct IMDSDetailView: View {
         }
     }
 
-    private func configurationCard(for state: IMDSEndpointState) -> some View {
+    private func configurationCard(for state: IMDSEndpointState, definition: IMDSEndpointDefinition) -> some View {
         DetailCard("Configuration") {
+            HStack {
+                Spacer()
+                Button {
+                    isPresentingEndpointEditor = true
+                } label: {
+                    Label("Edit", systemImage: "pencil")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .help("Edit endpoint configuration")
+            }
+            .padding(.bottom, 6)
+
             DetailField("Port") {
-                Text(String(state.port ?? 9678))
+                Text(String(state.port ?? definition.port))
                     .font(.body.monospacedDigit())
                     .padding(.horizontal, 10)
                     .padding(.vertical, 3)
@@ -294,36 +368,67 @@ struct IMDSDetailView: View {
             DetailDivider()
 
             DetailField("Bind address") {
-                Text("127.0.0.1")
+                Text(definition.bindAddress)
                     .font(.body.monospaced())
             }
 
             DetailDivider()
 
             DetailField("IMDS version") {
-                Picker("IMDS version", selection: .constant("v2")) {
+                Picker("IMDS version", selection: .constant(definition.allowsIMDSv1 ? "v1+v2" : "v2")) {
                     Text("v1").tag("v1")
                     Text("v2").tag("v2")
+                    Text("v1 + v2").tag("v1+v2")
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                .frame(width: 108)
+                .frame(width: 164)
                 .disabled(true)
             }
 
             DetailDivider()
 
             DetailField("Hop limit") {
-                Text("2")
+                Text(String(definition.hopLimit))
                     .font(.body.monospacedDigit())
+            }
+
+            DetailDivider()
+
+            DetailField("Folder") {
+                MetadataFolderPicker(
+                    objectKind: .imdsEndpoint,
+                    objectID: definition.stableIDString,
+                    isEnabled: true
+                )
+                .labelsHidden()
             }
         }
     }
 
-    private func activityCard(for state: IMDSEndpointState, runtime: IMDSRuntimeInfo?) -> some View {
-        let events = runtime?.activity ?? IMDSRequestLog.previewEvents
+    private func saveEndpointDefinition(
+        _ draft: IMDSEndpointEditorDraft,
+        to definition: IMDSEndpointDefinition,
+        endpointKey: String
+    ) throws {
+        let runtimeConfigurationChanged = definition.profileName != draft.profileName
+            || definition.port != draft.port
+            || definition.bindAddress != draft.bindAddress
+            || definition.allowsIMDSv1 != draft.allowsIMDSv1
+            || definition.hopLimit != draft.hopLimit
+
+        draft.apply(to: definition)
+        try modelContext.save()
+
+        if runtimeConfigurationChanged {
+            imdsModel.stopEndpoint(forEndpointID: endpointKey)
+        }
+    }
+
+    private func activityCard(for state: IMDSEndpointState, runtime: IMDSRuntimeInfo?, endpointKey: String) -> some View {
+        let events = activityEvents(endpointKey: endpointKey, runtime: runtime)
         return DetailCard("Activity") {
-            if state.isActive, !events.isEmpty {
+            if !events.isEmpty {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(events) { event in
                         IMDSActivityRow(event: event)
@@ -337,15 +442,54 @@ struct IMDSDetailView: View {
                 ContentUnavailableView(
                     state.isActive ? "No Requests Yet" : "No Requests",
                     systemImage: "list.bullet.rectangle",
-                    description: Text("Start the endpoint to see IMDS requests.")
+                    description: Text("Start the endpoint to see IMDS requests here.")
                 )
                 .frame(maxWidth: .infinity, minHeight: 92)
             }
         }
     }
 
-    private func endpointURL(for state: IMDSEndpointState) -> String {
-        "http://127.0.0.1:\(state.port ?? 9678)"
+    private func activityEvents(endpointKey: String, runtime: IMDSRuntimeInfo?) -> [IMDSRequestLog] {
+        let persisted = persistedActivityEvents(endpointKey: endpointKey)
+        if !persisted.isEmpty {
+            return persisted
+        }
+        return runtime?.activity ?? []
+    }
+
+    private func persistedActivityEvents(endpointKey: String) -> [IMDSRequestLog] {
+        guard UUID(uuidString: endpointKey) != nil else { return [] }
+        return endpointLogEntries
+            .filter { $0.endpointIDString == endpointKey }
+            .prefix(IMDSEndpointLogStore.maxEntriesPerEndpoint)
+            .map(IMDSRequestLog.init(entry:))
+    }
+
+    private func persistRequestLog(endpointID: String, log: IMDSRequestLog) {
+        guard let endpointUUID = UUID(uuidString: endpointID) else { return }
+
+        do {
+            try IMDSEndpointLogStore.append(
+                IMDSEndpointLogEntry(
+                    id: log.id,
+                    endpointID: endpointUUID,
+                    timestamp: log.timestamp,
+                    method: log.method,
+                    path: log.path,
+                    statusCode: log.status,
+                    client: log.client
+                ),
+                in: modelContext
+            )
+        } catch {
+            // Request logging should never interrupt an already-running local endpoint.
+        }
+    }
+
+    private func endpointURL(for state: IMDSEndpointState, definition: IMDSEndpointDefinition) -> String {
+        let bindAddress = definition.bindAddress
+        let port = state.port ?? definition.port
+        return "http://\(bindAddress):\(port)"
     }
 
     private func statusTitle(for state: IMDSEndpointState) -> String {
@@ -357,17 +501,23 @@ struct IMDSDetailView: View {
         }
     }
 
-    private func statusMetadata(for state: IMDSEndpointState, runtime: IMDSRuntimeInfo?) -> String {
+    private func statusMetadata(
+        for state: IMDSEndpointState,
+        runtime: IMDSRuntimeInfo?,
+        definition: IMDSEndpointDefinition
+    ) -> String {
+        let bindAddress = definition.bindAddress
+        let version = definition.allowsIMDSv1 ? "IMDSv1 + IMDSv2" : "IMDSv2"
         switch state {
         case .inactive:
-            return "ready to serve IMDSv2 on 127.0.0.1"
+            return "ready to serve \(version) on \(bindAddress)"
         case .starting:
-            return "binding to 127.0.0.1 · IMDSv2"
+            return "binding to \(bindAddress) · \(version)"
         case .active:
             if let runtime {
-                return "up \(relativeDuration(since: runtime.startedAt)) · \(runtime.requestCount.formatted()) requests served · IMDSv2"
+                return "up \(relativeDuration(since: runtime.startedAt)) · \(runtime.requestCount.formatted()) requests served · \(version)"
             }
-            return "up 1h 48m · 1,243 requests served · IMDSv2"
+            return "up 1h 48m · 1,243 requests served · \(version)"
         case .failed(_, let message):
             return message
         }
@@ -422,6 +572,17 @@ private struct IMDSStatusBadge: View {
 }
 
 private extension IMDSRequestLog {
+    init(entry: IMDSEndpointLogEntry) {
+        self.init(
+            id: entry.stableID,
+            timestamp: entry.timestamp,
+            method: entry.method,
+            path: entry.path,
+            client: entry.client ?? "localhost",
+            status: entry.statusCode
+        )
+    }
+
     static let previewEvents: [IMDSRequestLog] = [
         IMDSRequestLog(
             id: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
@@ -491,35 +652,51 @@ private struct IMDSActivityRow: View {
 }
 
 #Preview("IMDS Detail - inactive") {
-    IMDSDetailView(profileName: "ac:cp:org_admin")
-        .environment(ProfilesModel.previewLoaded(config: PreviewAWSFixtures.mockupConfig))
-        .environment(CredentialsModel(service: PreviewIdentityCenterService()))
-        .environment(IMDSModel())
+    IMDSDetailPreviewHarness(state: .inactive)
 }
 
 #Preview("IMDS Detail - starting") {
-    let model = IMDSModel()
-    model.setState(.starting(port: 9678), forProfile: "ac:cp:org_admin")
-    return IMDSDetailView(profileName: "ac:cp:org_admin")
-        .environment(ProfilesModel.previewLoaded(config: PreviewAWSFixtures.mockupConfig))
-        .environment(CredentialsModel(service: PreviewIdentityCenterService()))
-        .environment(model)
+    IMDSDetailPreviewHarness(state: .starting(port: 9678))
 }
 
 #Preview("IMDS Detail - active") {
-    let model = IMDSModel()
-    model.setState(.active(port: 9678), forProfile: "ac:cp:org_admin")
-    return IMDSDetailView(profileName: "ac:cp:org_admin")
-        .environment(ProfilesModel.previewLoaded(config: PreviewAWSFixtures.mockupConfig))
-        .environment(CredentialsModel(service: PreviewIdentityCenterService()))
-        .environment(model)
+    IMDSDetailPreviewHarness(state: .active(port: 9678))
 }
 
 #Preview("IMDS Detail - failed") {
-    let model = IMDSModel()
-    model.setState(.failed(port: 9678, message: "Port 9678 is already in use."), forProfile: "ac:cp:org_admin")
-    return IMDSDetailView(profileName: "ac:cp:org_admin")
+    IMDSDetailPreviewHarness(state: .failed(port: 9678, message: "Port 9678 is already in use."))
+}
+
+private struct IMDSDetailPreviewHarness: View {
+    private static let endpointID = UUID(uuidString: "00000000-0000-0000-0000-000000009678")!
+
+    @State private var model: IMDSModel
+    private let metadataContainer: ModelContainer
+
+    init(state: IMDSEndpointState) {
+        let metadataContainer = try! QuorraMetadataSchema.makeContainer(inMemory: true)
+        let endpoint = IMDSEndpointDefinition(
+            id: Self.endpointID,
+            name: "localhost:9678",
+            profileName: "ac:cp:org_admin",
+            port: 9678
+        )
+        metadataContainer.mainContext.insert(endpoint)
+        try! metadataContainer.mainContext.save()
+
+        let model = IMDSModel()
+        model.setState(state, forEndpointID: endpoint.stableIDString)
+
+        _model = State(initialValue: model)
+        self.metadataContainer = metadataContainer
+    }
+
+    var body: some View {
+        IMDSDetailView(endpointID: Self.endpointID.uuidString)
         .environment(ProfilesModel.previewLoaded(config: PreviewAWSFixtures.mockupConfig))
         .environment(CredentialsModel(service: PreviewIdentityCenterService()))
         .environment(model)
+        .modelContainer(metadataContainer)
+        .frame(width: 920, height: 720)
+    }
 }

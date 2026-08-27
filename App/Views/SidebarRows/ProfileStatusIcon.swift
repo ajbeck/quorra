@@ -1,5 +1,6 @@
 import SwiftUI
 import IAMIdentityCenter
+import QuorraAppLogic
 
 /// Pure view: renders the `person.icloud` SF Symbol in the shape, color, and effect
 /// prescribed by `ProfileAuthStatus` per D31.

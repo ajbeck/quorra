@@ -1,5 +1,6 @@
 import SwiftUI
 import IAMIdentityCenter
+import QuorraAppLogic
 
 /// Inline sign-in panel for SSO sessions.
 ///

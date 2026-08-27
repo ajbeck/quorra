@@ -200,8 +200,8 @@ public struct AWSConfigINIDocument: Sendable {
 
     /// Writes the document to `url` using UTF-8 encoding, atomically.
     ///
-    /// Atomic-replace only. For concurrent-write safety (the app and CLI both
-    /// touching the same file), use the locked entrypoint
+    /// Atomic-replace only. For concurrent-write safety when more than one
+    /// process may touch the same file, use the locked entrypoint
     /// ``update(at:flavor:options:mode:_:)`` instead.
     ///
     /// - Parameters:
@@ -211,12 +211,7 @@ public struct AWSConfigINIDocument: Sendable {
     ///     managed-mode header comment on the first write, then serializes atomically.
     ///
     /// - Note: The caller's preference (managed vs. read-only) is stored outside this
-    ///   module — in the app/CLI shared Keychain under access group
-    ///   `$(AppIdentifierPrefix)dev.ajbeck.quorra.shared`, key
-    ///   `(service: "dev.ajbeck.quorra.settings", account: "aws-files-mode")`.
-    ///   Both the app and the CLI read that item and pass the resolved `ManagedMode`
-    ///   to this parameter on every write. See CLAUDE.md "App ↔ CLI Architecture".
-    ///   TODO: wire Keychain read at app/CLI call sites (tracked in plan §14.2 task 6).
+    ///   module. Call sites pass the resolved `ManagedMode` to this parameter on every write.
     ///
     /// - Throws:
     ///   - `AWSConfigINIError.readOnly(url)` if `mode == .readOnly`.
@@ -258,17 +253,16 @@ public struct AWSConfigINIDocument: Sendable {
     /// `flavor`), passes the parsed document to `block` for mutation, then
     /// serializes and atomically writes the result back to `url`.
     ///
-    /// This is the primary write entrypoint for the app and the CLI. Both
-    /// binaries call `update(at:flavor:options:mode:_:)` and cooperate via the
-    /// shared sibling lock file. CLAUDE.md "App ↔ CLI Architecture": treat the
-    /// filesystem as shared mutable state; use file locks for concurrent safety.
+    /// This is the primary write entrypoint for Quorra's AWS file mutations.
+    /// Callers cooperate via the shared sibling lock file: treat the filesystem
+    /// as shared mutable state and use file locks for concurrent safety.
     ///
     /// Plan §11.2 task 4; Decision D08 (fcntl advisory lock).
     ///
     /// > Important: The fcntl advisory lock is *per-process*, not per-thread.
-    /// > It serializes calls **between processes** (e.g. the app and the CLI)
-    /// > but does NOT serialize concurrent calls from multiple threads or
-    /// > Tasks within the same process. Same-process callers must add their
+    /// > It serializes calls **between processes**, but does NOT serialize
+    /// > concurrent calls from multiple threads or Tasks within the same process.
+    /// > Same-process callers must add their
     /// > own mutual exclusion (e.g. an `actor`, `NSLock`, or `DispatchSemaphore`)
     /// > if `update(at:_:)` is reachable from more than one thread at once.
     /// >
@@ -287,12 +281,7 @@ public struct AWSConfigINIDocument: Sendable {
     ///     managed-mode header comment if absent, then atomically writes.
     ///
     ///   - Note: The caller's preference (managed vs. read-only) is stored outside this
-    ///     module — in the app/CLI shared Keychain under access group
-    ///     `$(AppIdentifierPrefix)dev.ajbeck.quorra.shared`, key
-    ///     `(service: "dev.ajbeck.quorra.settings", account: "aws-files-mode")`.
-    ///     Both the app and the CLI read that item and pass the resolved `ManagedMode`
-    ///     to this parameter on every write. See CLAUDE.md "App ↔ CLI Architecture".
-    ///     TODO: wire Keychain read at app/CLI call sites (tracked in plan §14.2 task 6).
+    ///     module. Call sites pass the resolved `ManagedMode` to this parameter on every write.
     ///
     ///   - block: Receives the parsed (or empty) document `inout`; mutate as
     ///     needed. May throw an `AWSConfigINIError`; the error propagates.
