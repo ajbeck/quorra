@@ -56,6 +56,7 @@ jobs:
           security list-keychain -d user -s "$signing_keychain"
 
           profile_uuid="$(security cms -D -i "$provisioning_profile_path" | plutil -extract UUID raw -)"
+          team_identifier="$(security cms -D -i "$provisioning_profile_path" | plutil -extract Entitlements.com.apple.developer.team-identifier raw -)"
           profile_directory="$HOME/Library/MobileDevice/Provisioning Profiles"
           mkdir -p "$profile_directory"
           cp "$provisioning_profile_path" "$profile_directory/$profile_uuid.provisionprofile"
@@ -63,6 +64,7 @@ jobs:
           security find-identity -v -p codesigning "$signing_keychain"
 
           {
+            echo "APPLE_TEAM_ID=$team_identifier"
             echo "SIGNING_KEYCHAIN=$signing_keychain"
             echo "PROVISIONING_PROFILE_UUID=$profile_uuid"
             echo "PROVISIONING_PROFILE_PATH=$profile_directory/$profile_uuid.provisionprofile"
@@ -71,7 +73,6 @@ jobs:
       - name: Archive and export application
         if: ${{ steps.release.outputs.release_created == 'true' }}
         env:
-          APPLE_TEAM_ID: 9GEBAJV9R4
           RELEASE_VERSION: ${{ steps.release.outputs.version }}
         run: |
           archive_path="$RUNNER_TEMP/quorra.xcarchive"
