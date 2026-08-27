@@ -1,4 +1,5 @@
 import AppKit
+import QuorraAppLogic
 import SwiftUI
 
 struct ErrorView: View {

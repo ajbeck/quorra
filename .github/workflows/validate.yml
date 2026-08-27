@@ -1,0 +1,88 @@
+name: Validate
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: validate-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Build and test
+    runs-on: macos-26
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Report Xcode version
+        id: xcode
+        run: |
+          xcodebuild -version
+          echo "derived_data_path=$RUNNER_TEMP/quorra-derived-data" >> "$GITHUB_OUTPUT"
+          echo "package_cache_path=$RUNNER_TEMP/quorra-package-cache" >> "$GITHUB_OUTPUT"
+          echo "source_packages_path=$RUNNER_TEMP/quorra-source-packages" >> "$GITHUB_OUTPUT"
+          echo "version=$(xcodebuild -version | awk '/^Xcode / { print $2 }')" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Xcode build cache
+        id: xcode-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ${{ steps.xcode.outputs.derived_data_path }}
+            ${{ steps.xcode.outputs.package_cache_path }}
+            ${{ steps.xcode.outputs.source_packages_path }}
+          key: >-
+            ${{ runner.os }}-${{ runner.arch }}-xcode-${{ steps.xcode.outputs.version }}-quorra-${{ hashFiles('Quorra.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'Quorra.xcodeproj/project.pbxproj', 'Packages/QuorraCore/Package.swift') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-xcode-${{ steps.xcode.outputs.version }}-quorra-
+
+      - name: Build and test
+        env:
+          DERIVED_DATA_PATH: ${{ steps.xcode.outputs.derived_data_path }}
+          PACKAGE_CACHE_PATH: ${{ steps.xcode.outputs.package_cache_path }}
+          SOURCE_PACKAGES_PATH: ${{ steps.xcode.outputs.source_packages_path }}
+        run: >-
+          xcodebuild test
+          -workspace Quorra.xcworkspace
+          -scheme quorra
+          -testPlan quorra
+          -destination 'platform=macOS'
+          -clonedSourcePackagesDirPath "$SOURCE_PACKAGES_PATH"
+          -derivedDataPath "$DERIVED_DATA_PATH"
+          -packageCachePath "$PACKAGE_CACHE_PATH"
+          -disableAutomaticPackageResolution
+          -skipPackagePluginValidation
+          -resultBundlePath "$RUNNER_TEMP/quorra-tests.xcresult"
+          CODE_SIGNING_ALLOWED=NO
+
+      - name: Save Xcode build cache
+        if: >-
+          ${{ success() && github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.xcode-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ${{ steps.xcode.outputs.derived_data_path }}
+            ${{ steps.xcode.outputs.package_cache_path }}
+            ${{ steps.xcode.outputs.source_packages_path }}
+          key: >-
+            ${{ runner.os }}-${{ runner.arch }}-xcode-${{ steps.xcode.outputs.version }}-quorra-${{ hashFiles('Quorra.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'Quorra.xcodeproj/project.pbxproj', 'Packages/QuorraCore/Package.swift') }}
+
+      - name: Upload test results
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: quorra-test-results
+          path: ${{ runner.temp }}/quorra-tests.xcresult
+          if-no-files-found: warn
+          retention-days: 7

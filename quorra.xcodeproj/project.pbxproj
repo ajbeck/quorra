@@ -9,80 +9,30 @@
 /* Begin PBXBuildFile section */
 		1B84B1B42FB1D87700D138C8 /* quorra.xctestplan in Resources */ = {isa = PBXBuildFile; fileRef = 1B84B1B32FB1D87700D138C8 /* quorra.xctestplan */; };
 		1B84B1E82FB38D8C00D138C8 /* IAMIdentityCenter in Frameworks */ = {isa = PBXBuildFile; productRef = 1B84B1E72FB38D8C00D138C8 /* IAMIdentityCenter */; };
-		1B88C1CA2FB1106B00A3CD79 /* quorra-cli in Embed CLI */ = {isa = PBXBuildFile; fileRef = 1BBF429E2FB0C7AE00B21E0D /* quorra-cli */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		1BA1B1C12FB0000000000001 /* AWSConfigINI in Frameworks */ = {isa = PBXBuildFile; productRef = 1BA1B1C22FB0000000000002 /* AWSConfigINI */; };
+		1BA1B1C42FC0000000000004 /* QuorraAppLogic in Frameworks */ = {isa = PBXBuildFile; productRef = 1BA1B1C52FC0000000000005 /* QuorraAppLogic */; };
 /* End PBXBuildFile section */
 
-/* Begin PBXContainerItemProxy section */
-		1B0E8B922FADF3FC002DC711 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 1B5F7C852FACE2A100833D01 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 1B5F7C8C2FACE2A100833D01;
-			remoteInfo = quorra;
-		};
-		1B88C1C52FB10F1500A3CD79 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 1B5F7C852FACE2A100833D01 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 1BBF429D2FB0C7AE00B21E0D;
-			remoteInfo = "quorra-cli";
-		};
-/* End PBXContainerItemProxy section */
-
-/* Begin PBXCopyFilesBuildPhase section */
-		1B88C1C92FB1105E00A3CD79 /* Embed CLI */ = {
-			isa = PBXCopyFilesBuildPhase;
-			dstPath = "";
-			dstSubfolder = Executables;
-			files = (
-				1B88C1CA2FB1106B00A3CD79 /* quorra-cli in Embed CLI */,
-			);
-			name = "Embed CLI";
-		};
-/* End PBXCopyFilesBuildPhase section */
-
 /* Begin PBXFileReference section */
-		1B0E8B8E2FADF3FC002DC711 /* quorraTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = quorraTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1B5F7C8D2FACE2A100833D01 /* quorra.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = quorra.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1B84B1B32FB1D87700D138C8 /* quorra.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = quorra.xctestplan; sourceTree = "<group>"; };
-		1BBF429E2FB0C7AE00B21E0D /* quorra-cli */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "quorra-cli"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		1B0E8B8F2FADF3FC002DC711 /* Tests/QuorraAppTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = Tests/QuorraAppTests;
-			sourceTree = "<group>";
-		};
 		1B5F7C8F2FACE2A100833D01 /* App */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = App;
 			sourceTree = "<group>";
 		};
-		1BBF429F2FB0C7AE00B21E0D /* quorra-cli */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "quorra-cli";
-			sourceTree = "<group>";
-		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		1B0E8B8B2FADF3FC002DC711 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			files = (
-			);
-		};
 		1B5F7C8A2FACE2A100833D01 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+				1BA1B1C42FC0000000000004 /* QuorraAppLogic in Frameworks */,
 				1BA1B1C12FB0000000000001 /* AWSConfigINI in Frameworks */,
 				1B84B1E82FB38D8C00D138C8 /* IAMIdentityCenter in Frameworks */,
-			);
-		};
-		1BBF429B2FB0C7AE00B21E0D /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			files = (
 			);
 		};
 /* End PBXFrameworksBuildPhase section */
@@ -93,8 +43,6 @@
 			children = (
 				1B84B1B32FB1D87700D138C8 /* quorra.xctestplan */,
 				1B5F7C8F2FACE2A100833D01 /* App */,
-				1B0E8B8F2FADF3FC002DC711 /* Tests/QuorraAppTests */,
-				1BBF429F2FB0C7AE00B21E0D /* quorra-cli */,
 				1B84B1E62FB38D8C00D138C8 /* Frameworks */,
 				1B5F7C8E2FACE2A100833D01 /* Products */,
 			);
@@ -104,8 +52,6 @@
 			isa = PBXGroup;
 			children = (
 				1B5F7C8D2FACE2A100833D01 /* quorra.app */,
-				1B0E8B8E2FADF3FC002DC711 /* quorraTests.xctest */,
-				1BBF429E2FB0C7AE00B21E0D /* quorra-cli */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -120,27 +66,6 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		1B0E8B8D2FADF3FC002DC711 /* quorraTests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 1B0E8B962FADF3FC002DC711 /* Build configuration list for PBXNativeTarget "quorraTests" */;
-			buildPhases = (
-				1B0E8B8A2FADF3FC002DC711 /* Sources */,
-				1B0E8B8B2FADF3FC002DC711 /* Frameworks */,
-				1B0E8B8C2FADF3FC002DC711 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				1B0E8B932FADF3FC002DC711 /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				1B0E8B8F2FADF3FC002DC711 /* Tests/QuorraAppTests */,
-			);
-			name = quorraTests;
-			productName = quorraTests;
-			productReference = 1B0E8B8E2FADF3FC002DC711 /* quorraTests.xctest */;
-			productType = "com.apple.product-type.bundle.unit-test";
-		};
 		1B5F7C8C2FACE2A100833D01 /* quorra */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 1B5F7C982FACE2A200833D01 /* Build configuration list for PBXNativeTarget "quorra" */;
@@ -148,12 +73,8 @@
 				1B5F7C892FACE2A100833D01 /* Sources */,
 				1B5F7C8A2FACE2A100833D01 /* Frameworks */,
 				1B5F7C8B2FACE2A100833D01 /* Resources */,
-				1B88C1C92FB1105E00A3CD79 /* Embed CLI */,
 			);
 			buildRules = (
-			);
-			dependencies = (
-				1B88C1C62FB10F1500A3CD79 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				1B5F7C8F2FACE2A100833D01 /* App */,
@@ -162,27 +83,11 @@
 			packageProductDependencies = (
 				1BA1B1C22FB0000000000002 /* AWSConfigINI */,
 				1B84B1E72FB38D8C00D138C8 /* IAMIdentityCenter */,
+				1BA1B1C52FC0000000000005 /* QuorraAppLogic */,
 			);
 			productName = quorra;
 			productReference = 1B5F7C8D2FACE2A100833D01 /* quorra.app */;
 			productType = "com.apple.product-type.application";
-		};
-		1BBF429D2FB0C7AE00B21E0D /* quorra-cli */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 1BBF42A22FB0C7AE00B21E0D /* Build configuration list for PBXNativeTarget "quorra-cli" */;
-			buildPhases = (
-				1BBF429A2FB0C7AE00B21E0D /* Sources */,
-				1BBF429B2FB0C7AE00B21E0D /* Frameworks */,
-			);
-			buildRules = (
-			);
-			fileSystemSynchronizedGroups = (
-				1BBF429F2FB0C7AE00B21E0D /* quorra-cli */,
-			);
-			name = "quorra-cli";
-			productName = "quorra-cli";
-			productReference = 1BBF429E2FB0C7AE00B21E0D /* quorra-cli */;
-			productType = "com.apple.product-type.tool";
 		};
 /* End PBXNativeTarget section */
 
@@ -195,14 +100,7 @@
 				LastUpgradeCheck = 2650;
 				ORGANIZATIONNAME = dev.ajbeck;
 				TargetAttributes = {
-					1B0E8B8D2FADF3FC002DC711 = {
-						CreatedOnToolsVersion = 26.4;
-						TestTargetID = 1B5F7C8C2FACE2A100833D01;
-					};
 					1B5F7C8C2FACE2A100833D01 = {
-						CreatedOnToolsVersion = 26.4;
-					};
-					1BBF429D2FB0C7AE00B21E0D = {
 						CreatedOnToolsVersion = 26.4;
 					};
 				};
@@ -225,18 +123,11 @@
 			projectRoot = "";
 			targets = (
 				1B5F7C8C2FACE2A100833D01 /* quorra */,
-				1B0E8B8D2FADF3FC002DC711 /* quorraTests */,
-				1BBF429D2FB0C7AE00B21E0D /* quorra-cli */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		1B0E8B8C2FADF3FC002DC711 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			files = (
-			);
-		};
 		1B5F7C8B2FACE2A100833D01 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
@@ -246,79 +137,14 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		1B0E8B8A2FADF3FC002DC711 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			files = (
-			);
-		};
 		1B5F7C892FACE2A100833D01 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			files = (
-			);
-		};
-		1BBF429A2FB0C7AE00B21E0D /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			files = (
 			);
 		};
 /* End PBXSourcesBuildPhase section */
 
-/* Begin PBXTargetDependency section */
-		1B0E8B932FADF3FC002DC711 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 1B5F7C8C2FACE2A100833D01 /* quorra */;
-			targetProxy = 1B0E8B922FADF3FC002DC711 /* PBXContainerItemProxy */;
-		};
-		1B88C1C62FB10F1500A3CD79 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 1BBF429D2FB0C7AE00B21E0D /* quorra-cli */;
-			targetProxy = 1B88C1C52FB10F1500A3CD79 /* PBXContainerItemProxy */;
-		};
-/* End PBXTargetDependency section */
-
 /* Begin XCBuildConfiguration section */
-		1B0E8B942FADF3FC002DC711 /* Debug configuration for PBXNativeTarget "quorraTests" */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEAD_CODE_STRIPPING = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.ajbeck.quorraTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/quorra.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/quorra";
-			};
-			name = Debug;
-		};
-		1B0E8B952FADF3FC002DC711 /* Release configuration for PBXNativeTarget "quorraTests" */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEAD_CODE_STRIPPING = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.ajbeck.quorraTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/quorra.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/quorra";
-			};
-			name = Release;
-		};
 		1B5F7C962FACE2A200833D01 /* Debug configuration for PBXProject "quorra" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -511,59 +337,9 @@
 			};
 			name = Release;
 		};
-		1BBF42A32FB0C7AE00B21E0D /* Debug configuration for PBXNativeTarget "quorra-cli" */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = Configs/QuorraCLI.entitlements;
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
-				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
-				CODE_SIGN_STYLE = Automatic;
-				DEAD_CODE_STRIPPING = YES;
-				ENABLE_APP_SANDBOX = YES;
-				ENABLE_HARDENED_RUNTIME = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				OTHER_CODE_SIGN_FLAGS = "$(inherited) -i $(PRODUCT_BUNDLE_IDENTIFIER)";
-				PRODUCT_BUNDLE_IDENTIFIER = dev.ajbeck.quorra.cli;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-			};
-			name = Debug;
-		};
-		1BBF42A42FB0C7AE00B21E0D /* Release configuration for PBXNativeTarget "quorra-cli" */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = Configs/QuorraCLI.entitlements;
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
-				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
-				CODE_SIGN_STYLE = Automatic;
-				DEAD_CODE_STRIPPING = YES;
-				ENABLE_APP_SANDBOX = YES;
-				ENABLE_HARDENED_RUNTIME = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				OTHER_CODE_SIGN_FLAGS = "$(inherited) -i $(PRODUCT_BUNDLE_IDENTIFIER)";
-				PRODUCT_BUNDLE_IDENTIFIER = dev.ajbeck.quorra.cli;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-			};
-			name = Release;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		1B0E8B962FADF3FC002DC711 /* Build configuration list for PBXNativeTarget "quorraTests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				1B0E8B942FADF3FC002DC711 /* Debug configuration for PBXNativeTarget "quorraTests" */,
-				1B0E8B952FADF3FC002DC711 /* Release configuration for PBXNativeTarget "quorraTests" */,
-			);
-			defaultConfigurationName = Release;
-		};
 		1B5F7C882FACE2A100833D01 /* Build configuration list for PBXProject "quorra" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -577,14 +353,6 @@
 			buildConfigurations = (
 				1B5F7C992FACE2A200833D01 /* Debug configuration for PBXNativeTarget "quorra" */,
 				1B5F7C9A2FACE2A200833D01 /* Release configuration for PBXNativeTarget "quorra" */,
-			);
-			defaultConfigurationName = Release;
-		};
-		1BBF42A22FB0C7AE00B21E0D /* Build configuration list for PBXNativeTarget "quorra-cli" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				1BBF42A32FB0C7AE00B21E0D /* Debug configuration for PBXNativeTarget "quorra-cli" */,
-				1BBF42A42FB0C7AE00B21E0D /* Release configuration for PBXNativeTarget "quorra-cli" */,
 			);
 			defaultConfigurationName = Release;
 		};
@@ -605,6 +373,10 @@
 		1BA1B1C22FB0000000000002 /* AWSConfigINI */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = AWSConfigINI;
+		};
+		1BA1B1C52FC0000000000005 /* QuorraAppLogic */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = QuorraAppLogic;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

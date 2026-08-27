@@ -194,8 +194,8 @@ struct FileIOTests {
     //   A second open(2)+F_SETLK from the same PID always succeeds immediately
     //   — it does NOT block waiting for the same process's prior lock holder.
     //   This means in-process concurrent Tasks cannot race-test the fcntl path.
-    //   The real-world serialization guarantee is cross-process: app vs. CLI
-    //   (CLAUDE.md "App ↔ CLI Architecture"). Cross-process serialization is
+    //   The real-world serialization guarantee is cross-process: separate
+    //   processes touching the same AWS files. Cross-process serialization is
     //   verified below by integration-style tests that spawn helper processes.
     //
     // What this test verifies:

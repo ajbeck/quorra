@@ -45,6 +45,35 @@ struct PreviewIdentityCenterService: IdentityCenterServicing {
         roleName: String,
         region: String
     ) async throws -> RoleCredentials {
+        try await previewCredentials(
+            forSession: sessionName,
+            accountId: accountId,
+            roleName: roleName,
+            region: region
+        )
+    }
+
+    @concurrent
+    func renewCredentials(
+        forSession sessionName: String,
+        accountId: String,
+        roleName: String,
+        region: String
+    ) async throws -> RoleCredentials {
+        try await previewCredentials(
+            forSession: sessionName,
+            accountId: accountId,
+            roleName: roleName,
+            region: region
+        )
+    }
+
+    private func previewCredentials(
+        forSession sessionName: String,
+        accountId: String,
+        roleName: String,
+        region: String
+    ) async throws -> RoleCredentials {
         RoleCredentials(
             accessKeyId: "ASIA00000000EXMPL",
             secretAccessKey: "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY",

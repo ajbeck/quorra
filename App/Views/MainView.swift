@@ -1,5 +1,7 @@
 import SwiftUI
 import IAMIdentityCenter
+import QuorraAppLogic
+import SwiftData
 
 struct MainView: View {
     let folderURL: URL
@@ -8,56 +10,57 @@ struct MainView: View {
     @Environment(ProfilesModel.self) private var profilesModel
     @Environment(CredentialsModel.self) private var credentialsModel
     @Environment(\.authBrowserPresenter) private var authBrowserPresenter
-    @State private var sessionFilter: SessionFilter = .all
-    @State private var selection: DetailSelection? = nil
+    @State private var sourceSelection: SourceSelection
+    @State private var selection: DetailSelection?
+    @State private var searchText: String
 
-    init(folderURL: URL, loadsProfilesOnAppear: Bool = true) {
+    init(
+        folderURL: URL,
+        loadsProfilesOnAppear: Bool = true,
+        initialSourceSelection: SourceSelection = .all,
+        initialDetailSelection: DetailSelection? = nil,
+        initialSearchText: String = ""
+    ) {
         self.folderURL = folderURL
         self.loadsProfilesOnAppear = loadsProfilesOnAppear
+        _sourceSelection = State(initialValue: initialSourceSelection)
+        _selection = State(initialValue: initialDetailSelection)
+        _searchText = State(initialValue: initialSearchText)
     }
 
     var body: some View {
         NavigationSplitView {
-            SessionRailView(filter: $sessionFilter)
-                .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 260)
+            SourceSidebarView(selection: $sourceSelection)
+                .navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 320)
         } content: {
-            ProfileListView(sessionFilter: $sessionFilter, selection: $selection)
+            ObjectListView(
+                sourceSelection: $sourceSelection,
+                detailSelection: $selection,
+                searchText: $searchText
+            )
                 .navigationSplitViewColumnWidth(min: 240, ideal: 300, max: 380)
         } detail: {
-            DetailView(selection: $selection)
+            DetailView(
+                selection: $selection,
+                sourceSelection: $sourceSelection,
+                searchText: $searchText
+            )
                 .navigationSplitViewColumnWidth(min: 520, ideal: 760)
         }
-        .toolbar { toolbarContent }
+        .searchable(text: $searchText, placement: .toolbar, prompt: "Search")
         .task(id: folderURL) {
             guard loadsProfilesOnAppear else { return }
             await profilesModel.load(folder: folderURL)
         }
-        .onAppear {
-            selectDefaultProfileIfNeeded()
+        .onChange(of: sourceSelection) { _, _ in
+            selection = nil
         }
-        .onChange(of: profilesModel.loadState) { _, newState in
-            guard newState == .loaded else { return }
-            selectDefaultProfileIfNeeded()
+        .onChange(of: searchText) { _, _ in
+            selection = nil
         }
         .onChange(of: credentialsModel.inFlight) { oldValue, newValue in
             handleSignInPresentationChange(from: oldValue, to: newValue)
         }
-    }
-
-    @ToolbarContentBuilder private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .primaryAction) {
-            Button {
-                Task { await profilesModel.reload() }
-            } label: {
-                Label("Refresh", systemImage: "arrow.clockwise")
-            }
-            .keyboardShortcut("r", modifiers: [.command])
-        }
-    }
-
-    private func selectDefaultProfileIfNeeded() {
-        guard selection == nil, profilesModel.loadState == .loaded else { return }
-        selection = profilesModel.groups.flatProfiles.first.map { .profile(name: $0.id) }
     }
 
     private func handleSignInPresentationChange(
@@ -84,21 +87,50 @@ struct MainView: View {
         .environment(CredentialsModel(service: PreviewIdentityCenterService()))
         .environment(IMDSModel())
         .environment(\.authBrowserPresenter, AuthBrowserPresenter())
+        .modelContainer(try! QuorraMetadataSchema.makeContainer(inMemory: true))
 }
 
 #Preview("Main – with sample data") {
     MainViewSampleDataHarness()
 }
 
+#Preview("Main – Profiles source") {
+    MainViewSampleDataHarness(sourceSelection: .profiles)
+}
+
+#Preview("Main – Searching profiles") {
+    MainViewSampleDataHarness(sourceSelection: .profiles, searchText: "mgmt")
+}
+
+#Preview("Main – selected profile") {
+    MainViewSampleDataHarness(
+        sourceSelection: .profiles,
+        detailSelection: .profile(name: "ac:cp:org_admin")
+    )
+}
+
 private struct MainViewSampleDataHarness: View {
+    private static let previewEndpointID = UUID(uuidString: "00000000-0000-0000-0000-000000009678")!
+
     private let folderURL = URL(filePath: "/preview/.aws", directoryHint: .isDirectory)
+    private let initialSourceSelection: SourceSelection
+    private let initialDetailSelection: DetailSelection?
+    private let initialSearchText: String
     @State private var appModel: AppModel
     @State private var profilesModel: ProfilesModel
     @State private var editorState: EditorState
     @State private var credentialsModel: CredentialsModel
     @State private var imdsModel: IMDSModel
+    private let metadataContainer: ModelContainer
 
-    init() {
+    init(
+        sourceSelection: SourceSelection = .all,
+        detailSelection: DetailSelection? = nil,
+        searchText: String = ""
+    ) {
+        initialSourceSelection = sourceSelection
+        initialDetailSelection = detailSelection
+        initialSearchText = searchText
         let folderURL = URL(filePath: "/preview/.aws", directoryHint: .isDirectory)
         let profiles = ProfilesModel.previewLoaded(
             config: PreviewAWSFixtures.mockupConfig,
@@ -116,22 +148,39 @@ private struct MainViewSampleDataHarness: View {
         creds.seedStatusForTesting(.signedOut, sessionName: "orion-labs")
 
         let imds = IMDSModel()
-        imds.setState(.active(port: 9678), forProfile: "ac:cp:org_admin")
+        let metadataContainer = try! QuorraMetadataSchema.makeContainer(inMemory: true)
+        let endpoint = IMDSEndpointDefinition(
+            id: Self.previewEndpointID,
+            name: "localhost:9678",
+            profileName: "ac:cp:org_admin",
+            port: 9678
+        )
+        metadataContainer.mainContext.insert(endpoint)
+        try! metadataContainer.mainContext.save()
+        imds.setState(.active(port: 9678), forEndpointID: endpoint.stableIDString)
 
         _appModel = State(initialValue: AppModel(initialPhase: .ready(folderURL)))
         _profilesModel = State(initialValue: profiles)
         _editorState = State(initialValue: EditorState())
         _credentialsModel = State(initialValue: creds)
         _imdsModel = State(initialValue: imds)
+        self.metadataContainer = metadataContainer
     }
 
     var body: some View {
-        MainView(folderURL: folderURL, loadsProfilesOnAppear: false)
+        MainView(
+            folderURL: folderURL,
+            loadsProfilesOnAppear: false,
+            initialSourceSelection: initialSourceSelection,
+            initialDetailSelection: initialDetailSelection,
+            initialSearchText: initialSearchText
+        )
             .environment(appModel)
             .environment(profilesModel)
             .environment(editorState)
             .environment(credentialsModel)
             .environment(imdsModel)
             .environment(\.authBrowserPresenter, AuthBrowserPresenter())
+            .modelContainer(metadataContainer)
     }
 }

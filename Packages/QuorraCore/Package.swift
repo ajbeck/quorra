@@ -10,6 +10,7 @@ let package = Package(
     products: [
         .library(name: "AWSConfigINI", targets: ["AWSConfigINI"]),
         .library(name: "IAMIdentityCenter", targets: ["IAMIdentityCenter"]),
+        .library(name: "QuorraAppLogic", targets: ["QuorraAppLogic"]),
     ],
     dependencies: [
         .package(
@@ -37,6 +38,14 @@ let package = Package(
                 .product(name: "AWSSSOOIDC", package: "aws-sdk-swift"),
                 .product(name: "AWSSSO", package: "aws-sdk-swift"),
             ]
+        ),
+        .target(
+            name: "QuorraAppLogic",
+            dependencies: ["AWSConfigINI", "IAMIdentityCenter"]
+        ),
+        .testTarget(
+            name: "QuorraAppLogicTests",
+            dependencies: ["QuorraAppLogic", "AWSConfigINI", "IAMIdentityCenter"]
         ),
         .testTarget(
             name: "IAMIdentityCenterTests",

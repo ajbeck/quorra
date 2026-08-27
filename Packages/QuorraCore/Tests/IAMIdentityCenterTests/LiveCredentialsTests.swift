@@ -113,6 +113,36 @@ struct LiveCredentialsTests {
         #expect(callCount == 0)
     }
 
+    @Test("renewCredentials bypasses a fresh cached row and mints immediately")
+    func renewCredentialsBypassesFreshCache() async throws {
+        defer { StubURLProtocol.reset() }
+        let keychain = InMemoryKeychainStore()
+        let portal = StubPortalRequesting()
+
+        try await seedFreshToken(keychain: keychain)
+        try await seedRoleCreds(keychain: keychain, expiresIn: 2 * 3600)
+
+        let newMinted = makeDefaultMintedCredential(accessKeyId: "ASIARENEWED0000")
+        await portal.setNextGetRoleCredentialsResult(.success(newMinted))
+
+        let service = makeService(keychain: keychain, portal: portal)
+        let creds = try await service.renewCredentials(
+            forSession: "s",
+            accountId: "123456789012",
+            roleName: "stub-role",
+            region: "us-east-1"
+        )
+
+        #expect(creds.accessKeyId == "ASIARENEWED0000")
+        let callCount = await portal.getRoleCredentialsCallCount
+        #expect(callCount == 1)
+
+        let stored = await readRoleCreds(keychain: keychain)
+        #expect(stored?.accessKeyId == "ASIARENEWED0000")
+
+        await service.cancelMint(forSession: "s", accountId: "123456789012", roleName: "stub-role")
+    }
+
     // MARK: - D26: Inside skew → inline mint
 
     @Test("liveCredentials triggers inline mint when cached row is inside skew window")
