@@ -10,9 +10,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write
-  issues: write
-  pull-requests: write
+  contents: read
 
 jobs:
   release:
@@ -20,11 +18,21 @@ jobs:
     timeout-minutes: 45
 
     steps:
+      - name: Create release automation token
+        id: release-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.RELEASE_PLEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-issues: write
+          permission-pull-requests: write
+
       - name: Create release pull request or GitHub release
         id: release
-        uses: googleapis/release-please-action@v4
+        uses: googleapis/release-please-action@v5
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ steps.release-token.outputs.token }}
           release-type: simple
 
       - name: Check out release commit
@@ -168,7 +176,7 @@ jobs:
       - name: Upload release asset
         if: ${{ steps.release.outputs.release_created == 'true' }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.release-token.outputs.token }}
           RELEASE_TAG: ${{ steps.release.outputs.tag_name }}
           RELEASE_VERSION: ${{ steps.release.outputs.version }}
         run: gh release upload "$RELEASE_TAG" "$DMG_PATH#Quorra-$RELEASE_VERSION.dmg" --clobber
