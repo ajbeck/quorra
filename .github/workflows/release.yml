@@ -1,0 +1,180 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  release:
+    runs-on: macos-26
+    timeout-minutes: 45
+
+    steps:
+      - name: Create release pull request or GitHub release
+        id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          release-type: simple
+
+      - name: Check out release commit
+        if: ${{ steps.release.outputs.release_created == 'true' }}
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.release.outputs.sha }}
+
+      - name: Import distribution signing assets
+        if: ${{ steps.release.outputs.release_created == 'true' }}
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_CERTIFICATE_PASSWORD }}
+          PROVISIONING_PROFILE_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          certificate_path="$RUNNER_TEMP/developer-id.p12"
+          provisioning_profile_path="$RUNNER_TEMP/quorra.provisionprofile"
+          signing_keychain="$RUNNER_TEMP/quorra-signing.keychain-db"
+          keychain_password="$(uuidgen)"
+
+          printf '%s' "$CERTIFICATE_BASE64" | base64 -D > "$certificate_path"
+          printf '%s' "$PROVISIONING_PROFILE_BASE64" | base64 -D > "$provisioning_profile_path"
+
+          security create-keychain -p "$keychain_password" "$signing_keychain"
+          security set-keychain-settings -lut 21600 "$signing_keychain"
+          security unlock-keychain -p "$keychain_password" "$signing_keychain"
+          security import "$certificate_path" -k "$signing_keychain" -P "$CERTIFICATE_PASSWORD" -A -t cert -f pkcs12
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$signing_keychain"
+          security list-keychain -d user -s "$signing_keychain"
+
+          profile_uuid="$(security cms -D -i "$provisioning_profile_path" | plutil -extract UUID raw -)"
+          profile_directory="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$profile_directory"
+          cp "$provisioning_profile_path" "$profile_directory/$profile_uuid.provisionprofile"
+
+          security find-identity -v -p codesigning "$signing_keychain"
+
+          {
+            echo "SIGNING_KEYCHAIN=$signing_keychain"
+            echo "PROVISIONING_PROFILE_UUID=$profile_uuid"
+            echo "PROVISIONING_PROFILE_PATH=$profile_directory/$profile_uuid.provisionprofile"
+          } >> "$GITHUB_ENV"
+
+      - name: Archive and export application
+        if: ${{ steps.release.outputs.release_created == 'true' }}
+        env:
+          APPLE_TEAM_ID: 9GEBAJV9R4
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          archive_path="$RUNNER_TEMP/quorra.xcarchive"
+          export_path="$RUNNER_TEMP/export"
+          export_options_path="$RUNNER_TEMP/ExportOptions.plist"
+
+          cat > "$export_options_path" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>destination</key>
+              <string>export</string>
+              <key>method</key>
+              <string>developer-id</string>
+              <key>provisioningProfiles</key>
+              <dict>
+                  <key>dev.ajbeck.quorra</key>
+                  <string>$PROVISIONING_PROFILE_UUID</string>
+              </dict>
+              <key>signingCertificate</key>
+              <string>Developer ID Application</string>
+              <key>signingStyle</key>
+              <string>manual</string>
+              <key>teamID</key>
+              <string>$APPLE_TEAM_ID</string>
+          </dict>
+          </plist>
+          EOF
+
+          xcodebuild archive \
+            -workspace Quorra.xcworkspace \
+            -scheme quorra \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -archivePath "$archive_path" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY='Developer ID Application' \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            PROVISIONING_PROFILE_SPECIFIER="$PROVISIONING_PROFILE_UUID" \
+            MARKETING_VERSION="$RELEASE_VERSION" \
+            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER"
+
+          xcodebuild -exportArchive \
+            -archivePath "$archive_path" \
+            -exportOptionsPlist "$export_options_path" \
+            -exportPath "$export_path"
+
+          codesign --verify --deep --strict --verbose=4 "$export_path/quorra.app"
+
+          echo "EXPORTED_APP_PATH=$export_path/quorra.app" >> "$GITHUB_ENV"
+
+      - name: Create signed disk image
+        if: ${{ steps.release.outputs.release_created == 'true' }}
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          dmg_path="$RUNNER_TEMP/Quorra-$RELEASE_VERSION.dmg"
+
+          .github/scripts/package-dmg.sh \
+            --app "$EXPORTED_APP_PATH" \
+            --output "$dmg_path" \
+            --identity 'Developer ID Application' \
+            --version "$RELEASE_VERSION"
+
+          echo "DMG_PATH=$dmg_path" >> "$GITHUB_ENV"
+
+      - name: Notarize and staple disk image
+        if: ${{ steps.release.outputs.release_created == 'true' }}
+        env:
+          NOTARY_KEY_BASE64: ${{ secrets.APPLE_NOTARY_KEY_BASE64 }}
+          NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+        run: |
+          notary_key_path="$RUNNER_TEMP/AuthKey_$NOTARY_KEY_ID.p8"
+          notary_profile='quorra-notary'
+
+          printf '%s' "$NOTARY_KEY_BASE64" | base64 -D > "$notary_key_path"
+          xcrun notarytool store-credentials "$notary_profile" \
+            --key "$notary_key_path" \
+            --key-id "$NOTARY_KEY_ID" \
+            --issuer "$NOTARY_ISSUER_ID" \
+            --keychain "$SIGNING_KEYCHAIN"
+          xcrun notarytool submit "$DMG_PATH" \
+            --keychain-profile "$notary_profile" \
+            --keychain "$SIGNING_KEYCHAIN" \
+            --wait \
+            --timeout 30m
+          xcrun stapler staple "$DMG_PATH"
+          xcrun stapler validate "$DMG_PATH"
+          spctl --assess --type open --verbose=4 "$DMG_PATH"
+
+      - name: Upload release asset
+        if: ${{ steps.release.outputs.release_created == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag_name }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: gh release upload "$RELEASE_TAG" "$DMG_PATH#Quorra-$RELEASE_VERSION.dmg" --clobber
+
+      - name: Remove signing assets
+        if: ${{ always() && steps.release.outputs.release_created == 'true' }}
+        run: |
+          rm -f "$RUNNER_TEMP/developer-id.p12" "$RUNNER_TEMP/quorra.provisionprofile" "$RUNNER_TEMP/AuthKey_"*.p8
+          rm -f "$PROVISIONING_PROFILE_PATH"
+          security delete-keychain "$SIGNING_KEYCHAIN" || true

@@ -30,6 +30,11 @@ restricted `keychain-access-groups` entitlement. The workflow imports both the
 certificate and profile into the ephemeral GitHub-hosted runner, then removes
 them when the job finishes.
 
+In repository settings, allow GitHub Actions to create pull requests and give
+workflows read/write repository permissions. Release Please uses the scoped
+`GITHUB_TOKEN`; a separate personal access token is not needed because the DMG
+is uploaded in the same workflow run that creates the GitHub release.
+
 ## Release verification
 
 The workflow validates the exported application signature, validates the
