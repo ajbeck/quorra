@@ -83,4 +83,4 @@ For release build, signing, notarization, and DMG details, see
 
 ## License
 
-The project license has not yet been selected.
+Quorra is available under the [Apache License 2.0](LICENSE).
