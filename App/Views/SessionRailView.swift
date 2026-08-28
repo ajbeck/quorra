@@ -154,7 +154,7 @@ struct SourceSidebarView: View {
             )
             .padding(.leading, 18)
             .contextMenu { folderRowContextMenu(for: folder) }
-            .dropDestination(for: MetadataObjectDragPayload.self) { payloads, _ in
+            .dropDestination(for: MetadataObjectDragPayload.self) { (payloads, _: CGPoint) -> Bool in
                 assign(payloads, to: folder)
             }
         }
