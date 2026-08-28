@@ -10,6 +10,12 @@ scripts. Quorra reads the standard AWS shared configuration, keeps IAM Identity
 Center tokens and temporary role credentials in the macOS Keychain, and can
 serve a profile through a loopback IMDS endpoint for local AWS tooling.
 
+## Screenshots
+
+![Profiles and credentials](docs/images/profiles-and-credentials.png)
+
+![Running IMDS endpoint](docs/images/imds-endpoint.png)
+
 ## Install
 
 Quorra requires macOS 26 (Tahoe) or later.
