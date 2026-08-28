@@ -86,12 +86,15 @@ struct RefreshFailureTests {
 
         let service = makeService(keychain: keychain, stub: stub)
 
-        // Collect events for the .refreshFailed assertion below
-        let collector = EventCollector()
-        let eventTask = Task {
+        // Await the expected event instead of assuming one scheduler yield is enough for
+        // the stream consumer to run under the full test suite.
+        let eventTask = Task { () -> Bool in
             for await event in service.events {
-                await collector.append(event)
+                if case .refreshFailed(let sessionName) = event, sessionName == "s" {
+                    return true
+                }
             }
+            return false
         }
         defer { eventTask.cancel() }
 
@@ -116,9 +119,18 @@ struct RefreshFailureTests {
         #expect(await service.refreshTimers["s"] == nil)
 
         // .refreshFailed event emitted
-        await Task.yield()
-        let events = await collector.events
-        #expect(events.contains { if case .refreshFailed(let n) = $0, n == "s" { return true }; return false })
+        let didReceiveRefreshFailure = await withTaskGroup(of: Bool.self, returning: Bool.self) { group in
+            group.addTask { await eventTask.value }
+            group.addTask {
+                try? await Task.sleep(for: .seconds(1))
+                return false
+            }
+
+            let result = await group.next() ?? false
+            group.cancelAll()
+            return result
+        }
+        #expect(didReceiveRefreshFailure)
     }
 
     // MARK: - Transient bucket: a non-terminal error leaves Keychain unchanged
