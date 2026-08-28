@@ -84,3 +84,5 @@ For release build, signing, notarization, and DMG details, see
 ## License
 
 Quorra is available under the [Apache License 2.0](LICENSE).
+
+Third-party package notices are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
