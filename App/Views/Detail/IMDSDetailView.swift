@@ -667,6 +667,10 @@ private struct IMDSActivityRow: View {
     IMDSDetailPreviewHarness(state: .failed(port: 9678, message: "Port 9678 is already in use."))
 }
 
+#Preview("quorra") {
+    IMDSDetailPreviewHarness(state: .active(port: 9678))
+}
+
 private struct IMDSDetailPreviewHarness: View {
     private static let endpointID = UUID(uuidString: "00000000-0000-0000-0000-000000009678")!
 

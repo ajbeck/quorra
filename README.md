@@ -1,149 +1,94 @@
 # Quorra
 
-A macOS app for managing AWS credentials on a developer machine.
+Quorra is a native macOS app for managing AWS IAM Identity Center sessions,
+profiles, temporary credentials, and local IMDS endpoints.
 
-Quorra owns three interconnected concerns:
+It is for developers who move between AWS accounts and roles and want a
+visible, local workflow instead of repeatedly running `aws sso login`, editing
+`~/.aws/config` by hand, or passing credentials through a collection of shell
+scripts. Quorra reads the standard AWS shared configuration, keeps IAM Identity
+Center tokens and temporary role credentials in the macOS Keychain, and can
+serve a profile through a loopback IMDS endpoint for local AWS tooling.
 
-1. **AWS shared-config files** — `~/.aws/config` and `~/.aws/credentials`
-2. **AWS Instance Metadata Service (IMDS) emulator** — serves credentials at the well-known endpoint
-3. **macOS Keychain** for sensitive credential material
+## Screenshots
 
-The point of the tool: own the full SSO OIDC device-code flow natively (no shelling out to `aws sso login`), serve credentials through a local IMDS endpoint, and edit profile files through a typed UI rather than a text editor.
+![Profiles and credentials](docs/images/profiles-and-credentials.png)
 
----
+![Running IMDS endpoint](docs/images/imds-endpoint.png)
 
-## Status
+## Install
 
-**v1 in active development on the `getting-started` branch.** The first complete iteration — the **Config Editor** — landed on 2026-05-12. The app now boots into a real two-column UI that reads, browses, and edits profiles in `~/.aws/config` and `~/.aws/credentials`.
+Quorra requires macOS 26 (Tahoe) or later.
 
-See the [archived implementation plan](docs/archived/ConfigEditorPlan.html) for the design decisions and acceptance walk-through. The [AWSConfigINI package documentation](docs/AWSConfigINI.html) is the authoritative reference for the parser/encoder layer.
+1. Download `Quorra.dmg` from the [latest GitHub release](https://github.com/ajbeck/quorra/releases/latest).
+2. Open the disk image and move `Quorra.app` to `/Applications`.
+3. Open Quorra and grant access to your AWS folder, normally `~/.aws`.
+4. Choose **Edit & Manage** to let Quorra update AWS configuration files, or
+   **Read Only** to browse profiles and use credentials without changing them.
 
----
-
-## What's built
-
-### App
-
-- **Setup flow** — first-launch picker for `~/.aws` (or any folder) with a security-scoped bookmark; mode card to pick **Edit & Manage** (default) or **Read Only**.
-- **Main view** — `NavigationSplitView` two-column layout with sidebar + detail panes. Default window size 960×640 with a content-minimum resize floor.
-- **Sidebar grammar** — three sections following Apple's HIG outline pattern:
-  - **SSO Sessions** as outline parents (selectable, disclosable) containing their rooted profiles
-  - **Long-term keys** as a flat list of profiles holding `aws_access_key_id`
-  - **Other** for role-assumption / `credential_process` profiles
-- **Detail panes**
-  - **Profile** detail: typed `Form` with Identity, SSO link (with cross-link button), Role, and Credential Process sections
-  - **SSO session** detail: Identity (start URL / region) + Scopes (comma-joined) + status placeholder
-  - **Edit & Manage** mode renders editable `TextField`/`Picker` controls; **Read Only** mode renders `LabeledContent` with a lock-icon banner that opens Settings
-  - Toolbar **Save** / **Discard** in `.confirmationAction` / `.cancellationAction` placements; `⌘↩` saves
-  - `navigationSubtitle("Edited")` indicates unsaved changes
-  - Save errors surface as a typed `LocalizedError` alert with a Retry action
-- **Settings scene** — standard macOS preferences window reachable via `⌘,`. Two tabs:
-  - **General** — folder row + mode `Picker(.radioGroup)` + descriptive blurb
-  - **About** — app icon, name, version (`Version 1.0 (build 1)`)
-  - Mode-flip with unsaved changes shows a `confirmationDialog` with **Discard & Switch** / **Cancel**
-- **Save round-trip** — writes route through `AWSConfigINIDocument.update(at:flavor:_:)` for fcntl-locked atomic rename. The `# Managed by Quorra` header is prepended on first save and idempotent on subsequent saves.
-
-### Package — `AWSConfigINI`
-
-Lives at `Packages/QuorraCore` as a local SwiftPM library. Implements:
-
-- A complete INI parser with parser parity against the AWS Go SDK reference parser (handles `[default]` vs `[profile foo]` vs `[foo]`, sub-property maps under `services`, BOM detection, comment round-trip)
-- Editing through value-typed `AWSConfigINIDocument` / `Section` / `Key` with deterministic write order
-- fcntl advisory lock + atomic rename for cross-process safety
-- A `Codable` layer with three opinionated structs: `Profile`, `SSOSession`, `ServicesEntry`
-- Typed throws via `AWSConfigINIError: LocalizedError`
-- Fully tested in-package; the app consumes the library product
-
----
-
-## What's planned
-
-In rough priority order. Each is a candidate for its own implementation plan in `docs/` once it's the next thing.
-
-- **SSO OIDC device-code flow** — register OIDC client → device authorization → browser → poll `/token` → persist to Keychain → refresh on expiry
-- **Keychain wiring** — store `aws_access_key_id` / `aws_secret_access_key` / `aws_session_token` outside the plaintext credentials file
-- **Local IMDS emulator** — bind to `127.0.0.1:<port>`, IMDSv2 by default with v1 fallback, publish port at `~/Library/Application Support/Quorra/imds.port` for consumer discovery
-- **Credentials tab** in the profile detail pane (depends on Keychain wiring)
-- **Activity tab** + an event log (request log from the IMDS server, SSO refresh events, save events)
-- **Add Profile / Delete Profile / Search** in the sidebar
-- **FSEvents file watching** — auto-refresh the sidebar when another process changes the AWS files
-- **Profile rename** (currently the section header isn't editable from the form)
-- **Region / source-profile / session autocomplete** in the editor
-- **Window-close confirmation** when an editor pane is dirty (uses the existing `EditorState.dirtyDescription`)
-
----
-
-## Tech stack
-
-- **Language**: Swift 6.2
-- **UI**: SwiftUI (macOS only)
-- **Minimum macOS**: macOS 26 (Tahoe) — personal-tool floor; we use the newest APIs without compatibility gymnastics
-- **State management**: `@Observable` / `@State` (Swift Observation framework, not `ObservableObject`)
-- **Persistence**: macOS Keychain for secrets (Security framework); `UserDefaults.standard` for non-secret app config; security-scoped bookmark for `~/.aws` access; direct file I/O for the AWS files
-- **Testing**: Swift Testing (`@Test` macro)
-
----
-
-## Distribution
-
-Initially **Homebrew Cask** distributing `Quorra.app`. App Store distribution is the long-term target — the build is configured today for App Store constraints: sandbox, hardened runtime, and identifier-based signing.
-
----
-
-## Repo layout
-
-```
-App/                              SwiftUI app sources
-  Root/                           AppModel, AppPhase, AppError, RootView
-  Bookmarks/                      BookmarkStorage, FolderPicker, UserHome
-  Preferences/                    ModePreferenceStorage
-  Profiles/                       ProfilesModel, EditorState, Sidebar* / Profile* / Session* nodes
-  Theme/                          Theme.swift (color tokens)
-  Views/
-    Setup/                        — SetupView lives at Views/SetupView.swift
-    Settings/                     SettingsView, GeneralSettingsTab, AboutSettingsTab
-    Detail/                       ProfileDetailView, SessionDetailView, OptionalStringBinding
-    SidebarRows/                  SessionRow, ProfileRow
-    SetupView, ErrorView, MainView, SidebarView, DetailView
-  Assets.xcassets/                AppIcon, AccentColor
-  quorraApp.swift                 @main entry point
-
-Packages/QuorraCore/              local SwiftPM package
-  Sources/AWSConfigINI/           parser, encoder, fcntl-locked atomic write
-  Tests/AWSConfigINITests/        Swift Testing
-
-Tests/QuorraAppTests/             app-level tests
-                                  (target name: quorraTests)
-
-Configs/                          entitlements files
-docs/                             AWSConfigINI.html (live) + archived/ plans
-```
-
----
-
-## Quick start
-
-Open the workspace and ⌘R:
+The first public release is being prepared. Until then, build the app from
+source using Xcode 26 or later:
 
 ```sh
+git clone https://github.com/ajbeck/quorra.git
+cd quorra
 open Quorra.xcworkspace
 ```
 
-Reset to first-launch state (Apple's documented approach):
+Run the `quorra` scheme with Command-R.
+
+## What It Does
+
+- Browse AWS IAM Identity Center sessions, profiles, and app-owned IMDS
+  endpoints in a three-column macOS interface.
+- Sign in with AWS IAM Identity Center through the native device authorization
+  flow, refresh sessions, and inspect credential expiry.
+- Copy temporary credentials as shell environment variables.
+- Manage AWS profile and session configuration in the selected AWS folder.
+- Start a local endpoint at `127.0.0.1:<port>` that supports IMDSv2, with IMDSv1
+  fallback, so SDKs and tools can use a selected profile without placing
+  credentials in their environment.
+- Create, stop, inspect, and persist IMDS endpoint definitions independently of
+  AWS profile files.
+- Keep IAM Identity Center tokens and temporary role credentials in the macOS
+  Keychain.
+
+## How Local IMDS Works
+
+Quorra never binds a metadata server to AWS's link-local address. It serves
+credentials on `127.0.0.1` and exposes the chosen profile only while its
+endpoint is running. Point a compatible client to the local endpoint:
 
 ```sh
-rm -rf ~/Library/Containers/dev.ajbeck.quorra
+export AWS_EC2_METADATA_SERVICE_ENDPOINT=http://127.0.0.1:9678
 ```
 
-Tests:
+The profile detail view can copy this command for a running endpoint. Quorra
+also publishes the active port at
+`~/Library/Application Support/Quorra/imds.port` for local scripts.
 
-```sh
-# from Xcode: ⌘U on the quorra scheme
-# Both targets — quorraTests and AWSConfigINITests — run together.
-```
+## Data And Permissions
 
----
+- Quorra asks you to choose the AWS folder it may access. On a normal setup,
+  this is `~/.aws`.
+- IAM Identity Center tokens and temporary role credentials are stored in the
+  macOS Keychain, not in Quorra's application files.
+- IMDS endpoints are limited to `127.0.0.1`; they are not exposed on your
+  network.
+- Read Only mode prevents Quorra from writing to the AWS files you selected.
+
+## Development
+
+The app is built with SwiftUI and targets macOS 26. Run all tests in Xcode with
+Command-U. The local `AWSConfigINI` Swift package provides the parser and
+atomic writer used for AWS shared-config files.
+
+For release build, signing, notarization, and DMG details, see
+[Distribution](docs/Distribution.md). Parser and encoder documentation is in
+[AWSConfigINI](docs/AWSConfigINI.html).
 
 ## License
 
-TBD.
+Quorra is available under the [Apache License 2.0](LICENSE).
+
+Third-party package notices are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

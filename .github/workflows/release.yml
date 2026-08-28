@@ -142,6 +142,7 @@ jobs:
 
           .github/scripts/package-dmg.sh \
             --app "$EXPORTED_APP_PATH" \
+            --notices THIRD_PARTY_NOTICES.md \
             --output "$dmg_path" \
             --identity 'Developer ID Application' \
             --version "$RELEASE_VERSION"

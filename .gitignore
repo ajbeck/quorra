@@ -19,6 +19,13 @@ Package.resolved
 .clawpatch/
 .claude/settings.local.json
 .claude/skills/
+/AGENTS.md
+/CLAUDE.md
+/.codex/
+/skills-lock.json
+
+# One-off local compiler probe, never a project artifact
+/Packages/QuorraCore/check_servicekey
 
 # Research checkouts (not part of the project)
 .research/

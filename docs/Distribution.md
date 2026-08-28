@@ -10,7 +10,11 @@ uploads a DMG to the resulting GitHub release.
 - `CHANGELOG.md` is generated and updated by Release Please.
 - `.github/scripts/package-dmg.sh` creates the signed, read-only DMG. It uses
   Apple's `ditto`, `hdiutil`, and `codesign` tools; no third-party packaging
-  dependency is involved.
+  dependency is involved. The DMG includes `THIRD_PARTY_NOTICES.md` beside the
+  app bundle.
+- `THIRD_PARTY_NOTICES.md` indexes the packages pinned in `Package.resolved`
+  and reproduces their upstream notice text. Update it when changing package
+  versions or dependencies.
 
 ## GitHub configuration
 

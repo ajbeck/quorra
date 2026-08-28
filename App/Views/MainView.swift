@@ -109,6 +109,13 @@ struct MainView: View {
     )
 }
 
+#Preview("quorra") {
+    MainViewSampleDataHarness(
+        sourceSelection: .profiles,
+        detailSelection: .profile(name: "ac:cp:org_admin")
+    )
+}
+
 private struct MainViewSampleDataHarness: View {
     private static let previewEndpointID = UUID(uuidString: "00000000-0000-0000-0000-000000009678")!
 
