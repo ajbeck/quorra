@@ -3,6 +3,7 @@ import AWSConfigINI
 import SwiftData
 import QuorraAppLogic
 
+@MainActor
 struct IMDSDetailView: View {
     let endpointID: String
     @Environment(ProfilesModel.self) private var profilesModel
