@@ -8,8 +8,8 @@ import Foundation
 /// Endpoint: `POST https://portal.sso.<region>.amazonaws.com/logout`
 /// Auth header: `x-amz-sso_bearer_token: <accessToken>`
 ///
-/// Per SSODeviceAuth.html §04: logout is best-effort. The caller decides what to do on error;
-/// this type just throws so the caller can distinguish network failures.
+/// Logout is best-effort. The caller decides what to do on error; this type just throws so the
+/// caller can distinguish network failures.
 ///
 /// `URLSession` is injected for testability (use `StubURLProtocol.makeSession()` in tests).
 struct PortalLogout: Sendable {

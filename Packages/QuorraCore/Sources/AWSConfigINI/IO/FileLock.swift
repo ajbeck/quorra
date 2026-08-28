@@ -19,9 +19,8 @@
 //   Decision: do not unlink. Plan §11, "Lock file naming" note.
 //
 // - Acquisition strategy: poll with F_SETLK (non-blocking) at 50 ms intervals
-//   until the timeout is exceeded. This avoids F_SETLKW (blocking) which would
-//   require integrating with Swift Concurrency cancellation — much harder.
-//   CLAUDE.md "Apple-doc grounding" recommends this approach.
+//   until the timeout is exceeded. This avoids F_SETLKW (blocking), which would
+//   require integrating with Swift Concurrency cancellation.
 //
 // - Darwin-specific `flock` struct field layout on macOS (sys/fcntl.h):
 //     l_start:  off_t  (Int64) — starting offset for lock
