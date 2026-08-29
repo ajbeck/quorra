@@ -39,6 +39,7 @@ jobs:
       - name: Sync pending release pull request
         env:
           GH_TOKEN: ${{ steps.release-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           release_pr="$(gh pr list \
             --base main \
