@@ -32,6 +32,8 @@ extension ProcessInfo {
 }
 #endif
 
+#if DEBUG
+
 #Preview("Root – setup") {
     RootView()
         .environment(AppModel(initialPhase: .setup))
@@ -47,3 +49,5 @@ extension ProcessInfo {
     RootView()
         .environment(AppModel(initialPhase: .error(.folderMissing)))
 }
+
+#endif

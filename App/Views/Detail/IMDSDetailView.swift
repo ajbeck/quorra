@@ -652,6 +652,8 @@ private struct IMDSActivityRow: View {
     }
 }
 
+#if DEBUG
+
 #Preview("IMDS Detail - inactive") {
     IMDSDetailPreviewHarness(state: .inactive)
 }
@@ -705,3 +707,5 @@ private struct IMDSDetailPreviewHarness: View {
         .frame(width: 920, height: 720)
     }
 }
+
+#endif

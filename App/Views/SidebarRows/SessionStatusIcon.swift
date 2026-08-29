@@ -54,6 +54,8 @@ struct SessionStatusIcon: View {
 
 // MARK: - Previews
 
+#if DEBUG
+
 #Preview("signedOut") {
     SessionStatusIcon(authStatus: .signedOut)
         .padding()
@@ -86,3 +88,5 @@ struct SessionStatusIcon: View {
     )
     .padding()
 }
+
+#endif

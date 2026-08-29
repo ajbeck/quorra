@@ -867,6 +867,8 @@ private extension IAMIdentityCenterError {
 
 // MARK: - Previews
 
+#if DEBUG
+
 private struct RevealPreviewHarness: View {
     let imdsEndpointCount: Int
     let seed: (CredentialsModel) -> Void
@@ -974,3 +976,5 @@ private struct RevealPreviewHarness: View {
         m.seedMintingNowForTesting(key: "acme:123456789012:AdministratorAccess")
     }
 }
+
+#endif

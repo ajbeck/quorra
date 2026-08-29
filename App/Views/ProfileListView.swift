@@ -1133,6 +1133,8 @@ private extension IMDSEndpointState {
     }
 }
 
+#if DEBUG
+
 #Preview("Object List - all") {
     ObjectListPreviewHarness(sourceSelection: .all)
 }
@@ -1216,3 +1218,5 @@ private struct ObjectListPreviewHarness: View {
         .frame(width: 860, height: 560)
     }
 }
+
+#endif

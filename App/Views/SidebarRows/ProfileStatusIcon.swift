@@ -70,6 +70,8 @@ struct ProfileStatusIcon: View {
 
 // MARK: - Previews
 
+#if DEBUG
+
 #Preview("ready") {
     ProfileStatusIcon(profileStatus: .ready(expiresAt: Date().addingTimeInterval(3600)))
         .padding()
@@ -100,3 +102,5 @@ struct ProfileStatusIcon: View {
     ProfileStatusIcon(profileStatus: .signInExpired(sessionName: "acme"))
         .padding()
 }
+
+#endif

@@ -74,6 +74,8 @@ struct ProfileRow: View {
 
 // MARK: - Previews
 
+#if DEBUG
+
 #Preview("ProfileRow – light") {
     ProfileRowGallery()
 }
@@ -136,3 +138,5 @@ private struct ProfileRowGallery: View {
         }
     }
 }
+
+#endif

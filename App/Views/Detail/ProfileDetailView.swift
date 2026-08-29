@@ -393,6 +393,8 @@ struct ProfileDetailView: View {
     }
 }
 
+#if DEBUG
+
 #Preview("Edit mode (clean)") {
     ProfileDetailPreviewHarness(mode: .managed)
 }
@@ -467,3 +469,5 @@ private struct ProfileDetailPreviewHarness: View {
         .modelContainer(try! QuorraMetadataSchema.makeContainer(inMemory: true))
     }
 }
+
+#endif
