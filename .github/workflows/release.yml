@@ -174,10 +174,7 @@ jobs:
             -destination 'generic/platform=macOS' \
             -skipPackagePluginValidation \
             -archivePath "$archive_path" \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY='Developer ID Application' \
-            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-            PROVISIONING_PROFILE_SPECIFIER="$PROVISIONING_PROFILE_UUID" \
+            QUORRA_PROVISIONING_PROFILE_SPECIFIER="$PROVISIONING_PROFILE_UUID" \
             MARKETING_VERSION="$RELEASE_VERSION" \
             CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER"
 
