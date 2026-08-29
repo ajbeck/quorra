@@ -90,6 +90,8 @@ struct MetadataFolderPicker: View {
     }
 }
 
+#if DEBUG
+
 #Preview("No Folder") {
     Form {
         MetadataFolderPicker(
@@ -102,3 +104,5 @@ struct MetadataFolderPicker: View {
     .frame(width: 360, height: 160)
     .modelContainer(try! QuorraMetadataSchema.makeContainer(inMemory: true))
 }
+
+#endif

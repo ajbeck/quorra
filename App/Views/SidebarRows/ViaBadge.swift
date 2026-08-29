@@ -30,6 +30,8 @@ struct ViaBadge: View {
 
 // MARK: - Previews
 
+#if DEBUG
+
 #Preview("ViaBadge – light") {
     ViaBadgeGallery()
         .padding()
@@ -56,3 +58,5 @@ private struct ViaBadgeGallery: View {
         }
     }
 }
+
+#endif

@@ -14,8 +14,12 @@ struct SettingsView: View {
     }
 }
 
+#if DEBUG
+
 #Preview {
     SettingsView()
         .environment(AppModel(initialPhase: .ready(URL(filePath: "/Users/example/.aws"))))
         .environment(EditorState())
 }
+
+#endif

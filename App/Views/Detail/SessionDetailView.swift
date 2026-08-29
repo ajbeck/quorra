@@ -199,6 +199,8 @@ struct SessionDetailView: View {
     }
 }
 
+#if DEBUG
+
 #Preview("Idle") {
     SessionDetailPreviewHarness(mode: .managed, previewState: .idle)
 }
@@ -364,3 +366,5 @@ private struct SessionDetailPreviewHarness: View {
         """
     }
 }
+
+#endif

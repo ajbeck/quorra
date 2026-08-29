@@ -54,6 +54,8 @@ struct DetailView: View {
 
 }
 
+#if DEBUG
+
 #Preview("Detail – loaded, no selection") {
     DetailViewPreviewHarness(selection: nil)
 }
@@ -163,3 +165,5 @@ private struct DetailViewPreviewHarness: View {
         """
     }
 }
+
+#endif

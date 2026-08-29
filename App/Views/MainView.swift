@@ -78,6 +78,8 @@ struct MainView: View {
     }
 }
 
+#if DEBUG
+
 #Preview("Main – empty folder") {
     let folderURL = URL(filePath: "/nonexistent/aws-folder")
     MainView(folderURL: folderURL, loadsProfilesOnAppear: false)
@@ -191,3 +193,5 @@ private struct MainViewSampleDataHarness: View {
             .modelContainer(metadataContainer)
     }
 }
+
+#endif

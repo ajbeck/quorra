@@ -239,6 +239,8 @@ struct SetupView: View {
     }
 }
 
+#if DEBUG
+
 #Preview("Setup – idle (managed)") {
     SetupView()
         .environment(AppModel(initialPhase: .setup))
@@ -253,3 +255,5 @@ struct SetupView: View {
     SetupView(previewPendingFolder: URL(filePath: "/Users/jordan/work/aws-config"))
         .environment(AppModel(initialPhase: .setup))
 }
+
+#endif

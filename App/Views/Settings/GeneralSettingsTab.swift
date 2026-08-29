@@ -81,6 +81,8 @@ struct GeneralSettingsTab: View {
     }
 }
 
+#if DEBUG
+
 #Preview("General – ready") {
     GeneralSettingsTab()
         .environment(AppModel(initialPhase: .ready(URL(filePath: "/Users/example/.aws"))))
@@ -94,3 +96,5 @@ struct GeneralSettingsTab: View {
         .environment(EditorState())
         .frame(width: 540)
 }
+
+#endif

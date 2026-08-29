@@ -84,6 +84,8 @@ struct SessionRow: View {
 
 // MARK: - Previews
 
+#if DEBUG
+
 #Preview("SessionRow – light") {
     SessionRowGallery()
 }
@@ -126,3 +128,5 @@ private struct SessionRowGallery: View {
         .frame(width: 260)
     }
 }
+
+#endif

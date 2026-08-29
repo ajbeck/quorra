@@ -165,6 +165,8 @@ struct ErrorView: View {
 
 // MARK: - Previews
 
+#if DEBUG
+
 #Preview("Error – folderMissing") {
     ErrorView(error: .folderMissing)
         .environment(AppModel(initialPhase: .error(.folderMissing)))
@@ -184,3 +186,5 @@ struct ErrorView: View {
     return ErrorView(error: .bookmarkResolutionFailed(underlying: underlying))
         .environment(AppModel(initialPhase: .error(.bookmarkResolutionFailed(underlying: underlying))))
 }
+
+#endif

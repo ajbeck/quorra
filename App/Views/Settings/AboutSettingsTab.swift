@@ -29,7 +29,11 @@ struct AboutSettingsTab: View {
     }
 }
 
+#if DEBUG
+
 #Preview {
     AboutSettingsTab()
         .frame(width: 540, height: 320)
 }
+
+#endif

@@ -499,6 +499,8 @@ private struct RenameMetadataFolderSheet: View {
     }
 }
 
+#if DEBUG
+
 #Preview("Source Sidebar - populated") {
     SourceSidebarPreviewHarness()
 }
@@ -545,3 +547,5 @@ private struct SourceSidebarPreviewHarness: View {
         .frame(width: 700, height: 500)
     }
 }
+
+#endif
