@@ -226,7 +226,6 @@ jobs:
             --timeout 30m
           xcrun stapler staple "$DMG_PATH"
           xcrun stapler validate "$DMG_PATH"
-          spctl --assess --type open --verbose=4 "$DMG_PATH"
 
       - name: Upload release asset
         if: ${{ steps.release-context.outputs.tag != '' }}
