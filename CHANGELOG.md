@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/ajbeck/quorra/compare/v0.1.1...v0.1.2) (2026-08-29)
+
+
+### Bug Fixes
+
+* **release:** rely on stapler validation ([88765d1](https://github.com/ajbeck/quorra/commit/88765d185e3f13ab25efb25348fc3eaff4876fc6))
+
 ## [0.1.1](https://github.com/ajbeck/quorra/compare/v0.1.0...v0.1.1) (2026-08-29)
 
 
