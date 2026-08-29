@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 concurrency:
   group: release-${{ github.ref }}
@@ -22,7 +23,7 @@ jobs:
         id: release-token
         uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ vars.RELEASE_PLEASE_APP_ID }}
+          client-id: ${{ vars.RELEASE_PLEASE_CLIENT_ID }}
           private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
           permission-contents: write
           permission-issues: write
@@ -34,6 +35,34 @@ jobs:
         with:
           token: ${{ steps.release-token.outputs.token }}
           release-type: simple
+
+      - name: Sync pending release pull request
+        env:
+          GH_TOKEN: ${{ steps.release-token.outputs.token }}
+        run: |
+          release_pr="$(gh pr list \
+            --base main \
+            --state open \
+            --label 'autorelease: pending' \
+            --json number \
+            --jq '.[0].number')"
+
+          if [[ -z "$release_pr" ]]; then
+            echo 'No pending release pull request to sync.'
+            exit 0
+          fi
+
+          merge_state="$(gh pr view "$release_pr" --json mergeStateStatus --jq '.mergeStateStatus')"
+          if [[ "$merge_state" != 'BEHIND' ]]; then
+            echo "Release PR #$release_pr does not need a branch update ($merge_state)."
+            exit 0
+          fi
+
+          head_sha="$(gh pr view "$release_pr" --json headRefOid --jq '.headRefOid')"
+          gh api \
+            --method PUT \
+            "repos/$GITHUB_REPOSITORY/pulls/$release_pr/update-branch" \
+            -f expected_head_sha="$head_sha"
 
       - name: Check out release commit
         if: ${{ steps.release.outputs.release_created == 'true' }}
