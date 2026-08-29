@@ -78,6 +78,7 @@ jobs:
           AUTOMATED_RELEASE_TAG: ${{ steps.release.outputs.tag_name }}
           AUTOMATED_RELEASE_VERSION: ${{ steps.release.outputs.version }}
           GH_TOKEN: ${{ steps.release-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
           MANUAL_RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
           release_tag="${MANUAL_RELEASE_TAG:-$AUTOMATED_RELEASE_TAG}"
