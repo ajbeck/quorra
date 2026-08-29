@@ -5,6 +5,11 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing release tag to package and upload
+        required: false
+        type: string
 
 concurrency:
   group: release-${{ github.ref }}
@@ -31,6 +36,7 @@ jobs:
 
       - name: Create release pull request or GitHub release
         id: release
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.release_tag == '' }}
         uses: googleapis/release-please-action@v5
         with:
           token: ${{ steps.release-token.outputs.token }}
@@ -65,14 +71,33 @@ jobs:
             "repos/$GITHUB_REPOSITORY/pulls/$release_pr/update-branch" \
             -f expected_head_sha="$head_sha"
 
+      - name: Configure release asset packaging
+        id: release-context
+        if: ${{ steps.release.outputs.release_created == 'true' || inputs.release_tag != '' }}
+        env:
+          AUTOMATED_RELEASE_TAG: ${{ steps.release.outputs.tag_name }}
+          AUTOMATED_RELEASE_VERSION: ${{ steps.release.outputs.version }}
+          GH_TOKEN: ${{ steps.release-token.outputs.token }}
+          MANUAL_RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          release_tag="${MANUAL_RELEASE_TAG:-$AUTOMATED_RELEASE_TAG}"
+          release_version="${AUTOMATED_RELEASE_VERSION:-${release_tag#v}}"
+
+          gh release view "$release_tag" --json tagName > /dev/null
+
+          {
+            echo "tag=$release_tag"
+            echo "version=$release_version"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Check out release commit
-        if: ${{ steps.release.outputs.release_created == 'true' }}
+        if: ${{ steps.release-context.outputs.tag != '' }}
         uses: actions/checkout@v7
         with:
-          ref: ${{ steps.release.outputs.sha }}
+          ref: ${{ steps.release-context.outputs.tag }}
 
       - name: Import distribution signing assets
-        if: ${{ steps.release.outputs.release_created == 'true' }}
+        if: ${{ steps.release-context.outputs.tag != '' }}
         env:
           CERTIFICATE_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_CERTIFICATE_BASE64 }}
           CERTIFICATE_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_CERTIFICATE_PASSWORD }}
@@ -94,7 +119,7 @@ jobs:
           security list-keychain -d user -s "$signing_keychain"
 
           profile_uuid="$(security cms -D -i "$provisioning_profile_path" | plutil -extract UUID raw -)"
-          team_identifier="$(security cms -D -i "$provisioning_profile_path" | plutil -extract Entitlements.com.apple.developer.team-identifier raw -)"
+          team_identifier="$(security cms -D -i "$provisioning_profile_path" | plutil -extract 'Entitlements.com\.apple\.developer\.team-identifier' raw -)"
           profile_directory="$HOME/Library/MobileDevice/Provisioning Profiles"
           mkdir -p "$profile_directory"
           cp "$provisioning_profile_path" "$profile_directory/$profile_uuid.provisionprofile"
@@ -109,9 +134,9 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Archive and export application
-        if: ${{ steps.release.outputs.release_created == 'true' }}
+        if: ${{ steps.release-context.outputs.tag != '' }}
         env:
-          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+          RELEASE_VERSION: ${{ steps.release-context.outputs.version }}
         run: |
           archive_path="$RUNNER_TEMP/quorra.xcarchive"
           export_path="$RUNNER_TEMP/export"
@@ -164,9 +189,9 @@ jobs:
           echo "EXPORTED_APP_PATH=$export_path/quorra.app" >> "$GITHUB_ENV"
 
       - name: Create signed disk image
-        if: ${{ steps.release.outputs.release_created == 'true' }}
+        if: ${{ steps.release-context.outputs.tag != '' }}
         env:
-          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+          RELEASE_VERSION: ${{ steps.release-context.outputs.version }}
         run: |
           dmg_path="$RUNNER_TEMP/Quorra-$RELEASE_VERSION.dmg"
 
@@ -180,7 +205,7 @@ jobs:
           echo "DMG_PATH=$dmg_path" >> "$GITHUB_ENV"
 
       - name: Notarize and staple disk image
-        if: ${{ steps.release.outputs.release_created == 'true' }}
+        if: ${{ steps.release-context.outputs.tag != '' }}
         env:
           NOTARY_KEY_BASE64: ${{ secrets.APPLE_NOTARY_KEY_BASE64 }}
           NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
@@ -205,15 +230,15 @@ jobs:
           spctl --assess --type open --verbose=4 "$DMG_PATH"
 
       - name: Upload release asset
-        if: ${{ steps.release.outputs.release_created == 'true' }}
+        if: ${{ steps.release-context.outputs.tag != '' }}
         env:
           GITHUB_TOKEN: ${{ steps.release-token.outputs.token }}
-          RELEASE_TAG: ${{ steps.release.outputs.tag_name }}
-          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+          RELEASE_TAG: ${{ steps.release-context.outputs.tag }}
+          RELEASE_VERSION: ${{ steps.release-context.outputs.version }}
         run: gh release upload "$RELEASE_TAG" "$DMG_PATH#Quorra-$RELEASE_VERSION.dmg" --clobber
 
       - name: Remove signing assets
-        if: ${{ always() && steps.release.outputs.release_created == 'true' }}
+        if: ${{ always() && steps.release-context.outputs.tag != '' }}
         run: |
           rm -f "$RUNNER_TEMP/developer-id.p12" "$RUNNER_TEMP/quorra.provisionprofile" "$RUNNER_TEMP/AuthKey_"*.p8
           rm -f "$PROVISIONING_PROFILE_PATH"
