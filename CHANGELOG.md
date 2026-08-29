@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.1](https://github.com/ajbeck/quorra/compare/v0.1.0...v0.1.1) (2026-08-29)
+
+
+### Bug Fixes
+
+* **ci:** recover release asset publishing ([6a2a005](https://github.com/ajbeck/quorra/commit/6a2a00522b6f964c22a6c7c5a49498a50149769e))
+* **ci:** set repository context for recovery ([5d5785b](https://github.com/ajbeck/quorra/commit/5d5785bc6e5bdbb44ff417ce6151746ace44e489))
+* **release:** build distribution archives ([2c0edc5](https://github.com/ajbeck/quorra/commit/2c0edc5a723b6d9703f3324736eea309a68214db))
+* **release:** scope distribution signing ([560f951](https://github.com/ajbeck/quorra/commit/560f95124d101f4b9af239031e5f05cba20daba5))
+
 ## 0.1.0 (2026-08-29)
 
 
