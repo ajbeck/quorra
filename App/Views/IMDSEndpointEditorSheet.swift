@@ -133,7 +133,7 @@ struct IMDSEndpointEditorSheet: View {
                 TextField("Bind address", text: $draft.bindAddress)
                     .fontDesign(.monospaced)
 
-                TextField("Port", value: $draft.port, format: .number)
+                TextField("Port", value: $draft.port, format: .number.grouping(.never))
                     .fontDesign(.monospaced)
 
                 Toggle("Allow IMDSv1 fallback", isOn: $draft.allowsIMDSv1)
