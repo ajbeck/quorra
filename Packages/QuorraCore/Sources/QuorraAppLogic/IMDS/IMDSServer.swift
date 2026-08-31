@@ -8,22 +8,19 @@ public struct IMDSServedProfile: Hashable, Sendable {
     public let accountId: String
     public let roleName: String
     public let region: String
-    public let credentials: RoleCredentials
 
     public init(
         profileName: String,
         sessionName: String,
         accountId: String,
         roleName: String,
-        region: String,
-        credentials: RoleCredentials
+        region: String
     ) {
         self.profileName = profileName
         self.sessionName = sessionName
         self.accountId = accountId
         self.roleName = roleName
         self.region = region
-        self.credentials = credentials
     }
 }
 
@@ -181,64 +178,84 @@ struct IMDSHTTPResponse: Hashable, Sendable {
     }
 }
 
+enum IMDSRoutingResult: Sendable {
+    case response(IMDSHTTPResponse)
+    case credentialDocument
+}
+
 struct IMDSRouter: Sendable {
     var servedProfile: IMDSServedProfile
     var allowsIMDSv1: Bool
     private var tokens: [String: Date] = [:]
+    private let startedAt: Date
 
-    init(servedProfile: IMDSServedProfile, allowsIMDSv1: Bool = true) {
+    init(
+        servedProfile: IMDSServedProfile,
+        allowsIMDSv1: Bool = true,
+        startedAt: Date = Date()
+    ) {
         self.servedProfile = servedProfile
         self.allowsIMDSv1 = allowsIMDSv1
+        self.startedAt = startedAt
     }
 
     mutating func response(for request: IMDSHTTPRequest, now: Date = Date()) -> IMDSHTTPResponse {
+        switch route(for: request, now: now) {
+        case .response(let response):
+            return response
+        case .credentialDocument:
+            return .status(503, "Service Unavailable", message: "Credentials unavailable.\n")
+        }
+    }
+
+    mutating func route(for request: IMDSHTTPRequest, now: Date = Date()) -> IMDSRoutingResult {
         if request.path == "/latest/api/token" {
-            return tokenResponse(for: request, now: now)
+            return .response(tokenResponse(for: request, now: now))
         }
 
         guard request.method == "GET" else {
-            return .status(405, "Method Not Allowed")
+            return .response(.status(405, "Method Not Allowed"))
         }
 
         if let token = request.header("x-aws-ec2-metadata-token") {
             guard isValidToken(token, now: now) else {
-                return .status(401, "Unauthorized", message: "Invalid or expired IMDSv2 token.\n")
+                return .response(.status(401, "Unauthorized", message: "Invalid or expired IMDSv2 token.\n"))
             }
         } else if !allowsIMDSv1 {
-            return .status(401, "Unauthorized", message: "IMDSv2 token required.\n")
+            return .response(.status(401, "Unauthorized", message: "IMDSv2 token required.\n"))
         }
 
         switch normalizedComponents(for: request.path) {
         case ["latest"]:
-            return .text("meta-data/\ndynamic/\n")
+            return .response(.text("meta-data/\ndynamic/\n"))
         case ["latest", "meta-data"]:
-            return .text("iam/\nplacement/\nservices/\n")
+            return .response(.text("iam/\nplacement/\nservices/\n"))
         case ["latest", "meta-data", "iam"]:
-            return .text("security-credentials/\n")
+            return .response(.text("security-credentials/\n"))
         case ["latest", "meta-data", "iam", "security-credentials"]:
-            return .text("\(servedProfile.roleName)\n")
+            return .response(.text("\(servedProfile.roleName)\n"))
         case ["latest", "meta-data", "iam", "security-credentials", servedProfile.roleName]:
-            return credentialsResponse()
+            return .credentialDocument
         case ["latest", "meta-data", "placement"]:
-            return .text("availability-zone\nregion\n")
+            return .response(.text("availability-zone\nregion\n"))
         case ["latest", "meta-data", "placement", "region"]:
-            return .text("\(servedProfile.region)\n")
+            return .response(.text("\(servedProfile.region)\n"))
         case ["latest", "meta-data", "placement", "availability-zone"]:
-            return .text("\(servedProfile.region)a\n")
+            return .response(.text("\(servedProfile.region)a\n"))
         case ["latest", "meta-data", "services"]:
-            return .text("domain\npartition\n")
+            return .response(.text("domain\npartition\n"))
         case ["latest", "meta-data", "services", "domain"]:
-            return .text("\(serviceDomain(for: servedProfile.region))\n")
+            return .response(.text("\(serviceDomain(for: servedProfile.region))\n"))
         case ["latest", "meta-data", "services", "partition"]:
-            return .text("\(partition(for: servedProfile.region))\n")
+            return .response(.text("\(partition(for: servedProfile.region))\n"))
         case ["latest", "dynamic"]:
-            return .text("instance-identity/\n")
+            return .response(.text("instance-identity/\n"))
         case ["latest", "dynamic", "instance-identity"]:
-            return .text("document\n")
+            return .response(.text("document\n"))
         case ["latest", "dynamic", "instance-identity", "document"]:
-            return instanceIdentityDocumentResponse()
+            return .response(instanceIdentityDocumentResponse())
         default:
-            return .status(404, "Not Found")
+            return .response(.status(404, "Not Found"))
         }
     }
 
@@ -268,7 +285,7 @@ struct IMDSRouter: Sendable {
         path.split(separator: "/").map { String($0).removingPercentEncoding ?? String($0) }
     }
 
-    private func credentialsResponse() -> IMDSHTTPResponse {
+    func credentialsResponse(using credentials: RoleCredentials) -> IMDSHTTPResponse {
         struct CredentialsDocument: Encodable {
             let Code: String
             let LastUpdated: String
@@ -291,12 +308,12 @@ struct IMDSRouter: Sendable {
 
         let document = CredentialsDocument(
             Code: "Success",
-            LastUpdated: iso8601(servedProfile.credentials.issuedAt),
+            LastUpdated: iso8601(credentials.issuedAt),
             credentialType: "AWS-HMAC",
-            AccessKeyId: servedProfile.credentials.accessKeyId,
-            SecretAccessKey: servedProfile.credentials.secretAccessKey,
-            Token: servedProfile.credentials.sessionToken,
-            Expiration: iso8601(servedProfile.credentials.expiresAt)
+            AccessKeyId: credentials.accessKeyId,
+            SecretAccessKey: credentials.secretAccessKey,
+            Token: credentials.sessionToken,
+            Expiration: iso8601(credentials.expiresAt)
         )
         return encodeJSON(document)
     }
@@ -322,7 +339,7 @@ struct IMDSRouter: Sendable {
             imageId: "ami-quorra-local",
             instanceId: "i-quorra-\(servedProfile.profileName.stableIMDSSuffix)",
             instanceType: "quorra.local",
-            pendingTime: iso8601(servedProfile.credentials.issuedAt),
+            pendingTime: iso8601(startedAt),
             privateIp: "127.0.0.1",
             region: servedProfile.region,
             version: "2017-09-30"
@@ -359,8 +376,11 @@ struct IMDSRouter: Sendable {
 
 @MainActor
 public final class LocalIMDSServer {
+    public typealias CredentialProvider = @MainActor () async throws -> RoleCredentials
+
     private let port: Int
     private var router: IMDSRouter
+    private let credentialProvider: CredentialProvider
     private let onRequest: (IMDSRequestLog) -> Void
     private let onFailure: (String) -> Void
     private let queue = DispatchQueue.main
@@ -373,12 +393,14 @@ public final class LocalIMDSServer {
         port: Int,
         servedProfile: IMDSServedProfile,
         allowsIMDSv1: Bool = true,
+        credentialProvider: @escaping CredentialProvider,
         onRequest: @escaping (IMDSRequestLog) -> Void,
         onFailure: @escaping (String) -> Void
     ) {
         self.port = port
         self.boundPort = port
         self.router = IMDSRouter(servedProfile: servedProfile, allowsIMDSv1: allowsIMDSv1)
+        self.credentialProvider = credentialProvider
         self.onRequest = onRequest
         self.onFailure = onFailure
     }
@@ -491,7 +513,7 @@ public final class LocalIMDSServer {
                 }
 
                 if nextBuffer.containsCompleteHTTPHeader {
-                    self.handleRequest(nextBuffer, on: connection)
+                    await self.handleRequest(nextBuffer, on: connection)
                 } else if isComplete {
                     self.send(.status(400, "Bad Request"), on: connection, request: nil)
                 } else {
@@ -501,14 +523,27 @@ public final class LocalIMDSServer {
         }
     }
 
-    private func handleRequest(_ data: Data, on connection: NWConnection) {
+    private func handleRequest(_ data: Data, on connection: NWConnection) async {
         guard let request = IMDSHTTPRequest.parse(data) else {
             send(.status(400, "Bad Request"), on: connection, request: nil)
             return
         }
 
-        let response = router.response(for: request)
-        send(response, on: connection, request: request)
+        switch router.route(for: request) {
+        case .response(let response):
+            send(response, on: connection, request: request)
+        case .credentialDocument:
+            do {
+                let credentials = try await credentialProvider()
+                send(router.credentialsResponse(using: credentials), on: connection, request: request)
+            } catch {
+                send(
+                    .status(503, "Service Unavailable", message: "Credentials unavailable.\n"),
+                    on: connection,
+                    request: request
+                )
+            }
+        }
     }
 
     private func send(_ response: IMDSHTTPResponse, on connection: NWConnection, request: IMDSHTTPRequest?) {
