@@ -6,7 +6,7 @@ private let refreshLogger = Logger(subsystem: "dev.ajbeck.quorra", category: "IA
 extension IdentityCenterService {
     // MARK: - Live token (D10, D12)
 
-    /// Returns a `StoredSSOToken` guaranteed to be valid for at least `refreshSkew` seconds.
+    /// Returns a `StoredSSOToken` outside its adaptive refresh window.
     ///
     /// Contract per D12:
     /// - now < expiresAt − skew, no in-flight refresh → return current token from Keychain
@@ -41,9 +41,12 @@ extension IdentityCenterService {
         }
 
         let now = Date()
-        let skew = ServiceConstants.refreshSkew
+        let refreshDeadline = ServiceConstants.refreshDeadline(
+            issuedAt: token.issuedAt,
+            expiresAt: token.expiresAt
+        )
 
-        if now < token.expiresAt.addingTimeInterval(-skew) {
+        if now < refreshDeadline {
             // Outside skew window — token is fresh, return without refresh
             return token
         }
@@ -155,7 +158,11 @@ extension IdentityCenterService {
         cancelRefresh(forSession: sessionName)
         scheduleExpiration(forSession: sessionName, expiresAt: newToken.expiresAt)
         if newToken.refreshToken != nil {
-            scheduleRefresh(forSession: sessionName, expiresAt: newToken.expiresAt)
+            scheduleRefresh(
+                forSession: sessionName,
+                issuedAt: newToken.issuedAt,
+                expiresAt: newToken.expiresAt
+            )
         }
 
         eventContinuation.yield(.refreshed(sessionName: sessionName))

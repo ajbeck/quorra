@@ -26,7 +26,7 @@ struct RefreshFailureTests {
                 accessToken: "at",
                 expiresAt: expiresAt,
                 refreshToken: refreshToken,
-                issuedAt: Date(),
+                issuedAt: expiresAt.addingTimeInterval(-8 * 3600),
                 region: "us-east-1",
                 sessionName: sessionName
             ),
@@ -100,7 +100,11 @@ struct RefreshFailureTests {
 
         // Pre-seed a refresh timer so we can verify it gets cancelled
         let farFuture = Date().addingTimeInterval(2 * 3600)
-        await service.scheduleRefresh(forSession: "s", expiresAt: farFuture)
+        await service.scheduleRefresh(
+            forSession: "s",
+            issuedAt: farFuture.addingTimeInterval(-8 * 3600),
+            expiresAt: farFuture
+        )
         #expect(await service.refreshTimers["s"] != nil, "Precondition: refresh timer must be seeded")
 
         do {

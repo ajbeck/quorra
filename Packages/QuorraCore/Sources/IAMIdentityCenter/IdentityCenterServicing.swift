@@ -58,7 +58,7 @@ public protocol IdentityCenterServicing: Sendable {
 
     // MARK: - A2 additions
 
-    /// Returns a `StoredSSOToken` guaranteed to be valid for at least `refreshSkew` seconds.
+    /// Returns a `StoredSSOToken` outside its adaptive refresh window.
     ///
     /// Contract per D12:
     /// - Outside skew window → return current token from Keychain (no work)

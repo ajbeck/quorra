@@ -50,19 +50,21 @@ struct LiveCredentialsTests {
         accountId: String = "123456789012",
         roleName: String = "stub-role",
         region: String = "us-east-1",
-        expiresIn: TimeInterval = 3600
+        expiresIn: TimeInterval = 3600,
+        originalLifetime: TimeInterval = 8 * 3600
     ) async throws {
         let key = "\(sessionName):\(accountId):\(roleName)"
+        let expiresAt = Date().addingTimeInterval(expiresIn)
         let creds = RoleCredentials(
             accessKeyId: "ASIACACHED0000KEY",
             secretAccessKey: "cached-secret",
             sessionToken: "cached-token",
-            expiresAt: Date().addingTimeInterval(expiresIn),
+            expiresAt: expiresAt,
             accountId: accountId,
             roleName: roleName,
             region: region,
             sessionName: sessionName,
-            issuedAt: Date()
+            issuedAt: expiresAt.addingTimeInterval(-originalLifetime)
         )
         try await keychain.writeRecord(
             creds,
@@ -111,6 +113,31 @@ struct LiveCredentialsTests {
         // No Portal call was made
         let callCount = await portal.getRoleCredentialsCallCount
         #expect(callCount == 0)
+    }
+
+    @Test("Five-minute credentials remain cached with more than ten percent of their lifetime left")
+    func shortLifetimeOutsideAdaptiveWindowReturnsCached() async throws {
+        defer { StubURLProtocol.reset() }
+        let keychain = InMemoryKeychainStore()
+        let portal = StubPortalRequesting()
+
+        try await seedFreshToken(keychain: keychain)
+        try await seedRoleCreds(
+            keychain: keychain,
+            expiresIn: 40,
+            originalLifetime: 5 * 60
+        )
+
+        let service = makeService(keychain: keychain, portal: portal)
+        let credentials = try await service.liveCredentials(
+            forSession: "s",
+            accountId: "123456789012",
+            roleName: "stub-role",
+            region: "us-east-1"
+        )
+
+        #expect(credentials.accessKeyId == "ASIACACHED0000KEY")
+        #expect(await portal.getRoleCredentialsCallCount == 0)
     }
 
     @Test("renewCredentials bypasses a fresh cached row and mints immediately")
@@ -170,6 +197,34 @@ struct LiveCredentialsTests {
         #expect(creds.accessKeyId == newMinted.accessKeyId)
         let callCount = await portal.getRoleCredentialsCallCount
         #expect(callCount == 1)
+    }
+
+    @Test("Five-minute credentials mint inside their final thirty seconds")
+    func shortLifetimeInsideAdaptiveWindowTriggersMint() async throws {
+        defer { StubURLProtocol.reset() }
+        let keychain = InMemoryKeychainStore()
+        let portal = StubPortalRequesting()
+
+        try await seedFreshToken(keychain: keychain)
+        try await seedRoleCreds(
+            keychain: keychain,
+            expiresIn: 20,
+            originalLifetime: 5 * 60
+        )
+
+        let minted = makeDefaultMintedCredential(accessKeyId: "ASIASHORTLIVED00")
+        await portal.setNextGetRoleCredentialsResult(.success(minted))
+
+        let service = makeService(keychain: keychain, portal: portal)
+        let credentials = try await service.liveCredentials(
+            forSession: "s",
+            accountId: "123456789012",
+            roleName: "stub-role",
+            region: "us-east-1"
+        )
+
+        #expect(credentials.accessKeyId == "ASIASHORTLIVED00")
+        #expect(await portal.getRoleCredentialsCallCount == 1)
     }
 
     // MARK: - D26: Past expiry, bearer valid → inline mint

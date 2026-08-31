@@ -23,7 +23,7 @@ private func seedSignedInState(
         accessToken: "at",
         expiresAt: Date().addingTimeInterval(expiresIn),
         refreshToken: refreshToken,
-        issuedAt: Date(),
+        issuedAt: Date().addingTimeInterval(-8 * 3600),
         region: region,
         sessionName: sessionName
     )
