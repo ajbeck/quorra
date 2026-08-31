@@ -217,6 +217,29 @@ struct CredentialsModelTests {
         #expect(model.status["my-session"] == .signedOut)
     }
 
+    @Test func initializeStatusesPopulatesEveryConfiguredSession() async {
+        let stub = StubIdentityCenterService()
+        await stub.setStatusToReturn(.signedIn(expiresAt: Date().addingTimeInterval(3600), canRefresh: true))
+        let model = CredentialsModel(service: stub)
+
+        await model.initializeStatuses(forSessions: ["alpha", "beta", "gamma"])
+
+        #expect(Set(model.status.keys) == ["alpha", "beta", "gamma"])
+        #expect(await stub.statusCalls == ["alpha", "beta", "gamma"])
+    }
+
+    @Test func initializeStatusesSkipsCachedAndDuplicateSessions() async {
+        let stub = StubIdentityCenterService()
+        let model = CredentialsModel(service: stub)
+
+        await model.observeStatus(forSession: "cached")
+        await model.initializeStatuses(forSessions: ["cached", "new", "new"])
+
+        #expect(model.status["cached"] == .signedOut)
+        #expect(model.status["new"] == .signedOut)
+        #expect(await stub.statusCalls == ["cached", "new"])
+    }
+
     // MARK: - signOut delegates to service
 
     @Test func signOutDelegatesToService() async throws {
@@ -462,6 +485,7 @@ actor StubIdentityCenterService: IdentityCenterServicing {
     private(set) var signInCallCount = 0
     private(set) var cancelCallCount = 0
     private(set) var signOutCallCount = 0
+    private(set) var statusCalls: [String] = []
     private var statusToReturn: SessionAuthStatus = .signedOut
     private var profileStatusToReturn: ProfileAuthStatus = .notSignedIn(sessionName: "stub")
     private var verificationFiredContinuations: [CheckedContinuation<Void, Never>] = []
@@ -538,11 +562,12 @@ actor StubIdentityCenterService: IdentityCenterServicing {
 
     @concurrent
     func status(forSession sessionName: String) async -> SessionAuthStatus {
-        await self.getStatus()
+        await self.recordStatusCall(forSession: sessionName)
     }
 
-    private func getStatus() -> SessionAuthStatus {
-        statusToReturn
+    private func recordStatusCall(forSession sessionName: String) -> SessionAuthStatus {
+        statusCalls.append(sessionName)
+        return statusToReturn
     }
 
     @concurrent

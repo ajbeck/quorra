@@ -167,12 +167,23 @@ public final class CredentialsModel {
         }
     }
 
-    /// Populates `status[sessionName]` from the actor. Called by `SessionRow.task(id:)`.
+    /// Populates status for every configured SSO session when the app finishes loading profiles.
     ///
-    /// Per D6: each visible SessionRow calls this once; the stream consumer Task handles
-    /// subsequent updates. Skips the Keychain hop when a cached value already exists —
-    /// the event stream owns invalidation, so a re-appear without an intervening event
-    /// is guaranteed to see the same status.
+    /// Initialization deliberately uses the non-refreshing `status(forSession:)` verb. A valid
+    /// stored token installs its expiration and refresh timers, while an already-expired token is
+    /// only reported as expired and remains untouched until normal user activity requests live
+    /// credentials. Duplicate and already-observed names are skipped by `observeStatus`.
+    public func initializeStatuses(forSessions sessionNames: [String]) async {
+        for sessionName in sessionNames {
+            await observeStatus(forSession: sessionName)
+        }
+    }
+
+    /// Populates `status[sessionName]` from the actor. Called during app initialization and by
+    /// views that need a status which has not been observed yet.
+    ///
+    /// The stream consumer Task handles subsequent updates. Skips the Keychain hop when a cached
+    /// value already exists because the event stream owns invalidation.
     public func observeStatus(forSession sessionName: String) async {
         if status[sessionName] != nil { return }
         let s = await service.status(forSession: sessionName)
