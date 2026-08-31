@@ -51,6 +51,10 @@ struct MainView: View {
         .task(id: folderURL) {
             guard loadsProfilesOnAppear else { return }
             await profilesModel.load(folder: folderURL)
+            guard case .loaded = profilesModel.loadState else { return }
+            await credentialsModel.initializeStatuses(
+                forSessions: profilesModel.groups.ssoSessions.map(\.id)
+            )
         }
         .onChange(of: sourceSelection) { _, _ in
             selection = nil
