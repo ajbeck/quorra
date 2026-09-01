@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/ajbeck/quorra/compare/v0.2.0...v0.2.1) (2026-09-01)
+
+
+### Bug Fixes
+
+* guard expired countdown ranges ([#30](https://github.com/ajbeck/quorra/issues/30)) ([1eae487](https://github.com/ajbeck/quorra/commit/1eae487c121a98ef3e9330475b8f3c98847e2e39))
+
 ## [0.2.0](https://github.com/ajbeck/quorra/compare/v0.1.2...v0.2.0) (2026-09-01)
 
 
