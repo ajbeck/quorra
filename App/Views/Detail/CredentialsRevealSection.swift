@@ -363,9 +363,15 @@ struct CredentialsRevealSection: View {
 
                 Text("Expires in")
                     .foregroundStyle(.secondary)
-                Text(timerInterval: Date.now...progress.expiresAt, countsDown: true)
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
+                Group {
+                    if let interval = ExpirationCountdown.interval(until: progress.expiresAt) {
+                        Text(timerInterval: interval, countsDown: true)
+                    } else {
+                        Text("Expired")
+                    }
+                }
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
             }
             .font(.caption)
         }
@@ -953,6 +959,27 @@ private struct RevealPreviewHarness: View {
                     verificationUri: URL(string: "https://device.sso.us-east-1.amazonaws.com")!,
                     verificationUriComplete: URL(string: "https://device.sso.us-east-1.amazonaws.com?user_code=ABCD-EFGH")!,
                     expiresAt: Date().addingTimeInterval(600),
+                    interval: 5
+                )
+            ),
+            sessionName: "acme"
+        )
+    }
+}
+
+#Preview("signing in – expired code") {
+    RevealPreviewHarness { m in
+        m.seedProfileStatusForTesting(.signInExpired(sessionName: "acme"),
+                                      key: "acme:123456789012:AdministratorAccess")
+        m.seedStatusForTesting(.signingIn, sessionName: "acme")
+        m.seedInFlightForTesting(
+            SignInProgress(
+                sessionName: "acme",
+                verification: DeviceVerification(
+                    userCode: "ABCD-EFGH",
+                    verificationUri: URL(string: "https://device.sso.us-east-1.amazonaws.com")!,
+                    verificationUriComplete: URL(string: "https://device.sso.us-east-1.amazonaws.com?user_code=ABCD-EFGH")!,
+                    expiresAt: Date().addingTimeInterval(-60),
                     interval: 5
                 )
             ),

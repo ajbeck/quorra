@@ -137,10 +137,15 @@ struct SignInPanel: View {
                     Text("Expires in:")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    // Apple: SwiftUI/Text/init(timerInterval:pauseTime:countsDown:showsHours:)
-                    Text(timerInterval: Date.now...progress.expiresAt, countsDown: true)
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(.secondary)
+                    if let interval = ExpirationCountdown.interval(until: progress.expiresAt) {
+                        Text(timerInterval: interval, countsDown: true)
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("Expired")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
 
@@ -168,21 +173,24 @@ struct SignInPanel: View {
                         Text("Refreshing…")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                    } else if case .expired(_, canRefresh: true) = authStatus {
+                        refreshableExpiredCaption
                     } else if case .signedIn(_, canRefresh: false) = authStatus {
                         // D16: canRefresh: false caption — no refresh token, expiry is final
                         Text("Token will expire at \(expiresAt, format: .dateTime.hour().minute()) — sign in again to keep working.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                    } else {
+                    } else if let interval = ExpirationCountdown.interval(until: expiresAt) {
                         HStack(spacing: 4) {
                             Text("Token expires in")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
-                            // Apple: SwiftUI/Text/init(timerInterval:pauseTime:countsDown:showsHours:)
-                            Text(timerInterval: Date.now...expiresAt, countsDown: true)
+                            Text(timerInterval: interval, countsDown: true)
                                 .font(.caption.monospacedDigit())
                                 .foregroundStyle(.secondary)
                         }
+                    } else {
+                        refreshableExpiredCaption
                     }
                 }
                 Spacer(minLength: 0)
@@ -227,9 +235,43 @@ struct SignInPanel: View {
 
     // MARK: - Helpers
 
+    private var refreshableExpiredCaption: some View {
+        Text("Access token expired. Quorra will refresh it when credentials are requested.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+    }
+
     private var firstMissingRequiredField: String? {
         if startUrl == nil { return "sso_start_url" }
         if region == nil { return "sso_region" }
         return nil
     }
 }
+
+#if DEBUG
+
+#Preview("Expired – refresh available") {
+    Form {
+        SignInPanel(
+            sessionName: "acme",
+            startUrl: URL(string: "https://acme.awsapps.com/start"),
+            region: "us-east-1",
+            scopes: ["sso:account:access"],
+            authStatus: .expired(
+                expiredAt: Date(timeIntervalSinceNow: -60),
+                canRefresh: true
+            ),
+            progress: nil,
+            lastError: nil,
+            signOutFailed: false,
+            isReadOnly: false,
+            onSignIn: {},
+            onCancel: {},
+            onSignOut: {}
+        )
+    }
+    .formStyle(.grouped)
+    .frame(width: 760, height: 220)
+}
+
+#endif

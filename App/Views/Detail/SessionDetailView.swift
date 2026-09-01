@@ -221,6 +221,10 @@ struct SessionDetailView: View {
     SessionDetailPreviewHarness(mode: .managed, previewState: .expiredNeedsSignIn)
 }
 
+#Preview("Expired – refresh available") {
+    SessionDetailPreviewHarness(mode: .managed, previewState: .expiredRefreshAvailable)
+}
+
 #Preview("Sign-out advisory") {
     SessionDetailPreviewHarness(mode: .managed, previewState: .signOutAdvisory)
 }
@@ -248,6 +252,7 @@ private enum PreviewState {
     case failed
     case signedIn
     case expiredNeedsSignIn
+    case expiredRefreshAvailable
     case signOutAdvisory
     // A2
     case refreshing
@@ -323,6 +328,11 @@ private struct SessionDetailPreviewHarness: View {
             case .expiredNeedsSignIn:
                 credentialsModel.seedStatusForTesting(
                     .expired(expiredAt: Date(timeIntervalSinceNow: -60), canRefresh: false),
+                    sessionName: "acme"
+                )
+            case .expiredRefreshAvailable:
+                credentialsModel.seedStatusForTesting(
+                    .expired(expiredAt: Date(timeIntervalSinceNow: -60), canRefresh: true),
                     sessionName: "acme"
                 )
             case .signOutAdvisory:
