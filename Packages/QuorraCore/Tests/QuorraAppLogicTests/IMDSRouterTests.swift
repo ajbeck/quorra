@@ -33,7 +33,7 @@ struct IMDSRouterTests {
         )
         #expect(String(data: roleList.body, encoding: .utf8) == "OrganizationAdmin\n")
 
-        let credentials = router.response(
+        let credentialsRoute = router.route(
             for: request(
                 "GET",
                 "/latest/meta-data/iam/security-credentials/OrganizationAdmin",
@@ -41,6 +41,11 @@ struct IMDSRouterTests {
             ),
             now: now
         )
+        guard case .credentialDocument = credentialsRoute else {
+            Issue.record("Expected an authenticated credential-document route")
+            return
+        }
+        let credentials = router.credentialsResponse(using: servedCredentials)
         #expect(credentials.statusCode == 200)
 
         let object = try JSONSerialization.jsonObject(with: credentials.body) as? [String: String]
@@ -104,6 +109,7 @@ struct IMDSRouterTests {
         let server = LocalIMDSServer(
             port: 0,
             servedProfile: servedProfile,
+            credentialProvider: { self.servedCredentials },
             onRequest: { _ in },
             onFailure: { _ in }
         )
@@ -127,11 +133,127 @@ struct IMDSRouterTests {
     }
 
     @MainActor
+    @Test func runningServerServesRenewedCredentialsWithoutRestart() async throws {
+        let provider = StubIMDSCredentialProvider(results: [
+            .success(makeCredentials(accessKeyId: "ASIAFIRSTCREDENTIAL")),
+            .success(makeCredentials(accessKeyId: "ASIARENEWEDCREDENT")),
+        ])
+        let server = LocalIMDSServer(
+            port: 0,
+            servedProfile: servedProfile,
+            credentialProvider: { try await provider.credentials() },
+            onRequest: { _ in },
+            onFailure: { _ in }
+        )
+        try await server.start()
+        defer { server.stop() }
+        let originalPort = server.boundPort
+        let url = try #require(URL(
+            string: "http://127.0.0.1:\(originalPort)/latest/meta-data/iam/security-credentials/OrganizationAdmin"
+        ))
+
+        let (firstData, firstURLResponse) = try await URLSession.shared.data(from: url)
+        let firstResponse = try #require(firstURLResponse as? HTTPURLResponse)
+        #expect(firstResponse.statusCode == 200)
+        #expect(String(data: firstData, encoding: .utf8)?.contains("ASIAFIRSTCREDENTIAL") == true)
+
+        let (renewedData, renewedURLResponse) = try await URLSession.shared.data(from: url)
+        let renewedResponse = try #require(renewedURLResponse as? HTTPURLResponse)
+        #expect(renewedResponse.statusCode == 200)
+        #expect(String(data: renewedData, encoding: .utf8)?.contains("ASIARENEWEDCREDENT") == true)
+        #expect(server.boundPort == originalPort)
+        #expect(provider.callCount == 2)
+    }
+
+    @MainActor
+    @Test func credentialProviderRunsOnlyForAuthenticatedCredentialDocuments() async throws {
+        let provider = StubIMDSCredentialProvider(results: [
+            .success(servedCredentials),
+        ])
+        let server = LocalIMDSServer(
+            port: 0,
+            servedProfile: servedProfile,
+            allowsIMDSv1: false,
+            credentialProvider: { try await provider.credentials() },
+            onRequest: { _ in },
+            onFailure: { _ in }
+        )
+        try await server.start()
+        defer { server.stop() }
+
+        let credentialURL = try #require(URL(
+            string: "http://127.0.0.1:\(server.boundPort)/latest/meta-data/iam/security-credentials/OrganizationAdmin"
+        ))
+        let (_, unauthorizedURLResponse) = try await URLSession.shared.data(from: credentialURL)
+        let unauthorizedResponse = try #require(unauthorizedURLResponse as? HTTPURLResponse)
+        #expect(unauthorizedResponse.statusCode == 401)
+        #expect(provider.callCount == 0)
+
+        var tokenRequest = URLRequest(url: URL(string: "http://127.0.0.1:\(server.boundPort)/latest/api/token")!)
+        tokenRequest.httpMethod = "PUT"
+        tokenRequest.setValue("60", forHTTPHeaderField: "X-aws-ec2-metadata-token-ttl-seconds")
+        let (tokenData, _) = try await URLSession.shared.data(for: tokenRequest)
+        let token = try #require(String(data: tokenData, encoding: .utf8))
+
+        var regionRequest = URLRequest(url: URL(
+            string: "http://127.0.0.1:\(server.boundPort)/latest/meta-data/placement/region"
+        )!)
+        regionRequest.setValue(token, forHTTPHeaderField: "X-aws-ec2-metadata-token")
+        let (_, regionURLResponse) = try await URLSession.shared.data(for: regionRequest)
+        let regionResponse = try #require(regionURLResponse as? HTTPURLResponse)
+        #expect(regionResponse.statusCode == 200)
+        #expect(provider.callCount == 0)
+
+        var authenticatedRequest = URLRequest(url: credentialURL)
+        authenticatedRequest.setValue(token, forHTTPHeaderField: "X-aws-ec2-metadata-token")
+        let (_, authenticatedURLResponse) = try await URLSession.shared.data(for: authenticatedRequest)
+        let authenticatedResponse = try #require(authenticatedURLResponse as? HTTPURLResponse)
+        #expect(authenticatedResponse.statusCode == 200)
+        #expect(provider.callCount == 1)
+    }
+
+    @MainActor
+    @Test func credentialFailureReturns503AndNextRequestCanRecover() async throws {
+        let provider = StubIMDSCredentialProvider(results: [
+            .failure(IAMIdentityCenterError.tokenExpired),
+            .success(makeCredentials(accessKeyId: "ASIARECOVEREDCRED00")),
+        ])
+        var statuses: [Int] = []
+        let server = LocalIMDSServer(
+            port: 0,
+            servedProfile: servedProfile,
+            credentialProvider: { try await provider.credentials() },
+            onRequest: { statuses.append($0.status) },
+            onFailure: { _ in }
+        )
+        try await server.start()
+        defer { server.stop() }
+        let originalPort = server.boundPort
+        let url = try #require(URL(
+            string: "http://127.0.0.1:\(originalPort)/latest/meta-data/iam/security-credentials/OrganizationAdmin"
+        ))
+
+        let (failureData, failureURLResponse) = try await URLSession.shared.data(from: url)
+        let failureResponse = try #require(failureURLResponse as? HTTPURLResponse)
+        #expect(failureResponse.statusCode == 503)
+        #expect(String(data: failureData, encoding: .utf8) == "Credentials unavailable.\n")
+
+        let (recoveredData, recoveredURLResponse) = try await URLSession.shared.data(from: url)
+        let recoveredResponse = try #require(recoveredURLResponse as? HTTPURLResponse)
+        #expect(recoveredResponse.statusCode == 200)
+        #expect(String(data: recoveredData, encoding: .utf8)?.contains("ASIARECOVEREDCRED00") == true)
+        #expect(server.boundPort == originalPort)
+        #expect(provider.callCount == 2)
+        #expect(statuses == [503, 200])
+    }
+
+    @MainActor
     @Test func localServerBindsConfiguredLoopbackPort() async throws {
         let port = try availableLoopbackPort()
         let server = LocalIMDSServer(
             port: port,
             servedProfile: servedProfile,
+            credentialProvider: { self.servedCredentials },
             onRequest: { _ in },
             onFailure: { _ in }
         )
@@ -153,18 +275,25 @@ struct IMDSRouterTests {
             sessionName: "astrocompute",
             accountId: "699475923216",
             roleName: "OrganizationAdmin",
+            region: "us-east-2"
+        )
+    }
+
+    private var servedCredentials: RoleCredentials {
+        makeCredentials(accessKeyId: "ASIA00000000EXMPL")
+    }
+
+    private func makeCredentials(accessKeyId: String) -> RoleCredentials {
+        RoleCredentials(
+            accessKeyId: accessKeyId,
+            secretAccessKey: "secret",
+            sessionToken: "session-token",
+            expiresAt: Date(timeIntervalSince1970: 1_700_003_600),
+            accountId: "699475923216",
+            roleName: "OrganizationAdmin",
             region: "us-east-2",
-            credentials: RoleCredentials(
-                accessKeyId: "ASIA00000000EXMPL",
-                secretAccessKey: "secret",
-                sessionToken: "session-token",
-                expiresAt: Date(timeIntervalSince1970: 1_700_003_600),
-                accountId: "699475923216",
-                roleName: "OrganizationAdmin",
-                region: "us-east-2",
-                sessionName: "astrocompute",
-                issuedAt: Date(timeIntervalSince1970: 1_700_000_000)
-            )
+            sessionName: "astrocompute",
+            issuedAt: Date(timeIntervalSince1970: 1_700_000_000)
         )
     }
 
@@ -213,5 +342,23 @@ struct IMDSRouterTests {
         }
 
         return Int(in_port_t(bigEndian: boundAddress.sin_port))
+    }
+}
+
+@MainActor
+private final class StubIMDSCredentialProvider {
+    private var results: [Result<RoleCredentials, Error>]
+    private(set) var callCount = 0
+
+    init(results: [Result<RoleCredentials, Error>]) {
+        self.results = results
+    }
+
+    func credentials() async throws -> RoleCredentials {
+        callCount += 1
+        guard !results.isEmpty else {
+            throw IAMIdentityCenterError.tokenExpired
+        }
+        return try results.removeFirst().get()
     }
 }

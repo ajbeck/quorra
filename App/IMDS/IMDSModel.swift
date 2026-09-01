@@ -66,7 +66,7 @@ final class IMDSModel {
         endpointsByEndpointID[endpointID] = .starting(port: port)
 
         do {
-            let credentials = try await credentialsModel.liveCredentials(
+            _ = try await credentialsModel.liveCredentials(
                 forSession: sessionName,
                 accountId: accountId,
                 roleName: roleName,
@@ -77,8 +77,7 @@ final class IMDSModel {
                 sessionName: sessionName,
                 accountId: accountId,
                 roleName: roleName,
-                region: region,
-                credentials: credentials
+                region: region
             )
 
             stopEndpoints(onPort: port, except: endpointID)
@@ -87,6 +86,14 @@ final class IMDSModel {
             let server = LocalIMDSServer(
                 port: port,
                 servedProfile: servedProfile,
+                credentialProvider: {
+                    try await credentialsModel.liveCredentials(
+                        forSession: sessionName,
+                        accountId: accountId,
+                        roleName: roleName,
+                        region: region
+                    )
+                },
                 onRequest: { [weak self] log in
                     Task { @MainActor in
                         self?.recordRequest(log, forEndpointID: endpointID)
