@@ -20,13 +20,15 @@ struct TokenRotationTests {
         refreshToken: String? = "old-rt",
         sessionName: String = "s"
     ) async throws {
-        // expiresAt is 3 minutes out — inside the skew window so liveToken triggers refresh
+        // The original lifetime is long enough to retain the five-minute maximum skew;
+        // expiresAt is three minutes out, so liveToken triggers refresh.
+        let expiresAt = Date().addingTimeInterval(3 * 60)
         try await keychain.writeRecord(
             StoredSSOToken(
                 accessToken: "at",
-                expiresAt: Date().addingTimeInterval(3 * 60),
+                expiresAt: expiresAt,
                 refreshToken: refreshToken,
-                issuedAt: Date(),
+                issuedAt: expiresAt.addingTimeInterval(-8 * 3600),
                 region: "us-east-1",
                 sessionName: sessionName
             ),

@@ -45,7 +45,8 @@ extension IdentityCenterService {
 
     // MARK: - Refresh timer machinery (D11 / A2)
 
-    /// Schedules a one-shot task that triggers a silent refresh at `expiresAt − refreshSkew`.
+    /// Schedules a one-shot task at the adaptive refresh deadline derived from the token's
+    /// original issued lifetime, capped at five minutes before `expiresAt`.
     ///
     /// Mirrors the expiration-timer machinery. Only called when `canRefresh: true` (i.e. a
     /// refresh token exists in the Keychain).
@@ -53,11 +54,13 @@ extension IdentityCenterService {
     /// On refresh success: both timers are cancelled and rescheduled for the new `expiresAt`.
     /// On terminal failure: this timer is cancelled; `T_expire` runs to expiry.
     /// On transient failure: this timer is cancelled; `T_expire` runs to expiry; user can retry.
-    func scheduleRefresh(forSession sessionName: String, expiresAt: Date) {
+    func scheduleRefresh(forSession sessionName: String, issuedAt: Date, expiresAt: Date) {
         refreshTimers[sessionName]?.cancel()
 
-        let skew = ServiceConstants.refreshSkew
-        let refreshDeadline = expiresAt.addingTimeInterval(-skew)
+        let refreshDeadline = ServiceConstants.refreshDeadline(
+            issuedAt: issuedAt,
+            expiresAt: expiresAt
+        )
         let interval = refreshDeadline.timeIntervalSinceNow
 
         if interval <= 0 {

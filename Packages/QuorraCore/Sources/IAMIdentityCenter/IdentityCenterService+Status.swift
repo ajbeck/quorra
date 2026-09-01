@@ -70,7 +70,11 @@ extension IdentityCenterService {
             scheduleExpiration(forSession: sessionName, expiresAt: token.expiresAt)
         }
         if canRefresh && refreshTimers[sessionName] == nil && inFlightRefresh[sessionName] == nil {
-            scheduleRefresh(forSession: sessionName, expiresAt: token.expiresAt)
+            scheduleRefresh(
+                forSession: sessionName,
+                issuedAt: token.issuedAt,
+                expiresAt: token.expiresAt
+            )
         }
 
         return .signedIn(expiresAt: token.expiresAt, canRefresh: canRefresh)

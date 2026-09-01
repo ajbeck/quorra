@@ -23,7 +23,7 @@ public actor IdentityCenterService: IdentityCenterServicing {
     /// Expiration timers keyed by session name (D8 / D11).
     var expirationTimers: [String: Task<Void, Never>] = [:]
 
-    /// Refresh timers keyed by session name — fires at `expiresAt − refreshSkew` (D11 / A2).
+    /// Refresh timers keyed by session name — fires at the token's adaptive refresh deadline (D11 / A2).
     var refreshTimers: [String: Task<Void, Never>] = [:]
 
     /// In-flight refresh tasks keyed by session name. Single-flight coalescing (D12 / A2).
@@ -33,7 +33,7 @@ public actor IdentityCenterService: IdentityCenterServicing {
     var inFlightMint: [String: Task<RoleCredentials, Error>] = [:]
 
     /// Proactive mint timers keyed by "<sessionName>:<accountId>:<roleName>" — fires at
-    /// `expiresAt − refreshSkew` to pre-warm credentials for Scope C's IMDS endpoint (D28 / B).
+    /// the credential's adaptive refresh deadline to pre-warm Scope C's IMDS endpoint (D28 / B).
     var mintTimers: [String: Task<Void, Never>] = [:]
 
     /// Per-session Task chain for async serialization (D21 / A2).
@@ -46,10 +46,21 @@ public actor IdentityCenterService: IdentityCenterServicing {
         static let roleCredsService = "dev.ajbeck.quorra.role-creds"
         static let oidcClientReregistrationLeadTime: TimeInterval = 7 * 24 * 60 * 60
         static let slowDownIncrementSeconds: TimeInterval = 5
-        /// Refresh skew: trigger refresh this many seconds before `expiresAt` (D11 / D12).
-        /// Matches the AWS SDKs' SSO credential provider skew so Quorra's behavior is
-        /// consistent with `aws` CLI on the same machine.
-        static let refreshSkew: TimeInterval = 5 * 60
+        /// Maximum refresh skew. Long-lived tokens retain the established five-minute window.
+        static let maximumRefreshSkew: TimeInterval = 5 * 60
+        /// Short-lived values use this fraction of their original issued lifetime.
+        static let refreshSkewFraction = 0.10
+
+        /// Returns an adaptive skew based on original lifetime, capped at five minutes.
+        /// Invalid or non-positive lifetimes have no pre-expiration skew.
+        static func refreshSkew(issuedAt: Date, expiresAt: Date) -> TimeInterval {
+            let lifetime = max(0, expiresAt.timeIntervalSince(issuedAt))
+            return min(maximumRefreshSkew, lifetime * refreshSkewFraction)
+        }
+
+        static func refreshDeadline(issuedAt: Date, expiresAt: Date) -> Date {
+            expiresAt.addingTimeInterval(-refreshSkew(issuedAt: issuedAt, expiresAt: expiresAt))
+        }
     }
 
     // MARK: - Events stream (D2)
@@ -160,7 +171,11 @@ public actor IdentityCenterService: IdentityCenterServicing {
             // D11: schedule both T_expire and T_refresh on successful sign-in
             scheduleExpiration(forSession: sessionName, expiresAt: token.expiresAt)
             if token.refreshToken != nil {
-                scheduleRefresh(forSession: sessionName, expiresAt: token.expiresAt)
+                scheduleRefresh(
+                    forSession: sessionName,
+                    issuedAt: token.issuedAt,
+                    expiresAt: token.expiresAt
+                )
             }
             return token
         } catch is CancellationError {

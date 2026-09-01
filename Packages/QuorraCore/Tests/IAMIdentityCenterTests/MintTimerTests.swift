@@ -87,6 +87,7 @@ struct MintTimerTests {
             accountId: "123456789012",
             roleName: "stub-role",
             region: "us-east-1",
+            issuedAt: expiresAt.addingTimeInterval(-3600),
             expiresAt: expiresAt
         )
 
@@ -96,9 +97,9 @@ struct MintTimerTests {
         timer?.cancel()
     }
 
-    // MARK: - T_mint fires at expiresAt − refreshSkew (production skew, deadline check)
+    // MARK: - T_mint fires at the adaptive refresh deadline
 
-    @Test("T_mint sleeps to expiresAt − refreshSkew — the production skew value, not a test-only constant")
+    @Test("T_mint sleeps to the adaptive refresh deadline")
     func timerUsesProductionSkewDeadline() async throws {
         defer { StubURLProtocol.reset() }
         // MockSleeper lets the timer fire immediately and records the deadline for assertion (D19).
@@ -106,13 +107,18 @@ struct MintTimerTests {
         let service = makeService(sleeper: sleeper)
 
         let expiresAt = Date().addingTimeInterval(3600)
-        let expectedDeadline = expiresAt.addingTimeInterval(-IdentityCenterService.ServiceConstants.refreshSkew)
+        let issuedAt = expiresAt.addingTimeInterval(-3600)
+        let expectedDeadline = IdentityCenterService.ServiceConstants.refreshDeadline(
+            issuedAt: issuedAt,
+            expiresAt: expiresAt
+        )
 
         await service.scheduleMint(
             forSession: "s",
             accountId: "123456789012",
             roleName: "stub-role",
             region: "us-east-1",
+            issuedAt: issuedAt,
             expiresAt: expiresAt
         )
 
@@ -129,7 +135,7 @@ struct MintTimerTests {
         let deadlines = await sleeper.recordedDeadlines
         #expect(
             deadlines.contains(where: { abs($0.timeIntervalSince(expectedDeadline)) < 0.01 }),
-            "T_mint must sleep to expiresAt − refreshSkew (\(expectedDeadline)); recorded: \(deadlines)"
+            "T_mint must sleep to the adaptive deadline (\(expectedDeadline)); recorded: \(deadlines)"
         )
     }
 
@@ -257,6 +263,7 @@ struct MintTimerTests {
             accountId: "123456789012",
             roleName: "stub-role",
             region: "us-east-1",
+            issuedAt: expiresAt.addingTimeInterval(-3600),
             expiresAt: expiresAt
         )
 
@@ -285,7 +292,8 @@ struct MintTimerTests {
         // the timer implementation is irrelevant here; what we're testing is the nil-check guard.
         let service = makeService(keychain: keychain, portal: portal)
 
-        // expiresAt is 2 minutes from now — inside the 5-minute skew window.
+        // A one-hour original lifetime keeps the five-minute maximum skew, so an expiry
+        // two minutes from now is already inside the adaptive window.
         // The `interval <= 0` guard fires a detached Task immediately without storing a timer.
         let expiresAt = Date().addingTimeInterval(2 * 60)
 
@@ -294,6 +302,7 @@ struct MintTimerTests {
             accountId: "123456789012",
             roleName: "stub-role",
             region: "us-east-1",
+            issuedAt: expiresAt.addingTimeInterval(-3600),
             expiresAt: expiresAt
         )
 
@@ -319,6 +328,7 @@ struct MintTimerTests {
             accountId: "123456789012",
             roleName: "stub-role",
             region: "us-east-1",
+            issuedAt: firstExpiry.addingTimeInterval(-3600),
             expiresAt: firstExpiry
         )
         let firstTimer = await service.mintTimers[key]
@@ -331,6 +341,7 @@ struct MintTimerTests {
             accountId: "123456789012",
             roleName: "stub-role",
             region: "us-east-1",
+            issuedAt: secondExpiry.addingTimeInterval(-3600),
             expiresAt: secondExpiry
         )
         let secondTimer = await service.mintTimers[key]

@@ -6,7 +6,7 @@ private let roleCredsLogger = Logger(subsystem: "dev.ajbeck.quorra", category: "
 extension IdentityCenterService {
     // MARK: - Live credentials (D25, D26)
 
-    /// Returns `RoleCredentials` guaranteed to be valid for at least `refreshSkew` seconds.
+    /// Returns `RoleCredentials` outside their adaptive refresh window.
     ///
     /// Contract per D26:
     /// - Cached row exists, `now < expiresAt − skew` → return cached
@@ -83,8 +83,11 @@ extension IdentityCenterService {
 
         if let cached {
             let now = Date()
-            let skew = ServiceConstants.refreshSkew
-            if now < cached.expiresAt.addingTimeInterval(-skew) {
+            let refreshDeadline = ServiceConstants.refreshDeadline(
+                issuedAt: cached.issuedAt,
+                expiresAt: cached.expiresAt
+            )
+            if now < refreshDeadline {
                 // Outside skew window — credentials are fresh, return without minting
                 return cached
             }
@@ -226,6 +229,7 @@ extension IdentityCenterService {
             accountId: accountId,
             roleName: roleName,
             region: region,
+            issuedAt: creds.issuedAt,
             expiresAt: creds.expiresAt
         )
 

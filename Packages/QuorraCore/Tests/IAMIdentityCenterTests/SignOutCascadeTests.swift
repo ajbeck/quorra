@@ -219,6 +219,7 @@ struct SignOutCascadeTests {
             accountId: "111111111111",
             roleName: "stub-role",
             region: "us-east-1",
+            issuedAt: farFuture.addingTimeInterval(-3600),
             expiresAt: farFuture
         )
 

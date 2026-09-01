@@ -90,6 +90,7 @@ extension IdentityCenterService {
                 accountId: accountId,
                 roleName: roleName,
                 region: cached.region,
+                issuedAt: cached.issuedAt,
                 expiresAt: cached.expiresAt
             )
         }

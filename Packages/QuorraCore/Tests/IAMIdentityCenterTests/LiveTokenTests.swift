@@ -19,6 +19,7 @@ struct LiveTokenTests {
         keychain: InMemoryKeychainStore,
         expiresAt: Date,
         refreshToken: String? = "rt",
+        originalLifetime: TimeInterval = 8 * 3600,
         sessionName: String = "s"
     ) async throws {
         try await keychain.writeRecord(
@@ -26,7 +27,7 @@ struct LiveTokenTests {
                 accessToken: "at",
                 expiresAt: expiresAt,
                 refreshToken: refreshToken,
-                issuedAt: Date(),
+                issuedAt: expiresAt.addingTimeInterval(-originalLifetime),
                 region: "us-east-1",
                 sessionName: sessionName
             ),
@@ -55,7 +56,7 @@ struct LiveTokenTests {
 
     // MARK: - D12: Outside skew window — return immediately
 
-    @Test("liveToken returns current token when outside skew window (> refreshSkew remaining)")
+    @Test("liveToken returns current token when outside its adaptive refresh window")
     func outsideSkewWindowReturnsCurrentToken() async throws {
         let keychain = InMemoryKeychainStore()
         // expiresAt is 2 hours out — well outside the 5-minute skew window
@@ -71,9 +72,25 @@ struct LiveTokenTests {
         #expect(inFlight == nil)
     }
 
+    @Test("A five-minute token remains usable with more than ten percent of its lifetime left")
+    func shortLifetimeOutsideAdaptiveWindowReturnsCurrentToken() async throws {
+        let keychain = InMemoryKeychainStore()
+        let expiresAt = Date().addingTimeInterval(40)
+        try await seedToken(
+            keychain: keychain,
+            expiresAt: expiresAt,
+            originalLifetime: 5 * 60
+        )
+
+        let service = makeService(keychain: keychain)
+        let token = try await service.liveToken(forSession: "s")
+
+        #expect(token.accessToken == "at")
+    }
+
     // MARK: - D12: Inside skew window — inline refresh
 
-    @Test("liveToken triggers inline refresh when inside skew window (< refreshSkew remaining)")
+    @Test("liveToken triggers inline refresh when inside its adaptive refresh window")
     func insideSkewWindowTriggersRefresh() async throws {
         let keychain = InMemoryKeychainStore()
         // expiresAt is 3 minutes out — inside the 5-minute skew window
@@ -89,6 +106,32 @@ struct LiveTokenTests {
 
         // The inline refresh should have completed and returned the NEW token
         #expect(token.accessToken == "new-at")
+    }
+
+    @Test("A five-minute token refreshes inside its final thirty seconds")
+    func shortLifetimeInsideAdaptiveWindowTriggersRefresh() async throws {
+        let keychain = InMemoryKeychainStore()
+        let expiresAt = Date().addingTimeInterval(20)
+        try await seedToken(
+            keychain: keychain,
+            expiresAt: expiresAt,
+            refreshToken: "rt",
+            originalLifetime: 5 * 60
+        )
+        try await seedOIDCClient(keychain: keychain)
+
+        let stub = StubOIDCRequesting()
+        await stub.setNextRefreshResult(.success(makeDefaultSSOToken(
+            accessToken: "short-lived-refreshed-at",
+            refreshToken: "rt",
+            sessionName: "s"
+        )))
+
+        let service = makeService(keychain: keychain, stub: stub)
+        let token = try await service.liveToken(forSession: "s")
+
+        #expect(token.accessToken == "short-lived-refreshed-at")
+        #expect(await stub.refreshCallCount == 1)
     }
 
     // MARK: - D12: Past expiry with canRefresh: true — inline refresh

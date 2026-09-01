@@ -243,14 +243,17 @@ struct MintEventStreamTests {
             return false
         }
 
-        // expiresAt already inside the skew window → scheduleMint fires handleMint immediately,
+        // The one-hour lifetime places this expiry inside the adaptive skew window, so
+        // scheduleMint fires handleMint immediately,
         // which routes through the shared runMintBody (no duplicated emission).
+        let expiresAt = Date().addingTimeInterval(60)
         await service.scheduleMint(
             forSession: "s",
             accountId: "123456789012",
             roleName: "r",
             region: "us-east-1",
-            expiresAt: Date().addingTimeInterval(60)
+            issuedAt: expiresAt.addingTimeInterval(-3600),
+            expiresAt: expiresAt
         )
         await collectTask.value
 

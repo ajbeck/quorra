@@ -6,7 +6,8 @@ private let mintTimerLogger = Logger(subsystem: "dev.ajbeck.quorra", category: "
 extension IdentityCenterService {
     // MARK: - Mint timer machinery (D28)
 
-    /// Schedules a one-shot task that fires a proactive mint at `expiresAt − refreshSkew`.
+    /// Schedules a one-shot task at the adaptive refresh deadline derived from the credential's
+    /// original issued lifetime, capped at five minutes before `expiresAt`.
     ///
     /// Cancels any existing mint timer for the tuple before scheduling a new one. Mirrors
     /// `scheduleRefresh` in Expiration.swift — same structure, same `Sleeper.sleep(until:)`
@@ -25,13 +26,16 @@ extension IdentityCenterService {
         accountId: String,
         roleName: String,
         region: String,
+        issuedAt: Date,
         expiresAt: Date
     ) {
         let key = "\(sessionName):\(accountId):\(roleName)"
         mintTimers[key]?.cancel()
 
-        let skew = ServiceConstants.refreshSkew
-        let refreshDeadline = expiresAt.addingTimeInterval(-skew)
+        let refreshDeadline = ServiceConstants.refreshDeadline(
+            issuedAt: issuedAt,
+            expiresAt: expiresAt
+        )
         let interval = refreshDeadline.timeIntervalSinceNow
 
         if interval <= 0 {
