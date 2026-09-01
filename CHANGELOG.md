@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.0](https://github.com/ajbeck/quorra/compare/v0.1.2...v0.2.0) (2026-09-01)
+
+
+### Features
+
+* add GitHub release update checks ([#29](https://github.com/ajbeck/quorra/issues/29)) ([94b96d8](https://github.com/ajbeck/quorra/commit/94b96d8c79facb89af9ea73a47c69db6f8f0f1dc))
+
+
+### Bug Fixes
+
+* adapt refresh skew to credential lifetime ([#23](https://github.com/ajbeck/quorra/issues/23)) ([2bf1c1a](https://github.com/ajbeck/quorra/commit/2bf1c1add62aba52e5d2f2f0e7996b0eadae3080))
+* display imds ports without grouping ([#27](https://github.com/ajbeck/quorra/issues/27)) ([776022a](https://github.com/ajbeck/quorra/commit/776022a48eb4a9eb02eb767e7bcca5666b8f21c3))
+* initialize active sso session refresh ([#22](https://github.com/ajbeck/quorra/issues/22)) ([8f4aec7](https://github.com/ajbeck/quorra/commit/8f4aec79f4d6e28449ed581623e801a6b2e274a2))
+* open sso sign-in in an app-owned browser ([#26](https://github.com/ajbeck/quorra/issues/26)) ([a01072b](https://github.com/ajbeck/quorra/commit/a01072bcb909a11ff1d7cce4e446564b25739904))
+* serve live credentials from imds endpoints ([#25](https://github.com/ajbeck/quorra/issues/25)) ([cfdfd54](https://github.com/ajbeck/quorra/commit/cfdfd54e07869c44b002a738aabbfcb523e58cd6))
+
 ## [0.1.2](https://github.com/ajbeck/quorra/compare/v0.1.1...v0.1.2) (2026-08-29)
 
 
