@@ -187,6 +187,25 @@ jobs:
 
           echo "EXPORTED_APP_PATH=$export_path/quorra.app" >> "$GITHUB_ENV"
 
+      - name: Verify packaged application version
+        if: ${{ steps.release-context.outputs.tag != '' }}
+        env:
+          RELEASE_VERSION: ${{ steps.release-context.outputs.version }}
+        run: |
+          info_plist="$EXPORTED_APP_PATH/Contents/Info.plist"
+          actual_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$info_plist")"
+          actual_build="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$info_plist")"
+
+          if [[ "$actual_version" != "$RELEASE_VERSION" ]]; then
+            echo "::error::Packaged marketing version $actual_version does not match release version $RELEASE_VERSION."
+            exit 1
+          fi
+
+          if [[ "$actual_build" != "$GITHUB_RUN_NUMBER" ]]; then
+            echo "::error::Packaged build $actual_build does not match workflow run $GITHUB_RUN_NUMBER."
+            exit 1
+          fi
+
       - name: Create signed disk image
         if: ${{ steps.release-context.outputs.tag != '' }}
         env:
