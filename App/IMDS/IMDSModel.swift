@@ -3,6 +3,7 @@ import AWSConfigINI
 import IAMIdentityCenter
 import Observation
 import QuorraAppLogic
+import SwiftData
 
 @Observable
 @MainActor
@@ -12,6 +13,7 @@ final class IMDSModel {
     private(set) var endpointsByEndpointID: [String: IMDSEndpointState] = [:]
     private(set) var runtimeInfoByEndpointID: [String: IMDSRuntimeInfo] = [:]
     @ObservationIgnored private var serversByEndpointID: [String: LocalIMDSServer] = [:]
+    @ObservationIgnored private var logBuffersByEndpointID: [String: IMDSEndpointLogBuffer] = [:]
 
     func state(forEndpointID endpointID: String) -> IMDSEndpointState {
         endpointsByEndpointID[endpointID] ?? .inactive
@@ -30,6 +32,7 @@ final class IMDSModel {
         for node: ProfileNode,
         credentialsModel: CredentialsModel,
         port: Int = 9678,
+        logContext: ModelContext? = nil,
         requestRecorder: RequestRecorder? = nil
     ) async {
         guard let sessionName = node.profile.ssoSession,
@@ -48,6 +51,7 @@ final class IMDSModel {
             region: node.profile.region ?? "us-east-1",
             credentialsModel: credentialsModel,
             port: port,
+            logContext: logContext,
             requestRecorder: requestRecorder
         )
     }
@@ -61,12 +65,13 @@ final class IMDSModel {
         region: String,
         credentialsModel: CredentialsModel,
         port: Int = 9678,
+        logContext: ModelContext? = nil,
         requestRecorder: RequestRecorder? = nil
     ) async {
         endpointsByEndpointID[endpointID] = .starting(port: port)
 
         do {
-            _ = try await credentialsModel.liveCredentials(
+            let initialCredentials = try await credentialsModel.liveCredentials(
                 forSession: sessionName,
                 accountId: accountId,
                 roleName: roleName,
@@ -82,10 +87,12 @@ final class IMDSModel {
 
             stopEndpoints(onPort: port, except: endpointID)
             serversByEndpointID[endpointID]?.stop()
+            configureLogBuffer(forEndpointID: endpointID, context: logContext)
 
             let server = LocalIMDSServer(
                 port: port,
                 servedProfile: servedProfile,
+                initialCredentials: initialCredentials,
                 credentialProvider: {
                     try await credentialsModel.liveCredentials(
                         forSession: sessionName,
@@ -97,6 +104,9 @@ final class IMDSModel {
                 onRequest: { [weak self] log in
                     Task { @MainActor in
                         self?.recordRequest(log, forEndpointID: endpointID)
+                        if let endpointUUID = UUID(uuidString: endpointID) {
+                            self?.logBuffersByEndpointID[endpointID]?.append(log, endpointID: endpointUUID)
+                        }
                         requestRecorder?(endpointID, log)
                     }
                 },
@@ -118,6 +128,7 @@ final class IMDSModel {
         } catch {
             serversByEndpointID[endpointID]?.stop()
             serversByEndpointID[endpointID] = nil
+            flushAndRemoveLogBuffer(forEndpointID: endpointID)
             runtimeInfoByEndpointID[endpointID] = nil
             endpointsByEndpointID[endpointID] = .failed(port: port, message: displayMessage(for: error))
             unpublishPortIfNoActiveServers()
@@ -127,6 +138,7 @@ final class IMDSModel {
     func stopEndpoint(forEndpointID endpointID: String) {
         serversByEndpointID[endpointID]?.stop()
         serversByEndpointID[endpointID] = nil
+        flushAndRemoveLogBuffer(forEndpointID: endpointID)
         runtimeInfoByEndpointID[endpointID] = nil
         endpointsByEndpointID[endpointID] = .inactive
         unpublishPortIfNoActiveServers()
@@ -154,9 +166,22 @@ final class IMDSModel {
         runtimeInfoByEndpointID[endpointID] = runtime
     }
 
+    private func configureLogBuffer(forEndpointID endpointID: String, context: ModelContext?) {
+        flushAndRemoveLogBuffer(forEndpointID: endpointID)
+        if let context {
+            logBuffersByEndpointID[endpointID] = IMDSEndpointLogBuffer(context: context)
+        }
+    }
+
+    private func flushAndRemoveLogBuffer(forEndpointID endpointID: String) {
+        logBuffersByEndpointID[endpointID]?.flush()
+        logBuffersByEndpointID[endpointID] = nil
+    }
+
     private func markEndpointFailed(forEndpointID endpointID: String, port: Int, message: String) {
         serversByEndpointID[endpointID]?.stop()
         serversByEndpointID[endpointID] = nil
+        flushAndRemoveLogBuffer(forEndpointID: endpointID)
         runtimeInfoByEndpointID[endpointID] = nil
         endpointsByEndpointID[endpointID] = .failed(port: port, message: message)
         unpublishPortIfNoActiveServers()

@@ -11,7 +11,6 @@ struct IMDSDetailView: View {
     @Environment(IMDSModel.self) private var imdsModel
     @Environment(\.modelContext) private var modelContext
     @Query private var endpointDefinitions: [IMDSEndpointDefinition]
-    @Query(sort: \IMDSEndpointLogEntry.timestamp, order: .reverse) private var endpointLogEntries: [IMDSEndpointLogEntry]
     @State private var isPresentingEndpointEditor = false
 
     var body: some View {
@@ -37,7 +36,8 @@ struct IMDSDetailView: View {
                 serverStatusPanel(for: node, endpointKey: endpointKey, state: state, runtime: runtime, definition: definition)
                 endpointCard(for: state, definition: definition)
                 configurationCard(for: state, definition: definition)
-                activityCard(for: state, runtime: runtime, endpointKey: endpointKey)
+                IMDSActivityCard(state: state, runtime: runtime, endpointID: endpointKey)
+                    .id(endpointKey)
             }
             .padding(24)
             .frame(maxWidth: 980, alignment: .leading)
@@ -287,7 +287,7 @@ struct IMDSDetailView: View {
             for: node,
             credentialsModel: credentialsModel,
             port: definition.port,
-            requestRecorder: persistRequestLog
+            logContext: modelContext
         )
     }
 
@@ -426,67 +426,6 @@ struct IMDSDetailView: View {
         }
     }
 
-    private func activityCard(for state: IMDSEndpointState, runtime: IMDSRuntimeInfo?, endpointKey: String) -> some View {
-        let events = activityEvents(endpointKey: endpointKey, runtime: runtime)
-        return DetailCard("Activity") {
-            if !events.isEmpty {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(events) { event in
-                        IMDSActivityRow(event: event)
-                        if event.id != events.last?.id {
-                            Divider()
-                                .padding(.leading, 118)
-                        }
-                    }
-                }
-            } else {
-                ContentUnavailableView(
-                    state.isActive ? "No Requests Yet" : "No Requests",
-                    systemImage: "list.bullet.rectangle",
-                    description: Text("Start the endpoint to see IMDS requests here.")
-                )
-                .frame(maxWidth: .infinity, minHeight: 92)
-            }
-        }
-    }
-
-    private func activityEvents(endpointKey: String, runtime: IMDSRuntimeInfo?) -> [IMDSRequestLog] {
-        let persisted = persistedActivityEvents(endpointKey: endpointKey)
-        if !persisted.isEmpty {
-            return persisted
-        }
-        return runtime?.activity ?? []
-    }
-
-    private func persistedActivityEvents(endpointKey: String) -> [IMDSRequestLog] {
-        guard UUID(uuidString: endpointKey) != nil else { return [] }
-        return endpointLogEntries
-            .filter { $0.endpointIDString == endpointKey }
-            .prefix(IMDSEndpointLogStore.maxEntriesPerEndpoint)
-            .map(IMDSRequestLog.init(entry:))
-    }
-
-    private func persistRequestLog(endpointID: String, log: IMDSRequestLog) {
-        guard let endpointUUID = UUID(uuidString: endpointID) else { return }
-
-        do {
-            try IMDSEndpointLogStore.append(
-                IMDSEndpointLogEntry(
-                    id: log.id,
-                    endpointID: endpointUUID,
-                    timestamp: log.timestamp,
-                    method: log.method,
-                    path: log.path,
-                    statusCode: log.status,
-                    client: log.client
-                ),
-                in: modelContext
-            )
-        } catch {
-            // Request logging should never interrupt an already-running local endpoint.
-        }
-    }
-
     private func endpointURL(for state: IMDSEndpointState, definition: IMDSEndpointDefinition) -> String {
         let bindAddress = definition.bindAddress
         let port = state.port ?? definition.port
@@ -549,6 +488,129 @@ struct IMDSDetailView: View {
     private func copyToPasteboard(_ value: String) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(value, forType: .string)
+    }
+}
+
+private struct IMDSActivityCard: View {
+    let state: IMDSEndpointState
+    let runtime: IMDSRuntimeInfo?
+    let endpointID: String
+    @State private var page = 0
+
+    var body: some View {
+        IMDSActivityPage(
+            state: state,
+            liveEvents: runtime?.activity ?? [],
+            endpointID: endpointID,
+            page: page,
+            onPreviousPage: { page = max(0, page - 1) },
+            onNextPage: { page += 1 }
+        )
+    }
+}
+
+private struct IMDSActivityPage: View {
+    private static let pageSize = 25
+
+    let state: IMDSEndpointState
+    let liveEvents: [IMDSRequestLog]
+    let page: Int
+    let onPreviousPage: () -> Void
+    let onNextPage: () -> Void
+    @Query private var persistedEntries: [IMDSEndpointLogEntry]
+
+    init(
+        state: IMDSEndpointState,
+        liveEvents: [IMDSRequestLog],
+        endpointID: String,
+        page: Int,
+        onPreviousPage: @escaping () -> Void,
+        onNextPage: @escaping () -> Void
+    ) {
+        self.state = state
+        self.liveEvents = liveEvents
+        self.page = page
+        self.onPreviousPage = onPreviousPage
+        self.onNextPage = onNextPage
+
+        var descriptor = FetchDescriptor<IMDSEndpointLogEntry>(
+            predicate: #Predicate { $0.endpointIDString == endpointID },
+            sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
+        )
+        descriptor.fetchLimit = Self.pageSize + 1
+        descriptor.fetchOffset = page * Self.pageSize
+        _persistedEntries = Query(descriptor)
+    }
+
+    var body: some View {
+        DetailCard("Activity") {
+            if !events.isEmpty {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(events) { event in
+                        IMDSActivityRow(event: event)
+                        if event.id != events.last?.id {
+                            Divider()
+                                .padding(.leading, 118)
+                        }
+                    }
+                }
+            } else {
+                ContentUnavailableView(
+                    page > 0 ? "No Requests on This Page" : (state.isActive ? "No Requests Yet" : "No Requests"),
+                    systemImage: "list.bullet.rectangle",
+                    description: Text(page > 0
+                        ? "Return to newer requests."
+                        : "Start the endpoint to see IMDS requests here.")
+                )
+                .frame(maxWidth: .infinity, minHeight: 92)
+            }
+
+            if page > 0 || hasNextPage {
+                Divider()
+                    .padding(.top, 4)
+
+                HStack {
+                    Text(pageRangeLabel)
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    Button("Previous", systemImage: "chevron.left", action: onPreviousPage)
+                        .disabled(page == 0)
+                    Button("Next", systemImage: "chevron.right", action: onNextPage)
+                        .disabled(!hasNextPage)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .padding(.top, 10)
+            }
+        }
+    }
+
+    private var hasNextPage: Bool {
+        persistedEntries.count > Self.pageSize
+    }
+
+    private var pageRangeLabel: String {
+        if page == 0 {
+            return "Newest \(events.count)"
+        }
+        let first = page * Self.pageSize + 1
+        guard !events.isEmpty else { return "No requests" }
+        return "Requests \(first)–\(first + events.count - 1)"
+    }
+
+    private var events: [IMDSRequestLog] {
+        let persisted = persistedEntries.prefix(Self.pageSize).map(IMDSRequestLog.init(entry:))
+        guard page == 0 else { return persisted }
+
+        var seen = Set<UUID>()
+        return (liveEvents + persisted)
+            .sorted { $0.timestamp > $1.timestamp }
+            .filter { seen.insert($0.id).inserted }
+            .prefix(Self.pageSize)
+            .map { $0 }
     }
 }
 

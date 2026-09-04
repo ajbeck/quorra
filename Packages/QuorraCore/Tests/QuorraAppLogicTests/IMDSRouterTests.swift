@@ -31,7 +31,7 @@ struct IMDSRouterTests {
             ),
             now: now
         )
-        #expect(String(data: roleList.body, encoding: .utf8) == "OrganizationAdmin\n")
+        #expect(String(data: roleList.body, encoding: .utf8) == "OrganizationAdmin")
 
         let credentialsRoute = router.route(
             for: request(
@@ -61,11 +61,29 @@ struct IMDSRouterTests {
 
         let region = router.response(for: request("GET", "/latest/meta-data/placement/region"))
         #expect(region.statusCode == 200)
-        #expect(String(data: region.body, encoding: .utf8) == "us-east-2\n")
+        #expect(String(data: region.body, encoding: .utf8) == "us-east-2")
 
         let roleList = router.response(for: request("GET", "/latest/meta-data/iam/security-credentials"))
         #expect(roleList.statusCode == 200)
-        #expect(String(data: roleList.body, encoding: .utf8) == "OrganizationAdmin\n")
+        #expect(String(data: roleList.body, encoding: .utf8) == "OrganizationAdmin")
+    }
+
+    @Test func scalarMetadataResponsesMatchCanonicalIMDSPathsWithoutTrailingNewlines() {
+        var router = IMDSRouter(servedProfile: servedProfile)
+        let expectedBodies = [
+            "/latest/meta-data/iam/security-credentials/": "OrganizationAdmin",
+            "/latest/meta-data/placement/availability-zone": "us-east-2a",
+            "/latest/meta-data/placement/region": "us-east-2",
+            "/latest/meta-data/services/domain": "amazonaws.com",
+            "/latest/meta-data/services/partition": "aws",
+        ]
+
+        for (path, expectedBody) in expectedBodies {
+            let response = router.response(for: request("GET", path))
+            #expect(response.statusCode == 200)
+            #expect(String(data: response.body, encoding: .utf8) == expectedBody)
+            #expect(response.body.last != 0x0A)
+        }
     }
 
     @Test func expiredOrUnknownTokenIsRejected() throws {
@@ -109,6 +127,7 @@ struct IMDSRouterTests {
         let server = LocalIMDSServer(
             port: 0,
             servedProfile: servedProfile,
+            initialCredentials: servedCredentials,
             credentialProvider: { self.servedCredentials },
             onRequest: { _ in },
             onFailure: { _ in }
@@ -134,13 +153,19 @@ struct IMDSRouterTests {
 
     @MainActor
     @Test func runningServerServesRenewedCredentialsWithoutRestart() async throws {
+        let now = Date()
+        let initialCredentials = makeCredentials(
+            accessKeyId: "ASIAFIRSTCREDENTIAL",
+            issuedAt: now.addingTimeInterval(-570),
+            expiresAt: now.addingTimeInterval(30)
+        )
         let provider = StubIMDSCredentialProvider(results: [
-            .success(makeCredentials(accessKeyId: "ASIAFIRSTCREDENTIAL")),
             .success(makeCredentials(accessKeyId: "ASIARENEWEDCREDENT")),
         ])
         let server = LocalIMDSServer(
             port: 0,
             servedProfile: servedProfile,
+            initialCredentials: initialCredentials,
             credentialProvider: { try await provider.credentials() },
             onRequest: { _ in },
             onFailure: { _ in }
@@ -152,21 +177,26 @@ struct IMDSRouterTests {
             string: "http://127.0.0.1:\(originalPort)/latest/meta-data/iam/security-credentials/OrganizationAdmin"
         ))
 
-        let (firstData, firstURLResponse) = try await URLSession.shared.data(from: url)
-        let firstResponse = try #require(firstURLResponse as? HTTPURLResponse)
-        #expect(firstResponse.statusCode == 200)
-        #expect(String(data: firstData, encoding: .utf8)?.contains("ASIAFIRSTCREDENTIAL") == true)
+        await provider.waitUntilCallCount(1)
 
-        let (renewedData, renewedURLResponse) = try await URLSession.shared.data(from: url)
+        var renewedData = Data()
+        var renewedURLResponse: URLResponse?
+        for _ in 0..<20 {
+            (renewedData, renewedURLResponse) = try await URLSession.shared.data(from: url)
+            if String(data: renewedData, encoding: .utf8)?.contains("ASIARENEWEDCREDENT") == true {
+                break
+            }
+            await Task.yield()
+        }
         let renewedResponse = try #require(renewedURLResponse as? HTTPURLResponse)
         #expect(renewedResponse.statusCode == 200)
         #expect(String(data: renewedData, encoding: .utf8)?.contains("ASIARENEWEDCREDENT") == true)
         #expect(server.boundPort == originalPort)
-        #expect(provider.callCount == 2)
+        #expect(provider.callCount == 1)
     }
 
     @MainActor
-    @Test func credentialProviderRunsOnlyForAuthenticatedCredentialDocuments() async throws {
+    @Test func freshCredentialCacheAvoidsProviderForAllRequestTypes() async throws {
         let provider = StubIMDSCredentialProvider(results: [
             .success(servedCredentials),
         ])
@@ -174,6 +204,7 @@ struct IMDSRouterTests {
             port: 0,
             servedProfile: servedProfile,
             allowsIMDSv1: false,
+            initialCredentials: servedCredentials,
             credentialProvider: { try await provider.credentials() },
             onRequest: { _ in },
             onFailure: { _ in }
@@ -209,19 +240,60 @@ struct IMDSRouterTests {
         let (_, authenticatedURLResponse) = try await URLSession.shared.data(for: authenticatedRequest)
         let authenticatedResponse = try #require(authenticatedURLResponse as? HTTPURLResponse)
         #expect(authenticatedResponse.statusCode == 200)
-        #expect(provider.callCount == 1)
+        #expect(provider.callCount == 0)
     }
 
     @MainActor
-    @Test func credentialFailureReturns503AndNextRequestCanRecover() async throws {
+    @Test func credentialDocumentDoesNotWaitForSlowBackgroundRefresh() async throws {
+        let now = Date()
+        let initialCredentials = makeCredentials(
+            accessKeyId: "ASIACACHEDCREDENTIAL",
+            issuedAt: now.addingTimeInterval(-570),
+            expiresAt: now.addingTimeInterval(30)
+        )
+        let provider = StubIMDSCredentialProvider(
+            results: [.success(makeCredentials(accessKeyId: "ASIAREFRESHEDCRED"))],
+            delay: .seconds(2)
+        )
+        let server = LocalIMDSServer(
+            port: 0,
+            servedProfile: servedProfile,
+            initialCredentials: initialCredentials,
+            credentialProvider: { try await provider.credentials() },
+            onRequest: { _ in },
+            onFailure: { _ in }
+        )
+        try await server.start()
+        defer { server.stop() }
+
+        await provider.waitUntilCallCount(1)
+        var request = URLRequest(url: URL(
+            string: "http://127.0.0.1:\(server.boundPort)/latest/meta-data/iam/security-credentials/OrganizationAdmin"
+        )!)
+        request.timeoutInterval = 0.5
+
+        let (data, urlResponse) = try await URLSession.shared.data(for: request)
+        let response = try #require(urlResponse as? HTTPURLResponse)
+        #expect(response.statusCode == 200)
+        #expect(String(data: data, encoding: .utf8)?.contains("ASIACACHEDCREDENTIAL") == true)
+    }
+
+    @MainActor
+    @Test func credentialRefreshFailureKeepsUnexpiredCachedCredentialsAvailable() async throws {
+        let now = Date()
+        let initialCredentials = makeCredentials(
+            accessKeyId: "ASIASTILLVALIDCACHE",
+            issuedAt: now.addingTimeInterval(-570),
+            expiresAt: now.addingTimeInterval(30)
+        )
         let provider = StubIMDSCredentialProvider(results: [
             .failure(IAMIdentityCenterError.tokenExpired),
-            .success(makeCredentials(accessKeyId: "ASIARECOVEREDCRED00")),
         ])
         var statuses: [Int] = []
         let server = LocalIMDSServer(
             port: 0,
             servedProfile: servedProfile,
+            initialCredentials: initialCredentials,
             credentialProvider: { try await provider.credentials() },
             onRequest: { statuses.append($0.status) },
             onFailure: { _ in }
@@ -229,22 +301,18 @@ struct IMDSRouterTests {
         try await server.start()
         defer { server.stop() }
         let originalPort = server.boundPort
+        await provider.waitUntilCallCount(1)
         let url = try #require(URL(
             string: "http://127.0.0.1:\(originalPort)/latest/meta-data/iam/security-credentials/OrganizationAdmin"
         ))
 
-        let (failureData, failureURLResponse) = try await URLSession.shared.data(from: url)
-        let failureResponse = try #require(failureURLResponse as? HTTPURLResponse)
-        #expect(failureResponse.statusCode == 503)
-        #expect(String(data: failureData, encoding: .utf8) == "Credentials unavailable.\n")
-
-        let (recoveredData, recoveredURLResponse) = try await URLSession.shared.data(from: url)
-        let recoveredResponse = try #require(recoveredURLResponse as? HTTPURLResponse)
-        #expect(recoveredResponse.statusCode == 200)
-        #expect(String(data: recoveredData, encoding: .utf8)?.contains("ASIARECOVEREDCRED00") == true)
+        let (cachedData, cachedURLResponse) = try await URLSession.shared.data(from: url)
+        let cachedResponse = try #require(cachedURLResponse as? HTTPURLResponse)
+        #expect(cachedResponse.statusCode == 200)
+        #expect(String(data: cachedData, encoding: .utf8)?.contains("ASIASTILLVALIDCACHE") == true)
         #expect(server.boundPort == originalPort)
-        #expect(provider.callCount == 2)
-        #expect(statuses == [503, 200])
+        #expect(provider.callCount == 1)
+        #expect(statuses == [200])
     }
 
     @MainActor
@@ -253,6 +321,7 @@ struct IMDSRouterTests {
         let server = LocalIMDSServer(
             port: port,
             servedProfile: servedProfile,
+            initialCredentials: servedCredentials,
             credentialProvider: { self.servedCredentials },
             onRequest: { _ in },
             onFailure: { _ in }
@@ -266,7 +335,7 @@ struct IMDSRouterTests {
         let (regionData, regionURLResponse) = try await URLSession.shared.data(from: regionURL)
         let regionResponse = try #require(regionURLResponse as? HTTPURLResponse)
         #expect(regionResponse.statusCode == 200)
-        #expect(String(data: regionData, encoding: .utf8) == "us-east-2\n")
+        #expect(String(data: regionData, encoding: .utf8) == "us-east-2")
     }
 
     private var servedProfile: IMDSServedProfile {
@@ -283,17 +352,21 @@ struct IMDSRouterTests {
         makeCredentials(accessKeyId: "ASIA00000000EXMPL")
     }
 
-    private func makeCredentials(accessKeyId: String) -> RoleCredentials {
+    private func makeCredentials(
+        accessKeyId: String,
+        issuedAt: Date = Date(),
+        expiresAt: Date? = nil
+    ) -> RoleCredentials {
         RoleCredentials(
             accessKeyId: accessKeyId,
             secretAccessKey: "secret",
             sessionToken: "session-token",
-            expiresAt: Date(timeIntervalSince1970: 1_700_003_600),
+            expiresAt: expiresAt ?? issuedAt.addingTimeInterval(3_600),
             accountId: "699475923216",
             roleName: "OrganizationAdmin",
             region: "us-east-2",
             sessionName: "astrocompute",
-            issuedAt: Date(timeIntervalSince1970: 1_700_000_000)
+            issuedAt: issuedAt
         )
     }
 
@@ -348,17 +421,28 @@ struct IMDSRouterTests {
 @MainActor
 private final class StubIMDSCredentialProvider {
     private var results: [Result<RoleCredentials, Error>]
+    private let delay: Duration?
     private(set) var callCount = 0
 
-    init(results: [Result<RoleCredentials, Error>]) {
+    init(results: [Result<RoleCredentials, Error>], delay: Duration? = nil) {
         self.results = results
+        self.delay = delay
     }
 
     func credentials() async throws -> RoleCredentials {
         callCount += 1
+        if let delay {
+            try await Task.sleep(for: delay)
+        }
         guard !results.isEmpty else {
             throw IAMIdentityCenterError.tokenExpired
         }
         return try results.removeFirst().get()
+    }
+
+    func waitUntilCallCount(_ expectedCount: Int) async {
+        while callCount < expectedCount {
+            await Task.yield()
+        }
     }
 }
