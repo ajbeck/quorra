@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/ajbeck/quorra/compare/v0.2.1...v0.2.2) (2026-09-04)
+
+
+### Bug Fixes
+
+* **imds:** improve endpoint performance and logging ([#35](https://github.com/ajbeck/quorra/issues/35)) ([f3339d0](https://github.com/ajbeck/quorra/commit/f3339d0dbe443a05e3dd8d76d1f81ee47c6d1441))
+
 ## [0.2.1](https://github.com/ajbeck/quorra/compare/v0.2.0...v0.2.1) (2026-09-01)
 
 
