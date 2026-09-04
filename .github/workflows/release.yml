@@ -172,6 +172,7 @@ jobs:
             -scheme quorra \
             -configuration Release \
             -destination 'generic/platform=macOS' \
+            -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
             -skipPackagePluginValidation \
             -archivePath "$archive_path" \
             QUORRA_PROVISIONING_PROFILE_SPECIFIER="$PROVISIONING_PROFILE_UUID" \
@@ -195,6 +196,11 @@ jobs:
           info_plist="$EXPORTED_APP_PATH/Contents/Info.plist"
           actual_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$info_plist")"
           actual_build="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$info_plist")"
+          actual_feed_url="$(/usr/libexec/PlistBuddy -c 'Print :SUFeedURL' "$info_plist")"
+          actual_public_key="$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$info_plist")"
+          installer_service="$(/usr/libexec/PlistBuddy -c 'Print :SUEnableInstallerLauncherService' "$info_plist")"
+          expected_feed_url="https://github.com/$GITHUB_REPOSITORY/releases/latest/download/appcast.xml"
+          expected_public_key='y+F6DQa30xtzo9333VJJIbN+0xoDP6JzmiqSV8/Diko='
 
           if [[ "$actual_version" != "$RELEASE_VERSION" ]]; then
             echo "::error::Packaged marketing version $actual_version does not match release version $RELEASE_VERSION."
@@ -203,6 +209,21 @@ jobs:
 
           if [[ "$actual_build" != "$GITHUB_RUN_NUMBER" ]]; then
             echo "::error::Packaged build $actual_build does not match workflow run $GITHUB_RUN_NUMBER."
+            exit 1
+          fi
+
+          if [[ "$actual_feed_url" != "$expected_feed_url" ]]; then
+            echo "::error::Packaged Sparkle feed URL is $actual_feed_url; expected $expected_feed_url."
+            exit 1
+          fi
+
+          if [[ "$actual_public_key" != "$expected_public_key" ]]; then
+            echo "::error::Packaged Sparkle public key does not match the release signing key."
+            exit 1
+          fi
+
+          if [[ "$installer_service" != "true" ]]; then
+            echo "::error::Sparkle installer launcher service is not enabled in the packaged app."
             exit 1
           fi
 
@@ -246,13 +267,52 @@ jobs:
           xcrun stapler staple "$DMG_PATH"
           xcrun stapler validate "$DMG_PATH"
 
+      - name: Create Sparkle appcast
+        if: ${{ steps.release-context.outputs.tag != '' }}
+        env:
+          RELEASE_TAG: ${{ steps.release-context.outputs.tag }}
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          updates_directory="$RUNNER_TEMP/sparkle-updates"
+          generate_appcast="$RUNNER_TEMP/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast"
+          release_url="https://github.com/$GITHUB_REPOSITORY/releases/tag/$RELEASE_TAG"
+          download_url_prefix="https://github.com/$GITHUB_REPOSITORY/releases/download/$RELEASE_TAG/"
+
+          if [[ -z "$SPARKLE_PRIVATE_KEY" ]]; then
+            echo "::error::SPARKLE_PRIVATE_KEY is not configured."
+            exit 1
+          fi
+
+          if [[ ! -x "$generate_appcast" ]]; then
+            echo "::error::Sparkle generate_appcast tool was not found at $generate_appcast."
+            exit 1
+          fi
+
+          mkdir -p "$updates_directory"
+          cp "$DMG_PATH" "$updates_directory/"
+          printf '%s' "$SPARKLE_PRIVATE_KEY" | "$generate_appcast" \
+            --ed-key-file - \
+            --download-url-prefix "$download_url_prefix" \
+            --full-release-notes-url "$release_url" \
+            --link "https://github.com/$GITHUB_REPOSITORY" \
+            --maximum-versions 1 \
+            "$updates_directory"
+
+          appcast_path="$updates_directory/appcast.xml"
+          xmllint --noout "$appcast_path"
+          echo "APPCAST_PATH=$appcast_path" >> "$GITHUB_ENV"
+
       - name: Upload release asset
         if: ${{ steps.release-context.outputs.tag != '' }}
         env:
           GITHUB_TOKEN: ${{ steps.release-token.outputs.token }}
           RELEASE_TAG: ${{ steps.release-context.outputs.tag }}
           RELEASE_VERSION: ${{ steps.release-context.outputs.version }}
-        run: gh release upload "$RELEASE_TAG" "$DMG_PATH#Quorra-$RELEASE_VERSION.dmg" --clobber
+        run: |
+          gh release upload "$RELEASE_TAG" \
+            "$DMG_PATH#Quorra-$RELEASE_VERSION.dmg" \
+            "$APPCAST_PATH#appcast.xml" \
+            --clobber
 
       - name: Remove signing assets
         if: ${{ always() && steps.release-context.outputs.tag != '' }}

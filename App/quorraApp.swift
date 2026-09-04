@@ -6,6 +6,7 @@ import SwiftData
 @main
 struct quorraApp: App {
     @State private var appModel = AppModel()
+    @State private var appUpdater = AppUpdater()
     @State private var profilesModel = ProfilesModel()
     @State private var editorState = EditorState()
     @State private var imdsModel = IMDSModel()
@@ -30,10 +31,18 @@ struct quorraApp: App {
         .modelContainer(for: QuorraMetadataSchema.modelTypes)
         .defaultSize(width: 1280, height: 760)
         .windowResizability(.contentMinSize)
+        .commands {
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") {
+                    appUpdater.checkForUpdates()
+                }
+            }
+        }
 
         Settings {
             SettingsView()
                 .environment(appModel)
+                .environment(appUpdater)
                 .environment(editorState)
         }
         .modelContainer(for: QuorraMetadataSchema.modelTypes)
