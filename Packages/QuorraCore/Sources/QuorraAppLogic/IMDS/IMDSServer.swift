@@ -204,7 +204,7 @@ struct IMDSRouter: Sendable {
         case .response(let response):
             return response
         case .credentialDocument:
-            return .status(503, "Service Unavailable", message: "Credentials unavailable.\n")
+            return .status(503, "Service Unavailable", message: "Credentials unavailable.")
         }
     }
 
@@ -227,31 +227,31 @@ struct IMDSRouter: Sendable {
 
         switch normalizedComponents(for: request.path) {
         case ["latest"]:
-            return .response(.text("meta-data/\ndynamic/\n"))
+            return .response(.text("meta-data/\ndynamic/"))
         case ["latest", "meta-data"]:
-            return .response(.text("iam/\nplacement/\nservices/\n"))
+            return .response(.text("iam/\nplacement/\nservices/"))
         case ["latest", "meta-data", "iam"]:
-            return .response(.text("security-credentials/\n"))
+            return .response(.text("security-credentials/"))
         case ["latest", "meta-data", "iam", "security-credentials"]:
-            return .response(.text("\(servedProfile.roleName)\n"))
+            return .response(.text(servedProfile.roleName))
         case ["latest", "meta-data", "iam", "security-credentials", servedProfile.roleName]:
             return .credentialDocument
         case ["latest", "meta-data", "placement"]:
-            return .response(.text("availability-zone\nregion\n"))
+            return .response(.text("availability-zone\nregion"))
         case ["latest", "meta-data", "placement", "region"]:
-            return .response(.text("\(servedProfile.region)\n"))
+            return .response(.text(servedProfile.region))
         case ["latest", "meta-data", "placement", "availability-zone"]:
-            return .response(.text("\(servedProfile.region)a\n"))
+            return .response(.text("\(servedProfile.region)a"))
         case ["latest", "meta-data", "services"]:
-            return .response(.text("domain\npartition\n"))
+            return .response(.text("domain\npartition"))
         case ["latest", "meta-data", "services", "domain"]:
-            return .response(.text("\(serviceDomain(for: servedProfile.region))\n"))
+            return .response(.text(serviceDomain(for: servedProfile.region)))
         case ["latest", "meta-data", "services", "partition"]:
-            return .response(.text("\(partition(for: servedProfile.region))\n"))
+            return .response(.text(partition(for: servedProfile.region)))
         case ["latest", "dynamic"]:
-            return .response(.text("instance-identity/\n"))
+            return .response(.text("instance-identity/"))
         case ["latest", "dynamic", "instance-identity"]:
-            return .response(.text("document\n"))
+            return .response(.text("document"))
         case ["latest", "dynamic", "instance-identity", "document"]:
             return .response(instanceIdentityDocumentResponse())
         default:
@@ -378,29 +378,43 @@ struct IMDSRouter: Sendable {
 public final class LocalIMDSServer {
     public typealias CredentialProvider = @MainActor () async throws -> RoleCredentials
 
+    private static let maximumCredentialRefreshLeadTime: TimeInterval = 5 * 60
+    private static let credentialRefreshLeadTimeFraction = 0.10
+
     private let port: Int
     private var router: IMDSRouter
     private let credentialProvider: CredentialProvider
+    private let credentialRefreshRetryDelay: TimeInterval
     private let onRequest: (IMDSRequestLog) -> Void
     private let onFailure: (String) -> Void
     private let queue = DispatchQueue.main
     private var listener: NWListener?
     private var connections: [ObjectIdentifier: NWConnection] = [:]
     private var startContinuation: CheckedContinuation<Void, Error>?
+    private var cachedCredentials: RoleCredentials
+    private var cachedCredentialsResponse: IMDSHTTPResponse
+    private var credentialRefreshTimer: Task<Void, Never>?
+    private var credentialRefreshInFlight: Task<Void, Never>?
     public private(set) var boundPort: Int
 
     public init(
         port: Int,
         servedProfile: IMDSServedProfile,
         allowsIMDSv1: Bool = true,
+        initialCredentials: RoleCredentials,
+        credentialRefreshRetryDelay: TimeInterval = 30,
         credentialProvider: @escaping CredentialProvider,
         onRequest: @escaping (IMDSRequestLog) -> Void,
         onFailure: @escaping (String) -> Void
     ) {
+        let router = IMDSRouter(servedProfile: servedProfile, allowsIMDSv1: allowsIMDSv1)
         self.port = port
         self.boundPort = port
-        self.router = IMDSRouter(servedProfile: servedProfile, allowsIMDSv1: allowsIMDSv1)
+        self.router = router
+        self.cachedCredentials = initialCredentials
+        self.cachedCredentialsResponse = router.credentialsResponse(using: initialCredentials)
         self.credentialProvider = credentialProvider
+        self.credentialRefreshRetryDelay = credentialRefreshRetryDelay
         self.onRequest = onRequest
         self.onFailure = onFailure
     }
@@ -436,9 +450,15 @@ public final class LocalIMDSServer {
             }
             listener.start(queue: queue)
         }
+
+        scheduleCredentialRefresh()
     }
 
     public func stop() {
+        credentialRefreshTimer?.cancel()
+        credentialRefreshTimer = nil
+        credentialRefreshInFlight?.cancel()
+        credentialRefreshInFlight = nil
         startContinuation?.resume(throwing: CancellationError())
         startContinuation = nil
         listener?.cancel()
@@ -513,7 +533,7 @@ public final class LocalIMDSServer {
                 }
 
                 if nextBuffer.containsCompleteHTTPHeader {
-                    await self.handleRequest(nextBuffer, on: connection)
+                    self.handleRequest(nextBuffer, on: connection)
                 } else if isComplete {
                     self.send(.status(400, "Bad Request"), on: connection, request: nil)
                 } else {
@@ -523,7 +543,7 @@ public final class LocalIMDSServer {
         }
     }
 
-    private func handleRequest(_ data: Data, on connection: NWConnection) async {
+    private func handleRequest(_ data: Data, on connection: NWConnection) {
         guard let request = IMDSHTTPRequest.parse(data) else {
             send(.status(400, "Bad Request"), on: connection, request: nil)
             return
@@ -533,17 +553,74 @@ public final class LocalIMDSServer {
         case .response(let response):
             send(response, on: connection, request: request)
         case .credentialDocument:
+            sendCachedCredentials(on: connection, request: request)
+        }
+    }
+
+    private func sendCachedCredentials(on connection: NWConnection, request: IMDSHTTPRequest) {
+        let now = Date()
+        guard now < cachedCredentials.expiresAt else {
+            beginCredentialRefresh()
+            send(
+                .status(503, "Service Unavailable", message: "Credentials unavailable."),
+                on: connection,
+                request: request
+            )
+            return
+        }
+
+        send(cachedCredentialsResponse, on: connection, request: request)
+
+        if now >= Self.credentialRefreshDeadline(for: cachedCredentials) {
+            beginCredentialRefresh()
+        }
+    }
+
+    private func scheduleCredentialRefresh(after delayOverride: TimeInterval? = nil) {
+        credentialRefreshTimer?.cancel()
+
+        let delay = max(
+            0,
+            delayOverride ?? Self.credentialRefreshDeadline(for: cachedCredentials).timeIntervalSinceNow
+        )
+        credentialRefreshTimer = Task { @MainActor [weak self] in
             do {
-                let credentials = try await credentialProvider()
-                send(router.credentialsResponse(using: credentials), on: connection, request: request)
+                try await Task.sleep(for: .seconds(delay))
             } catch {
-                send(
-                    .status(503, "Service Unavailable", message: "Credentials unavailable.\n"),
-                    on: connection,
-                    request: request
-                )
+                return
+            }
+            guard let self, self.listener != nil else { return }
+            self.credentialRefreshTimer = nil
+            self.beginCredentialRefresh()
+        }
+    }
+
+    private func beginCredentialRefresh() {
+        guard listener != nil,
+              credentialRefreshTimer == nil,
+              credentialRefreshInFlight == nil else { return }
+
+        let provider = credentialProvider
+        credentialRefreshInFlight = Task { @MainActor [weak self] in
+            do {
+                let credentials = try await provider()
+                guard let self, !Task.isCancelled, self.listener != nil else { return }
+                self.cachedCredentials = credentials
+                self.cachedCredentialsResponse = self.router.credentialsResponse(using: credentials)
+                self.credentialRefreshInFlight = nil
+                self.scheduleCredentialRefresh()
+            } catch {
+                guard let self, !Task.isCancelled, self.listener != nil else { return }
+                self.credentialRefreshInFlight = nil
+                self.scheduleCredentialRefresh(after: self.credentialRefreshRetryDelay)
             }
         }
+    }
+
+    private static func credentialRefreshDeadline(for credentials: RoleCredentials) -> Date {
+        let lifetime = max(0, credentials.expiresAt.timeIntervalSince(credentials.issuedAt))
+        let leadTime = min(maximumCredentialRefreshLeadTime, lifetime * credentialRefreshLeadTimeFraction)
+        return credentials.expiresAt.addingTimeInterval(-leadTime)
     }
 
     private func send(_ response: IMDSHTTPResponse, on connection: NWConnection, request: IMDSHTTPRequest?) {

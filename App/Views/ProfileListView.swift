@@ -620,6 +620,7 @@ struct ObjectListView: View {
             case .imds(let endpoint):
                 if let definition = endpointDefinitions.first(where: { $0.stableIDString == endpoint.endpointID }) {
                     imdsModel.stopEndpoint(forEndpointID: definition.stableIDString)
+                    try IMDSEndpointLogStore.deleteAll(endpointID: definition.stableID, in: modelContext)
                     modelContext.delete(definition)
                     try modelContext.save()
                 }
