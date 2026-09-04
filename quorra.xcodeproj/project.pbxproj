@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		1B84B1B42FB1D87700D138C8 /* quorra.xctestplan in Resources */ = {isa = PBXBuildFile; fileRef = 1B84B1B32FB1D87700D138C8 /* quorra.xctestplan */; };
 		1B84B1E82FB38D8C00D138C8 /* IAMIdentityCenter in Frameworks */ = {isa = PBXBuildFile; productRef = 1B84B1E72FB38D8C00D138C8 /* IAMIdentityCenter */; };
+		1B9A00012FD0000000000001 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 1B9A00032FD0000000000003 /* Sparkle */; };
 		1BA1B1C12FB0000000000001 /* AWSConfigINI in Frameworks */ = {isa = PBXBuildFile; productRef = 1BA1B1C22FB0000000000002 /* AWSConfigINI */; };
 		1BA1B1C42FC0000000000004 /* QuorraAppLogic in Frameworks */ = {isa = PBXBuildFile; productRef = 1BA1B1C52FC0000000000005 /* QuorraAppLogic */; };
 /* End PBXBuildFile section */
@@ -33,6 +34,7 @@
 				1BA1B1C42FC0000000000004 /* QuorraAppLogic in Frameworks */,
 				1BA1B1C12FB0000000000001 /* AWSConfigINI in Frameworks */,
 				1B84B1E82FB38D8C00D138C8 /* IAMIdentityCenter in Frameworks */,
+				1B9A00012FD0000000000001 /* Sparkle in Frameworks */,
 			);
 		};
 /* End PBXFrameworksBuildPhase section */
@@ -84,6 +86,7 @@
 				1BA1B1C22FB0000000000002 /* AWSConfigINI */,
 				1B84B1E72FB38D8C00D138C8 /* IAMIdentityCenter */,
 				1BA1B1C52FC0000000000005 /* QuorraAppLogic */,
+				1B9A00032FD0000000000003 /* Sparkle */,
 			);
 			productName = quorra;
 			productReference = 1B5F7C8D2FACE2A100833D01 /* quorra.app */;
@@ -116,6 +119,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				1BA1B1C32FB0000000000003 /* XCLocalSwiftPackageReference "Packages/QuorraCore" */,
+				1B9A00022FD0000000000002 /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			preferredProjectObjectVersion = 100;
 			productRefGroup = 1B5F7C8E2FACE2A100833D01 /* Products */;
@@ -284,9 +288,8 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = "";
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Configs/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -319,9 +322,8 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = "";
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Configs/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -368,6 +370,17 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		1B9A00022FD0000000000002 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.9.6;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		1B84B1E72FB38D8C00D138C8 /* IAMIdentityCenter */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -380,6 +393,11 @@
 		1BA1B1C52FC0000000000005 /* QuorraAppLogic */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = QuorraAppLogic;
+		};
+		1B9A00032FD0000000000003 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1B9A00022FD0000000000002 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

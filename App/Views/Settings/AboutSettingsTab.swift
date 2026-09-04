@@ -21,6 +21,7 @@ struct AppBuildInfo: Equatable, Sendable {
 struct AboutSettingsTab: View {
     typealias UpdateCheck = @Sendable (ReleaseVersion) async throws -> AppUpdateAvailability
 
+    @Environment(AppUpdater.self) private var appUpdater
     private let buildInfo: AppBuildInfo
     private let checkForUpdates: UpdateCheck
     @State private var updateState = UpdateState.idle
@@ -151,7 +152,7 @@ struct AboutSettingsTab: View {
         case .available(let release):
             return release.diskImageURL == nil
                 ? "View the release on GitHub to download it."
-                : "The release disk image is ready to download."
+                : "Quorra can download, verify, install, and relaunch the update."
         case .upToDate(let release):
             return "Latest release: \(release.tagName)."
         case .developmentBuild(let release):
@@ -172,8 +173,12 @@ struct AboutSettingsTab: View {
         case .checking:
             EmptyView()
         case .available(let release):
-            Button(release.diskImageURL == nil ? "View Release…" : "Download Update…") {
-                NSWorkspace.shared.open(release.diskImageURL ?? release.releaseURL)
+            Button(release.diskImageURL == nil ? "View Release…" : "Install Update…") {
+                if release.diskImageURL == nil {
+                    NSWorkspace.shared.open(release.releaseURL)
+                } else {
+                    appUpdater.checkForUpdates()
+                }
             }
             .buttonStyle(.borderedProminent)
             .tint(Theme.accent)
@@ -242,6 +247,7 @@ private let previewRelease = GitHubRelease(
         buildInfo: AppBuildInfo(version: "0.1.2", build: "218"),
         checkForUpdates: { _ in .updateAvailable(previewRelease) }
     )
+    .environment(AppUpdater(startingUpdater: false))
     .frame(width: 540, height: 360)
 }
 
@@ -250,6 +256,7 @@ private let previewRelease = GitHubRelease(
         buildInfo: AppBuildInfo(version: "0.2.0", build: "241"),
         checkForUpdates: { _ in .upToDate(previewRelease) }
     )
+    .environment(AppUpdater(startingUpdater: false))
     .frame(width: 540, height: 360)
 }
 
@@ -258,6 +265,7 @@ private let previewRelease = GitHubRelease(
         buildInfo: AppBuildInfo(version: "0.1.2", build: "218"),
         checkForUpdates: { _ in throw URLError(.notConnectedToInternet) }
     )
+    .environment(AppUpdater(startingUpdater: false))
     .frame(width: 540, height: 360)
 }
 
