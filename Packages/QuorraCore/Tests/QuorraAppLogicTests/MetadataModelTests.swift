@@ -24,6 +24,53 @@ struct MetadataModelTests {
         #expect(endpoint.endpointURL?.absoluteString == "http://127.0.0.1:9678")
     }
 
+    @MainActor
+    @Test func default_imds_endpoint_is_created_once_and_keeps_an_available_profile() throws {
+        let container = try QuorraMetadataSchema.makeContainer(inMemory: true)
+        let context = container.mainContext
+
+        let created = try DefaultIMDSEndpoint.ensureDefinition(
+            in: context,
+            availableProfileNames: ["alpha", "beta"]
+        )
+        let fetchedAgain = try DefaultIMDSEndpoint.ensureDefinition(
+            in: context,
+            availableProfileNames: ["alpha", "beta"]
+        )
+
+        #expect(created.stableIDString == DefaultIMDSEndpoint.stableIDString)
+        #expect(created.profileName == "alpha")
+        #expect(created.port == 7_114)
+        #expect(created.bindAddress == "127.0.0.1")
+        #expect(created === fetchedAgain)
+        #expect(try context.fetchCount(FetchDescriptor<IMDSEndpointDefinition>()) == 1)
+    }
+
+    @MainActor
+    @Test func default_imds_endpoint_repairs_fixed_fields_and_missing_profile() throws {
+        let container = try QuorraMetadataSchema.makeContainer(inMemory: true)
+        let context = container.mainContext
+        let definition = IMDSEndpointDefinition(
+            id: DefaultIMDSEndpoint.stableID,
+            name: "Changed",
+            profileName: "removed",
+            port: 9_999,
+            bindAddress: "0.0.0.0"
+        )
+        context.insert(definition)
+        try context.save()
+
+        let repaired = try DefaultIMDSEndpoint.ensureDefinition(
+            in: context,
+            availableProfileNames: ["available"]
+        )
+
+        #expect(repaired.name == "Default IMDS Endpoint")
+        #expect(repaired.profileName == "available")
+        #expect(repaired.port == 7_114)
+        #expect(repaired.bindAddress == "127.0.0.1")
+    }
+
     @Test func imds_endpoint_log_limit_matches_product_decision() {
         #expect(IMDSEndpointLogStore.maxEntriesPerEndpoint == 1_000)
     }

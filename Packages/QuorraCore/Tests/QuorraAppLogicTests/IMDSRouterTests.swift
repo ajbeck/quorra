@@ -196,6 +196,51 @@ struct IMDSRouterTests {
     }
 
     @MainActor
+    @Test func runningServerSwitchesProfileAndCredentialsWithoutRebinding() async throws {
+        let server = LocalIMDSServer(
+            port: 0,
+            servedProfile: servedProfile,
+            initialCredentials: servedCredentials,
+            credentialProvider: { self.servedCredentials },
+            onRequest: { _ in },
+            onFailure: { _ in }
+        )
+        try await server.start()
+        defer { server.stop() }
+        let originalPort = server.boundPort
+        let replacementCredentials = makeCredentials(accessKeyId: "ASIAREPLACEMENTCRED")
+        let replacementProfile = IMDSServedProfile(
+            profileName: "ac:cp:read_only",
+            sessionName: "astrocompute",
+            accountId: "699475923216",
+            roleName: "ReadOnlyAccess",
+            region: "eu-west-1"
+        )
+
+        server.updateServedProfile(
+            replacementProfile,
+            credentials: replacementCredentials,
+            credentialProvider: { replacementCredentials }
+        )
+
+        let baseURL = "http://127.0.0.1:\(originalPort)"
+        let (roleData, _) = try await URLSession.shared.data(from: URL(
+            string: "\(baseURL)/latest/meta-data/iam/security-credentials/"
+        )!)
+        let (credentialData, _) = try await URLSession.shared.data(from: URL(
+            string: "\(baseURL)/latest/meta-data/iam/security-credentials/ReadOnlyAccess"
+        )!)
+        let (regionData, _) = try await URLSession.shared.data(from: URL(
+            string: "\(baseURL)/latest/meta-data/placement/region"
+        )!)
+
+        #expect(server.boundPort == originalPort)
+        #expect(String(data: roleData, encoding: .utf8) == "ReadOnlyAccess")
+        #expect(String(data: credentialData, encoding: .utf8)?.contains("ASIAREPLACEMENTCRED") == true)
+        #expect(String(data: regionData, encoding: .utf8) == "eu-west-1")
+    }
+
+    @MainActor
     @Test func freshCredentialCacheAvoidsProviderForAllRequestTypes() async throws {
         let provider = StubIMDSCredentialProvider(results: [
             .success(servedCredentials),

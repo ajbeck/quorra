@@ -10,10 +10,25 @@ import SwiftData
 final class IMDSModel {
     typealias RequestRecorder = @MainActor (_ endpointID: String, _ log: IMDSRequestLog) -> Void
 
+    private static let defaultEndpointRunningKey = "dev.ajbeck.quorra.default-imds-endpoint.should-run"
+
     private(set) var endpointsByEndpointID: [String: IMDSEndpointState] = [:]
     private(set) var runtimeInfoByEndpointID: [String: IMDSRuntimeInfo] = [:]
     @ObservationIgnored private var serversByEndpointID: [String: LocalIMDSServer] = [:]
     @ObservationIgnored private var logBuffersByEndpointID: [String: IMDSEndpointLogBuffer] = [:]
+    @ObservationIgnored private let preferences: UserDefaults
+
+    init(preferences: UserDefaults = .standard) {
+        self.preferences = preferences
+    }
+
+    var shouldRestoreDefaultEndpoint: Bool {
+        preferences.bool(forKey: Self.defaultEndpointRunningKey)
+    }
+
+    func rememberDefaultEndpointShouldRun(_ shouldRun: Bool) {
+        preferences.set(shouldRun, forKey: Self.defaultEndpointRunningKey)
+    }
 
     func state(forEndpointID endpointID: String) -> IMDSEndpointState {
         endpointsByEndpointID[endpointID] ?? .inactive
@@ -149,6 +164,60 @@ final class IMDSModel {
         runtimeInfoByEndpointID[endpointID] = nil
         endpointsByEndpointID[endpointID] = .inactive
         unpublishPortIfNoActiveServers()
+    }
+
+    /// Replaces the identity behind a running endpoint without closing its listener.
+    /// The existing profile remains live until credentials for the replacement are ready.
+    @discardableResult
+    func switchEndpointProfile(
+        endpointID: String,
+        to node: ProfileNode,
+        credentialsModel: CredentialsModel
+    ) async throws -> Bool {
+        guard let server = serversByEndpointID[endpointID],
+              state(forEndpointID: endpointID).isActive,
+              let sessionName = node.profile.ssoSession,
+              let accountId = node.profile.ssoAccountId,
+              let roleName = node.profile.ssoRoleName else {
+            return false
+        }
+
+        let region = node.profile.region ?? "us-east-1"
+        let credentials = try await credentialsModel.liveCredentials(
+            forSession: sessionName,
+            accountId: accountId,
+            roleName: roleName,
+            region: region
+        )
+        let servedProfile = IMDSServedProfile(
+            profileName: node.id,
+            sessionName: sessionName,
+            accountId: accountId,
+            roleName: roleName,
+            region: region
+        )
+        server.updateServedProfile(
+            servedProfile,
+            credentials: credentials,
+            credentialProvider: {
+                try await credentialsModel.liveCredentials(
+                    forSession: sessionName,
+                    accountId: accountId,
+                    roleName: roleName,
+                    region: region
+                )
+            }
+        )
+
+        if let runtime = runtimeInfoByEndpointID[endpointID] {
+            runtimeInfoByEndpointID[endpointID] = IMDSRuntimeInfo(
+                startedAt: runtime.startedAt,
+                servedProfileName: node.id,
+                requestCount: runtime.requestCount,
+                activity: runtime.activity
+            )
+        }
+        return true
     }
 
     private func stopEndpoints(onPort port: Int, except keptEndpointID: String) {
