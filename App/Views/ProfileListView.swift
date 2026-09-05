@@ -132,14 +132,9 @@ struct ObjectListView: View {
             listContent
                 .frame(maxHeight: .infinity)
 
-            Divider()
             objectMutationBar
         }
         .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
-        .overlay {
-            RoundedRectangle(cornerRadius: 10)
-                .strokeBorder(Color.secondary.opacity(0.10))
-        }
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .padding(.horizontal, 12)
         .padding(.bottom, 12)
@@ -190,15 +185,11 @@ struct ObjectListView: View {
         } label: {
             ObjectListRow(item: item)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
+                .contentShape(RoundedRectangle(cornerRadius: 6))
         }
-        .buttonStyle(.plain)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .background(
-            rowBackground(isSelected: detailSelection == item.detailSelection),
-            in: RoundedRectangle(cornerRadius: 6)
-        )
+        .buttonStyle(NavigationRowButtonStyle(isSelected: detailSelection == item.detailSelection))
         .contextMenu {
             folderAssignmentMenu(for: item)
         }
@@ -261,8 +252,9 @@ struct ObjectListView: View {
                 .help("Add session, profile, or IMDS endpoint")
             }
 
-            Divider()
-                .frame(height: 14)
+            Rectangle()
+                .fill(Color.secondary.opacity(0.16))
+                .frame(width: 1, height: 14)
 
             Button {
                 if let selectedItem {
@@ -284,6 +276,11 @@ struct ObjectListView: View {
         .padding(.horizontal, 8)
         .frame(height: 26)
         .background(Color.secondary.opacity(0.10))
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(Color.secondary.opacity(0.12))
+                .frame(height: 1)
+        }
     }
 
     @ViewBuilder private var creationMenu: some View {
@@ -347,10 +344,6 @@ struct ObjectListView: View {
                 description: Text(sourceSelection.emptyDescription)
             )
         }
-    }
-
-    private func rowBackground(isSelected: Bool) -> Color {
-        isSelected ? Color.accentColor.opacity(0.18) : Color.clear
     }
 
     private var sortedSessions: [SSOSessionNode] {
