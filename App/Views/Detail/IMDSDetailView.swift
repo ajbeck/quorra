@@ -10,6 +10,7 @@ struct IMDSDetailView: View {
     @Environment(CredentialsModel.self) private var credentialsModel
     @Environment(IMDSModel.self) private var imdsModel
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query private var endpointDefinitions: [IMDSEndpointDefinition]
     @State private var isPresentingEndpointEditor = false
 
@@ -32,7 +33,7 @@ struct IMDSDetailView: View {
         let runtime = imdsModel.runtimeInfo(forEndpointID: endpointKey)
         return ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                header(for: node, endpointKey: endpointKey, state: state, definition: definition)
+                header(for: definition)
                 serverStatusPanel(for: node, endpointKey: endpointKey, state: state, runtime: runtime, definition: definition)
                 endpointCard(for: state, definition: definition)
                 configurationCard(for: state, definition: definition)
@@ -61,74 +62,10 @@ struct IMDSDetailView: View {
         return endpointDefinitions.first { $0.stableIDString == endpointID }
     }
 
-    private func header(
-        for node: ProfileNode,
-        endpointKey: String,
-        state: IMDSEndpointState,
-        definition: IMDSEndpointDefinition
-    ) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(definition.name)
-                .font(.title.weight(.semibold))
-                .lineLimit(1)
-
-            Spacer(minLength: 16)
-
-            Menu {
-                Button {
-                    copyToPasteboard(endpointURL(for: state, definition: definition))
-                } label: {
-                    Label("Copy Endpoint URL", systemImage: "doc.on.doc")
-                }
-
-                Divider()
-
-                switch state {
-                case .inactive:
-                    Button {
-                        Task {
-                            await startEndpoint(endpointKey: endpointKey, for: node, definition: definition)
-                        }
-                    } label: {
-                        Label("Start Server", systemImage: "play.fill")
-                    }
-                case .starting:
-                    Button("Starting Server") {}
-                        .disabled(true)
-                case .active:
-                    Button {
-                        Task {
-                            imdsModel.stopEndpoint(forEndpointID: endpointKey)
-                            await startEndpoint(endpointKey: endpointKey, for: node, definition: definition)
-                        }
-                    } label: {
-                        Label("Restart Server", systemImage: "arrow.clockwise")
-                    }
-                    Button(role: .destructive) {
-                        imdsModel.stopEndpoint(forEndpointID: endpointKey)
-                    } label: {
-                        Label("Stop Server", systemImage: "stop.fill")
-                    }
-                case .failed:
-                    Button {
-                        Task {
-                            await startEndpoint(endpointKey: endpointKey, for: node, definition: definition)
-                        }
-                    } label: {
-                        Label("Retry Server", systemImage: "arrow.clockwise")
-                    }
-                    Button {
-                        imdsModel.stopEndpoint(forEndpointID: endpointKey)
-                    } label: {
-                        Label("Dismiss Failure", systemImage: "xmark")
-                    }
-                }
-            } label: {
-                Image(systemName: "ellipsis")
-            }
-            .foregroundStyle(.secondary)
-            .help("More actions")
-        }
+    private func header(for definition: IMDSEndpointDefinition) -> some View {
+        Text(definition.name)
+            .font(.title.weight(.semibold))
+            .lineLimit(1)
     }
 
     private func serverStatusPanel(
@@ -138,18 +75,11 @@ struct IMDSDetailView: View {
         runtime: IMDSRuntimeInfo?,
         definition: IMDSEndpointDefinition
     ) -> some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 16) {
-                serverSummary(for: node, state: state, runtime: runtime, definition: definition)
-                Spacer(minLength: 16)
-                serverActions(for: node, endpointKey: endpointKey, state: state, definition: definition)
-            }
-
-            VStack(alignment: .leading, spacing: 14) {
-                serverSummary(for: node, state: state, runtime: runtime, definition: definition)
-                serverActions(for: node, endpointKey: endpointKey, state: state, definition: definition)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-            }
+        HStack(spacing: 16) {
+            serverSummary(for: node, state: state, runtime: runtime, definition: definition)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .layoutPriority(1)
+            serverActions(for: node, endpointKey: endpointKey, state: state, definition: definition)
         }
         .padding(16)
         .background(statusAccent(for: state).opacity(state.isActive ? 0.12 : 0.06), in: RoundedRectangle(cornerRadius: 12))
@@ -157,6 +87,7 @@ struct IMDSDetailView: View {
             RoundedRectangle(cornerRadius: 12)
                 .strokeBorder(statusAccent(for: state).opacity(state.isActive || state.isFailed ? 0.28 : 0.1))
         }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.16), value: state)
     }
 
     private func serverSummary(
@@ -173,7 +104,11 @@ struct IMDSDetailView: View {
 
             VStack(alignment: .leading, spacing: 7) {
                 HStack(spacing: 8) {
-                    IMDSStatusBadge(title: statusTitle(for: state), color: statusAccent(for: state))
+                    IMDSStatusBadge(
+                        title: statusTitle(for: state),
+                        color: statusAccent(for: state),
+                        minimumWidth: 72
+                    )
                     if state.port != nil {
                         IMDSStatusBadge(title: "serving \(node.id)", color: .blue)
                     }
@@ -218,63 +153,122 @@ struct IMDSDetailView: View {
         definition: IMDSEndpointDefinition
     ) -> some View {
         HStack(spacing: 10) {
-            switch state {
-            case .inactive:
-                Button {
-                    Task {
-                        await startEndpoint(endpointKey: endpointKey, for: node, definition: definition)
-                    }
-                } label: {
-                    Label("Start", systemImage: "play.fill")
-                }
-                .buttonStyle(.borderedProminent)
+            primaryServerAction(
+                for: node,
+                endpointKey: endpointKey,
+                state: state,
+                definition: definition
+            )
+            .frame(width: 100, alignment: .trailing)
 
-            case .starting:
-                Button(role: .cancel) {
-                    imdsModel.stopEndpoint(forEndpointID: endpointKey)
-                } label: {
-                    Label("Cancel", systemImage: "xmark")
-                }
-                .buttonStyle(.bordered)
-
-            case .active:
-                Button {
-                    Task {
-                        imdsModel.stopEndpoint(forEndpointID: endpointKey)
-                        await startEndpoint(endpointKey: endpointKey, for: node, definition: definition)
-                    }
-                } label: {
-                    Label("Restart", systemImage: "arrow.clockwise")
-                }
-                .buttonStyle(.bordered)
-
-                Button(role: .destructive) {
-                    imdsModel.stopEndpoint(forEndpointID: endpointKey)
-                } label: {
-                    Label("Stop", systemImage: "stop.fill")
-                }
-                .buttonStyle(.bordered)
-                .tint(.red)
-
-            case .failed:
-                Button {
-                    Task {
-                        await startEndpoint(endpointKey: endpointKey, for: node, definition: definition)
-                    }
-                } label: {
-                    Label("Retry", systemImage: "arrow.clockwise")
-                }
-                .buttonStyle(.borderedProminent)
-
-                Button {
-                    imdsModel.stopEndpoint(forEndpointID: endpointKey)
-                } label: {
-                    Label("Dismiss", systemImage: "xmark")
-                }
-                .buttonStyle(.bordered)
-            }
+            secondaryServerAction(
+                for: node,
+                endpointKey: endpointKey,
+                state: state,
+                definition: definition
+            )
+            .frame(width: 80, alignment: .trailing)
         }
         .controlSize(.regular)
+        .frame(width: 190, alignment: .trailing)
+    }
+
+    @ViewBuilder
+    private func primaryServerAction(
+        for node: ProfileNode,
+        endpointKey: String,
+        state: IMDSEndpointState,
+        definition: IMDSEndpointDefinition
+    ) -> some View {
+        switch state {
+        case .inactive:
+            Button {
+                Task {
+                    await startEndpoint(endpointKey: endpointKey, for: node, definition: definition)
+                }
+            } label: {
+                Label("Start", systemImage: "play.fill")
+            }
+            .buttonStyle(.borderedProminent)
+            .pressFeedback()
+
+        case .starting:
+            Button {} label: {
+                HStack(spacing: 6) {
+                    ProgressView()
+                        .controlSize(.mini)
+                    Text("Starting")
+                }
+            }
+            .buttonStyle(.bordered)
+            .disabled(true)
+
+        case .active:
+            Button {
+                Task {
+                    imdsModel.stopEndpoint(forEndpointID: endpointKey)
+                    await startEndpoint(endpointKey: endpointKey, for: node, definition: definition)
+                }
+            } label: {
+                Label("Restart", systemImage: "arrow.clockwise")
+            }
+            .buttonStyle(.bordered)
+            .pressFeedback()
+
+        case .failed:
+            Button {
+                Task {
+                    await startEndpoint(endpointKey: endpointKey, for: node, definition: definition)
+                }
+            } label: {
+                Label("Retry", systemImage: "arrow.clockwise")
+            }
+            .buttonStyle(.borderedProminent)
+            .pressFeedback()
+        }
+    }
+
+    @ViewBuilder
+    private func secondaryServerAction(
+        for node: ProfileNode,
+        endpointKey: String,
+        state: IMDSEndpointState,
+        definition: IMDSEndpointDefinition
+    ) -> some View {
+        switch state {
+        case .inactive:
+            Color.clear
+                .frame(width: 1, height: 1)
+                .accessibilityHidden(true)
+
+        case .starting:
+            Button(role: .cancel) {
+                imdsModel.stopEndpoint(forEndpointID: endpointKey)
+            } label: {
+                Label("Cancel", systemImage: "xmark")
+            }
+            .buttonStyle(.bordered)
+            .pressFeedback()
+
+        case .active:
+            Button(role: .destructive) {
+                imdsModel.stopEndpoint(forEndpointID: endpointKey)
+            } label: {
+                Label("Stop", systemImage: "stop.fill")
+            }
+            .buttonStyle(.bordered)
+            .tint(.red)
+            .pressFeedback()
+
+        case .failed:
+            Button {
+                imdsModel.stopEndpoint(forEndpointID: endpointKey)
+            } label: {
+                Label("Dismiss", systemImage: "xmark")
+            }
+            .buttonStyle(.bordered)
+            .pressFeedback()
+        }
     }
 
     private func startEndpoint(
@@ -324,17 +318,7 @@ struct IMDSDetailView: View {
             .frame(maxWidth: .infinity, minHeight: 36, alignment: .leading)
             .background(Color.black.opacity(0.28))
 
-            Button {
-                copyToPasteboard(value)
-            } label: {
-                ViewThatFits(in: .horizontal) {
-                    Label("Copy", systemImage: "doc.on.doc")
-                    Image(systemName: "doc.on.doc")
-                }
-            }
-            .buttonStyle(.bordered)
-            .frame(minHeight: 36)
-            .help("Copy")
+            CopyConfirmationButton(value: value)
         }
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay {
@@ -345,65 +329,69 @@ struct IMDSDetailView: View {
 
     private func configurationCard(for state: IMDSEndpointState, definition: IMDSEndpointDefinition) -> some View {
         DetailCard("Configuration") {
-            HStack {
-                Spacer()
-                Button {
-                    isPresentingEndpointEditor = true
-                } label: {
-                    Label("Edit", systemImage: "pencil")
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .help("Edit endpoint configuration")
+            Button {
+                isPresentingEndpointEditor = true
+            } label: {
+                Label("Edit", systemImage: "pencil")
             }
-            .padding(.bottom, 6)
-
-            DetailField("Port") {
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .pressFeedback()
+            .help("Edit endpoint configuration")
+        } content: {
+            VStack(alignment: .leading, spacing: 10) {
+                configurationRow("Port") {
                 Text(String(state.port ?? definition.port))
-                    .font(.body.monospacedDigit())
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 3)
-                    .background(Color.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 7))
-            }
-
-            DetailDivider()
-
-            DetailField("Bind address") {
-                Text(definition.bindAddress)
-                    .font(.body.monospaced())
-            }
-
-            DetailDivider()
-
-            DetailField("IMDS version") {
-                Picker("IMDS version", selection: .constant(definition.allowsIMDSv1 ? "v1+v2" : "v2")) {
-                    Text("v1").tag("v1")
-                    Text("v2").tag("v2")
-                    Text("v1 + v2").tag("v1+v2")
+                        .font(.callout.monospacedDigit())
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .frame(width: 164)
-                .disabled(true)
+
+                configurationRow("Bind address") {
+                    Text(definition.bindAddress)
+                        .font(.callout.monospaced())
+                }
+
+                configurationRow("IMDS version") {
+                    Text(definition.allowsIMDSv1 ? "v1 + v2" : "v2 only")
+                        .font(.callout.monospaced())
+                }
+
+                configurationRow("Hop limit") {
+                    Text(String(definition.hopLimit))
+                        .font(.callout.monospacedDigit())
+                }
+
+                configurationRow("Folder") {
+                    MetadataFolderPicker(
+                        objectKind: .imdsEndpoint,
+                        objectID: definition.stableIDString,
+                        isEnabled: true
+                    )
+                    .labelsHidden()
+                    .controlSize(.small)
+                }
             }
+        }
+    }
 
-            DetailDivider()
+    private func configurationRow<Content: View>(
+        _ label: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        HStack(spacing: 16) {
+            Text(label)
+                .foregroundStyle(.secondary)
+                .frame(width: 112, alignment: .leading)
 
-            DetailField("Hop limit") {
-                Text(String(definition.hopLimit))
-                    .font(.body.monospacedDigit())
-            }
-
-            DetailDivider()
-
-            DetailField("Folder") {
-                MetadataFolderPicker(
-                    objectKind: .imdsEndpoint,
-                    objectID: definition.stableIDString,
-                    isEnabled: true
-                )
-                .labelsHidden()
-            }
+            content()
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, 12)
+        .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
+        .background(Color.black.opacity(0.28))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(Color.secondary.opacity(0.08))
         }
     }
 
@@ -485,10 +473,6 @@ struct IMDSDetailView: View {
         }
     }
 
-    private func copyToPasteboard(_ value: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(value, forType: .string)
-    }
 }
 
 private struct IMDSActivityCard: View {
@@ -617,6 +601,7 @@ private struct IMDSActivityPage: View {
 private struct IMDSStatusBadge: View {
     let title: String
     let color: Color
+    var minimumWidth: CGFloat? = nil
 
     var body: some View {
         HStack(spacing: 5) {
@@ -627,6 +612,7 @@ private struct IMDSStatusBadge: View {
                 .font(.caption.weight(.semibold))
                 .lineLimit(1)
         }
+        .frame(minWidth: minimumWidth)
         .foregroundStyle(color)
         .padding(.horizontal, 9)
         .padding(.vertical, 4)

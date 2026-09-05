@@ -136,12 +136,11 @@ struct SourceSidebarView: View {
                 count: count
             )
             .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .contentShape(RoundedRectangle(cornerRadius: 6))
         }
-        .buttonStyle(.plain)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .background(rowBackground(isSelected: selection == candidate), in: RoundedRectangle(cornerRadius: 6))
+        .buttonStyle(NavigationRowButtonStyle(isSelected: selection == candidate))
     }
 
     @ViewBuilder private func folderRows(for kind: MetadataObjectKind) -> some View {
@@ -182,10 +181,6 @@ struct SourceSidebarView: View {
         } label: {
             Label("Delete", systemImage: "trash")
         }
-    }
-
-    private func rowBackground(isSelected: Bool) -> Color {
-        isSelected ? Color.accentColor.opacity(0.18) : Color.clear
     }
 
     private var allObjectCount: Int {

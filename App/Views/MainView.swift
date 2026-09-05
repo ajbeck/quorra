@@ -30,24 +30,24 @@ struct MainView: View {
 
     var body: some View {
         NavigationSplitView {
-            SourceSidebarView(selection: $sourceSelection)
+            SourceSidebarView(selection: navigationSourceSelection)
                 .navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 320)
         } content: {
             ObjectListView(
                 sourceSelection: $sourceSelection,
                 detailSelection: $selection,
-                searchText: $searchText
+                searchText: navigationSearchText
             )
                 .navigationSplitViewColumnWidth(min: 240, ideal: 300, max: 380)
         } detail: {
             DetailView(
                 selection: $selection,
                 sourceSelection: $sourceSelection,
-                searchText: $searchText
+                searchText: navigationSearchText
             )
                 .navigationSplitViewColumnWidth(min: 520, ideal: 760)
         }
-        .searchable(text: $searchText, placement: .toolbar, prompt: "Search")
+        .searchable(text: navigationSearchText, placement: .toolbar, prompt: "Search")
         .task(id: folderURL) {
             guard loadsProfilesOnAppear else { return }
             await profilesModel.load(folder: folderURL)
@@ -56,15 +56,36 @@ struct MainView: View {
                 forSessions: profilesModel.groups.ssoSessions.map(\.id)
             )
         }
-        .onChange(of: sourceSelection) { _, _ in
-            selection = nil
-        }
-        .onChange(of: searchText) { _, _ in
-            selection = nil
-        }
         .onChange(of: credentialsModel.inFlight) { oldValue, newValue in
             handleSignInPresentationChange(from: oldValue, to: newValue)
         }
+    }
+
+    /// Changes the source and clears the detail in the same SwiftUI transaction.
+    /// Keeping those mutations together avoids an intermediate frame where the new
+    /// source is asked to render the previous source's selection.
+    private var navigationSourceSelection: Binding<SourceSelection> {
+        Binding(
+            get: { sourceSelection },
+            set: { newSelection in
+                guard newSelection != sourceSelection else { return }
+                sourceSelection = newSelection
+                selection = nil
+            }
+        )
+    }
+
+    /// Search changes also invalidate the selected row. Updating both values in the
+    /// binding setter avoids a second render pass from a trailing `onChange` callback.
+    private var navigationSearchText: Binding<String> {
+        Binding(
+            get: { searchText },
+            set: { newSearchText in
+                guard newSearchText != searchText else { return }
+                searchText = newSearchText
+                selection = nil
+            }
+        )
     }
 
     private func handleSignInPresentationChange(
@@ -102,6 +123,10 @@ struct MainView: View {
 
 #Preview("Main – Profiles source") {
     MainViewSampleDataHarness(sourceSelection: .profiles)
+}
+
+#Preview("Main – IMDS source") {
+    MainViewSampleDataHarness(sourceSelection: .imdsEndpoints)
 }
 
 #Preview("Main – Searching profiles") {

@@ -22,8 +22,14 @@ public final class ProfilesModel {
     public init() {}
 
     public func load(folder: URL) async {
+        let isRefreshingCurrentFolder = currentFolder == folder && loadState == .loaded
         currentFolder = folder
-        loadState = .loading
+        // Keep already-rendered data visible during an in-place reload. Replacing the
+        // complete three-column UI with progress views causes unnecessary layout work
+        // and can leave navigation looking empty while a profile edit is saved.
+        if !isRefreshingCurrentFolder {
+            loadState = .loading
+        }
         do {
             let configURL = folder.appending(path: "config", directoryHint: .notDirectory)
             let credentialsURL = folder.appending(path: "credentials", directoryHint: .notDirectory)

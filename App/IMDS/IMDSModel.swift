@@ -121,6 +121,13 @@ final class IMDSModel {
             runtimeInfoByEndpointID[endpointID] = IMDSRuntimeInfo(servedProfileName: profileName)
             try await server.start()
             let boundPort = server.boundPort
+
+            // Avoid flashing through the starting state when credentials and the
+            // listener are both immediately available. The server is already ready;
+            // this only gives the UI a stable, readable transition before "Running".
+            try await Task.sleep(for: .milliseconds(180))
+            guard serversByEndpointID[endpointID] === server else { return }
+
             endpointsByEndpointID[endpointID] = .active(port: boundPort)
             publishPort(boundPort)
         } catch is CancellationError {
