@@ -1,4 +1,5 @@
 import SwiftUI
+import AWSConfigINI
 import IAMIdentityCenter
 import QuorraAppLogic
 import SwiftData
@@ -9,10 +10,14 @@ struct MainView: View {
     @Environment(AppModel.self) private var appModel
     @Environment(ProfilesModel.self) private var profilesModel
     @Environment(CredentialsModel.self) private var credentialsModel
+    @Environment(IMDSModel.self) private var imdsModel
+    @Environment(\.modelContext) private var modelContext
     @Environment(\.authBrowserPresenter) private var authBrowserPresenter
     @State private var sourceSelection: SourceSelection
     @State private var selection: DetailSelection?
     @State private var searchText: String
+    @State private var defaultEndpointAuthenticationNotice: DefaultEndpointAuthenticationNotice?
+    @State private var isRestoringDefaultEndpoint = false
 
     init(
         folderURL: URL,
@@ -52,12 +57,39 @@ struct MainView: View {
             guard loadsProfilesOnAppear else { return }
             await profilesModel.load(folder: folderURL)
             guard case .loaded = profilesModel.loadState else { return }
+            guard let definition = try? DefaultIMDSEndpoint.ensureDefinition(
+                in: modelContext,
+                availableProfileNames: eligibleDefaultEndpointProfiles.map(\.id)
+            ) else { return }
             await credentialsModel.initializeStatuses(
                 forSessions: profilesModel.groups.ssoSessions.map(\.id)
             )
+            await restoreDefaultEndpointIfNeeded(definition, notifiesOnAuthenticationFailure: true)
         }
         .onChange(of: credentialsModel.inFlight) { oldValue, newValue in
             handleSignInPresentationChange(from: oldValue, to: newValue)
+        }
+        .onChange(of: credentialsModel.profileStatus) { _, _ in
+            Task { await handleDefaultEndpointCredentialStatusChange() }
+        }
+        .onChange(of: eligibleDefaultEndpointProfiles.map(\.id)) { _, profileNames in
+            Task { await reconcileDefaultEndpointProfiles(profileNames) }
+        }
+        .alert(
+            "Default IMDS Endpoint needs sign-in",
+            isPresented: Binding(
+                get: { defaultEndpointAuthenticationNotice != nil },
+                set: { if !$0 { defaultEndpointAuthenticationNotice = nil } }
+            ),
+            presenting: defaultEndpointAuthenticationNotice
+        ) { notice in
+            Button("Sign In") {
+                openDefaultEndpoint(notice.endpointID)
+                signIn(to: notice.sessionName)
+            }
+            Button("Not Now", role: .cancel) { }
+        } message: { notice in
+            Text("The active profile “\(notice.profileName)” needs you to sign in before the Default IMDS Endpoint can resume on 127.0.0.1:7114.")
         }
     }
 
@@ -100,6 +132,169 @@ struct MainView: View {
         if oldValue.contains(where: { newValue[$0.key] == nil }) {
             authBrowserPresenter.dismiss()
         }
+    }
+
+    private var eligibleDefaultEndpointProfiles: [ProfileNode] {
+        profilesModel.groups.flatProfiles
+            .map(\.node)
+            .filter {
+                $0.profile.ssoSession != nil
+                    && $0.profile.ssoAccountId != nil
+                    && $0.profile.ssoRoleName != nil
+            }
+            .sorted { $0.id.localizedStandardCompare($1.id) == .orderedAscending }
+    }
+
+    private func restoreDefaultEndpointIfNeeded(
+        _ definition: IMDSEndpointDefinition,
+        notifiesOnAuthenticationFailure: Bool
+    ) async {
+        guard imdsModel.shouldRestoreDefaultEndpoint,
+              !isRestoringDefaultEndpoint else { return }
+        let state = imdsModel.state(forEndpointID: definition.stableIDString)
+        guard !state.isActive, !state.isStarting,
+              let node = profilesModel.findProfile(named: definition.profileName) else { return }
+
+        isRestoringDefaultEndpoint = true
+        defer { isRestoringDefaultEndpoint = false }
+        await imdsModel.startEndpoint(
+            endpointID: definition.stableIDString,
+            for: node,
+            credentialsModel: credentialsModel,
+            port: DefaultIMDSEndpoint.port,
+            logContext: modelContext
+        )
+
+        if imdsModel.state(forEndpointID: definition.stableIDString).isActive {
+            defaultEndpointAuthenticationNotice = nil
+        } else if notifiesOnAuthenticationFailure {
+            await presentAuthenticationNoticeIfNeeded(for: node, endpointID: definition.stableIDString)
+        }
+    }
+
+    private func handleDefaultEndpointCredentialStatusChange() async {
+        guard imdsModel.shouldRestoreDefaultEndpoint,
+              let definition = try? DefaultIMDSEndpoint.ensureDefinition(
+                in: modelContext,
+                availableProfileNames: eligibleDefaultEndpointProfiles.map(\.id)
+              ),
+              let node = profilesModel.findProfile(named: definition.profileName) else { return }
+
+        if credentialStatus(for: node).isReady {
+            await restoreDefaultEndpointIfNeeded(definition, notifiesOnAuthenticationFailure: false)
+        } else if imdsModel.state(forEndpointID: definition.stableIDString).isFailed {
+            await presentAuthenticationNoticeIfNeeded(for: node, endpointID: definition.stableIDString)
+        }
+    }
+
+    private func reconcileDefaultEndpointProfiles(_ profileNames: [String]) async {
+        guard case .loaded = profilesModel.loadState,
+              let definition = try? DefaultIMDSEndpoint.ensureDefinition(
+                in: modelContext,
+                availableProfileNames: profileNames
+              ),
+              imdsModel.shouldRestoreDefaultEndpoint else { return }
+
+        let endpointID = definition.stableIDString
+        guard let node = profilesModel.findProfile(named: definition.profileName) else {
+            imdsModel.stopEndpoint(forEndpointID: endpointID)
+            return
+        }
+        let runtime = imdsModel.runtimeInfo(forEndpointID: endpointID)
+        if imdsModel.state(forEndpointID: endpointID).isActive,
+           runtime?.servedProfileName != definition.profileName {
+            do {
+                try await imdsModel.switchEndpointProfile(
+                    endpointID: endpointID,
+                    to: node,
+                    credentialsModel: credentialsModel
+                )
+                return
+            } catch {
+                // The previously selected profile no longer exists. Stop serving it and
+                // use the normal restoration path so authentication failures are actionable.
+                imdsModel.stopEndpoint(forEndpointID: endpointID)
+            }
+        }
+
+        await restoreDefaultEndpointIfNeeded(definition, notifiesOnAuthenticationFailure: true)
+    }
+
+    private func presentAuthenticationNoticeIfNeeded(for node: ProfileNode, endpointID: String) async {
+        guard let coordinates = credentialCoordinates(for: node) else { return }
+        await credentialsModel.observeProfileStatus(
+            forSession: coordinates.session,
+            accountId: coordinates.account,
+            roleName: coordinates.role
+        )
+        guard !credentialStatus(for: node).isReady else { return }
+
+        switch credentialsModel.profileStatus[coordinates.key] {
+        case .notSignedIn(let sessionName), .signInExpired(let sessionName):
+            defaultEndpointAuthenticationNotice = DefaultEndpointAuthenticationNotice(
+                endpointID: endpointID,
+                profileName: node.id,
+                sessionName: sessionName
+            )
+        case .ready, .none:
+            break
+        }
+    }
+
+    private func credentialCoordinates(
+        for node: ProfileNode
+    ) -> (session: String, account: String, role: String, key: String)? {
+        guard let session = node.profile.ssoSession,
+              let account = node.profile.ssoAccountId,
+              let role = node.profile.ssoRoleName else { return nil }
+        return (session, account, role, "\(session):\(account):\(role)")
+    }
+
+    private func credentialStatus(for node: ProfileNode) -> ProfileAuthStatus? {
+        guard let coordinates = credentialCoordinates(for: node) else { return nil }
+        return credentialsModel.profileStatus[coordinates.key]
+    }
+
+    private func openDefaultEndpoint(_ endpointID: String) {
+        var transaction = Transaction()
+        transaction.animation = nil
+        withTransaction(transaction) {
+            searchText = ""
+            sourceSelection = .imdsEndpoints
+            selection = .imds(endpointID: endpointID)
+        }
+    }
+
+    private func signIn(to sessionName: String) {
+        guard let session = profilesModel.findSession(named: sessionName),
+              let startURLString = session.session?.ssoStartUrl,
+              let startURL = URL(string: startURLString),
+              let region = session.session?.ssoRegion else { return }
+
+        let scopes = session.session?.ssoRegistrationScopes ?? ["sso:account:access"]
+        Task {
+            await credentialsModel.signIn(
+                sessionName: sessionName,
+                startUrl: startURL,
+                region: region,
+                scopes: scopes
+            )
+        }
+    }
+}
+
+private struct DefaultEndpointAuthenticationNotice: Identifiable {
+    let endpointID: String
+    let profileName: String
+    let sessionName: String
+
+    var id: String { endpointID }
+}
+
+private extension Optional where Wrapped == ProfileAuthStatus {
+    var isReady: Bool {
+        if case .ready = self { return true }
+        return false
     }
 }
 

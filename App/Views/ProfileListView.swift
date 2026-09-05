@@ -368,7 +368,10 @@ struct ObjectListView: View {
             )
         }
             .sorted {
-                $0.title.localizedStandardCompare($1.title) == .orderedAscending
+                if $0.isDefault != $1.isDefault {
+                    return $0.isDefault
+                }
+                return $0.title.localizedStandardCompare($1.title) == .orderedAscending
             }
     }
 
@@ -542,8 +545,8 @@ struct ObjectListView: View {
         switch selectedItem {
         case .session, .profile:
             return !isReadOnly
-        case .imds:
-            return true
+        case .imds(let endpoint):
+            return !endpoint.isDefault
         }
     }
 
@@ -554,8 +557,10 @@ struct ObjectListView: View {
             return isReadOnly ? "Switch to Edit & Manage mode to remove sessions." : "Remove selected session"
         case .profile:
             return isReadOnly ? "Switch to Edit & Manage mode to remove profiles." : "Remove selected profile"
-        case .imds:
-            return "Remove selected IMDS endpoint"
+        case .imds(let endpoint):
+            return endpoint.isDefault
+                ? "The Default IMDS Endpoint is always available."
+                : "Remove selected IMDS endpoint"
         }
     }
 
@@ -727,6 +732,7 @@ private struct IMDSEndpointListItem: Identifiable, Hashable {
     let profile: ProfileNode?
 
     var id: String { endpointID }
+    var isDefault: Bool { DefaultIMDSEndpoint.matches(endpointID: endpointID) }
 
     var title: String {
         if let name {
@@ -792,13 +798,14 @@ private struct ObjectListRow: View {
                     .frame(width: 18)
                 VStack(alignment: .leading, spacing: 5) {
                     Text(endpoint.title)
-                        .fontDesign(.monospaced)
+                        .fontDesign(endpoint.isDefault ? .default : .monospaced)
+                        .fontWeight(endpoint.isDefault ? .semibold : .regular)
                         .lineLimit(1)
                     HStack(spacing: 6) {
                         IMDSBadge(state: endpoint.state)
-                        Text(endpoint.profileName)
+                        Text(endpoint.profileName.isEmpty ? "Choose a profile" : endpoint.profileName)
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(endpoint.profileName.isEmpty ? Color.orange : Color.secondary)
                             .lineLimit(1)
                     }
                 }
