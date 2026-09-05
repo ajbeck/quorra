@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0](https://github.com/ajbeck/quorra/compare/v0.3.0...v0.4.0) (2026-09-05)
+
+
+### Features
+
+* link profiles and IMDS endpoints ([#43](https://github.com/ajbeck/quorra/issues/43)) ([76299f9](https://github.com/ajbeck/quorra/commit/76299f9e4ecb1ef02abaa45e08fc96acc22746ef))
+
+
+### Performance Improvements
+
+* improve app startup responsiveness ([#41](https://github.com/ajbeck/quorra/issues/41)) ([a1c08ac](https://github.com/ajbeck/quorra/commit/a1c08acd2b9941559ebcfae6a55e5a21624c077b))
+
 ## [0.3.0](https://github.com/ajbeck/quorra/compare/v0.2.2...v0.3.0) (2026-09-04)
 
 
