@@ -16,6 +16,28 @@ permissions:
   contents: read
 
 jobs:
+  pull-request-title:
+    name: Release-compatible PR title
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Validate Conventional Commit title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          pattern='^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([^)]+\))?!?: .+'
+
+          if [[ "$PR_TITLE" =~ $pattern ]]; then
+            echo "Release-compatible pull request title: $PR_TITLE"
+            exit 0
+          fi
+
+          echo 'Pull request titles become squash commit titles and must use Conventional Commit syntax.'
+          echo 'Examples: fix: prevent navigation flicker, feat(imds): add endpoint controls'
+          exit 1
+
   test:
     name: Build and test
     runs-on: macos-26
