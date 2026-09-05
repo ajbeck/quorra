@@ -2,7 +2,7 @@ import AWSConfigINI
 import Foundation
 import Observation
 
-public struct BookmarkStorage {
+public struct BookmarkStorage: @unchecked Sendable {
     public static let key = "dev.ajbeck.quorra.awsFolderBookmark"
 
     public static var `default`: BookmarkStorage {
@@ -88,6 +88,7 @@ public struct ModePreferenceStorage {
 }
 
 public enum AppPhase {
+    case restoring
     case setup
     case ready(URL)
     case error(AppError)
@@ -108,6 +109,13 @@ public final class AppModel {
     @ObservationIgnored private let bookmarkStorage: BookmarkStorage
     @ObservationIgnored private let modeStorage: ModePreferenceStorage
     @ObservationIgnored private var currentAccessURL: URL?
+    @ObservationIgnored private var pendingBookmarkData: Data?
+    @ObservationIgnored private var resolutionGeneration = 0
+
+    private enum ResolvedBookmark: Sendable {
+        case ready(URL)
+        case accessDenied
+    }
 
     public init(
         bookmarkStorage: BookmarkStorage = .default,
@@ -115,7 +123,9 @@ public final class AppModel {
     ) {
         self.bookmarkStorage = bookmarkStorage
         self.modeStorage = modeStorage
-        phase = .setup
+        let bookmarkData = bookmarkStorage.load()
+        pendingBookmarkData = bookmarkData
+        phase = bookmarkData == nil ? .setup : .restoring
         mode = modeStorage.load()
     }
 
@@ -127,6 +137,7 @@ public final class AppModel {
     ) {
         self.bookmarkStorage = bookmarkStorage
         self.modeStorage = modeStorage
+        pendingBookmarkData = nil
         phase = initialPhase
         mode = initialMode ?? modeStorage.load()
     }
@@ -136,30 +147,61 @@ public final class AppModel {
     }
 
     public func resolveStoredBookmark() async {
-        guard case .setup = phase else { return }
-
-        guard let data = bookmarkStorage.load() else {
-            phase = .setup
+        switch phase {
+        case .setup, .restoring:
+            break
+        case .ready, .error:
             return
         }
 
-        do {
-            let (url, isStale) = try bookmarkStorage.resolve(data)
+        guard let data = pendingBookmarkData ?? bookmarkStorage.load() else {
+            phase = .setup
+            return
+        }
+        pendingBookmarkData = nil
+        resolutionGeneration += 1
+        let generation = resolutionGeneration
+        let storage = bookmarkStorage
 
-            guard url.startAccessingSecurityScopedResource() else {
+        do {
+            // Bookmark resolution can synchronously consult the file system and the
+            // security-scoped resource service. Keep both off the main actor so the
+            // first window remains responsive while access is restored.
+            let resolved = try await Task.detached(priority: .userInitiated) {
+                try Self.resolveBookmark(data, using: storage)
+            }.value
+            guard generation == resolutionGeneration else {
+                if case .ready(let url) = resolved {
+                    url.stopAccessingSecurityScopedResource()
+                }
+                return
+            }
+
+            guard case .ready(let url) = resolved else {
                 phase = .error(.folderAccessDenied)
                 return
             }
             currentAccessURL = url
-
-            if isStale, let refreshed = try? bookmarkStorage.makeBookmark(for: url) {
-                bookmarkStorage.save(refreshed)
-            }
-
             phase = .ready(url)
         } catch {
+            guard generation == resolutionGeneration else { return }
             phase = .error(.bookmarkResolutionFailed(underlying: error))
         }
+    }
+
+    private nonisolated static func resolveBookmark(
+        _ data: Data,
+        using storage: BookmarkStorage
+    ) throws -> ResolvedBookmark {
+        let (url, isStale) = try storage.resolve(data)
+        guard url.startAccessingSecurityScopedResource() else {
+            return .accessDenied
+        }
+
+        if isStale, let refreshed = try? storage.makeBookmark(for: url) {
+            storage.save(refreshed)
+        }
+        return .ready(url)
     }
 
     public func completeSetup(selectedFolder url: URL, mode newMode: ManagedMode) async {
@@ -183,6 +225,7 @@ public final class AppModel {
     }
 
     public func resetToSetup() async {
+        resolutionGeneration += 1
         currentAccessURL?.stopAccessingSecurityScopedResource()
         currentAccessURL = nil
         bookmarkStorage.clear()

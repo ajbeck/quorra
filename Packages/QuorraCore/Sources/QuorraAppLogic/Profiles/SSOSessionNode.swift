@@ -1,6 +1,6 @@
 import AWSConfigINI
 
-public struct SSOSessionNode: Identifiable, Hashable {
+public struct SSOSessionNode: Identifiable, Hashable, Sendable {
     /// Verbatim session name as it appears in the config file, e.g. "acme".
     public let id: String
     /// `nil` when the section exists but cannot be decoded (malformed or empty).

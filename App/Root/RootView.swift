@@ -7,6 +7,10 @@ struct RootView: View {
     var body: some View {
         Group {
             switch appModel.phase {
+            case .restoring:
+                ProgressView()
+                    .controlSize(.small)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .setup:
                 SetupView()
             case .ready(let url):

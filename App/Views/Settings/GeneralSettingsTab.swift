@@ -69,7 +69,7 @@ struct GeneralSettingsTab: View {
         case .ready(let url):
             LabeledContent("Path", value: url.path(percentEncoded: false))
             Button("Change Folder…") { Task { await changeFolder() } }
-        case .setup, .error:
+        case .restoring, .setup, .error:
             Text("Folder access not granted. Re-launch the app to set up.")
                 .foregroundStyle(.secondary)
         }

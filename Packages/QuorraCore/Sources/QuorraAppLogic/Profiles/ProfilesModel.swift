@@ -18,12 +18,21 @@ public final class ProfilesModel {
     }
 
     @ObservationIgnored var currentFolder: URL?
+    @ObservationIgnored private var loadGeneration = 0
+
+    private struct LoadedProfiles: Sendable {
+        let config: AWSConfigINIDocument
+        let credentials: AWSConfigINIDocument
+        let groups: SidebarGroups
+    }
 
     public init() {}
 
     public func load(folder: URL) async {
         let isRefreshingCurrentFolder = currentFolder == folder && loadState == .loaded
         currentFolder = folder
+        loadGeneration += 1
+        let generation = loadGeneration
         // Keep already-rendered data visible during an in-place reload. Replacing the
         // complete three-column UI with progress views causes unnecessary layout work
         // and can leave navigation looking empty while a profile edit is saved.
@@ -31,19 +40,22 @@ public final class ProfilesModel {
             loadState = .loading
         }
         do {
-            let configURL = folder.appending(path: "config", directoryHint: .notDirectory)
-            let credentialsURL = folder.appending(path: "credentials", directoryHint: .notDirectory)
+            // File I/O, parsing, decoding, grouping, and sorting can all grow with
+            // the user's AWS configuration. None of that work needs the main actor.
+            let loaded = try await Task.detached(priority: .userInitiated) {
+                try Self.loadProfiles(from: folder)
+            }.value
+            guard generation == loadGeneration else { return }
 
-            let config = try readOrEmpty(configURL, flavor: .config)
-            let credentials = try readOrEmpty(credentialsURL, flavor: .credentials)
-
-            configDocument = config
-            credentialsDocument = credentials
-            groups = ProfilesModel.derive(config: config, credentials: credentials)
+            configDocument = loaded.config
+            credentialsDocument = loaded.credentials
+            groups = loaded.groups
             loadState = .loaded
         } catch let error as AWSConfigINIError {
+            guard generation == loadGeneration else { return }
             loadState = .failed(error)
         } catch {
+            guard generation == loadGeneration else { return }
             loadState = .failed(.malformedInput(error.localizedDescription))
         }
     }
@@ -53,7 +65,23 @@ public final class ProfilesModel {
         await load(folder: folder)
     }
 
-    private func readOrEmpty(_ url: URL, flavor: FileFlavor) throws -> AWSConfigINIDocument {
+    private nonisolated static func loadProfiles(from folder: URL) throws -> LoadedProfiles {
+        let configURL = folder.appending(path: "config", directoryHint: .notDirectory)
+        let credentialsURL = folder.appending(path: "credentials", directoryHint: .notDirectory)
+        let config = try readOrEmpty(configURL, flavor: .config)
+        let credentials = try readOrEmpty(credentialsURL, flavor: .credentials)
+
+        return LoadedProfiles(
+            config: config,
+            credentials: credentials,
+            groups: derive(config: config, credentials: credentials)
+        )
+    }
+
+    private nonisolated static func readOrEmpty(
+        _ url: URL,
+        flavor: FileFlavor
+    ) throws -> AWSConfigINIDocument {
         if FileManager.default.fileExists(atPath: url.path(percentEncoded: false)) {
             return try AWSConfigINIDocument(contentsOf: url, flavor: flavor)
         }
@@ -77,6 +105,7 @@ public final class ProfilesModel {
         }
 
         var profileNodes: [String: ProfileNode] = [:]
+        var profilesBySession: [String: [ProfileNode]] = [:]
         for name in allProfileNames {
             let inConfig = config.profileSection(named: name) != nil
             let inCredentials = credentials.profileSection(named: name) != nil
@@ -89,8 +118,12 @@ public final class ProfilesModel {
             }
 
             // Keep malformed sections visible rather than silently dropping a profile.
-            let configProfile = (try? decoder.decodeProfile(Profile.self, named: name, from: config)) ?? Profile()
-            let credentialsProfile = (try? decoder.decodeProfile(Profile.self, named: name, from: credentials)) ?? Profile()
+            let configProfile = inConfig
+                ? (try? decoder.decodeProfile(Profile.self, named: name, from: config)) ?? Profile()
+                : Profile()
+            let credentialsProfile = inCredentials
+                ? (try? decoder.decodeProfile(Profile.self, named: name, from: credentials)) ?? Profile()
+                : Profile()
             let merged: Profile = if inConfig && inCredentials {
                 mergeProfiles(base: configProfile, overlay: credentialsProfile)
             } else if inConfig {
@@ -98,17 +131,18 @@ public final class ProfilesModel {
             } else {
                 credentialsProfile
             }
-            profileNodes[name] = ProfileNode(id: name, profile: merged, origin: origin)
+            let node = ProfileNode(id: name, profile: merged, origin: origin)
+            profileNodes[name] = node
+            if let sessionName = merged.ssoSession {
+                profilesBySession[sessionName, default: []].append(node)
+            }
         }
 
         var ssoSessionNodes: [SSOSessionNode] = []
         var profilesAlreadyBucketed: Set<String> = []
         for sessionName in ssoSessionNames(from: config) {
             let session = try? decoder.decode(SSOSession.self, from: config, section: "sso-session \(sessionName)")
-            let rooted = allProfileNames
-                .compactMap { profileNodes[$0] }
-                .filter { $0.profile.ssoSession == sessionName }
-                .sorted(by: profileSortOrder)
+            let rooted = (profilesBySession[sessionName] ?? []).sorted(by: profileSortOrder)
             profilesAlreadyBucketed.formUnion(rooted.map(\.id))
             ssoSessionNodes.append(SSOSessionNode(id: sessionName, session: session, profiles: rooted))
         }
