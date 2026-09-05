@@ -1,4 +1,4 @@
-public struct SidebarGroups: Hashable {
+public struct SidebarGroups: Hashable, Sendable {
     public var ssoSessions: [SSOSessionNode]
     public var longTermKeys: [ProfileNode]
     public var other: [ProfileNode]

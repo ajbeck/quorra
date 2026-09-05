@@ -5,6 +5,7 @@ import SwiftData
 
 @main
 struct quorraApp: App {
+    private let metadataContainer = try! QuorraMetadataSchema.makeContainer()
     @State private var appModel = AppModel()
     @State private var appUpdater = AppUpdater()
     @State private var profilesModel = ProfilesModel()
@@ -27,8 +28,16 @@ struct quorraApp: App {
                 .environment(credentialsModel)
                 .environment(imdsModel)
                 .environment(\.authBrowserPresenter, authBrowserPresenter)
+                .task(priority: .background) {
+                    // Keep Sparkle initialization out of the first-render path.
+                    // Manual update checks remain available immediately because
+                    // `checkForUpdates()` starts the controller on demand.
+                    try? await Task.sleep(for: .milliseconds(500))
+                    guard !Task.isCancelled else { return }
+                    appUpdater.start()
+                }
         }
-        .modelContainer(for: QuorraMetadataSchema.modelTypes)
+        .modelContainer(metadataContainer)
         .defaultSize(width: 1280, height: 760)
         .windowResizability(.contentMinSize)
         .commands {
@@ -45,6 +54,6 @@ struct quorraApp: App {
                 .environment(appUpdater)
                 .environment(editorState)
         }
-        .modelContainer(for: QuorraMetadataSchema.modelTypes)
+        .modelContainer(metadataContainer)
     }
 }

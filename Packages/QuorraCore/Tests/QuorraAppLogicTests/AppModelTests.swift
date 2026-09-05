@@ -19,6 +19,30 @@ struct AppModelTests {
         modeStorage = ModePreferenceStorage(defaults: defaults)
     }
 
+    @Test func initWithoutBookmarkBeginsInSetup() {
+        let model = AppModel(bookmarkStorage: bookmarkStorage, modeStorage: modeStorage)
+
+        guard case .setup = model.phase else {
+            Issue.record("Expected setup phase when no bookmark is stored")
+            tearDown()
+            return
+        }
+        tearDown()
+    }
+
+    @Test func initWithBookmarkBeginsRestoring() {
+        bookmarkStorage.save(Data([0x01, 0x02, 0x03]))
+
+        let model = AppModel(bookmarkStorage: bookmarkStorage, modeStorage: modeStorage)
+
+        guard case .restoring = model.phase else {
+            Issue.record("Expected restoring phase while a stored bookmark is resolved")
+            tearDown()
+            return
+        }
+        tearDown()
+    }
+
     @Test func initLoadsPersistedReadOnly() {
         modeStorage.save(.readOnly)
         let model = AppModel(bookmarkStorage: bookmarkStorage, modeStorage: modeStorage)

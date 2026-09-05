@@ -1,11 +1,11 @@
 import AWSConfigINI
 
-public struct ProfileNode: Identifiable, Hashable {
+public struct ProfileNode: Identifiable, Hashable, Sendable {
     public let id: String
     public let profile: Profile
     public let origin: Origin
 
-    public nonisolated enum Origin: Hashable {
+    public nonisolated enum Origin: Hashable, Sendable {
         case configOnly
         case credentialsOnly
         case both
