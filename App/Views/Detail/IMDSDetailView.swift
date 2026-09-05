@@ -1,11 +1,15 @@
 import SwiftUI
 import AWSConfigINI
+import IAMIdentityCenter
 import SwiftData
 import QuorraAppLogic
 
 @MainActor
 struct IMDSDetailView: View {
     let endpointID: String
+    @Binding var detailSelection: DetailSelection?
+    @Binding var sourceSelection: SourceSelection
+    @Binding var searchText: String
     @Environment(ProfilesModel.self) private var profilesModel
     @Environment(CredentialsModel.self) private var credentialsModel
     @Environment(IMDSModel.self) private var imdsModel
@@ -13,6 +17,14 @@ struct IMDSDetailView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query private var endpointDefinitions: [IMDSEndpointDefinition]
     @State private var isPresentingEndpointEditor = false
+
+    private enum EndpointCredentialState: Equatable {
+        case checking
+        case signingIn
+        case needsSignIn(sessionName: String)
+        case ready
+        case unavailable
+    }
 
     var body: some View {
         if let definition = endpointDefinition,
@@ -45,6 +57,15 @@ struct IMDSDetailView: View {
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .navigationTitle("IMDS Server")
+        .task(id: credentialKey(for: node)) {
+            guard let coordinates = credentialCoordinates(for: node) else { return }
+            await credentialsModel.observeStatus(forSession: coordinates.session)
+            await credentialsModel.observeProfileStatus(
+                forSession: coordinates.session,
+                accountId: coordinates.account,
+                roleName: coordinates.role
+            )
+        }
         .sheet(isPresented: $isPresentingEndpointEditor) {
             IMDSEndpointEditorSheet(
                 mode: .edit,
@@ -109,9 +130,17 @@ struct IMDSDetailView: View {
                         color: statusAccent(for: state),
                         minimumWidth: 72
                     )
-                    if state.port != nil {
-                        IMDSStatusBadge(title: "serving \(node.id)", color: .blue)
+
+                    Button {
+                        navigateToProfile(node.id)
+                    } label: {
+                        Label(node.id, systemImage: "person.crop.circle")
                     }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .tint(.blue)
+                    .pressFeedback()
+                    .help("Open profile \(node.id)")
                 }
 
                 Text(endpointURL(for: state, definition: definition))
@@ -124,9 +153,16 @@ struct IMDSDetailView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
+
+                if let prompt = credentialPrompt(for: node, state: state) {
+                    Label(prompt, systemImage: "person.badge.key")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
     }
 
     @ViewBuilder private func statusIcon(for state: IMDSEndpointState) -> some View {
@@ -182,15 +218,13 @@ struct IMDSDetailView: View {
     ) -> some View {
         switch state {
         case .inactive:
-            Button {
-                Task {
-                    await startEndpoint(endpointKey: endpointKey, for: node, definition: definition)
-                }
-            } label: {
-                Label("Start", systemImage: "play.fill")
-            }
-            .buttonStyle(.borderedProminent)
-            .pressFeedback()
+            stoppedEndpointAction(
+                for: node,
+                endpointKey: endpointKey,
+                definition: definition,
+                readyTitle: "Start",
+                readySystemImage: "play.fill"
+            )
 
         case .starting:
             Button {} label: {
@@ -216,15 +250,76 @@ struct IMDSDetailView: View {
             .pressFeedback()
 
         case .failed:
+            stoppedEndpointAction(
+                for: node,
+                endpointKey: endpointKey,
+                definition: definition,
+                readyTitle: "Retry",
+                readySystemImage: "arrow.clockwise"
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func stoppedEndpointAction(
+        for node: ProfileNode,
+        endpointKey: String,
+        definition: IMDSEndpointDefinition,
+        readyTitle: String,
+        readySystemImage: String
+    ) -> some View {
+        switch credentialState(for: node) {
+        case .checking:
+            Button {} label: {
+                HStack(spacing: 6) {
+                    ProgressView()
+                        .controlSize(.mini)
+                    Text("Checking")
+                }
+            }
+            .buttonStyle(.bordered)
+            .disabled(true)
+
+        case .signingIn:
+            Button {} label: {
+                HStack(spacing: 6) {
+                    ProgressView()
+                        .controlSize(.mini)
+                    Text("Signing In")
+                }
+            }
+            .buttonStyle(.bordered)
+            .disabled(true)
+
+        case .needsSignIn(let sessionName):
+            Button {
+                signIn(sessionName: sessionName, profileName: node.id)
+            } label: {
+                Label("Sign In", systemImage: "person.badge.key")
+            }
+            .buttonStyle(.borderedProminent)
+            .pressFeedback()
+
+        case .ready:
             Button {
                 Task {
                     await startEndpoint(endpointKey: endpointKey, for: node, definition: definition)
                 }
             } label: {
-                Label("Retry", systemImage: "arrow.clockwise")
+                Label(readyTitle, systemImage: readySystemImage)
             }
             .buttonStyle(.borderedProminent)
             .pressFeedback()
+
+        case .unavailable:
+            Button {
+                navigateToProfile(node.id)
+            } label: {
+                Label("Profile", systemImage: "person.crop.circle")
+            }
+            .buttonStyle(.borderedProminent)
+            .pressFeedback()
+            .help("Review the profile configuration and credentials")
         }
     }
 
@@ -283,6 +378,96 @@ struct IMDSDetailView: View {
             port: definition.port,
             logContext: modelContext
         )
+    }
+
+    private func credentialCoordinates(
+        for node: ProfileNode
+    ) -> (session: String, account: String, role: String)? {
+        guard let session = node.profile.ssoSession,
+              let account = node.profile.ssoAccountId,
+              let role = node.profile.ssoRoleName else {
+            return nil
+        }
+        return (session, account, role)
+    }
+
+    private func credentialKey(for node: ProfileNode) -> String? {
+        guard let coordinates = credentialCoordinates(for: node) else { return nil }
+        return "\(coordinates.session):\(coordinates.account):\(coordinates.role)"
+    }
+
+    private func credentialState(for node: ProfileNode) -> EndpointCredentialState {
+        guard let coordinates = credentialCoordinates(for: node),
+              let key = credentialKey(for: node) else {
+            return .unavailable
+        }
+
+        if credentialsModel.inFlight[coordinates.session] != nil {
+            return .signingIn
+        }
+        if case .signingIn = credentialsModel.status[coordinates.session] {
+            return .signingIn
+        }
+        if credentialsModel.roleRejected.contains(key) {
+            return .unavailable
+        }
+
+        guard let status = credentialsModel.profileStatus[key] else {
+            return .checking
+        }
+        switch status {
+        case .ready:
+            return .ready
+        case .notSignedIn(let sessionName), .signInExpired(let sessionName):
+            return .needsSignIn(sessionName: sessionName)
+        }
+    }
+
+    private func credentialPrompt(for node: ProfileNode, state: IMDSEndpointState) -> String? {
+        guard !state.isActive else { return nil }
+
+        switch credentialState(for: node) {
+        case .checking:
+            return "Checking whether this profile can provide credentials."
+        case .signingIn:
+            return "Complete sign-in to return here and start the endpoint."
+        case .needsSignIn(let sessionName):
+            return "Sign in to \(sessionName) before starting this endpoint."
+        case .unavailable:
+            return "Review this profile before starting the endpoint."
+        case .ready:
+            return nil
+        }
+    }
+
+    private func signIn(sessionName: String, profileName: String) {
+        guard let session = profilesModel.findSession(named: sessionName),
+              let startURLString = session.session?.ssoStartUrl,
+              let startURL = URL(string: startURLString),
+              let region = session.session?.ssoRegion else {
+            navigateToProfile(profileName)
+            return
+        }
+
+        let scopes = session.session?.ssoRegistrationScopes ?? ["sso:account:access"]
+        Task {
+            await credentialsModel.signIn(
+                sessionName: sessionName,
+                startUrl: startURL,
+                region: region,
+                scopes: scopes
+            )
+        }
+    }
+
+    private func navigateToProfile(_ profileName: String) {
+        var transaction = Transaction()
+        transaction.animation = nil
+        withTransaction(transaction) {
+            searchText = ""
+            sourceSelection = .profiles
+            detailSelection = .profile(name: profileName)
+        }
     }
 
     private func endpointCard(for state: IMDSEndpointState, definition: IMDSEndpointDefinition) -> some View {
@@ -726,6 +911,9 @@ private struct IMDSDetailPreviewHarness: View {
     private static let endpointID = UUID(uuidString: "00000000-0000-0000-0000-000000009678")!
 
     @State private var model: IMDSModel
+    @State private var detailSelection: DetailSelection?
+    @State private var sourceSelection: SourceSelection = .imdsEndpoints
+    @State private var searchText = ""
     private let metadataContainer: ModelContainer
 
     init(state: IMDSEndpointState) {
@@ -743,11 +931,17 @@ private struct IMDSDetailPreviewHarness: View {
         model.setState(state, forEndpointID: endpoint.stableIDString)
 
         _model = State(initialValue: model)
+        _detailSelection = State(initialValue: .imds(endpointID: endpoint.stableIDString))
         self.metadataContainer = metadataContainer
     }
 
     var body: some View {
-        IMDSDetailView(endpointID: Self.endpointID.uuidString)
+        IMDSDetailView(
+            endpointID: Self.endpointID.uuidString,
+            detailSelection: $detailSelection,
+            sourceSelection: $sourceSelection,
+            searchText: $searchText
+        )
         .environment(ProfilesModel.previewLoaded(config: PreviewAWSFixtures.mockupConfig))
         .environment(CredentialsModel(service: PreviewIdentityCenterService()))
         .environment(model)

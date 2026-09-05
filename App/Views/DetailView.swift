@@ -48,7 +48,12 @@ struct DetailView: View {
                 ContentUnavailableView("Session not found", systemImage: "questionmark.circle")
             }
         case (.loaded, .imds(let endpointID)):
-            IMDSDetailView(endpointID: endpointID)
+            IMDSDetailView(
+                endpointID: endpointID,
+                detailSelection: $selection,
+                sourceSelection: $sourceSelection,
+                searchText: $searchText
+            )
         }
     }
 

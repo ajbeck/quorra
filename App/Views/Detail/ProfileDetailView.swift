@@ -13,6 +13,7 @@ struct ProfileDetailView: View {
     @Environment(ProfilesModel.self) private var profilesModel
     @Environment(EditorState.self) private var editorState
     @Environment(CredentialsModel.self) private var credentialsModel
+    @Environment(IMDSModel.self) private var imdsModel
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openSettings) private var openSettings
     @Query private var endpointDefinitions: [IMDSEndpointDefinition]
@@ -179,9 +180,9 @@ struct ProfileDetailView: View {
                     signIn(sessionName: coords.session)
                 },
                 onViewIMDS: {
-                    sourceSelection = .imdsEndpoints
-                    searchText = node.id
-                    detailSelection = nil
+                    if let endpoint = preferredProfileEndpoint {
+                        navigateToEndpoint(endpoint)
+                    }
                 },
                 onCreateIMDS: {
                     isPresentingEndpointEditor = true
@@ -363,6 +364,36 @@ struct ProfileDetailView: View {
         endpointDefinitions.filter { $0.profileName == node.id }
     }
 
+    /// Prefer the endpoint already serving this profile. When none is running, retain a
+    /// deterministic single-click destination instead of making the user choose twice.
+    private var preferredProfileEndpoint: IMDSEndpointDefinition? {
+        profileEndpointDefinitions.sorted { lhs, rhs in
+            let lhsRank = endpointNavigationRank(lhs)
+            let rhsRank = endpointNavigationRank(rhs)
+            if lhsRank != rhsRank { return lhsRank < rhsRank }
+            return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+        }.first
+    }
+
+    private func endpointNavigationRank(_ definition: IMDSEndpointDefinition) -> Int {
+        switch imdsModel.state(forEndpointID: definition.stableIDString) {
+        case .active: return 0
+        case .starting: return 1
+        case .inactive: return 2
+        case .failed: return 3
+        }
+    }
+
+    private func navigateToEndpoint(_ endpoint: IMDSEndpointDefinition) {
+        var transaction = Transaction()
+        transaction.animation = nil
+        withTransaction(transaction) {
+            searchText = ""
+            sourceSelection = .imdsEndpoints
+            detailSelection = .imds(endpointID: endpoint.stableIDString)
+        }
+    }
+
     private func endpointDraftForProfile() -> IMDSEndpointEditorDraft {
         IMDSEndpointEditorDraft(
             name: node.id,
@@ -423,6 +454,7 @@ private struct ProfileDetailPreviewHarness: View {
     @State private var profilesModel: ProfilesModel
     @State private var editorState = EditorState()
     @State private var credentialsModel: CredentialsModel
+    @State private var imdsModel = IMDSModel()
 
     init(
         mode: ManagedMode,
@@ -461,6 +493,7 @@ private struct ProfileDetailPreviewHarness: View {
                     .environment(profilesModel)
                     .environment(editorState)
                     .environment(credentialsModel)
+                    .environment(imdsModel)
             } else {
                 ContentUnavailableView("Profile not found", systemImage: "questionmark.circle")
             }
