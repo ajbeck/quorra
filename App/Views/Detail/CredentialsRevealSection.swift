@@ -547,10 +547,12 @@ struct CredentialsRevealSection: View {
                 Button {
                     onViewIMDS()
                 } label: {
-                    Label("View Endpoints", systemImage: "arrow.up.right.square")
+                    Label("Open Endpoint", systemImage: "arrow.up.right.square")
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
+                .pressFeedback()
+                .help("Open an IMDS endpoint configured for this profile.")
             }
 
             if imdsEndpointCount == 0, let onCreateIMDS {
