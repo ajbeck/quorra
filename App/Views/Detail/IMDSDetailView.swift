@@ -621,7 +621,7 @@ private struct IMDSStatusBadge: View {
 }
 
 private extension IMDSRequestLog {
-    init(entry: IMDSEndpointLogEntry) {
+    nonisolated init(entry: IMDSEndpointLogEntry) {
         self.init(
             id: entry.stableID,
             timestamp: entry.timestamp,
