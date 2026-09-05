@@ -1,11 +1,23 @@
 import SwiftUI
 
-struct DetailCard<Content: View>: View {
+struct DetailCard<Content: View, HeaderAccessory: View>: View {
     let title: String
+    @ViewBuilder let headerAccessory: HeaderAccessory
     @ViewBuilder let content: Content
 
-    init(_ title: String, @ViewBuilder content: () -> Content) {
+    init(_ title: String, @ViewBuilder content: () -> Content) where HeaderAccessory == EmptyView {
         self.title = title
+        self.headerAccessory = EmptyView()
+        self.content = content()
+    }
+
+    init(
+        _ title: String,
+        @ViewBuilder headerAccessory: () -> HeaderAccessory,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.title = title
+        self.headerAccessory = headerAccessory()
         self.content = content()
     }
 
@@ -16,8 +28,13 @@ struct DetailCard<Content: View>: View {
             }
             .padding(.top, 2)
         } label: {
-            Text(title)
-                .font(.headline)
+            HStack(spacing: 12) {
+                Text(title)
+                    .font(.headline)
+                Spacer(minLength: 0)
+                headerAccessory
+            }
+            .frame(maxWidth: .infinity)
         }
         .groupBoxStyle(DetailCardStyle())
     }
