@@ -56,10 +56,24 @@ public struct IMDSRuntimeInfo: Hashable, Sendable {
     public var activity: [IMDSRequestLog]
 
     public init(startedAt: Date = Date(), servedProfileName: String) {
+        self.init(
+            startedAt: startedAt,
+            servedProfileName: servedProfileName,
+            requestCount: 0,
+            activity: []
+        )
+    }
+
+    public init(
+        startedAt: Date,
+        servedProfileName: String,
+        requestCount: Int,
+        activity: [IMDSRequestLog]
+    ) {
         self.startedAt = startedAt
         self.servedProfileName = servedProfileName
-        self.requestCount = 0
-        self.activity = []
+        self.requestCount = requestCount
+        self.activity = activity
     }
 }
 
@@ -383,7 +397,7 @@ public final class LocalIMDSServer {
 
     private let port: Int
     private var router: IMDSRouter
-    private let credentialProvider: CredentialProvider
+    private var credentialProvider: CredentialProvider
     private let credentialRefreshRetryDelay: TimeInterval
     private let onRequest: (IMDSRequestLog) -> Void
     private let onFailure: (String) -> Void
@@ -467,6 +481,26 @@ public final class LocalIMDSServer {
             connection.cancel()
         }
         connections.removeAll()
+    }
+
+    /// Atomically changes the identity served by a running listener. Credential acquisition
+    /// happens before this method is called, so the existing profile remains available if
+    /// preparing the replacement fails.
+    public func updateServedProfile(
+        _ servedProfile: IMDSServedProfile,
+        credentials: RoleCredentials,
+        credentialProvider: @escaping CredentialProvider
+    ) {
+        credentialRefreshTimer?.cancel()
+        credentialRefreshTimer = nil
+        credentialRefreshInFlight?.cancel()
+        credentialRefreshInFlight = nil
+
+        router.servedProfile = servedProfile
+        cachedCredentials = credentials
+        cachedCredentialsResponse = router.credentialsResponse(using: credentials)
+        self.credentialProvider = credentialProvider
+        scheduleCredentialRefresh()
     }
 
     private func handleListenerState(_ state: NWListener.State) {

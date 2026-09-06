@@ -130,6 +130,7 @@ private struct DetailViewPreviewHarness: View {
             .environment(editorState)
             .environment(CredentialsModel(service: PreviewIdentityCenterService()))
             .environment(imdsModel)
+            .environment(DefaultIMDSNotificationCoordinator())
             .modelContainer(metadataContainer)
             .task {
                 let tmp = FileManager.default.temporaryDirectory
