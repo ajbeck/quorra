@@ -797,10 +797,18 @@ private struct ObjectListRow: View {
                     .foregroundStyle(endpoint.state.accent)
                     .frame(width: 18)
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(endpoint.title)
-                        .fontDesign(endpoint.isDefault ? .default : .monospaced)
-                        .fontWeight(endpoint.isDefault ? .semibold : .regular)
-                        .lineLimit(1)
+                    HStack(spacing: 5) {
+                        Text(endpoint.title)
+                            .fontDesign(endpoint.isDefault ? .default : .monospaced)
+                            .fontWeight(endpoint.isDefault ? .semibold : .regular)
+                            .lineLimit(1)
+                        if endpoint.isDefault {
+                            Image(systemName: "lock.fill")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .help("Built-in endpoint; it can’t be deleted")
+                        }
+                    }
                     HStack(spacing: 6) {
                         IMDSBadge(state: endpoint.state)
                         Text(endpoint.profileName.isEmpty ? "Choose a profile" : endpoint.profileName)

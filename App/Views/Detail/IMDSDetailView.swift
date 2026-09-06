@@ -13,6 +13,7 @@ struct IMDSDetailView: View {
     @Environment(ProfilesModel.self) private var profilesModel
     @Environment(CredentialsModel.self) private var credentialsModel
     @Environment(IMDSModel.self) private var imdsModel
+    @Environment(DefaultIMDSNotificationCoordinator.self) private var defaultIMDSNotificationCoordinator
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query private var endpointDefinitions: [IMDSEndpointDefinition]
@@ -48,6 +49,7 @@ struct IMDSDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 header(for: definition)
+                defaultEndpointNotice()
 
                 DetailCard("Served Profile") {
                     if eligibleEndpointProfiles.isEmpty {
@@ -58,30 +60,28 @@ struct IMDSDetailView: View {
                         )
                         .frame(maxWidth: .infinity, minHeight: 110)
                     } else {
-                        HStack(spacing: 12) {
-                            Image(systemName: "arrow.triangle.swap")
-                                .foregroundStyle(.blue)
-                                .accessibilityHidden(true)
-                            Text("Choose the profile to serve on 127.0.0.1:7114.")
-                            Spacer(minLength: 12)
-                            Picker("Served profile", selection: Binding(
-                                get: {
-                                    eligibleEndpointProfiles.contains { $0.id == definition.profileName }
-                                        ? definition.profileName
-                                        : ""
-                                },
-                                set: { profileName in
-                                    Task { await selectInitialDefaultProfile(profileName, definition: definition) }
-                                }
-                            )) {
-                                Text("Choose a profile").tag("")
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Choose the profile whose credentials this endpoint will serve.")
+                                .foregroundStyle(.secondary)
+
+                            Menu {
                                 ForEach(eligibleEndpointProfiles, id: \.id) { profile in
-                                    Text(profile.id).tag(profile.id)
+                                    Button(profile.id) {
+                                        Task {
+                                            await selectInitialDefaultProfile(
+                                                profile.id,
+                                                definition: definition
+                                            )
+                                        }
+                                    }
                                 }
+                            } label: {
+                                Label("Choose Profile", systemImage: "person.badge.plus")
                             }
-                            .labelsHidden()
-                            .pickerStyle(.menu)
-                            .controlSize(.small)
+                            .menuStyle(.borderedButton)
+                            .controlSize(.regular)
+                            .pressFeedback()
+                            .accessibilityLabel("Choose the profile served by the Default IMDS Endpoint")
                         }
                     }
                 }
@@ -129,6 +129,9 @@ struct IMDSDetailView: View {
         return ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 header(for: definition)
+                if DefaultIMDSEndpoint.matches(definition) {
+                    defaultEndpointNotice()
+                }
                 serverStatusPanel(for: node, endpointKey: endpointKey, state: state, runtime: runtime, definition: definition)
                 endpointCard(for: state, definition: definition)
                 configurationCard(for: state, definition: definition)
@@ -198,6 +201,33 @@ struct IMDSDetailView: View {
             .lineLimit(1)
     }
 
+    private func defaultEndpointNotice() -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "lock.shield.fill")
+                .foregroundStyle(Theme.accent)
+                .frame(width: 20)
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Built-in endpoint")
+                    .font(.callout.weight(.semibold))
+
+                Text("Unlike profile-specific endpoints, this built-in endpoint can’t be deleted and its address stays fixed at 127.0.0.1:7114. Change the profile it serves at any time—even while it’s running. If left running, Quorra restores it at launch.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+        .overlay {
+            RoundedRectangle(cornerRadius: 10)
+                .strokeBorder(Theme.accent.opacity(0.18))
+        }
+        .accessibilityElement(children: .combine)
+    }
+
     private func serverStatusPanel(
         for node: ProfileNode,
         endpointKey: String,
@@ -212,12 +242,16 @@ struct IMDSDetailView: View {
             serverActions(for: node, endpointKey: endpointKey, state: state, definition: definition)
         }
         .padding(16)
-        .background(statusAccent(for: state).opacity(state.isActive ? 0.12 : 0.06), in: RoundedRectangle(cornerRadius: 12))
+        .background {
+            RoundedRectangle(cornerRadius: 12)
+                .fill(statusAccent(for: state).opacity(state.isActive ? 0.12 : 0.06))
+                .animation(reduceMotion ? nil : .easeInOut(duration: 0.16), value: state)
+        }
         .overlay {
             RoundedRectangle(cornerRadius: 12)
                 .strokeBorder(statusAccent(for: state).opacity(state.isActive || state.isFailed ? 0.28 : 0.1))
+                .animation(reduceMotion ? nil : .easeInOut(duration: 0.16), value: state)
         }
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.16), value: state)
     }
 
     private func serverSummary(
@@ -240,7 +274,9 @@ struct IMDSDetailView: View {
                         minimumWidth: 72
                     )
 
-                    servedProfileControl(for: node, state: state, definition: definition)
+                    if !DefaultIMDSEndpoint.matches(definition) {
+                        servedProfileControl(for: node, state: state, definition: definition)
+                    }
                 }
 
                 Text(endpointURL(for: state, definition: definition))
@@ -254,15 +290,37 @@ struct IMDSDetailView: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
 
-                if let prompt = credentialPrompt(for: node, state: state) {
-                    Label(prompt, systemImage: "person.badge.key")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                        .fixedSize(horizontal: false, vertical: true)
+                if DefaultIMDSEndpoint.matches(definition) {
+                    servedProfileControl(for: node, state: state, definition: definition)
+                        .padding(.top, 3)
                 }
+
+                credentialPromptRow(for: node, state: state)
             }
         }
         .accessibilityElement(children: .contain)
+    }
+
+    @ViewBuilder
+    private func credentialPromptRow(for node: ProfileNode, state: IMDSEndpointState) -> some View {
+        if !state.isActive {
+            Group {
+                if let prompt = credentialPrompt(for: node, state: state) {
+                    Label(prompt, systemImage: "person.badge.key")
+                        .foregroundStyle(.orange)
+                } else {
+                    Label("Credentials are ready.", systemImage: "person.badge.key")
+                        .hidden()
+                        .accessibilityHidden(true)
+                }
+            }
+            .font(.caption)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(minHeight: 16, alignment: .leading)
+            .transaction { transaction in
+                transaction.animation = nil
+            }
+        }
     }
 
     @ViewBuilder
@@ -272,53 +330,65 @@ struct IMDSDetailView: View {
         definition: IMDSEndpointDefinition
     ) -> some View {
         if DefaultIMDSEndpoint.matches(definition) {
-            HStack(spacing: 6) {
-                Text("Serving")
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Serving profile")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Picker(
-                    "Served profile",
-                    selection: Binding(
-                        get: { definition.profileName },
-                        set: { profileName in
-                            Task {
-                                await switchDefaultEndpointProfile(
-                                    to: profileName,
-                                    from: node,
-                                    state: state,
-                                    definition: definition
-                                )
+                HStack(spacing: 8) {
+                    Label(node.id, systemImage: "person.crop.circle")
+                        .font(.callout)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+
+                    Menu {
+                        ForEach(eligibleEndpointProfiles, id: \.id) { profile in
+                            Button {
+                                guard profile.id != definition.profileName else { return }
+                                let profileName = profile.id
+                                Task {
+                                    await switchDefaultEndpointProfile(
+                                        to: profileName,
+                                        from: node,
+                                        state: state,
+                                        definition: definition
+                                    )
+                                }
+                            } label: {
+                                if profile.id == definition.profileName {
+                                    Label(profile.id, systemImage: "checkmark")
+                                } else {
+                                    Text(profile.id)
+                                }
                             }
                         }
-                    )
-                ) {
-                    ForEach(eligibleEndpointProfiles, id: \.id) { profile in
-                        Text(profile.id).tag(profile.id)
+                    } label: {
+                        if isSwitchingProfile {
+                            HStack(spacing: 6) {
+                                ProgressView()
+                                    .controlSize(.mini)
+                                Text("Changing…")
+                            }
+                        } else {
+                            Label("Change Profile", systemImage: "arrow.triangle.swap")
+                        }
                     }
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .controlSize(.small)
-                .tint(.blue)
-                .frame(maxWidth: 260)
-                .disabled(state.isStarting || isSwitchingProfile)
-                .help("Change the profile served on 127.0.0.1:7114")
+                    .menuStyle(.borderedButton)
+                    .controlSize(.small)
+                    .disabled(state.isStarting || isSwitchingProfile)
+                    .pressFeedback()
+                    .help("Change the profile served on 127.0.0.1:7114")
+                    .accessibilityLabel("Change served profile. Current profile: \(node.id)")
 
-                Button {
-                    navigateToProfile(node.id)
-                } label: {
-                    Image(systemName: "arrow.up.right.square")
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.mini)
-                .pressFeedback()
-                .help("Open profile \(node.id)")
-
-                if isSwitchingProfile {
-                    ProgressView()
-                        .controlSize(.mini)
-                        .accessibilityLabel("Switching profiles")
+                    Button {
+                        navigateToProfile(node.id)
+                    } label: {
+                        Label("Open Profile", systemImage: "arrow.up.right.square")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .pressFeedback()
+                    .help("Open profile \(node.id)")
                 }
             }
         } else {
@@ -543,6 +613,7 @@ struct IMDSDetailView: View {
     ) async {
         if DefaultIMDSEndpoint.matches(endpointID: endpointKey) {
             imdsModel.rememberDefaultEndpointShouldRun(true)
+            Task { await defaultIMDSNotificationCoordinator.requestAuthorizationIfNeeded() }
         }
         await imdsModel.startEndpoint(
             endpointID: endpointKey,
@@ -556,6 +627,7 @@ struct IMDSDetailView: View {
     private func stopEndpoint(_ endpointKey: String) {
         if DefaultIMDSEndpoint.matches(endpointID: endpointKey) {
             imdsModel.rememberDefaultEndpointShouldRun(false)
+            defaultIMDSNotificationCoordinator.clearAuthenticationRequiredNotification()
         }
         imdsModel.stopEndpoint(forEndpointID: endpointKey)
     }
@@ -623,6 +695,7 @@ struct IMDSDetailView: View {
     private func signIn(sessionName: String, profileName: String, endpointKey: String) {
         if DefaultIMDSEndpoint.matches(endpointID: endpointKey) {
             imdsModel.rememberDefaultEndpointShouldRun(true)
+            Task { await defaultIMDSNotificationCoordinator.requestAuthorizationIfNeeded() }
         }
         guard let session = profilesModel.findSession(named: sessionName),
               let startURLString = session.session?.ssoStartUrl,
@@ -1225,6 +1298,7 @@ private struct IMDSDetailPreviewHarness: View {
         .environment(ProfilesModel.previewLoaded(config: PreviewAWSFixtures.mockupConfig))
         .environment(CredentialsModel(service: PreviewIdentityCenterService()))
         .environment(model)
+        .environment(DefaultIMDSNotificationCoordinator())
         .modelContainer(metadataContainer)
         .frame(width: 920, height: 720)
     }

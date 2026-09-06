@@ -11,6 +11,7 @@ struct MainView: View {
     @Environment(ProfilesModel.self) private var profilesModel
     @Environment(CredentialsModel.self) private var credentialsModel
     @Environment(IMDSModel.self) private var imdsModel
+    @Environment(DefaultIMDSNotificationCoordinator.self) private var defaultIMDSNotificationCoordinator
     @Environment(\.modelContext) private var modelContext
     @Environment(\.authBrowserPresenter) private var authBrowserPresenter
     @State private var sourceSelection: SourceSelection
@@ -74,6 +75,11 @@ struct MainView: View {
         }
         .onChange(of: eligibleDefaultEndpointProfiles.map(\.id)) { _, profileNames in
             Task { await reconcileDefaultEndpointProfiles(profileNames) }
+        }
+        .task(id: defaultIMDSNotificationCoordinator.endpointOpenRequestID) {
+            guard defaultIMDSNotificationCoordinator.endpointOpenRequestID != nil else { return }
+            openDefaultEndpoint(DefaultIMDSEndpoint.stableIDString)
+            defaultIMDSNotificationCoordinator.consumeEndpointOpenRequest()
         }
         .alert(
             "Default IMDS Endpoint needs sign-in",
@@ -167,6 +173,7 @@ struct MainView: View {
 
         if imdsModel.state(forEndpointID: definition.stableIDString).isActive {
             defaultEndpointAuthenticationNotice = nil
+            defaultIMDSNotificationCoordinator.clearAuthenticationRequiredNotification()
         } else if notifiesOnAuthenticationFailure {
             await presentAuthenticationNoticeIfNeeded(for: node, endpointID: definition.stableIDString)
         }
@@ -236,6 +243,7 @@ struct MainView: View {
                 profileName: node.id,
                 sessionName: sessionName
             )
+            await defaultIMDSNotificationCoordinator.notifyAuthenticationRequired(profileName: node.id)
         case .ready, .none:
             break
         }
@@ -308,6 +316,7 @@ private extension Optional where Wrapped == ProfileAuthStatus {
         .environment(EditorState())
         .environment(CredentialsModel(service: PreviewIdentityCenterService()))
         .environment(IMDSModel())
+        .environment(DefaultIMDSNotificationCoordinator())
         .environment(\.authBrowserPresenter, AuthBrowserPresenter())
         .modelContainer(try! QuorraMetadataSchema.makeContainer(inMemory: true))
 }
@@ -413,6 +422,7 @@ private struct MainViewSampleDataHarness: View {
             .environment(editorState)
             .environment(credentialsModel)
             .environment(imdsModel)
+            .environment(DefaultIMDSNotificationCoordinator())
             .environment(\.authBrowserPresenter, AuthBrowserPresenter())
             .modelContainer(metadataContainer)
     }

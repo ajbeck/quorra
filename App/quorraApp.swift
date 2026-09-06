@@ -11,6 +11,7 @@ struct quorraApp: App {
     @State private var profilesModel = ProfilesModel()
     @State private var editorState = EditorState()
     @State private var imdsModel = IMDSModel()
+    @State private var defaultIMDSNotificationCoordinator = DefaultIMDSNotificationCoordinator()
     @State private var authBrowserPresenter = AuthBrowserPresenter()
     @State private var credentialsModel = CredentialsModel(
         service: IdentityCenterService(
@@ -27,6 +28,7 @@ struct quorraApp: App {
                 .environment(editorState)
                 .environment(credentialsModel)
                 .environment(imdsModel)
+                .environment(defaultIMDSNotificationCoordinator)
                 .environment(\.authBrowserPresenter, authBrowserPresenter)
                 .task(priority: .background) {
                     // Keep Sparkle initialization out of the first-render path.
