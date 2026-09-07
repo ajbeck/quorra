@@ -25,6 +25,7 @@ jobs:
 
     steps:
       - name: Verify Xcode 27 toolchain
+        id: xcode
         run: |
           xcode_version="$(xcodebuild -version | awk '/^Xcode / { print $2 }')"
           xcodebuild -version
@@ -33,6 +34,12 @@ jobs:
             echo "::error::Release packaging requires Xcode 27; found Xcode $xcode_version."
             exit 1
           fi
+
+          {
+            echo "package_cache_path=$RUNNER_TEMP/quorra-package-cache"
+            echo "source_packages_path=$RUNNER_TEMP/quorra-source-packages"
+            echo "version=$xcode_version"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Create release automation token
         id: release-token
@@ -108,6 +115,19 @@ jobs:
         with:
           ref: ${{ steps.release-context.outputs.tag }}
 
+      - name: Restore Swift package cache
+        id: swift-package-cache
+        if: ${{ steps.release-context.outputs.tag != '' }}
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ${{ steps.xcode.outputs.package_cache_path }}
+            ${{ steps.xcode.outputs.source_packages_path }}
+          key: >-
+            ${{ runner.os }}-${{ runner.arch }}-xcode-${{ steps.xcode.outputs.version }}-quorra-packages-${{ hashFiles('Quorra.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'Packages/QuorraCore/Package.swift') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-xcode-${{ steps.xcode.outputs.version }}-quorra-packages-
+
       - name: Import distribution signing assets
         if: ${{ steps.release-context.outputs.tag != '' }}
         env:
@@ -148,7 +168,9 @@ jobs:
       - name: Archive and export application
         if: ${{ steps.release-context.outputs.tag != '' }}
         env:
+          PACKAGE_CACHE_PATH: ${{ steps.xcode.outputs.package_cache_path }}
           RELEASE_VERSION: ${{ steps.release-context.outputs.version }}
+          SOURCE_PACKAGES_PATH: ${{ steps.xcode.outputs.source_packages_path }}
         run: |
           archive_path="$RUNNER_TEMP/quorra.xcarchive"
           export_path="$RUNNER_TEMP/export"
@@ -183,7 +205,8 @@ jobs:
             -scheme QuorraApp \
             -configuration Release \
             -destination 'generic/platform=macOS' \
-            -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
+            -clonedSourcePackagesDirPath "$SOURCE_PACKAGES_PATH" \
+            -packageCachePath "$PACKAGE_CACHE_PATH" \
             -skipPackagePluginValidation \
             -archivePath "$archive_path" \
             QUORRA_PROVISIONING_PROFILE_SPECIFIER="$PROVISIONING_PROFILE_UUID" \
@@ -198,6 +221,17 @@ jobs:
           codesign --verify --deep --strict --verbose=4 "$export_path/quorra.app"
 
           echo "EXPORTED_APP_PATH=$export_path/quorra.app" >> "$GITHUB_ENV"
+
+      - name: Save Swift package cache
+        if: >-
+          ${{ steps.release-context.outputs.tag != '' && steps.swift-package-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ${{ steps.xcode.outputs.package_cache_path }}
+            ${{ steps.xcode.outputs.source_packages_path }}
+          key: >-
+            ${{ runner.os }}-${{ runner.arch }}-xcode-${{ steps.xcode.outputs.version }}-quorra-packages-${{ hashFiles('Quorra.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'Packages/QuorraCore/Package.swift') }}
 
       - name: Verify packaged application version
         if: ${{ steps.release-context.outputs.tag != '' }}
@@ -328,10 +362,11 @@ jobs:
         if: ${{ steps.release-context.outputs.tag != '' }}
         env:
           RELEASE_TAG: ${{ steps.release-context.outputs.tag }}
+          SOURCE_PACKAGES_PATH: ${{ steps.xcode.outputs.source_packages_path }}
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
           updates_directory="$RUNNER_TEMP/sparkle-updates"
-          generate_appcast="$RUNNER_TEMP/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast"
+          generate_appcast="$SOURCE_PACKAGES_PATH/artifacts/sparkle/Sparkle/bin/generate_appcast"
           release_url="https://github.com/$GITHUB_REPOSITORY/releases/tag/$RELEASE_TAG"
           download_url_prefix="https://github.com/$GITHUB_REPOSITORY/releases/download/$RELEASE_TAG/"
 
