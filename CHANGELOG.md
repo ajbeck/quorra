@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.0](https://github.com/ajbeck/quorra/compare/v0.4.0...v0.5.0) (2026-09-07)
+
+
+### Features
+
+* add CLI and menu bar background operation ([#46](https://github.com/ajbeck/quorra/issues/46)) ([66ed707](https://github.com/ajbeck/quorra/commit/66ed7078b614a1a1a6528ba26ff268ee6870f665))
+* add default IMDS endpoint ([#44](https://github.com/ajbeck/quorra/issues/44)) ([186c9db](https://github.com/ajbeck/quorra/commit/186c9dbd8216a8cfbb7229de4b215fa74de2d72b))
+
 ## [0.4.0](https://github.com/ajbeck/quorra/compare/v0.3.0...v0.4.0) (2026-09-05)
 
 
