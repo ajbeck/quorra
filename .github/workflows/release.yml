@@ -307,10 +307,12 @@ jobs:
             exit 1
           fi
 
-          if ! lipo "$cli_executable" -verify_arch arm64 x86_64; then
-            echo "::error::The Quorra CLI must contain arm64 and x86_64 slices."
-            exit 1
-          fi
+          for architecture in arm64 x86_64; do
+            if ! lipo "$cli_executable" -verify_arch "$architecture"; then
+              echo "::error::The Quorra CLI is missing its $architecture slice."
+              exit 1
+            fi
+          done
 
           actual_cli_version="$("$cli_executable" version)"
           if [[ "$actual_cli_version" != "$RELEASE_VERSION" ]]; then
