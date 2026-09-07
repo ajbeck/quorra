@@ -266,7 +266,7 @@ jobs:
             exit 1
           fi
 
-          codesign -d --entitlements - "$cli_app" > "$cli_entitlements_path" 2>/dev/null
+          codesign -d --entitlements - --xml "$cli_app" > "$cli_entitlements_path" 2>/dev/null
           cli_app_group="$(/usr/libexec/PlistBuddy -c 'Print :com.apple.security.application-groups:0' "$cli_entitlements_path")"
           if [[ "$cli_app_group" != '9GEBAJV9R4.quorra' ]]; then
             echo "::error::The Quorra CLI is missing the shared App Group entitlement."
