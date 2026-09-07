@@ -1,7 +1,7 @@
 import Testing
 import Foundation
 import AWSConfigINI
-@testable import QuorraAppLogic
+@testable import QuorraProfiles
 
 @Suite("ProfileVia")
 struct ProfileViaTests {
@@ -46,7 +46,7 @@ source_profile = default
 aws_access_key_id = AKID
 aws_secret_access_key = SECRET
 """, flavor: .credentials)
-        return ProfilesModel.derive(config: cfg, credentials: creds)
+        return ProfileCatalogLoader.derive(config: cfg, credentials: creds)
     }
 
     @Test func orders_default_first_then_alphabetical_across_buckets() throws {
