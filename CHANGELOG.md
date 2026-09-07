@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.2](https://github.com/ajbeck/quorra/compare/v0.5.1...v0.5.2) (2026-09-07)
+
+
+### Bug Fixes
+
+* **release:** parse exported CLI entitlements as XML ([#49](https://github.com/ajbeck/quorra/issues/49)) ([035b897](https://github.com/ajbeck/quorra/commit/035b897b9e3f887837c5454ea1f47aa0f2075710))
+
+
+### Performance Improvements
+
+* **ci:** share Xcode package caches ([#51](https://github.com/ajbeck/quorra/issues/51)) ([5c04e62](https://github.com/ajbeck/quorra/commit/5c04e6236e0d1e9c30c69a65aba871f28b80f7cc))
+
 ## [0.5.1](https://github.com/ajbeck/quorra/compare/v0.5.0...v0.5.1) (2026-09-07)
 
 
