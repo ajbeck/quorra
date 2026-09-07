@@ -3,6 +3,7 @@ import AWSConfigINI
 import IAMIdentityCenter
 import SwiftData
 import QuorraAppLogic
+import QuorraProfiles
 
 @MainActor
 struct IMDSDetailView: View {

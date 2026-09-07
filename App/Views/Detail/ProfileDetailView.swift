@@ -2,6 +2,7 @@ import SwiftUI
 import AWSConfigINI
 import IAMIdentityCenter
 import QuorraAppLogic
+import QuorraProfiles
 import SwiftData
 
 struct ProfileDetailView: View {

@@ -1,61 +1,54 @@
 import SwiftUI
-import IAMIdentityCenter
-import QuorraAppLogic
 import SwiftData
 
 @main
 struct quorraApp: App {
-    private let metadataContainer = try! QuorraMetadataSchema.makeContainer()
-    @State private var appModel = AppModel()
-    @State private var appUpdater = AppUpdater()
-    @State private var profilesModel = ProfilesModel()
-    @State private var editorState = EditorState()
-    @State private var imdsModel = IMDSModel()
-    @State private var defaultIMDSNotificationCoordinator = DefaultIMDSNotificationCoordinator()
-    @State private var authBrowserPresenter = AuthBrowserPresenter()
-    @State private var credentialsModel = CredentialsModel(
-        service: IdentityCenterService(
-            keychain: Keychain(accessGroup: KeychainAccessGroup.shared),
-            oidcClientProvider: SDKOIDCClientProvider()
-        )
-    )
+    @NSApplicationDelegateAdaptor(AppLifecycleDelegate.self) private var appDelegate
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup("Quorra", id: QuorraSceneID.mainWindow) {
             RootView()
-                .environment(appModel)
-                .environment(profilesModel)
-                .environment(editorState)
-                .environment(credentialsModel)
-                .environment(imdsModel)
-                .environment(defaultIMDSNotificationCoordinator)
-                .environment(\.authBrowserPresenter, authBrowserPresenter)
-                .task(priority: .background) {
-                    // Keep Sparkle initialization out of the first-render path.
-                    // Manual update checks remain available immediately because
-                    // `checkForUpdates()` starts the controller on demand.
-                    try? await Task.sleep(for: .milliseconds(500))
-                    guard !Task.isCancelled else { return }
-                    appUpdater.start()
-                }
+                .environment(appDelegate.appModel)
+                .environment(appDelegate.profilesModel)
+                .environment(appDelegate.editorState)
+                .environment(appDelegate.credentialsModel)
+                .environment(appDelegate.imdsModel)
+                .environment(appDelegate.notificationCoordinator)
+                .environment(appDelegate.runtimeCoordinator)
+                .environment(\.authBrowserPresenter, appDelegate.authBrowserPresenter)
         }
-        .modelContainer(metadataContainer)
+        .modelContainer(appDelegate.metadataContainer)
         .defaultSize(width: 1280, height: 760)
         .windowResizability(.contentMinSize)
+        .defaultLaunchBehavior(appDelegate.presentationController.runsInMenuBarOnly ? .suppressed : .automatic)
+        .restorationBehavior(appDelegate.presentationController.runsInMenuBarOnly ? .disabled : .automatic)
+        .handlesExternalEvents(matching: [AppNavigationRoute.externalEventMatchPrefix])
         .commands {
             CommandGroup(after: .appInfo) {
                 Button("Check for Updates…") {
-                    appUpdater.checkForUpdates()
+                    appDelegate.appUpdater.checkForUpdates()
                 }
             }
         }
 
+        MenuBarExtra("Quorra", image: "QuorraMenuBarIcon") {
+            QuorraMenuBarView(
+                appUpdater: appDelegate.appUpdater,
+                presentationController: appDelegate.presentationController,
+                runtimeCoordinator: appDelegate.runtimeCoordinator,
+                imdsModel: appDelegate.imdsModel,
+                notificationCoordinator: appDelegate.notificationCoordinator
+            )
+        }
+
         Settings {
             SettingsView()
-                .environment(appModel)
-                .environment(appUpdater)
-                .environment(editorState)
+                .environment(appDelegate.appModel)
+                .environment(appDelegate.appUpdater)
+                .environment(appDelegate.editorState)
+                .environment(appDelegate.presentationController)
+                .environment(appDelegate.launchAtLoginController)
         }
-        .modelContainer(metadataContainer)
+        .modelContainer(appDelegate.metadataContainer)
     }
 }

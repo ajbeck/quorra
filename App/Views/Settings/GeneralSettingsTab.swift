@@ -6,7 +6,10 @@ import SwiftUI
 struct GeneralSettingsTab: View {
     @Environment(AppModel.self) private var appModel
     @Environment(EditorState.self) private var editorState
+    @Environment(AppPresentationController.self) private var presentationController
+    @Environment(LaunchAtLoginController.self) private var launchAtLoginController
     @State private var pendingMode: ManagedMode?
+    @State private var cliInstallation = CLIInstallationController()
 
     var body: some View {
         Form {
@@ -33,6 +36,33 @@ struct GeneralSettingsTab: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
+            Section("Menu Bar") {
+                Toggle(
+                    "Run in the menu bar only",
+                    isOn: Binding(
+                        get: { presentationController.runsInMenuBarOnly },
+                        set: { presentationController.setRunsInMenuBarOnly($0) }
+                    )
+                )
+
+                Text("Hides Quorra from the Dock and opens its main window only when you choose Open Quorra from the menu bar.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+
+                Toggle(
+                    "Launch Quorra at login",
+                    isOn: Binding(
+                        get: { launchAtLoginController.isRequested },
+                        set: { launchAtLoginController.setEnabled($0) }
+                    )
+                )
+                .disabled(launchAtLoginController.status == .notFound)
+
+                launchAtLoginStatus
+            }
+            Section("Command Line Tool") {
+                cliInstallationSection
+            }
         }
         .formStyle(.grouped)
         .navigationTitle("General")
@@ -55,12 +85,43 @@ struct GeneralSettingsTab: View {
         } message: {
             Text(editorState.dirtyDescription ?? "")
         }
+        .task {
+            cliInstallation.refresh()
+            launchAtLoginController.refresh()
+        }
     }
 
     private var modeBlurb: String {
         switch appModel.mode {
         case .managed:  return "Quorra modifies ~/.aws/config and ~/.aws/credentials when you save changes."
         case .readOnly: return "Quorra never writes to your AWS files. Profiles are read-only."
+        }
+    }
+
+    @ViewBuilder private var launchAtLoginStatus: some View {
+        if !presentationController.runsInMenuBarOnly && launchAtLoginController.isRequested {
+            Text("Quorra will also open its main window at login. Turn on menu-bar-only mode for a quiet background launch.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+
+        switch launchAtLoginController.status {
+        case .requiresApproval:
+            Label("Allow Quorra in System Settings to finish enabling launch at login.", systemImage: "exclamationmark.triangle")
+                .foregroundStyle(.orange)
+            Button("Open Login Items Settings") {
+                launchAtLoginController.openSystemSettings()
+            }
+        case .notFound:
+            Label("Launch at login is unavailable in this build.", systemImage: "exclamationmark.triangle")
+                .foregroundStyle(.orange)
+        case .notRegistered, .enabled:
+            EmptyView()
+        }
+
+        if let errorMessage = launchAtLoginController.errorMessage {
+            Label(errorMessage, systemImage: "exclamationmark.triangle")
+                .foregroundStyle(.red)
         }
     }
 
@@ -79,6 +140,62 @@ struct GeneralSettingsTab: View {
         guard let picked = await FolderPicker.pickAWSFolder() else { return }
         await appModel.completeSetup(selectedFolder: picked, mode: appModel.mode)
     }
+
+    @ViewBuilder private var cliInstallationSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Install a stable “quorra” command for Terminal. It always runs the CLI included with the current Quorra app.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+
+            Text("Your shell must include the selected folder in PATH.")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+
+            switch cliInstallation.status {
+            case .unavailable:
+                Label("The command-line tool is unavailable in this build.", systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.orange)
+            case .notInstalled:
+                Label("Not installed", systemImage: "terminal")
+                Button("Set Up…") { Task { await chooseCLIInstallFolder() } }
+            case .installed(let url):
+                Label("Installed", systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                LabeledContent("Command", value: url.path(percentEncoded: false))
+                Button("Remove", role: .destructive) { cliInstallation.uninstall() }
+            case .repairNeeded(let url):
+                Label("The command link needs repair.", systemImage: "wrench.and.screwdriver")
+                    .foregroundStyle(.orange)
+                LabeledContent("Command", value: url.path(percentEncoded: false))
+                HStack {
+                    Button("Repair") { cliInstallation.repair() }
+                    Button("Choose Another Folder…") { Task { await chooseCLIInstallFolder() } }
+                }
+            case .conflict(let url):
+                Label("Another item already uses this command path. Quorra won’t replace it.", systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.orange)
+                LabeledContent("Conflict", value: url.path(percentEncoded: false))
+                Button("Choose Another Folder…") { Task { await chooseCLIInstallFolder() } }
+            case .accessRequired(let url):
+                Label("Quorra no longer has access to the installation folder.", systemImage: "lock.trianglebadge.exclamationmark")
+                    .foregroundStyle(.orange)
+                LabeledContent("Command", value: url.path(percentEncoded: false))
+                Button("Choose Folder Again…") { Task { await chooseCLIInstallFolder() } }
+            case .failed(let message):
+                Label(message, systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.red)
+                HStack {
+                    Button("Try Again") { cliInstallation.refresh() }
+                    Button("Choose Another Folder…") { Task { await chooseCLIInstallFolder() } }
+                }
+            }
+        }
+    }
+
+    private func chooseCLIInstallFolder() async {
+        guard let directory = await FolderPicker.pickCLIInstallFolder() else { return }
+        cliInstallation.install(in: directory)
+    }
 }
 
 #if DEBUG
@@ -87,6 +204,8 @@ struct GeneralSettingsTab: View {
     GeneralSettingsTab()
         .environment(AppModel(initialPhase: .ready(URL(filePath: "/Users/example/.aws"))))
         .environment(EditorState())
+        .environment(AppPresentationController())
+        .environment(LaunchAtLoginController())
         .frame(width: 540)
 }
 
@@ -94,6 +213,8 @@ struct GeneralSettingsTab: View {
     GeneralSettingsTab()
         .environment(AppModel(initialPhase: .setup))
         .environment(EditorState())
+        .environment(AppPresentationController())
+        .environment(LaunchAtLoginController())
         .frame(width: 540)
 }
 

@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import QuorraAppLogic
+import QuorraProfiles
 
 struct SourceSidebarView: View {
     @Binding var selection: SourceSelection

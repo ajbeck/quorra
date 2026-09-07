@@ -2,6 +2,7 @@ import SwiftUI
 import AWSConfigINI
 import IAMIdentityCenter
 import QuorraAppLogic
+import QuorraProfiles
 
 /// A session row in the SSO Sessions list. Two lines: status icon + name + live
 /// expiry tag (line 1), and "N profiles · region" (line 2). Reuses the shipped

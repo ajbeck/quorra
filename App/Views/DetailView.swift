@@ -1,6 +1,7 @@
 import SwiftUI
 import AWSConfigINI
 import QuorraAppLogic
+import QuorraProfiles
 import SwiftData
 
 struct DetailView: View {
