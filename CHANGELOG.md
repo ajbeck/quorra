@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/ajbeck/quorra/compare/v0.5.0...v0.5.1) (2026-09-07)
+
+
+### Bug Fixes
+
+* **release:** build signed assets with Xcode 27 ([#47](https://github.com/ajbeck/quorra/issues/47)) ([12982c1](https://github.com/ajbeck/quorra/commit/12982c1ec25a02bc76aff8c5df35530dab379844))
+
 ## [0.5.0](https://github.com/ajbeck/quorra/compare/v0.4.0...v0.5.0) (2026-09-07)
 
 
