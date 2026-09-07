@@ -35,7 +35,7 @@ cd quorra
 open Quorra.xcworkspace
 ```
 
-Run the `quorra` scheme with Command-R.
+Run the `QuorraApp` scheme with Command-R.
 
 ## What It Does
 

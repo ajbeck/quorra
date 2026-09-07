@@ -20,15 +20,25 @@ permissions:
 
 jobs:
   release:
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 45
 
     steps:
+      - name: Verify Xcode 27 toolchain
+        run: |
+          xcode_version="$(xcodebuild -version | awk '/^Xcode / { print $2 }')"
+          xcodebuild -version
+
+          if [[ "${xcode_version%%.*}" != '27' ]]; then
+            echo "::error::Release packaging requires Xcode 27; found Xcode $xcode_version."
+            exit 1
+          fi
+
       - name: Create release automation token
         id: release-token
         uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ vars.RELEASE_PLEASE_APP_ID }}
+          client-id: ${{ vars.RELEASE_PLEASE_CLIENT_ID }}
           private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
           permission-contents: write
           permission-issues: write
@@ -170,14 +180,13 @@ jobs:
 
           xcodebuild archive \
             -workspace Quorra.xcworkspace \
-            -scheme quorra \
+            -scheme QuorraApp \
             -configuration Release \
             -destination 'generic/platform=macOS' \
             -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
             -skipPackagePluginValidation \
             -archivePath "$archive_path" \
             QUORRA_PROVISIONING_PROFILE_SPECIFIER="$PROVISIONING_PROFILE_UUID" \
-            CODE_SIGN_IDENTITY='Developer ID Application' \
             MARKETING_VERSION="$RELEASE_VERSION" \
             CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER"
 
