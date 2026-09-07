@@ -62,9 +62,9 @@ and Xcode launchers. The installed command and Argument Parser root remain
 **Evidence:** Reusable Quorra logic and tests already live in this package.
 ArgumentParser documents an executable target with a direct product dependency.
 The resolved graph currently contains ArgumentParser only transitively. Using a
-distinct internal product name prevents Xcode from generating a package scheme
-that collides with the app's shared `quorra` scheme; Xcode 27 beta had selected
-the ambiguous `quorra (QuorraCore)` scheme before this split.
+distinct internal product name keeps the installed command independent of its
+build product. The app's shared scheme is explicitly named `QuorraApp`, so it
+cannot collide with SwiftPM-generated command schemes in the workspace.
 
 ### D002 — Profile loading boundary
 
@@ -289,12 +289,13 @@ extra.
 **Decision:** Run the complete pull-request test plan on both stable
 `macos-26` and the `xcode-27` public-preview runner. Preserve the existing
 stable check name for branch protection and give failed result bundles unique
-matrix artifact names. Continue signed release packaging on stable Xcode until
-Xcode 27 is generally available.
+matrix artifact names. Build signed releases with Xcode 27 because the native
+CLI target and its signing configuration are maintained with that toolchain.
 
 **Evidence:** GitHub lists `xcode-27` as the Apple-silicon public-preview label.
-The release workflow's app-token action also now receives its required
-`RELEASE_PLEASE_APP_ID` rather than the unsupported client-ID input.
+Version 3 of the release workflow's app-token action deprecates its numeric
+app-ID input, so the action receives the repository's
+`RELEASE_PLEASE_CLIENT_ID` value.
 
 ### D017 — Retain the AWS SDK OIDC client
 
@@ -312,19 +313,20 @@ compiling the AWS graph.
 
 ### D018 — Developer ID signing for the embedded CLI
 
-**Decision:** Pass `CODE_SIGN_IDENTITY=Developer ID Application` to the release
-archive so every signable target, including `QuorraCLI`, uses the distribution
-identity. Keep the main app's manual provisioning profile and verify the
-exported helper's authority, hardened runtime, identifier, App Group entitlement,
-and nested signature in CI.
+**Decision:** Give `QuorraCLI` explicit per-configuration signing settings:
+automatic Apple Development signing for Debug and manual Developer ID signing
+for Release. Keep the main app's manual provisioning profile, avoid a global
+archive identity override, and verify the exported helper's authority, hardened
+runtime, identifier, App Group entitlement, and nested signature in CI.
 
-**Evidence:** Xcode 27 evaluates the helper's target-level Release identity as
-Apple Development unless overridden. Its only entitlement is the macOS team-
-prefix App Group `9GEBAJV9R4.quorra`; Apple documents this form as unrestricted
-and not requiring a provisioning profile. The main app still requires its
-profile for the restricted Keychain access group. Xcode evaluation confirms the
-workflow override reaches the helper without changing its automatic signing
-style or adding a profile requirement.
+**Evidence:** A workspace-wide `CODE_SIGN_IDENTITY` override also reached Swift
+package resource bundles and conflicted with the helper's automatic signing.
+Its only entitlement is the macOS team-prefix App Group
+`9GEBAJV9R4.quorra`; Apple documents this form as unrestricted and not requiring
+a provisioning profile. `REGISTER_APP_GROUPS=NO` reflects that unprovisioned
+form. The main app still requires its profile for the restricted Keychain access
+group. Xcode 27 evaluates both application targets as Developer ID/manual for
+Release without applying that identity to package targets.
 
 ## Open Decisions
 
@@ -410,10 +412,10 @@ style or adding a profile requirement.
 - `actionlint` currently flags the inherited release-token configuration:
   `actions/create-github-app-token@v3` requires `app-id`. The workflow now uses
   the repository's existing `RELEASE_PLEASE_APP_ID`, and `actionlint` passes.
-- The release archive now explicitly applies the Developer ID Application
-  identity to nested signable targets. Xcode 27 build-setting evaluation proves
-  the override reaches `QuorraCLI`, and CI rejects an exported helper whose
-  signing authority is not Developer ID Application.
+- The release archive now uses Xcode 27 and the unambiguous `QuorraApp` scheme.
+  The nested helper owns its Developer ID Release identity, while package targets
+  receive no workspace-wide signing override. CI rejects an exported helper
+  whose signing authority is not Developer ID Application.
 - App-owned profile sign-in is implemented with start/status/cancel IPC
   operations. Six focused Xcode 27 tests pass, covering state transitions,
   failure prose, cancellation forwarding, invalid profiles, command parsing,

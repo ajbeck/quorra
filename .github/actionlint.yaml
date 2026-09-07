@@ -3,3 +3,11 @@
 self-hosted-runner:
   labels:
     - xcode-27
+
+# actionlint 1.7.12 ships older metadata for create-github-app-token v3.
+# The current v3 action accepts client-id and deprecates app-id.
+paths:
+  .github/workflows/release.yml:
+    ignore:
+      - 'missing input "app-id" which is required by action "actions/create-github-app-token@v3"'
+      - 'input "client-id" is not defined in action "actions/create-github-app-token@v3"'

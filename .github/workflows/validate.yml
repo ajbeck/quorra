@@ -87,7 +87,7 @@ jobs:
         run: >-
           xcodebuild test
           -workspace Quorra.xcworkspace
-          -scheme quorra
+          -scheme QuorraApp
           -testPlan quorra
           -destination 'platform=macOS'
           -clonedSourcePackagesDirPath "$SOURCE_PACKAGES_PATH"
