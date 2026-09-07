@@ -2,6 +2,7 @@ import SwiftUI
 import AWSConfigINI
 import IAMIdentityCenter
 import QuorraAppLogic
+import QuorraProfiles
 
 /// A profile row in the flat Profiles list: profile name (line 1), `via` badge
 /// (line 2), and a trailing status icon. Account and role are *not* shown in the

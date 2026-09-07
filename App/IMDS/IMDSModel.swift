@@ -3,6 +3,7 @@ import AWSConfigINI
 import IAMIdentityCenter
 import Observation
 import QuorraAppLogic
+import QuorraProfiles
 import SwiftData
 
 @Observable

@@ -32,6 +32,27 @@
         "identifier" : "QuorraAppLogicTests",
         "name" : "QuorraAppLogicTests"
       }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:Packages\/QuorraCore",
+        "identifier" : "QuorraCLITests",
+        "name" : "QuorraCLITests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:Packages\/QuorraCore",
+        "identifier" : "QuorraIPCTests",
+        "name" : "QuorraIPCTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:Packages\/QuorraCore",
+        "identifier" : "QuorraProfilesTests",
+        "name" : "QuorraProfilesTests"
+      }
     }
   ],
   "version" : 1

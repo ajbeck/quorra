@@ -28,7 +28,7 @@ jobs:
         id: release-token
         uses: actions/create-github-app-token@v3
         with:
-          client-id: ${{ vars.RELEASE_PLEASE_CLIENT_ID }}
+          app-id: ${{ vars.RELEASE_PLEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
           permission-contents: write
           permission-issues: write
@@ -40,7 +40,8 @@ jobs:
         uses: googleapis/release-please-action@v5
         with:
           token: ${{ steps.release-token.outputs.token }}
-          release-type: simple
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
 
       - name: Sync pending release pull request
         env:
@@ -176,6 +177,7 @@ jobs:
             -skipPackagePluginValidation \
             -archivePath "$archive_path" \
             QUORRA_PROVISIONING_PROFILE_SPECIFIER="$PROVISIONING_PROFILE_UUID" \
+            CODE_SIGN_IDENTITY='Developer ID Application' \
             MARKETING_VERSION="$RELEASE_VERSION" \
             CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER"
 
@@ -199,6 +201,10 @@ jobs:
           actual_feed_url="$(/usr/libexec/PlistBuddy -c 'Print :SUFeedURL' "$info_plist")"
           actual_public_key="$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$info_plist")"
           installer_service="$(/usr/libexec/PlistBuddy -c 'Print :SUEnableInstallerLauncherService' "$info_plist")"
+          multiple_instances_prohibited="$(/usr/libexec/PlistBuddy -c 'Print :LSMultipleInstancesProhibited' "$info_plist")"
+          cli_app="$EXPORTED_APP_PATH/Contents/Helpers/QuorraCLI.app"
+          cli_executable="$cli_app/Contents/MacOS/quorra-cli"
+          cli_entitlements_path="$RUNNER_TEMP/quorra-cli-entitlements.plist"
           expected_feed_url="https://github.com/$GITHUB_REPOSITORY/releases/latest/download/appcast.xml"
           expected_public_key='y+F6DQa30xtzo9333VJJIbN+0xoDP6JzmiqSV8/Diko='
 
@@ -224,6 +230,48 @@ jobs:
 
           if [[ "$installer_service" != "true" ]]; then
             echo "::error::Sparkle installer launcher service is not enabled in the packaged app."
+            exit 1
+          fi
+
+          if [[ "$multiple_instances_prohibited" != "true" ]]; then
+            echo "::error::The packaged app must prohibit multiple Quorra instances."
+            exit 1
+          fi
+
+          if [[ ! -x "$cli_executable" ]]; then
+            echo "::error::The signed Quorra CLI is missing from the exported app."
+            exit 1
+          fi
+
+          cli_signature_details="$(codesign -dvvv "$cli_app" 2>&1)"
+          if ! grep -Fq 'Identifier=dev.ajbeck.quorra.cli' <<<"$cli_signature_details"; then
+            echo "::error::The Quorra CLI has the wrong signing identifier."
+            exit 1
+          fi
+          if ! grep -Fq '(runtime)' <<<"$cli_signature_details"; then
+            echo "::error::The Quorra CLI is not signed with hardened runtime."
+            exit 1
+          fi
+          if ! grep -Fq 'Authority=Developer ID Application:' <<<"$cli_signature_details"; then
+            echo "::error::The Quorra CLI is not signed with a Developer ID Application identity."
+            exit 1
+          fi
+
+          codesign -d --entitlements - "$cli_app" > "$cli_entitlements_path" 2>/dev/null
+          cli_app_group="$(/usr/libexec/PlistBuddy -c 'Print :com.apple.security.application-groups:0' "$cli_entitlements_path")"
+          if [[ "$cli_app_group" != '9GEBAJV9R4.quorra' ]]; then
+            echo "::error::The Quorra CLI is missing the shared App Group entitlement."
+            exit 1
+          fi
+
+          if ! lipo "$cli_executable" -verify_arch arm64 x86_64; then
+            echo "::error::The Quorra CLI must contain arm64 and x86_64 slices."
+            exit 1
+          fi
+
+          actual_cli_version="$("$cli_executable" version)"
+          if [[ "$actual_cli_version" != "$RELEASE_VERSION" ]]; then
+            echo "::error::Packaged CLI version $actual_cli_version does not match release version $RELEASE_VERSION."
             exit 1
           fi
 

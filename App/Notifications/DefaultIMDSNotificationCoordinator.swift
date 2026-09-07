@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Observation
 import UserNotifications
@@ -79,6 +80,10 @@ final class DefaultIMDSNotificationCoordinator: NSObject, UNUserNotificationCent
         endpointOpenRequestID = nil
     }
 
+    func requestEndpointOpen() {
+        endpointOpenRequestID = UUID()
+    }
+
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,
@@ -104,7 +109,8 @@ final class DefaultIMDSNotificationCoordinator: NSObject, UNUserNotificationCent
         }
 
         Task { @MainActor [weak self] in
-            self?.endpointOpenRequestID = UUID()
+            self?.requestEndpointOpen()
+            NSWorkspace.shared.open(AppNavigationRoute.defaultIMDSEndpointURL)
         }
         completionHandler()
     }

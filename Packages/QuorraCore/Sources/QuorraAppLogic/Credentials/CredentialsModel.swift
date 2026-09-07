@@ -2,6 +2,12 @@ import Foundation
 import Observation
 import IAMIdentityCenter
 
+public enum CredentialsSignInResult: Sendable, Equatable {
+    case succeeded
+    case cancelled
+    case failed(IAMIdentityCenterError)
+}
+
 /// Observable presenter for IAM Identity Center sign-in and auth-status state.
 ///
 /// Wraps the actor's flows with UI-friendly state:
@@ -101,12 +107,13 @@ public final class CredentialsModel {
     /// Clears any prior `signOutFailure`, `refreshFailure`, and `lastError` for the session
     /// before starting. On the verificationHandler callback, populates `inFlight[sessionName]`.
     /// On success or failure, the event stream consumer updates `status` asynchronously.
+    @discardableResult
     public func signIn(
         sessionName: String,
         startUrl: URL,
         region: String,
         scopes: [String]
-    ) async {
+    ) async -> CredentialsSignInResult {
         // Clear stale state — guard against false invalidation on no-op assignment
         if lastError[sessionName] != nil { lastError[sessionName] = nil }
         if signOutFailure.contains(sessionName) { signOutFailure.remove(sessionName) }
@@ -125,14 +132,19 @@ public final class CredentialsModel {
                 }
             )
             if inFlight[sessionName] != nil { inFlight[sessionName] = nil }
+            return .succeeded
         } catch let error as IAMIdentityCenterError {
             if inFlight[sessionName] != nil { inFlight[sessionName] = nil }
-            if error != .userCancelled {
-                lastError[sessionName] = error
+            if error == .userCancelled {
+                return .cancelled
             }
+            lastError[sessionName] = error
+            return .failed(error)
         } catch {
             if inFlight[sessionName] != nil { inFlight[sessionName] = nil }
-            lastError[sessionName] = .malformedResponse(String(reflecting: error))
+            let mappedError = IAMIdentityCenterError.malformedResponse(String(reflecting: error))
+            lastError[sessionName] = mappedError
+            return .failed(mappedError)
         }
     }
 

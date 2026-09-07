@@ -67,9 +67,9 @@ struct SignOutCascadeTests {
 
     /// Returns the role-cred account keys present in the keychain for `roleCredsService`.
     private func roleCredKeys(keychain: InMemoryKeychainStore) async -> [String] {
-        (try? await keychain.enumerateAccounts(
+        await keychain.enumerateAccounts(
             service: IdentityCenterService.ServiceConstants.roleCredsService
-        )) ?? []
+        )
     }
 
     // MARK: - D27: Role-cred purge, cross-session isolation

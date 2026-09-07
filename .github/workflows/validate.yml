@@ -39,9 +39,19 @@ jobs:
           exit 1
 
   test:
-    name: Build and test
-    runs-on: macos-26
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Build and test
+            runner: macos-26
+            artifact: stable
+          - name: Build and test (Xcode 27 preview)
+            runner: xcode-27
+            artifact: xcode-27
 
     steps:
       - name: Check out repository
@@ -104,7 +114,7 @@ jobs:
         if: ${{ failure() }}
         uses: actions/upload-artifact@v7
         with:
-          name: quorra-test-results
+          name: quorra-test-results-${{ matrix.artifact }}
           path: ${{ runner.temp }}/quorra-tests.xcresult
           if-no-files-found: warn
           retention-days: 7
