@@ -66,18 +66,27 @@ jobs:
           echo "source_packages_path=$RUNNER_TEMP/quorra-source-packages" >> "$GITHUB_OUTPUT"
           echo "version=$(xcodebuild -version | awk '/^Xcode / { print $2 }')" >> "$GITHUB_OUTPUT"
 
-      - name: Restore Xcode build cache
-        id: xcode-cache
+      - name: Restore Swift package cache
+        id: swift-package-cache
         uses: actions/cache/restore@v6
         with:
           path: |
-            ${{ steps.xcode.outputs.derived_data_path }}
             ${{ steps.xcode.outputs.package_cache_path }}
             ${{ steps.xcode.outputs.source_packages_path }}
           key: >-
-            ${{ runner.os }}-${{ runner.arch }}-xcode-${{ steps.xcode.outputs.version }}-quorra-${{ hashFiles('Quorra.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'Quorra.xcodeproj/project.pbxproj', 'Packages/QuorraCore/Package.swift') }}
+            ${{ runner.os }}-${{ runner.arch }}-xcode-${{ steps.xcode.outputs.version }}-quorra-packages-${{ hashFiles('Quorra.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'Packages/QuorraCore/Package.swift') }}
           restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-xcode-${{ steps.xcode.outputs.version }}-quorra-
+            ${{ runner.os }}-${{ runner.arch }}-xcode-${{ steps.xcode.outputs.version }}-quorra-packages-
+
+      - name: Restore validation build cache
+        id: validation-build-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ steps.xcode.outputs.derived_data_path }}
+          key: >-
+            ${{ runner.os }}-${{ runner.arch }}-xcode-${{ steps.xcode.outputs.version }}-quorra-derived-data-${{ hashFiles('Quorra.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'Quorra.xcodeproj/project.pbxproj', 'Packages/QuorraCore/Package.swift') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-xcode-${{ steps.xcode.outputs.version }}-quorra-derived-data-
 
       - name: Build and test
         env:
@@ -98,17 +107,25 @@ jobs:
           -resultBundlePath "$RUNNER_TEMP/quorra-tests.xcresult"
           CODE_SIGNING_ALLOWED=NO
 
-      - name: Save Xcode build cache
+      - name: Save Swift package cache
         if: >-
-          ${{ success() && github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.xcode-cache.outputs.cache-hit != 'true' }}
+          ${{ success() && github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.swift-package-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v6
         with:
           path: |
-            ${{ steps.xcode.outputs.derived_data_path }}
             ${{ steps.xcode.outputs.package_cache_path }}
             ${{ steps.xcode.outputs.source_packages_path }}
           key: >-
-            ${{ runner.os }}-${{ runner.arch }}-xcode-${{ steps.xcode.outputs.version }}-quorra-${{ hashFiles('Quorra.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'Quorra.xcodeproj/project.pbxproj', 'Packages/QuorraCore/Package.swift') }}
+            ${{ runner.os }}-${{ runner.arch }}-xcode-${{ steps.xcode.outputs.version }}-quorra-packages-${{ hashFiles('Quorra.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'Packages/QuorraCore/Package.swift') }}
+
+      - name: Save validation build cache
+        if: >-
+          ${{ success() && github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.validation-build-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ steps.xcode.outputs.derived_data_path }}
+          key: >-
+            ${{ runner.os }}-${{ runner.arch }}-xcode-${{ steps.xcode.outputs.version }}-quorra-derived-data-${{ hashFiles('Quorra.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'Quorra.xcodeproj/project.pbxproj', 'Packages/QuorraCore/Package.swift') }}
 
       - name: Upload test results
         if: ${{ failure() }}
