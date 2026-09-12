@@ -40,6 +40,7 @@
 /* Begin PBXFileReference section */
 		1B5F7C8D2FACE2A100833D01 /* quorra.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = quorra.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1B84B1B32FB1D87700D138C8 /* quorra.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = quorra.xctestplan; sourceTree = "<group>"; };
+		21370CB4305529300036671E /* QuorraIMDSHelper.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = QuorraIMDSHelper.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		21E8E026304DC82400467434 /* QuorraCLI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = QuorraCLI.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -47,6 +48,11 @@
 		1B5F7C8F2FACE2A100833D01 /* App */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = App;
+			sourceTree = "<group>";
+		};
+		21370CB5305529300036671E /* QuorraIMDSHelper */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = QuorraIMDSHelper;
 			sourceTree = "<group>";
 		};
 		21E8E027304DC82400467434 /* QuorraCLI */ = {
@@ -66,6 +72,11 @@
 				1B9A00012FD0000000000001 /* Sparkle in Frameworks */,
 			);
 		};
+		21370CB1305529300036671E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
 		21E8E023304DC82400467434 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
@@ -81,6 +92,7 @@
 				1B84B1B32FB1D87700D138C8 /* quorra.xctestplan */,
 				1B5F7C8F2FACE2A100833D01 /* App */,
 				21E8E027304DC82400467434 /* QuorraCLI */,
+				21370CB5305529300036671E /* QuorraIMDSHelper */,
 				1B84B1E62FB38D8C00D138C8 /* Frameworks */,
 				1B5F7C8E2FACE2A100833D01 /* Products */,
 			);
@@ -91,6 +103,7 @@
 			children = (
 				1B5F7C8D2FACE2A100833D01 /* quorra.app */,
 				21E8E026304DC82400467434 /* QuorraCLI.app */,
+				21370CB4305529300036671E /* QuorraIMDSHelper.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -133,6 +146,24 @@
 			productReference = 1B5F7C8D2FACE2A100833D01 /* quorra.app */;
 			productType = "com.apple.product-type.application";
 		};
+		21370CB3305529300036671E /* QuorraIMDSHelper */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 21370CBE305529310036671E /* Build configuration list for PBXNativeTarget "QuorraIMDSHelper" */;
+			buildPhases = (
+				21370CB0305529300036671E /* Sources */,
+				21370CB1305529300036671E /* Frameworks */,
+				21370CB2305529300036671E /* Resources */,
+			);
+			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				21370CB5305529300036671E /* QuorraIMDSHelper */,
+			);
+			name = QuorraIMDSHelper;
+			productName = QuorraIMDSHelper;
+			productReference = 21370CB4305529300036671E /* QuorraIMDSHelper.app */;
+			productType = "com.apple.product-type.application";
+		};
 		21E8E025304DC82400467434 /* QuorraCLI */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 21E8E030304DC82600467434 /* Build configuration list for PBXNativeTarget "QuorraCLI" */;
@@ -168,6 +199,9 @@
 					1B5F7C8C2FACE2A100833D01 = {
 						CreatedOnToolsVersion = 26.4;
 					};
+					21370CB3305529300036671E = {
+						CreatedOnToolsVersion = 27.0;
+					};
 					21E8E025304DC82400467434 = {
 						CreatedOnToolsVersion = 27.0;
 					};
@@ -193,6 +227,7 @@
 			targets = (
 				1B5F7C8C2FACE2A100833D01 /* quorra */,
 				21E8E025304DC82400467434 /* QuorraCLI */,
+				21370CB3305529300036671E /* QuorraIMDSHelper */,
 			);
 		};
 /* End PBXProject section */
@@ -204,6 +239,11 @@
 				1B84B1B42FB1D87700D138C8 /* quorra.xctestplan in Resources */,
 			);
 		};
+		21370CB2305529300036671E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
 		21E8E024304DC82400467434 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
@@ -213,6 +253,11 @@
 
 /* Begin PBXSourcesBuildPhase section */
 		1B5F7C892FACE2A100833D01 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
+		21370CB0305529300036671E /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			files = (
 			);
@@ -426,6 +471,96 @@
 			};
 			name = Release;
 		};
+		21370CBC305529310036671E /* Debug configuration for PBXNativeTarget "QuorraIMDSHelper" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSBackgroundOnly = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 26.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "dev.ajbeck.quorra.imds-helper";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				XROS_DEPLOYMENT_TARGET = 27.0;
+			};
+			name = Debug;
+		};
+		21370CBD305529310036671E /* Release configuration for PBXNativeTarget "QuorraIMDSHelper" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSBackgroundOnly = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 26.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "dev.ajbeck.quorra.imds-helper";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				XROS_DEPLOYMENT_TARGET = 27.0;
+			};
+			name = Release;
+		};
 		21E8E02E304DC82600467434 /* Debug configuration for PBXNativeTarget "QuorraCLI" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -542,6 +677,14 @@
 			buildConfigurations = (
 				1B5F7C992FACE2A200833D01 /* Debug configuration for PBXNativeTarget "quorra" */,
 				1B5F7C9A2FACE2A200833D01 /* Release configuration for PBXNativeTarget "quorra" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		21370CBE305529310036671E /* Build configuration list for PBXNativeTarget "QuorraIMDSHelper" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				21370CBC305529310036671E /* Debug configuration for PBXNativeTarget "QuorraIMDSHelper" */,
+				21370CBD305529310036671E /* Release configuration for PBXNativeTarget "QuorraIMDSHelper" */,
 			);
 			defaultConfigurationName = Release;
 		};

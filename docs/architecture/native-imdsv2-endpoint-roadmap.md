@@ -45,9 +45,9 @@ Canonical EC2-compatible endpoint
 
 | Stage | Status | Exit condition |
 | --- | --- | --- |
-| Architecture and invariants | In progress | Security boundary and ownership rules are documented |
-| Runtime configuration | Not started | Public and backend endpoints are distinct and options reach the server |
-| Privileged helper | Not started | Signed launch daemon registers and exposes an authenticated control plane |
+| Architecture and invariants | Complete | Security boundary and ownership rules are documented |
+| Runtime configuration | In progress | Public and backend endpoints are distinct and options reach the server |
+| Privileged helper | In progress | Signed launch daemon registers and exposes an authenticated control plane |
 | Interface and relay | Not started | Owned `/32` alias and port 80 relay work idempotently |
 | App lifecycle and UX | Not started | Approval, readiness, conflicts, and disablement are visible and recoverable |
 | Distribution | Not started | Universal signed helper passes archive and notarization checks |
@@ -170,4 +170,3 @@ operation that actually requires that permission.
 - IMDSv2 token creation, invalid and expired tokens, metadata reads, credential
   refresh, and live profile switching.
 - Debug, Developer ID archive, Sparkle update, notarized DMG, and app removal.
-
