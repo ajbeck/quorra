@@ -128,7 +128,14 @@ final class IMDSProxyController {
     }
 
     private func installConfiguration() async throws -> NETransparentProxyManager {
-        let manager = try await loadConfiguredManager() ?? NETransparentProxyManager()
+        let configuredManager = try await loadConfiguredManager()
+        if let configuredManager, hasCurrentConfiguration(configuredManager) {
+            manager = configuredManager
+            refreshConnectionStatus()
+            return configuredManager
+        }
+
+        let manager = configuredManager ?? NETransparentProxyManager()
         let providerProtocol = NETunnelProviderProtocol()
         providerProtocol.providerBundleIdentifier = Self.providerBundleIdentifier
         providerProtocol.serverAddress = DefaultIMDSEndpoint.bindAddress
@@ -142,6 +149,16 @@ final class IMDSProxyController {
         self.manager = manager
         refreshConnectionStatus()
         return manager
+    }
+
+    private func hasCurrentConfiguration(_ manager: NETransparentProxyManager) -> Bool {
+        guard manager.isEnabled,
+              manager.localizedDescription == Self.localizedDescription,
+              let providerProtocol = manager.protocolConfiguration as? NETunnelProviderProtocol else {
+            return false
+        }
+        return providerProtocol.providerBundleIdentifier == Self.providerBundleIdentifier
+            && providerProtocol.serverAddress == DefaultIMDSEndpoint.bindAddress
     }
 
     private func removeConfiguration() async throws {

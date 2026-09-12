@@ -44,8 +44,7 @@ final class AppProxyProvider: NETransparentProxyProvider {
     }
 
     override func handleNewFlow(_ flow: NEAppProxyFlow) -> Bool {
-        guard let tcpFlow = flow as? NEAppProxyTCPFlow,
-              Self.matchesMetadataEndpoint(tcpFlow.__remoteFlowEndpoint) else {
+        guard let tcpFlow = flow as? NEAppProxyTCPFlow else {
             return false
         }
 
@@ -63,15 +62,6 @@ final class AppProxyProvider: NETransparentProxyProvider {
 
         relay.start()
         return true
-    }
-
-    private static func matchesMetadataEndpoint(_ endpoint: nw_endpoint_t) -> Bool {
-        guard nw_endpoint_get_type(endpoint) == nw_endpoint_type_host else {
-            return false
-        }
-        let hostname = nw_endpoint_get_hostname(endpoint)
-        return String(cString: hostname) == Endpoint.publicAddressString
-            && nw_endpoint_get_port(endpoint) == Endpoint.publicPort.rawValue
     }
 }
 
