@@ -32,6 +32,7 @@ Canonical EC2-compatible endpoint
     ├── authenticated XPC control plane
     ├── idempotent lo0 alias ownership
     ├── 169.254.169.254:80 listener
+    ├── app-group Mach service: 9GEBAJV9R4.quorra.imds-helper
     ├── byte-stream relay to 127.0.0.1:7114
     └── cleanup and conflict recovery
         ├── address already configured
@@ -180,6 +181,19 @@ relay's memory. Treating them strictly as bounded byte streams keeps HTTP,
 token, credential, and AWS behavior out of privileged code while avoiding the
 additional lifecycle and POSIX-server complexity of passing a bound socket to
 the sandboxed app.
+
+### D012 — Sandboxed XPC namespace
+
+**Decision:** Publish the daemon's Mach service as
+`9GEBAJV9R4.quorra.imds-helper`, a child of Quorra's existing App Group ID. The
+app connects with `NSXPCConnection`'s privileged option. Do not use a temporary
+Mach-lookup exception or disable App Sandbox.
+
+**Reasoning:** Apple documents App Groups as the standard namespace for a
+sandboxed client to reach a global launch-daemon XPC endpoint. Quorra's App
+Group entitlement is already provisioning-profile-authorized; the unsandboxed
+daemon does not need to claim that entitlement merely to publish the child
+service name.
 
 ## Implementation Sequence
 

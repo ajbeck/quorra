@@ -6,7 +6,7 @@ import Testing
 @Suite("IPC contract")
 struct QuorraIPCContractTests {
     @Test func helperIPCUsesExactMutualCodeSigningRequirements() {
-        #expect(QuorraIMDSHelperXPC.machServiceName == "dev.ajbeck.quorra.imds-helper")
+        #expect(QuorraIMDSHelperXPC.machServiceName == "9GEBAJV9R4.quorra.imds-helper")
         #expect(
             QuorraIMDSHelperXPC.appCodeSigningRequirement
                 == "anchor apple generic and identifier \"dev.ajbeck.quorra\" "
