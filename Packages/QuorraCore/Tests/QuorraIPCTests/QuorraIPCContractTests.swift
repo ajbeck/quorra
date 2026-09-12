@@ -19,6 +19,16 @@ struct QuorraIPCContractTests {
         )
     }
 
+    @Test func helperStatusPreservesFailureWithoutCredentialMaterial() {
+        let status = QuorraIMDSHelperStatus(
+            state: .failed,
+            failureMessage: "The public address is already configured."
+        )
+
+        #expect(status.state == .failed)
+        #expect(status.failureMessage == "The public address is already configured.")
+    }
+
     @Test func requestRoundTripsWithVersionAndArguments() throws {
         let requestID = UUID(uuidString: "E3B12F5D-CC25-4D54-A1B6-D7703EC0287F")!
         let request = QuorraIPCRequest(
