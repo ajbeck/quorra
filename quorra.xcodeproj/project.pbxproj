@@ -18,6 +18,8 @@
 		21370CF430552C000036671E /* QuorraIPC in Frameworks */ = {isa = PBXBuildFile; productRef = 21370CF530552C000036671E /* QuorraIPC */; };
 		21370CF630552D000036671E /* QuorraIMDSHelper.app in CopyFiles */ = {isa = PBXBuildFile; fileRef = 21370CB4305529300036671E /* QuorraIMDSHelper.app */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		21370CF730552D000036671E /* Configs/dev.ajbeck.quorra.imds-helper.plist in Copy LaunchDaemons */ = {isa = PBXBuildFile; fileRef = 21370CF830552D000036671E /* Configs/dev.ajbeck.quorra.imds-helper.plist */; };
+		213712AC305585AA0036671E /* NetworkExtension.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 213712AB305585AA0036671E /* NetworkExtension.framework */; };
+		213712B4305585AB0036671E /* QuorraIMDSNetworkExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 213712AA305585AA0036671E /* QuorraIMDSNetworkExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		218FE06E304DC905008239F8 /* QuorraCLIKit in Frameworks */ = {isa = PBXBuildFile; productRef = 218FE06D304DC905008239F8 /* QuorraCLIKit */; };
 		218FE071304DC92F008239F8 /* QuorraCLI.app in CopyFiles */ = {isa = PBXBuildFile; fileRef = 21E8E026304DC82400467434 /* QuorraCLI.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
@@ -43,6 +45,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = 21370CB3305529300036671E;
 			remoteInfo = QuorraIMDSHelper;
+		};
+		213712B2305585AB0036671E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1B5F7C852FACE2A100833D01 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 213712A9305585AA0036671E;
+			remoteInfo = QuorraIMDSNetworkExtension;
 		};
 		218FE06F304DC916008239F8 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -72,6 +81,15 @@
 			);
 			name = "Copy LaunchDaemons";
 		};
+		213712B9305585AB0036671E /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			dstPath = "";
+			dstSubfolder = PlugIns;
+			files = (
+				213712B4305585AB0036671E /* QuorraIMDSNetworkExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+		};
 		218FD8B1304D894B008239F8 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			dstPath = Contents/Helpers;
@@ -90,6 +108,8 @@
 		21370CD730552B5F0036671E /* QuorraIMDSHelperCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = QuorraIMDSHelperCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		21370CDF30552B5F0036671E /* QuorraIMDSHelperCoreTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = QuorraIMDSHelperCoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		21370CF830552D000036671E /* Configs/dev.ajbeck.quorra.imds-helper.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Configs/dev.ajbeck.quorra.imds-helper.plist"; sourceTree = SOURCE_ROOT; };
+		213712AA305585AA0036671E /* QuorraIMDSNetworkExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = QuorraIMDSNetworkExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		213712AB305585AA0036671E /* NetworkExtension.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = NetworkExtension.framework; path = System/Library/Frameworks/NetworkExtension.framework; sourceTree = SDKROOT; };
 		21E8E026304DC82400467434 /* QuorraCLI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = QuorraCLI.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -101,6 +121,13 @@
 				InterfaceAliasManager.swift,
 			);
 			target = 21370CB3305529300036671E /* QuorraIMDSHelper */;
+		};
+		213712B5305585AB0036671E /* Exceptions for "QuorraIMDSNetworkExtension" folder in "QuorraIMDSNetworkExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 213712A9305585AA0036671E /* QuorraIMDSNetworkExtension */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -126,6 +153,14 @@
 		21370CE530552B5F0036671E /* QuorraIMDSHelperCoreTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = QuorraIMDSHelperCoreTests;
+			sourceTree = "<group>";
+		};
+		213712AD305585AA0036671E /* QuorraIMDSNetworkExtension */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				213712B5305585AB0036671E /* Exceptions for "QuorraIMDSNetworkExtension" folder in "QuorraIMDSNetworkExtension" target */,
+			);
+			path = QuorraIMDSNetworkExtension;
 			sourceTree = "<group>";
 		};
 		21E8E027304DC82400467434 /* QuorraCLI */ = {
@@ -163,6 +198,12 @@
 				21370CE030552B5F0036671E /* QuorraIMDSHelperCore.framework in Frameworks */,
 			);
 		};
+		213712A7305585AA0036671E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+				213712AC305585AA0036671E /* NetworkExtension.framework in Frameworks */,
+			);
+		};
 		21E8E023304DC82400467434 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
@@ -182,6 +223,7 @@
 				21370CB5305529300036671E /* QuorraIMDSHelper */,
 				21370CD830552B5F0036671E /* QuorraIMDSHelperCore */,
 				21370CE530552B5F0036671E /* QuorraIMDSHelperCoreTests */,
+				213712AD305585AA0036671E /* QuorraIMDSNetworkExtension */,
 				1B84B1E62FB38D8C00D138C8 /* Frameworks */,
 				1B5F7C8E2FACE2A100833D01 /* Products */,
 			);
@@ -195,6 +237,7 @@
 				21370CB4305529300036671E /* QuorraIMDSHelper.app */,
 				21370CD730552B5F0036671E /* QuorraIMDSHelperCore.framework */,
 				21370CDF30552B5F0036671E /* QuorraIMDSHelperCoreTests.xctest */,
+				213712AA305585AA0036671E /* QuorraIMDSNetworkExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -202,6 +245,7 @@
 		1B84B1E62FB38D8C00D138C8 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				213712AB305585AA0036671E /* NetworkExtension.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -226,12 +270,14 @@
 				1B5F7C8B2FACE2A100833D01 /* Resources */,
 				218FD8B1304D894B008239F8 /* CopyFiles */,
 				21370CF930552D000036671E /* Copy LaunchDaemons */,
+				213712B9305585AB0036671E /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				218FE070304DC916008239F8 /* PBXTargetDependency */,
 				21370CFB30552D000036671E /* PBXTargetDependency */,
+				213712B3305585AB0036671E /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				1B5F7C8F2FACE2A100833D01 /* App */,
@@ -312,6 +358,24 @@
 			productReference = 21370CDF30552B5F0036671E /* QuorraIMDSHelperCoreTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		213712A9305585AA0036671E /* QuorraIMDSNetworkExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 213712B6305585AB0036671E /* Build configuration list for PBXNativeTarget "QuorraIMDSNetworkExtension" */;
+			buildPhases = (
+				213712A6305585AA0036671E /* Sources */,
+				213712A7305585AA0036671E /* Frameworks */,
+				213712A8305585AA0036671E /* Resources */,
+			);
+			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				213712AD305585AA0036671E /* QuorraIMDSNetworkExtension */,
+			);
+			name = QuorraIMDSNetworkExtension;
+			productName = QuorraIMDSNetworkExtension;
+			productReference = 213712AA305585AA0036671E /* QuorraIMDSNetworkExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		21E8E025304DC82400467434 /* QuorraCLI */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 21E8E030304DC82600467434 /* Build configuration list for PBXNativeTarget "QuorraCLI" */;
@@ -356,6 +420,9 @@
 					21370CDE30552B5F0036671E = {
 						CreatedOnToolsVersion = 27.0;
 					};
+					213712A9305585AA0036671E = {
+						CreatedOnToolsVersion = 27.0;
+					};
 					21E8E025304DC82400467434 = {
 						CreatedOnToolsVersion = 27.0;
 					};
@@ -384,6 +451,7 @@
 				21370CB3305529300036671E /* QuorraIMDSHelper */,
 				21370CD630552B5F0036671E /* QuorraIMDSHelperCore */,
 				21370CDE30552B5F0036671E /* QuorraIMDSHelperCoreTests */,
+				213712A9305585AA0036671E /* QuorraIMDSNetworkExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -406,6 +474,11 @@
 			);
 		};
 		21370CDD30552B5F0036671E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		213712A8305585AA0036671E /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
 			);
@@ -438,6 +511,11 @@
 			files = (
 			);
 		};
+		213712A6305585AA0036671E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
 		21E8E022304DC82400467434 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			files = (
@@ -460,6 +538,11 @@
 			isa = PBXTargetDependency;
 			target = 21370CB3305529300036671E /* QuorraIMDSHelper */;
 			targetProxy = 21370CFA30552D000036671E /* PBXContainerItemProxy */;
+		};
+		213712B3305585AB0036671E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 213712A9305585AA0036671E /* QuorraIMDSNetworkExtension */;
+			targetProxy = 213712B2305585AB0036671E /* PBXContainerItemProxy */;
 		};
 		218FE070304DC916008239F8 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -892,6 +975,84 @@
 			};
 			name = Release;
 		};
+		213712B7305585AB0036671E /* Debug configuration for PBXNativeTarget "QuorraIMDSNetworkExtension" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = QuorraIMDSNetworkExtension/QuorraIMDSNetworkExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = QuorraIMDSNetworkExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = QuorraIMDSNetworkExtension;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 dev.ajbeck. All rights reserved.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "dev.ajbeck.quorra.imds-proxy";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		213712B8305585AB0036671E /* Release configuration for PBXNativeTarget "QuorraIMDSNetworkExtension" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = QuorraIMDSNetworkExtension/QuorraIMDSNetworkExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = QuorraIMDSNetworkExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = QuorraIMDSNetworkExtension;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 dev.ajbeck. All rights reserved.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "dev.ajbeck.quorra.imds-proxy";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
 		21E8E02E304DC82600467434 /* Debug configuration for PBXNativeTarget "QuorraCLI" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1032,6 +1193,14 @@
 			buildConfigurations = (
 				21370CF130552B5F0036671E /* Debug configuration for PBXNativeTarget "QuorraIMDSHelperCoreTests" */,
 				21370CF230552B5F0036671E /* Release configuration for PBXNativeTarget "QuorraIMDSHelperCoreTests" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		213712B6305585AB0036671E /* Build configuration list for PBXNativeTarget "QuorraIMDSNetworkExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				213712B7305585AB0036671E /* Debug configuration for PBXNativeTarget "QuorraIMDSNetworkExtension" */,
+				213712B8305585AB0036671E /* Release configuration for PBXNativeTarget "QuorraIMDSNetworkExtension" */,
 			);
 			defaultConfigurationName = Release;
 		};
