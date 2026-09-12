@@ -9,6 +9,12 @@ public protocol InterfaceAliasSystem {
     func removeOwnershipMarker(at url: URL) throws
 }
 
+@MainActor
+public protocol InterfaceAliasManaging {
+    func enable() throws -> InterfaceAliasActivation
+    func disable() throws -> InterfaceAliasDeactivation
+}
+
 public enum InterfaceAliasActivation: Equatable {
     case created
     case reclaimed
@@ -121,3 +127,5 @@ public struct InterfaceAliasManager {
         }
     }
 }
+
+extension InterfaceAliasManager: InterfaceAliasManaging {}

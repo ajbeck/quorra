@@ -139,6 +139,18 @@ the stable public endpoint avoids privileged interface churn and lets normal
 service resume as soon as Quorra restarts, while a hard concurrent-connection
 limit bounds resource use in the daemon.
 
+### D009 — Transactional activation
+
+**Decision:** Enable by probing the loopback backend, acquiring the owned
+interface alias, and then starting the public listener. If listener startup
+fails, remove the owned alias. Disable in reverse dependency order by stopping
+the listener before removing the alias.
+
+**Reasoning:** This ordering prevents Quorra from advertising a ready endpoint
+without a backend and prevents new clients from arriving while its address is
+being removed. Reporting both startup and rollback failures preserves the
+information needed for safe recovery.
+
 ## Implementation Sequence
 
 1. Extract endpoint constants and a runtime configuration that distinguishes

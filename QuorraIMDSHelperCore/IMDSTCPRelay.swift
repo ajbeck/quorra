@@ -22,6 +22,12 @@ public enum IMDSTCPRelayError: LocalizedError {
 }
 
 @MainActor
+public protocol IMDSTCPRelaying: AnyObject {
+    func start() async throws
+    func stop()
+}
+
+@MainActor
 public final class IMDSTCPRelay {
     private let publicAddress: String
     private let publicPort: Int
@@ -321,3 +327,5 @@ private final class RelayConnection {
         onFinish()
     }
 }
+
+extension IMDSTCPRelay: IMDSTCPRelaying {}
