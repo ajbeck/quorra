@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.0](https://github.com/ajbeck/quorra/compare/v0.5.2...v0.6.0) (2026-09-12)
+
+
+### Features
+
+* **imds:** support native default endpoint ([#55](https://github.com/ajbeck/quorra/issues/55)) ([35595d0](https://github.com/ajbeck/quorra/commit/35595d0b4bf182b2ae0da72d4683d13ff8056fc7))
+
+
+### Bug Fixes
+
+* **auth:** use the default browser for sign-in ([#56](https://github.com/ajbeck/quorra/issues/56)) ([62028a5](https://github.com/ajbeck/quorra/commit/62028a5fa49a97ec0280ddfa78ee5a96c22e5baa))
+* **release:** verify CLI architectures with Xcode 27 ([#52](https://github.com/ajbeck/quorra/issues/52)) ([7860ebb](https://github.com/ajbeck/quorra/commit/7860ebbbdb1e25b31309437d08dcef37f176ef0d))
+
 ## [0.5.2](https://github.com/ajbeck/quorra/compare/v0.5.1...v0.5.2) (2026-09-07)
 
 
