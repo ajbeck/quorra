@@ -81,6 +81,32 @@ struct IMDSHelperServiceTests {
 
         #expect(fixture.events.values == [.probe, .enableAlias, .startRelay])
     }
+
+    @Test func disableSupersedesEnableWhileBackendProbeIsSuspended() async throws {
+        let events = EventLog()
+        let probe = ControlledBackendProbe(events: events)
+        let service = IMDSHelperService(
+            backendProbe: probe,
+            aliasManager: StubAliasManager(events: events, disableError: nil),
+            relay: StubRelay(events: events, startError: nil),
+            isPrivileged: { true }
+        )
+        let enableTask = Task {
+            try await service.enable()
+        }
+
+        while !probe.isSuspended {
+            await Task.yield()
+        }
+        try service.disable()
+        probe.resume()
+
+        await #expect(throws: CancellationError.self) {
+            try await enableTask.value
+        }
+        #expect(events.values == [.probe, .stopRelay, .disableAlias])
+        #expect(service.state == .disabled)
+    }
 }
 
 @MainActor
@@ -129,6 +155,30 @@ private struct StubBackendProbe: IMDSBackendProbing {
     func probe() async throws {
         events.values.append(.probe)
         if let error { throw error }
+    }
+}
+
+@MainActor
+private final class ControlledBackendProbe: IMDSBackendProbing {
+    let events: EventLog
+    private var continuation: CheckedContinuation<Void, Never>?
+
+    var isSuspended: Bool { continuation != nil }
+
+    init(events: EventLog) {
+        self.events = events
+    }
+
+    func probe() async {
+        events.values.append(.probe)
+        await withCheckedContinuation { continuation in
+            self.continuation = continuation
+        }
+    }
+
+    func resume() {
+        continuation?.resume()
+        continuation = nil
     }
 }
 
