@@ -168,6 +168,19 @@ a launch-daemon plist in that exact Library directory. Retaining the helper as
 a nested, GUI-less app keeps its private framework, hardened-runtime signature,
 and identifier in one independently verifiable code-signing unit.
 
+### D011 — Opaque credential transport
+
+**Decision:** The privileged helper may transiently copy opaque TCP buffers
+between the public listener and loopback backend, but it never interprets,
+persists, or logs their contents. Release per-connection buffers when each
+connection closes.
+
+**Reasoning:** IMDS credential responses and tokens necessarily cross the
+relay's memory. Treating them strictly as bounded byte streams keeps HTTP,
+token, credential, and AWS behavior out of privileged code while avoiding the
+additional lifecycle and POSIX-server complexity of passing a bound socket to
+the sandboxed app.
+
 ## Implementation Sequence
 
 1. Extract endpoint constants and a runtime configuration that distinguishes
@@ -191,8 +204,8 @@ and identifier in one independently verifiable code-signing unit.
 
 ## Security and Failure Invariants
 
-- The privileged helper never receives, parses, stores, or logs AWS
-  credentials or IMDS tokens.
+- The privileged helper never interprets, persists, or logs AWS credentials or
+  IMDS tokens; it handles them only as bounded, per-connection TCP buffers.
 - The public listener binds exactly `169.254.169.254:80`.
 - The backend listener binds exactly `127.0.0.1:7114`.
 - Interface and port conflicts fail closed and identify the conflicting

@@ -8,6 +8,7 @@ struct GeneralSettingsTab: View {
     @Environment(EditorState.self) private var editorState
     @Environment(AppPresentationController.self) private var presentationController
     @Environment(LaunchAtLoginController.self) private var launchAtLoginController
+    @Environment(IMDSHelperController.self) private var imdsHelperController
     @State private var pendingMode: ManagedMode?
     @State private var cliInstallation = CLIInstallationController()
 
@@ -63,6 +64,9 @@ struct GeneralSettingsTab: View {
             Section("Command Line Tool") {
                 cliInstallationSection
             }
+            Section("System Metadata Endpoint") {
+                systemMetadataEndpointSection
+            }
         }
         .formStyle(.grouped)
         .navigationTitle("General")
@@ -88,6 +92,47 @@ struct GeneralSettingsTab: View {
         .task {
             cliInstallation.refresh()
             launchAtLoginController.refresh()
+            await imdsHelperController.refresh()
+        }
+    }
+
+    @ViewBuilder private var systemMetadataEndpointSection: some View {
+        Toggle(
+            "Allow 169.254.169.254:80 on this Mac",
+            isOn: Binding(
+                get: { imdsHelperController.isRequested },
+                set: { shouldRegister in
+                    Task { await imdsHelperController.setRegistered(shouldRegister) }
+                }
+            )
+        )
+        .disabled(imdsHelperController.registrationStatus == .notFound)
+
+        Text("Quorra uses a signed system helper to add only the EC2 metadata address to loopback and relay opaque TCP bytes to the unprivileged IMDSv2 server. The helper never interprets, stores, or logs credentials or tokens.")
+            .font(.callout)
+            .foregroundStyle(.secondary)
+
+        switch imdsHelperController.registrationStatus {
+        case .requiresApproval:
+            Label("Administrator approval is required in Login Items settings.", systemImage: "exclamationmark.triangle")
+                .foregroundStyle(.orange)
+            Button("Open Login Items Settings") {
+                imdsHelperController.openSystemSettings()
+            }
+        case .notFound:
+            Label("The system metadata endpoint is unavailable in this build.", systemImage: "exclamationmark.triangle")
+                .foregroundStyle(.orange)
+        case .enabled:
+            if let helperStatus = imdsHelperController.helperStatus {
+                LabeledContent("Helper", value: helperStatus.state.rawValue.capitalized)
+            }
+        case .notRegistered:
+            EmptyView()
+        }
+
+        if let errorMessage = imdsHelperController.errorMessage {
+            Label(errorMessage, systemImage: "exclamationmark.triangle")
+                .foregroundStyle(.red)
         }
     }
 
@@ -206,6 +251,7 @@ struct GeneralSettingsTab: View {
         .environment(EditorState())
         .environment(AppPresentationController())
         .environment(LaunchAtLoginController())
+        .environment(IMDSHelperController())
         .frame(width: 540)
 }
 
@@ -215,6 +261,7 @@ struct GeneralSettingsTab: View {
         .environment(EditorState())
         .environment(AppPresentationController())
         .environment(LaunchAtLoginController())
+        .environment(IMDSHelperController())
         .frame(width: 540)
 }
 
