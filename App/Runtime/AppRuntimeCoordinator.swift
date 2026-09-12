@@ -54,13 +54,19 @@ final class AppRuntimeCoordinator {
     private(set) var authenticationNotice: DefaultEndpointAuthenticationNotice?
     private(set) var defaultEndpointProfileName: String?
 
+    var activeSignIns: [SignInProgress] {
+        credentialsModel.inFlight.values.sorted {
+            $0.sessionName.localizedStandardCompare($1.sessionName) == .orderedAscending
+        }
+    }
+
     @ObservationIgnored private let appModel: AppModel
     @ObservationIgnored private let profilesModel: ProfilesModel
     @ObservationIgnored private let credentialsModel: CredentialsModel
     @ObservationIgnored private let imdsModel: IMDSModel
     @ObservationIgnored private let imdsProxyController: IMDSProxyController
     @ObservationIgnored private let notificationCoordinator: DefaultIMDSNotificationCoordinator
-    @ObservationIgnored private let authBrowserPresenter: AuthBrowserPresenter
+    @ObservationIgnored private let authenticationBrowser: AuthenticationBrowser
     @ObservationIgnored private let modelContext: ModelContext
 
     @ObservationIgnored private var hasStarted = false
@@ -80,7 +86,7 @@ final class AppRuntimeCoordinator {
         imdsModel: IMDSModel,
         imdsProxyController: IMDSProxyController,
         notificationCoordinator: DefaultIMDSNotificationCoordinator,
-        authBrowserPresenter: AuthBrowserPresenter,
+        authenticationBrowser: AuthenticationBrowser,
         modelContext: ModelContext
     ) {
         self.appModel = appModel
@@ -89,7 +95,7 @@ final class AppRuntimeCoordinator {
         self.imdsModel = imdsModel
         self.imdsProxyController = imdsProxyController
         self.notificationCoordinator = notificationCoordinator
-        self.authBrowserPresenter = authBrowserPresenter
+        self.authenticationBrowser = authenticationBrowser
         self.modelContext = modelContext
     }
 
@@ -105,6 +111,11 @@ final class AppRuntimeCoordinator {
 
     func dismissAuthenticationNotice() {
         authenticationNotice = nil
+    }
+
+    func openAuthenticationPage(for sessionName: String) {
+        guard let progress = credentialsModel.inFlight[sessionName] else { return }
+        authenticationBrowser.open(progress.verificationUriComplete)
     }
 
     func setDefaultEndpointEnabled(_ isEnabled: Bool) async {
@@ -331,12 +342,8 @@ final class AppRuntimeCoordinator {
         defer { previousSignIns = currentSignIns }
 
         for (sessionName, progress) in currentSignIns where previousSignIns[sessionName] == nil {
-            authBrowserPresenter.present(progress.verificationUriComplete)
+            authenticationBrowser.open(progress.verificationUriComplete)
             return
-        }
-
-        if previousSignIns.contains(where: { currentSignIns[$0.key] == nil }) {
-            authBrowserPresenter.dismiss()
         }
     }
 
@@ -503,7 +510,7 @@ extension AppRuntimeCoordinator {
             imdsModel: imdsModel,
             imdsProxyController: IMDSProxyController(),
             notificationCoordinator: notificationCoordinator,
-            authBrowserPresenter: AuthBrowserPresenter(),
+            authenticationBrowser: AuthenticationBrowser(),
             modelContext: container.mainContext
         )
     }

@@ -16,7 +16,7 @@ struct quorraApp: App {
                 .environment(appDelegate.imdsProxyController)
                 .environment(appDelegate.notificationCoordinator)
                 .environment(appDelegate.runtimeCoordinator)
-                .environment(\.authBrowserPresenter, appDelegate.authBrowserPresenter)
+                .environment(\.authenticationBrowser, appDelegate.authenticationBrowser)
         }
         .modelContainer(appDelegate.metadataContainer)
         .defaultSize(width: 1280, height: 760)

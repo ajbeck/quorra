@@ -30,6 +30,24 @@ struct QuorraMenuBarView: View {
         }
         .disabled(endpointState.isStarting || runtimeCoordinator.defaultEndpointProfileName == nil)
 
+        if !runtimeCoordinator.activeSignIns.isEmpty {
+            Divider()
+
+            Label("IAM Identity Center sign-in in progress", systemImage: "person.badge.clock")
+                .disabled(true)
+
+            ForEach(runtimeCoordinator.activeSignIns, id: \.sessionName) { progress in
+                Button {
+                    runtimeCoordinator.openAuthenticationPage(for: progress.sessionName)
+                } label: {
+                    Label("Open sign-in for \(progress.sessionName)", systemImage: "safari")
+                }
+
+                Text("Code \(progress.userCode) · expires \(progress.expiresAt.formatted(date: .omitted, time: .shortened))")
+                    .disabled(true)
+            }
+        }
+
         Divider()
 
         Button("Open Quorra") {

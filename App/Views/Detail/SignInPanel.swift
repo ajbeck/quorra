@@ -35,8 +35,6 @@ struct SignInPanel: View {
     let onSignOut: () -> Void
     /// A2: invoked when the user taps "Refresh now" in the transient-failure advisory (D16)
     var onRefreshNow: (() -> Void)? = nil
-    @Environment(\.authBrowserPresenter) private var authBrowserPresenter
-
     var body: some View {
         switch authStatus {
         case .signingIn:
@@ -119,16 +117,16 @@ struct SignInPanel: View {
                     .textSelection(.enabled)
             }
 
-            Button("Open browser again") {
-                authBrowserPresenter.present(progress.verificationUriComplete)
-            }
-            .controlSize(.small)
+            AuthenticationBrowserActions(
+                verificationURL: progress.verificationUriComplete,
+                userCode: progress.userCode
+            )
 
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
                     ProgressView()
                         .controlSize(.small)
-                    Text("Waiting for browser sign-in…")
+                    Text("Waiting for AWS to confirm browser sign-in…")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }

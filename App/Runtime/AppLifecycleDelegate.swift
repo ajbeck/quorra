@@ -15,7 +15,7 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
     let editorState: EditorState
     let imdsModel: IMDSModel
     let notificationCoordinator: DefaultIMDSNotificationCoordinator
-    let authBrowserPresenter: AuthBrowserPresenter
+    let authenticationBrowser: AuthenticationBrowser
     let credentialsModel: CredentialsModel
     let runtimeCoordinator: AppRuntimeCoordinator
     let ipcController: AppIPCController
@@ -31,7 +31,7 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
         let editorState = EditorState()
         let imdsModel = IMDSModel()
         let notificationCoordinator = DefaultIMDSNotificationCoordinator()
-        let authBrowserPresenter = AuthBrowserPresenter()
+        let authenticationBrowser = AuthenticationBrowser()
         let credentialsModel = CredentialsModel(
             service: IdentityCenterService(
                 keychain: Keychain(accessGroup: KeychainAccessGroup.shared),
@@ -46,7 +46,7 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
         self.editorState = editorState
         self.imdsModel = imdsModel
         self.notificationCoordinator = notificationCoordinator
-        self.authBrowserPresenter = authBrowserPresenter
+        self.authenticationBrowser = authenticationBrowser
         self.credentialsModel = credentialsModel
         let runtimeCoordinator = AppRuntimeCoordinator(
             appModel: appModel,
@@ -55,7 +55,7 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
             imdsModel: imdsModel,
             imdsProxyController: imdsProxyController,
             notificationCoordinator: notificationCoordinator,
-            authBrowserPresenter: authBrowserPresenter,
+            authenticationBrowser: authenticationBrowser,
             modelContext: metadataContainer.mainContext
         )
         self.runtimeCoordinator = runtimeCoordinator
