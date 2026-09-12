@@ -101,7 +101,7 @@ struct MainView: View {
         .environment(CredentialsModel(service: PreviewIdentityCenterService()))
         .environment(IMDSModel())
         .environment(DefaultIMDSNotificationCoordinator())
-        .environment(\.authBrowserPresenter, AuthBrowserPresenter())
+        .environment(\.authenticationBrowser, AuthenticationBrowser())
         .modelContainer(try! QuorraMetadataSchema.makeContainer(inMemory: true))
 }
 
@@ -206,7 +206,7 @@ private struct MainViewSampleDataHarness: View {
             .environment(credentialsModel)
             .environment(imdsModel)
             .environment(DefaultIMDSNotificationCoordinator())
-            .environment(\.authBrowserPresenter, AuthBrowserPresenter())
+            .environment(\.authenticationBrowser, AuthenticationBrowser())
             .modelContainer(metadataContainer)
     }
 }

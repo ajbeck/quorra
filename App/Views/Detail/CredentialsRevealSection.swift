@@ -26,8 +26,6 @@ struct CredentialsRevealSection: View {
     var onViewSession: (() -> Void)?
 
     @Environment(CredentialsModel.self) private var model
-    @Environment(\.authBrowserPresenter) private var authBrowserPresenter
-
     @State private var selectedShell: CredentialShell = .bash
     @State private var creds: RoleCredentials?
     @State private var fetchError: IAMIdentityCenterError?
@@ -356,10 +354,10 @@ struct CredentialsRevealSection: View {
                         .textSelection(.enabled)
                 }
 
-                Button("Open browser again") {
-                    authBrowserPresenter.present(progress.verificationUriComplete)
-                }
-                .controlSize(.small)
+                AuthenticationBrowserActions(
+                    verificationURL: progress.verificationUriComplete,
+                    userCode: progress.userCode
+                )
 
                 Text("Expires in")
                     .foregroundStyle(.secondary)
