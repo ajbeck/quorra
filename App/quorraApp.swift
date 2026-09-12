@@ -13,7 +13,7 @@ struct quorraApp: App {
                 .environment(appDelegate.editorState)
                 .environment(appDelegate.credentialsModel)
                 .environment(appDelegate.imdsModel)
-                .environment(appDelegate.imdsHelperController)
+                .environment(appDelegate.imdsProxyController)
                 .environment(appDelegate.notificationCoordinator)
                 .environment(appDelegate.runtimeCoordinator)
                 .environment(\.authBrowserPresenter, appDelegate.authBrowserPresenter)
@@ -49,7 +49,7 @@ struct quorraApp: App {
                 .environment(appDelegate.editorState)
                 .environment(appDelegate.presentationController)
                 .environment(appDelegate.launchAtLoginController)
-                .environment(appDelegate.imdsHelperController)
+                .environment(appDelegate.imdsProxyController)
         }
         .modelContainer(appDelegate.metadataContainer)
     }

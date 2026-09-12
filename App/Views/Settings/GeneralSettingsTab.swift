@@ -8,7 +8,7 @@ struct GeneralSettingsTab: View {
     @Environment(EditorState.self) private var editorState
     @Environment(AppPresentationController.self) private var presentationController
     @Environment(LaunchAtLoginController.self) private var launchAtLoginController
-    @Environment(IMDSHelperController.self) private var imdsHelperController
+    @Environment(IMDSProxyController.self) private var imdsProxyController
     @State private var pendingMode: ManagedMode?
     @State private var cliInstallation = CLIInstallationController()
 
@@ -92,45 +92,30 @@ struct GeneralSettingsTab: View {
         .task {
             cliInstallation.refresh()
             launchAtLoginController.refresh()
-            await imdsHelperController.refresh()
+            await imdsProxyController.refresh()
         }
     }
 
     @ViewBuilder private var systemMetadataEndpointSection: some View {
         Toggle(
-            "Allow 169.254.169.254:80 on this Mac",
+            "Enable the default EC2 metadata URL",
             isOn: Binding(
-                get: { imdsHelperController.isRequested },
-                set: { shouldRegister in
-                    Task { await imdsHelperController.setRegistered(shouldRegister) }
+                get: { imdsProxyController.isInstalled },
+                set: { shouldInstall in
+                    Task { await imdsProxyController.setInstalled(shouldInstall) }
                 }
             )
         )
-        .disabled(imdsHelperController.registrationStatus == .notFound)
 
-        Text("Quorra uses a signed system helper to add only the EC2 metadata address to loopback and relay opaque TCP bytes to the unprivileged IMDSv2 server. The helper never interprets, stores, or logs credentials or tokens.")
+        Text("Quorra asks macOS to route only TCP connections for 169.254.169.254:80 through its Network Extension. The extension relays opaque bytes to Quorra’s sandboxed IMDSv2 server and never interprets, stores, or logs credentials or tokens.")
             .font(.callout)
             .foregroundStyle(.secondary)
 
-        switch imdsHelperController.registrationStatus {
-        case .requiresApproval:
-            Label("Administrator approval is required in Login Items settings.", systemImage: "exclamationmark.triangle")
-                .foregroundStyle(.orange)
-            Button("Open Login Items Settings") {
-                imdsHelperController.openSystemSettings()
-            }
-        case .notFound:
-            Label("The system metadata endpoint is unavailable in this build.", systemImage: "exclamationmark.triangle")
-                .foregroundStyle(.orange)
-        case .enabled:
-            if let helperStatus = imdsHelperController.helperStatus {
-                LabeledContent("Helper", value: helperStatus.state.rawValue.capitalized)
-            }
-        case .notRegistered:
-            EmptyView()
+        if imdsProxyController.isInstalled {
+            LabeledContent("Network Extension", value: imdsProxyController.connectionStatus.description)
         }
 
-        if let errorMessage = imdsHelperController.errorMessage {
+        if let errorMessage = imdsProxyController.errorMessage {
             Label(errorMessage, systemImage: "exclamationmark.triangle")
                 .foregroundStyle(.red)
         }
@@ -251,7 +236,7 @@ struct GeneralSettingsTab: View {
         .environment(EditorState())
         .environment(AppPresentationController())
         .environment(LaunchAtLoginController())
-        .environment(IMDSHelperController())
+        .environment(IMDSProxyController())
         .frame(width: 540)
 }
 
@@ -261,7 +246,7 @@ struct GeneralSettingsTab: View {
         .environment(EditorState())
         .environment(AppPresentationController())
         .environment(LaunchAtLoginController())
-        .environment(IMDSHelperController())
+        .environment(IMDSProxyController())
         .frame(width: 540)
 }
 

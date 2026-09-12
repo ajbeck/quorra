@@ -58,7 +58,7 @@ final class AppRuntimeCoordinator {
     @ObservationIgnored private let profilesModel: ProfilesModel
     @ObservationIgnored private let credentialsModel: CredentialsModel
     @ObservationIgnored private let imdsModel: IMDSModel
-    @ObservationIgnored private let imdsHelperController: IMDSHelperController
+    @ObservationIgnored private let imdsProxyController: IMDSProxyController
     @ObservationIgnored private let notificationCoordinator: DefaultIMDSNotificationCoordinator
     @ObservationIgnored private let authBrowserPresenter: AuthBrowserPresenter
     @ObservationIgnored private let modelContext: ModelContext
@@ -78,7 +78,7 @@ final class AppRuntimeCoordinator {
         profilesModel: ProfilesModel,
         credentialsModel: CredentialsModel,
         imdsModel: IMDSModel,
-        imdsHelperController: IMDSHelperController,
+        imdsProxyController: IMDSProxyController,
         notificationCoordinator: DefaultIMDSNotificationCoordinator,
         authBrowserPresenter: AuthBrowserPresenter,
         modelContext: ModelContext
@@ -87,7 +87,7 @@ final class AppRuntimeCoordinator {
         self.profilesModel = profilesModel
         self.credentialsModel = credentialsModel
         self.imdsModel = imdsModel
-        self.imdsHelperController = imdsHelperController
+        self.imdsProxyController = imdsProxyController
         self.notificationCoordinator = notificationCoordinator
         self.authBrowserPresenter = authBrowserPresenter
         self.modelContext = modelContext
@@ -425,7 +425,7 @@ final class AppRuntimeCoordinator {
         }
 
         do {
-            try await imdsHelperController.enable()
+            try await imdsProxyController.start()
             authenticationNotice = nil
             notificationCoordinator.clearAuthenticationRequiredNotification()
         } catch {
@@ -439,15 +439,8 @@ final class AppRuntimeCoordinator {
 
     private func stopDefaultEndpoint() async {
         let endpointID = DefaultIMDSEndpoint.stableIDString
-        do {
-            _ = try await imdsHelperController.disable()
-            imdsModel.stopEndpoint(forEndpointID: endpointID)
-        } catch {
-            imdsModel.setState(
-                .failed(port: DefaultIMDSEndpoint.port, message: error.localizedDescription),
-                forEndpointID: endpointID
-            )
-        }
+        imdsProxyController.stop()
+        imdsModel.stopEndpoint(forEndpointID: endpointID)
     }
 
     private func presentAuthenticationNoticeIfNeeded(
@@ -508,7 +501,7 @@ extension AppRuntimeCoordinator {
             profilesModel: profilesModel,
             credentialsModel: credentialsModel,
             imdsModel: imdsModel,
-            imdsHelperController: IMDSHelperController(),
+            imdsProxyController: IMDSProxyController(),
             notificationCoordinator: notificationCoordinator,
             authBrowserPresenter: AuthBrowserPresenter(),
             modelContext: container.mainContext
