@@ -48,7 +48,7 @@ Canonical EC2-compatible endpoint
 | Architecture and invariants | Complete | Security boundary and ownership rules are documented |
 | Runtime configuration | In progress | Public and backend endpoints are distinct and options reach the server |
 | Privileged helper | In progress | Signed launch daemon registers and exposes an authenticated control plane |
-| Interface and relay | Not started | Owned `/32` alias and port 80 relay work idempotently |
+| Interface and relay | In progress | Owned `/32` alias and port 80 relay work idempotently |
 | App lifecycle and UX | Not started | Approval, readiness, conflicts, and disablement are visible and recoverable |
 | Distribution | Not started | Universal signed helper passes archive and notarization checks |
 | End-to-end verification | Not started | Standard AWS clients complete IMDSv2 flows without endpoint overrides |
@@ -126,6 +126,18 @@ feature. Retain the app's existing incoming-network sandbox entitlement.
 Local Network privacy operation and that launch daemons are automatically
 allowed. A usage description should be added only if later work introduces an
 operation that actually requires that permission.
+
+### D008 — Backend outages
+
+**Decision:** Keep the owned alias and public listener active when the
+unprivileged backend is temporarily unavailable. Fail the affected TCP
+connection without buffering its request, then attempt a fresh loopback
+connection for the next client.
+
+**Reasoning:** The app and launch daemon have independent lifecycles. Keeping
+the stable public endpoint avoids privileged interface churn and lets normal
+service resume as soon as Quorra restarts, while a hard concurrent-connection
+limit bounds resource use in the daemon.
 
 ## Implementation Sequence
 
