@@ -53,6 +53,7 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
             profilesModel: profilesModel,
             credentialsModel: credentialsModel,
             imdsModel: imdsModel,
+            imdsHelperController: imdsHelperController,
             notificationCoordinator: notificationCoordinator,
             authBrowserPresenter: authBrowserPresenter,
             modelContext: metadataContainer.mainContext

@@ -277,7 +277,9 @@ private final class AppIPCRequestHandler {
             servedProfileName: runtime?.servedProfileName,
             bindAddress: definition.bindAddress,
             configuredPort: definition.port,
-            boundPort: state.isActive ? state.port : nil,
+            boundPort: state.isActive
+                ? (DefaultIMDSEndpoint.matches(definition) ? definition.port : state.port)
+                : nil,
             status: status,
             failureMessage: state.failureMessage,
             isDefault: DefaultIMDSEndpoint.matches(definition)

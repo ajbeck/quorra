@@ -40,8 +40,11 @@ struct MetadataModelTests {
 
         #expect(created.stableIDString == DefaultIMDSEndpoint.stableIDString)
         #expect(created.profileName == "alpha")
-        #expect(created.port == 7_114)
-        #expect(created.bindAddress == "127.0.0.1")
+        #expect(created.port == 80)
+        #expect(created.bindAddress == "169.254.169.254")
+        #expect(DefaultIMDSEndpoint.backendPort == 7_114)
+        #expect(DefaultIMDSEndpoint.backendBindAddress == "127.0.0.1")
+        #expect(created.allowsIMDSv1 == false)
         #expect(created === fetchedAgain)
         #expect(try context.fetchCount(FetchDescriptor<IMDSEndpointDefinition>()) == 1)
     }
@@ -55,7 +58,8 @@ struct MetadataModelTests {
             name: "Changed",
             profileName: "removed",
             port: 9_999,
-            bindAddress: "0.0.0.0"
+            bindAddress: "0.0.0.0",
+            allowsIMDSv1: true
         )
         context.insert(definition)
         try context.save()
@@ -67,8 +71,9 @@ struct MetadataModelTests {
 
         #expect(repaired.name == "Default IMDS Endpoint")
         #expect(repaired.profileName == "available")
-        #expect(repaired.port == 7_114)
-        #expect(repaired.bindAddress == "127.0.0.1")
+        #expect(repaired.port == 80)
+        #expect(repaired.bindAddress == "169.254.169.254")
+        #expect(repaired.allowsIMDSv1 == false)
     }
 
     @Test func imds_endpoint_log_limit_matches_product_decision() {
