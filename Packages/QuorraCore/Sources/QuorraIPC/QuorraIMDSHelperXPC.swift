@@ -1,7 +1,7 @@
 import Foundation
 
 public enum QuorraIMDSHelperXPC {
-    public static let machServiceName = "9GEBAJV9R4.quorra.imds-helper"
+    public static let machServiceName = "\(QuorraIPCProtocol.appGroupIdentifier).imds-helper"
     public static let helperIdentifier = "dev.ajbeck.quorra.imds-helper"
 
     public static let appCodeSigningRequirement = codeSigningRequirement(

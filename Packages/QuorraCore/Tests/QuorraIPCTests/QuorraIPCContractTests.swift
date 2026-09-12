@@ -8,6 +8,10 @@ struct QuorraIPCContractTests {
     @Test func helperIPCUsesExactMutualCodeSigningRequirements() {
         #expect(QuorraIMDSHelperXPC.machServiceName == "9GEBAJV9R4.quorra.imds-helper")
         #expect(
+            QuorraIMDSHelperXPC.machServiceName
+                .hasPrefix("\(QuorraIPCProtocol.appGroupIdentifier).")
+        )
+        #expect(
             QuorraIMDSHelperXPC.appCodeSigningRequirement
                 == "anchor apple generic and identifier \"dev.ajbeck.quorra\" "
                     + "and certificate leaf[subject.OU] = \"9GEBAJV9R4\""
