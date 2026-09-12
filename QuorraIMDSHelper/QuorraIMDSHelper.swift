@@ -1,10 +1,21 @@
 import Foundation
+import QuorraIMDSHelperCore
+import QuorraIPC
 
 @main
 enum QuorraIMDSHelper {
+    @MainActor
     static func main() {
-        // The launch daemon service loop is added with the authenticated XPC
-        // control plane. Keeping this executable inert until then prevents a
-        // partially configured helper from changing system state.
+        let service = IMDSHelperService()
+        let delegate = IMDSHelperXPCListenerDelegate(service: service)
+        let listener = NSXPCListener(
+            machServiceName: QuorraIMDSHelperXPC.machServiceName
+        )
+        listener.delegate = delegate
+        listener.setConnectionCodeSigningRequirement(
+            QuorraIMDSHelperXPC.appCodeSigningRequirement
+        )
+        listener.activate()
+        RunLoop.current.run()
     }
 }

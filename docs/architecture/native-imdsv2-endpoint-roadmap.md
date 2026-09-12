@@ -98,11 +98,16 @@ system-level work and requires user authorization. Quorra already uses
 
 **Decision:** Limit helper commands to status, enable, and disable. Require the
 calling process to have Quorra's signing identifier and Team ID before accepting
-an XPC request.
+an XPC request. The app likewise requires the helper's exact signing identifier
+and Team ID before sending a request. Keep the shared Objective-C protocol and
+signing constants in `QuorraIPC`; privileged behavior remains private to the
+helper targets.
 
 **Reasoning:** A system-wide Mach service must not let arbitrary local processes
 change network configuration. Code-signing requirements are stronger than PID,
-UID, or filesystem-path checks.
+UID, or filesystem-path checks. Foundation's connection-level signing
+requirements fail closed before an exported method is dispatched and avoid a
+custom audit-token validation path.
 
 ### D006 — Address ownership
 

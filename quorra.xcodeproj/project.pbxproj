@@ -15,6 +15,7 @@
 		21370CE030552B5F0036671E /* QuorraIMDSHelperCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 21370CD730552B5F0036671E /* QuorraIMDSHelperCore.framework */; };
 		21370CEA30552B5F0036671E /* QuorraIMDSHelperCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 21370CD730552B5F0036671E /* QuorraIMDSHelperCore.framework */; };
 		21370CEB30552B5F0036671E /* QuorraIMDSHelperCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 21370CD730552B5F0036671E /* QuorraIMDSHelperCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		21370CF430552C000036671E /* QuorraIPC in Frameworks */ = {isa = PBXBuildFile; productRef = 21370CF530552C000036671E /* QuorraIPC */; };
 		218FE06E304DC905008239F8 /* QuorraCLIKit in Frameworks */ = {isa = PBXBuildFile; productRef = 218FE06D304DC905008239F8 /* QuorraCLIKit */; };
 		218FE071304DC92F008239F8 /* QuorraCLI.app in CopyFiles */ = {isa = PBXBuildFile; fileRef = 21E8E026304DC82400467434 /* QuorraCLI.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
@@ -128,6 +129,7 @@
 			isa = PBXFrameworksBuildPhase;
 			files = (
 				21370CEA30552B5F0036671E /* QuorraIMDSHelperCore.framework in Frameworks */,
+				21370CF430552C000036671E /* QuorraIPC in Frameworks */,
 			);
 		};
 		21370CD430552B5F0036671E /* Frameworks */ = {
@@ -240,6 +242,9 @@
 				21370CB5305529300036671E /* QuorraIMDSHelper */,
 			);
 			name = QuorraIMDSHelper;
+			packageProductDependencies = (
+				21370CF530552C000036671E /* QuorraIPC */,
+			);
 			productName = QuorraIMDSHelper;
 			productReference = 21370CB4305529300036671E /* QuorraIMDSHelper.app */;
 			productType = "com.apple.product-type.application";
@@ -1051,6 +1056,10 @@
 		218FE06D304DC905008239F8 /* QuorraCLIKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = QuorraCLIKit;
+		};
+		21370CF530552C000036671E /* QuorraIPC */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = QuorraIPC;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
