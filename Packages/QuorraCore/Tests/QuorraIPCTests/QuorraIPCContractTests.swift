@@ -5,34 +5,6 @@ import Testing
 
 @Suite("IPC contract")
 struct QuorraIPCContractTests {
-    @Test func helperIPCUsesExactMutualCodeSigningRequirements() {
-        #expect(QuorraIMDSHelperXPC.machServiceName == "9GEBAJV9R4.quorra.imds-helper")
-        #expect(
-            QuorraIMDSHelperXPC.machServiceName
-                .hasPrefix("\(QuorraIPCProtocol.appGroupIdentifier).")
-        )
-        #expect(
-            QuorraIMDSHelperXPC.appCodeSigningRequirement
-                == "anchor apple generic and identifier \"dev.ajbeck.quorra\" "
-                    + "and certificate leaf[subject.OU] = \"9GEBAJV9R4\""
-        )
-        #expect(
-            QuorraIMDSHelperXPC.helperCodeSigningRequirement
-                == "anchor apple generic and identifier \"dev.ajbeck.quorra.imds-helper\" "
-                    + "and certificate leaf[subject.OU] = \"9GEBAJV9R4\""
-        )
-    }
-
-    @Test func helperStatusPreservesFailureWithoutCredentialMaterial() {
-        let status = QuorraIMDSHelperStatus(
-            state: .failed,
-            failureMessage: "The public address is already configured."
-        )
-
-        #expect(status.state == .failed)
-        #expect(status.failureMessage == "The public address is already configured.")
-    }
-
     @Test func requestRoundTripsWithVersionAndArguments() throws {
         let requestID = UUID(uuidString: "E3B12F5D-CC25-4D54-A1B6-D7703EC0287F")!
         let request = QuorraIPCRequest(

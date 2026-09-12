@@ -53,13 +53,6 @@
         "identifier" : "QuorraProfilesTests",
         "name" : "QuorraProfilesTests"
       }
-    },
-    {
-      "target" : {
-        "containerPath" : "container:quorra.xcodeproj",
-        "identifier" : "21370CDE30552B5F0036671E",
-        "name" : "QuorraIMDSHelperCoreTests"
-      }
     }
   ],
   "version" : 1
