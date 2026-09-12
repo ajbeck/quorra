@@ -620,7 +620,9 @@ struct IMDSDetailView: View {
             endpointID: endpointKey,
             for: node,
             credentialsModel: credentialsModel,
+            bindAddress: definition.bindAddress,
             port: definition.port,
+            allowsIMDSv1: definition.allowsIMDSv1,
             logContext: modelContext
         )
     }
