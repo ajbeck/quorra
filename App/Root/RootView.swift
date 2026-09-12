@@ -38,7 +38,7 @@ struct RootView: View {
                 runtimeCoordinator.dismissAuthenticationNotice()
             }
         } message: { notice in
-            Text("The active profile “\(notice.profileName)” needs you to sign in before the Default IMDS Endpoint can resume on 127.0.0.1:7114.")
+            Text("The active profile “\(notice.profileName)” needs you to sign in before the Default IMDS Endpoint can resume on \(DefaultIMDSEndpoint.bindAddress):\(DefaultIMDSEndpoint.port).")
         }
         .handlesExternalEvents(
             preferring: [AppNavigationRoute.externalEventMatchPrefix],

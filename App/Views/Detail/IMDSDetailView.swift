@@ -379,7 +379,7 @@ struct IMDSDetailView: View {
                     .controlSize(.small)
                     .disabled(state.isStarting || isSwitchingProfile)
                     .pressFeedback()
-                    .help("Change the profile served on 127.0.0.1:7114")
+                    .help("Change the profile served on \(DefaultIMDSEndpoint.bindAddress):\(DefaultIMDSEndpoint.port)")
                     .accessibilityLabel("Change served profile. Current profile: \(node.id)")
 
                     Button {
