@@ -16,11 +16,20 @@
 		21370CEA30552B5F0036671E /* QuorraIMDSHelperCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 21370CD730552B5F0036671E /* QuorraIMDSHelperCore.framework */; };
 		21370CEB30552B5F0036671E /* QuorraIMDSHelperCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 21370CD730552B5F0036671E /* QuorraIMDSHelperCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		21370CF430552C000036671E /* QuorraIPC in Frameworks */ = {isa = PBXBuildFile; productRef = 21370CF530552C000036671E /* QuorraIPC */; };
+		21370CF630552D000036671E /* QuorraIMDSHelper.app in CopyFiles */ = {isa = PBXBuildFile; fileRef = 21370CB4305529300036671E /* QuorraIMDSHelper.app */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		21370CF730552D000036671E /* dev.ajbeck.quorra.imds-helper.plist in Copy LaunchDaemons */ = {isa = PBXBuildFile; fileRef = 21370CF830552D000036671E /* dev.ajbeck.quorra.imds-helper.plist */; };
 		218FE06E304DC905008239F8 /* QuorraCLIKit in Frameworks */ = {isa = PBXBuildFile; productRef = 218FE06D304DC905008239F8 /* QuorraCLIKit */; };
 		218FE071304DC92F008239F8 /* QuorraCLI.app in CopyFiles */ = {isa = PBXBuildFile; fileRef = 21E8E026304DC82400467434 /* QuorraCLI.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		21370CFA30552D000036671E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1B5F7C852FACE2A100833D01 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 21370CB3305529300036671E;
+			remoteInfo = QuorraIMDSHelper;
+		};
 		21370CE130552B5F0036671E /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 1B5F7C852FACE2A100833D01 /* Project object */;
@@ -60,7 +69,17 @@
 			dstSubfolder = Wrapper;
 			files = (
 				218FE071304DC92F008239F8 /* QuorraCLI.app in CopyFiles */,
+				21370CF630552D000036671E /* QuorraIMDSHelper.app in CopyFiles */,
 			);
+		};
+		21370CF930552D000036671E /* Copy LaunchDaemons */ = {
+			isa = PBXCopyFilesBuildPhase;
+			dstPath = Contents/Library/LaunchDaemons;
+			dstSubfolder = Wrapper;
+			files = (
+				21370CF730552D000036671E /* dev.ajbeck.quorra.imds-helper.plist in Copy LaunchDaemons */,
+			);
+			name = "Copy LaunchDaemons";
 		};
 /* End PBXCopyFilesBuildPhase section */
 
@@ -70,6 +89,7 @@
 		21370CB4305529300036671E /* QuorraIMDSHelper.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = QuorraIMDSHelper.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		21370CD730552B5F0036671E /* QuorraIMDSHelperCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = QuorraIMDSHelperCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		21370CDF30552B5F0036671E /* QuorraIMDSHelperCoreTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = QuorraIMDSHelperCoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		21370CF830552D000036671E /* dev.ajbeck.quorra.imds-helper.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Configs/dev.ajbeck.quorra.imds-helper.plist; sourceTree = SOURCE_ROOT; };
 		21E8E026304DC82400467434 /* QuorraCLI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = QuorraCLI.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -156,6 +176,7 @@
 			isa = PBXGroup;
 			children = (
 				1B84B1B32FB1D87700D138C8 /* quorra.xctestplan */,
+				21370CF830552D000036671E /* dev.ajbeck.quorra.imds-helper.plist */,
 				1B5F7C8F2FACE2A100833D01 /* App */,
 				21E8E027304DC82400467434 /* QuorraCLI */,
 				21370CB5305529300036671E /* QuorraIMDSHelper */,
@@ -204,11 +225,13 @@
 				1B5F7C8A2FACE2A100833D01 /* Frameworks */,
 				1B5F7C8B2FACE2A100833D01 /* Resources */,
 				218FD8B1304D894B008239F8 /* CopyFiles */,
+				21370CF930552D000036671E /* Copy LaunchDaemons */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				218FE070304DC916008239F8 /* PBXTargetDependency */,
+				21370CFB30552D000036671E /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				1B5F7C8F2FACE2A100833D01 /* App */,
@@ -423,6 +446,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		21370CFB30552D000036671E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 21370CB3305529300036671E /* QuorraIMDSHelper */;
+			targetProxy = 21370CFA30552D000036671E /* PBXContainerItemProxy */;
+		};
 		21370CE230552B5F0036671E /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 21370CD630552B5F0036671E /* QuorraIMDSHelperCore */;

@@ -46,9 +46,9 @@ Canonical EC2-compatible endpoint
 | Stage | Status | Exit condition |
 | --- | --- | --- |
 | Architecture and invariants | Complete | Security boundary and ownership rules are documented |
-| Runtime configuration | In progress | Public and backend endpoints are distinct and options reach the server |
+| Runtime configuration | Complete | Public and backend endpoints are distinct and options reach the server |
 | Privileged helper | In progress | Signed launch daemon registers and exposes an authenticated control plane |
-| Interface and relay | In progress | Owned `/32` alias and port 80 relay work idempotently |
+| Interface and relay | Complete | Owned `/32` alias and port 80 relay work idempotently |
 | App lifecycle and UX | Not started | Approval, readiness, conflicts, and disablement are visible and recoverable |
 | Distribution | Not started | Universal signed helper passes archive and notarization checks |
 | End-to-end verification | Not started | Standard AWS clients complete IMDSv2 flows without endpoint overrides |
@@ -155,6 +155,18 @@ the listener before removing the alias.
 without a backend and prevents new clients from arriving while its address is
 being removed. Reporting both startup and rollback failures preserves the
 information needed for safe recovery.
+
+### D010 — Daemon bundle layout
+
+**Decision:** Embed the signed `QuorraIMDSHelper.app` under the main app's
+`Contents/Helpers` directory and point the launch-daemon plist's
+`BundleProgram` at its inner executable. Embed the plist under
+`Contents/Library/LaunchDaemons`.
+
+**Reasoning:** `SMAppService` requires a bundle-relative helper executable and
+a launch-daemon plist in that exact Library directory. Retaining the helper as
+a nested, GUI-less app keeps its private framework, hardened-runtime signature,
+and identifier in one independently verifiable code-signing unit.
 
 ## Implementation Sequence
 
