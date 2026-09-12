@@ -95,6 +95,7 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        imdsProxyController.stop()
         ipcController.stop()
     }
 }

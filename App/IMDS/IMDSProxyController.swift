@@ -5,11 +5,17 @@ import QuorraAppLogic
 
 enum IMDSProxyControllerError: LocalizedError {
     case configurationUnavailable
+    case connectionFailed
+    case connectionTimedOut
 
     var errorDescription: String? {
         switch self {
         case .configurationUnavailable:
             return "The system metadata endpoint configuration is unavailable."
+        case .connectionFailed:
+            return "The system metadata endpoint Network Extension could not connect."
+        case .connectionTimedOut:
+            return "The system metadata endpoint Network Extension did not become ready in time."
         }
     }
 }
@@ -105,6 +111,7 @@ final class IMDSProxyController {
                 try manager.connection.startVPNTunnel()
                 connectionStatus = .connecting
             }
+            try await waitUntilConnected(manager)
         } catch {
             errorMessage = error.localizedDescription
             throw error
@@ -220,5 +227,32 @@ final class IMDSProxyController {
         @unknown default:
             connectionStatus = .disconnected
         }
+    }
+
+    private func waitUntilConnected(_ manager: NETransparentProxyManager) async throws {
+        let startedAt = ContinuousClock.now
+        let failureGracePeriod = startedAt + .seconds(1)
+        let deadline = startedAt + .seconds(15)
+        while ContinuousClock.now < deadline {
+            switch manager.connection.status {
+            case .connected:
+                connectionStatus = .connected
+                return
+            case .invalid, .disconnected:
+                connectionStatus = .disconnected
+                if ContinuousClock.now >= failureGracePeriod {
+                    throw IMDSProxyControllerError.connectionFailed
+                }
+            case .connecting, .reasserting:
+                connectionStatus = .connecting
+            case .disconnecting:
+                connectionStatus = .disconnecting
+            @unknown default:
+                break
+            }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        refreshConnectionStatus()
+        throw IMDSProxyControllerError.connectionTimedOut
     }
 }
