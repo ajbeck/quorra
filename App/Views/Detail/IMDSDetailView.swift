@@ -14,6 +14,7 @@ struct IMDSDetailView: View {
     @Environment(ProfilesModel.self) private var profilesModel
     @Environment(CredentialsModel.self) private var credentialsModel
     @Environment(IMDSModel.self) private var imdsModel
+    @Environment(AppRuntimeCoordinator.self) private var runtimeCoordinator
     @Environment(DefaultIMDSNotificationCoordinator.self) private var defaultIMDSNotificationCoordinator
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -213,7 +214,7 @@ struct IMDSDetailView: View {
                 Text("Built-in endpoint")
                     .font(.callout.weight(.semibold))
 
-                Text("Unlike profile-specific endpoints, this built-in endpoint can’t be deleted and its address stays fixed at 127.0.0.1:7114. Change the profile it serves at any time—even while it’s running. If left running, Quorra restores it at launch.")
+                Text("Unlike profile-specific endpoints, this built-in endpoint can’t be deleted and its address stays fixed at 169.254.169.254:80. Change the profile it serves at any time—even while it’s running. If left running, Quorra restores it at launch.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -378,7 +379,7 @@ struct IMDSDetailView: View {
                     .controlSize(.small)
                     .disabled(state.isStarting || isSwitchingProfile)
                     .pressFeedback()
-                    .help("Change the profile served on 127.0.0.1:7114")
+                    .help("Change the profile served on \(DefaultIMDSEndpoint.bindAddress):\(DefaultIMDSEndpoint.port)")
                     .accessibilityLabel("Change served profile. Current profile: \(node.id)")
 
                     Button {
@@ -613,22 +614,32 @@ struct IMDSDetailView: View {
         definition: IMDSEndpointDefinition
     ) async {
         if DefaultIMDSEndpoint.matches(endpointID: endpointKey) {
-            imdsModel.rememberDefaultEndpointShouldRun(true)
-            Task { await defaultIMDSNotificationCoordinator.requestAuthorizationIfNeeded() }
+            do {
+                try await runtimeCoordinator.startEndpoint(definition)
+            } catch {
+                imdsModel.setState(
+                    .failed(port: definition.port, message: error.localizedDescription),
+                    forEndpointID: endpointKey
+                )
+            }
+            return
         }
         await imdsModel.startEndpoint(
             endpointID: endpointKey,
             for: node,
             credentialsModel: credentialsModel,
+            bindAddress: definition.bindAddress,
             port: definition.port,
+            allowsIMDSv1: definition.allowsIMDSv1,
             logContext: modelContext
         )
     }
 
     private func stopEndpoint(_ endpointKey: String) {
         if DefaultIMDSEndpoint.matches(endpointID: endpointKey) {
-            imdsModel.rememberDefaultEndpointShouldRun(false)
-            defaultIMDSNotificationCoordinator.clearAuthenticationRequiredNotification()
+            guard let definition = endpointDefinition else { return }
+            Task { await runtimeCoordinator.stopEndpoint(definition) }
+            return
         }
         imdsModel.stopEndpoint(forEndpointID: endpointKey)
     }
@@ -873,7 +884,7 @@ struct IMDSDetailView: View {
         } content: {
             VStack(alignment: .leading, spacing: 10) {
                 configurationRow("Port") {
-                Text(String(state.port ?? definition.port))
+                    Text(String(displayPort(for: state, definition: definition)))
                         .font(.callout.monospacedDigit())
                 }
 
@@ -948,8 +959,17 @@ struct IMDSDetailView: View {
 
     private func endpointURL(for state: IMDSEndpointState, definition: IMDSEndpointDefinition) -> String {
         let bindAddress = definition.bindAddress
-        let port = state.port ?? definition.port
+        let port = displayPort(for: state, definition: definition)
         return "http://\(bindAddress):\(port)"
+    }
+
+    private func displayPort(
+        for state: IMDSEndpointState,
+        definition: IMDSEndpointDefinition
+    ) -> Int {
+        DefaultIMDSEndpoint.matches(definition)
+            ? definition.port
+            : state.port ?? definition.port
     }
 
     private func statusTitle(for state: IMDSEndpointState) -> String {
@@ -1300,6 +1320,7 @@ private struct IMDSDetailPreviewHarness: View {
         .environment(CredentialsModel(service: PreviewIdentityCenterService()))
         .environment(model)
         .environment(DefaultIMDSNotificationCoordinator())
+        .environment(AppRuntimeCoordinator.preview())
         .modelContainer(metadataContainer)
         .frame(width: 920, height: 720)
     }

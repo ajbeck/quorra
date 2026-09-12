@@ -47,7 +47,9 @@ final class IMDSModel {
         endpointID: String,
         for node: ProfileNode,
         credentialsModel: CredentialsModel,
+        bindAddress: String = "127.0.0.1",
         port: Int = 9678,
+        allowsIMDSv1: Bool = true,
         logContext: ModelContext? = nil,
         requestRecorder: RequestRecorder? = nil
     ) async {
@@ -66,7 +68,9 @@ final class IMDSModel {
             roleName: roleName,
             region: node.profile.region ?? "us-east-1",
             credentialsModel: credentialsModel,
+            bindAddress: bindAddress,
             port: port,
+            allowsIMDSv1: allowsIMDSv1,
             logContext: logContext,
             requestRecorder: requestRecorder
         )
@@ -80,7 +84,9 @@ final class IMDSModel {
         roleName: String,
         region: String,
         credentialsModel: CredentialsModel,
+        bindAddress: String = "127.0.0.1",
         port: Int = 9678,
+        allowsIMDSv1: Bool = true,
         logContext: ModelContext? = nil,
         requestRecorder: RequestRecorder? = nil
     ) async {
@@ -106,8 +112,10 @@ final class IMDSModel {
             configureLogBuffer(forEndpointID: endpointID, context: logContext)
 
             let server = LocalIMDSServer(
+                bindAddress: bindAddress,
                 port: port,
                 servedProfile: servedProfile,
+                allowsIMDSv1: allowsIMDSv1,
                 initialCredentials: initialCredentials,
                 credentialProvider: {
                     try await credentialsModel.liveCredentials(

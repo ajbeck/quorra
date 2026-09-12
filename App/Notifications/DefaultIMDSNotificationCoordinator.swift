@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import Observation
+import QuorraAppLogic
 import UserNotifications
 
 private enum DefaultIMDSNotification {
@@ -54,7 +55,7 @@ final class DefaultIMDSNotificationCoordinator: NSObject, UNUserNotificationCent
 
         let content = UNMutableNotificationContent()
         content.title = "Default IMDS Endpoint needs sign-in"
-        content.body = "Sign in to the active profile \(profileName) so Quorra can resume serving credentials on 127.0.0.1:7114."
+        content.body = "Sign in to the active profile \(profileName) so Quorra can resume serving credentials on \(DefaultIMDSEndpoint.bindAddress):\(DefaultIMDSEndpoint.port)."
         content.categoryIdentifier = DefaultIMDSNotification.categoryIdentifier
         content.threadIdentifier = DefaultIMDSNotification.categoryIdentifier
         content.sound = .default

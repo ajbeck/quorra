@@ -287,7 +287,9 @@ struct IMDSRouter: Sendable {
 
         let token = UUID().uuidString.replacingOccurrences(of: "-", with: "")
         tokens[token] = now.addingTimeInterval(ttl)
-        return .text(token)
+        var response = IMDSHTTPResponse.text(token)
+        response.headers["X-Aws-Ec2-Metadata-Token-Ttl-Seconds"] = String(Int(ttl))
+        return response
     }
 
     private func isValidToken(_ token: String, now: Date) -> Bool {
@@ -395,6 +397,7 @@ public final class LocalIMDSServer {
     private static let maximumCredentialRefreshLeadTime: TimeInterval = 5 * 60
     private static let credentialRefreshLeadTimeFraction = 0.10
 
+    private let bindAddress: String
     private let port: Int
     private var router: IMDSRouter
     private var credentialProvider: CredentialProvider
@@ -412,6 +415,7 @@ public final class LocalIMDSServer {
     public private(set) var boundPort: Int
 
     public init(
+        bindAddress: String = "127.0.0.1",
         port: Int,
         servedProfile: IMDSServedProfile,
         allowsIMDSv1: Bool = true,
@@ -422,6 +426,7 @@ public final class LocalIMDSServer {
         onFailure: @escaping (String) -> Void
     ) {
         let router = IMDSRouter(servedProfile: servedProfile, allowsIMDSv1: allowsIMDSv1)
+        self.bindAddress = bindAddress
         self.port = port
         self.boundPort = port
         self.router = router
@@ -440,14 +445,18 @@ public final class LocalIMDSServer {
             throw LocalIMDSServerError.invalidPort(port)
         }
 
-        let parameters = NWParameters.tcp
-        let listener: NWListener
-        if let loopback = IPv4Address("127.0.0.1") {
-            parameters.requiredLocalEndpoint = .hostPort(host: .ipv4(loopback), port: nwPort)
-            listener = try NWListener(using: parameters)
+        let host: NWEndpoint.Host
+        if let address = IPv4Address(bindAddress) {
+            host = .ipv4(address)
+        } else if let address = IPv6Address(bindAddress) {
+            host = .ipv6(address)
         } else {
-            listener = try NWListener(using: parameters, on: nwPort)
+            throw LocalIMDSServerError.invalidBindAddress(bindAddress)
         }
+
+        let parameters = NWParameters.tcp
+        parameters.requiredLocalEndpoint = .hostPort(host: host, port: nwPort)
+        let listener = try NWListener(using: parameters)
         self.listener = listener
 
         try await withCheckedThrowingContinuation { continuation in
@@ -682,11 +691,14 @@ public final class LocalIMDSServer {
 }
 
 enum LocalIMDSServerError: LocalizedError {
+    case invalidBindAddress(String)
     case invalidPort(Int)
     case network(NWError)
 
     var errorDescription: String? {
         switch self {
+        case .invalidBindAddress(let address):
+            return "Bind address \(address) is not a valid IPv4 or IPv6 address."
         case .invalidPort(let port):
             return "Port \(port) is not valid."
         case .network(let error):

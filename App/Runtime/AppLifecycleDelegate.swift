@@ -7,6 +7,7 @@ import SwiftData
 final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
     let presentationController: AppPresentationController
     let launchAtLoginController: LaunchAtLoginController
+    let imdsProxyController: IMDSProxyController
     let metadataContainer: ModelContainer
     let appModel: AppModel
     let appUpdater: AppUpdater
@@ -22,6 +23,7 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
     override init() {
         presentationController = AppPresentationController()
         launchAtLoginController = LaunchAtLoginController()
+        imdsProxyController = IMDSProxyController()
         let metadataContainer = try! QuorraMetadataSchema.makeContainer()
         let appModel = AppModel()
         let appUpdater = AppUpdater()
@@ -51,6 +53,7 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
             profilesModel: profilesModel,
             credentialsModel: credentialsModel,
             imdsModel: imdsModel,
+            imdsProxyController: imdsProxyController,
             notificationCoordinator: notificationCoordinator,
             authBrowserPresenter: authBrowserPresenter,
             modelContext: metadataContainer.mainContext
@@ -86,9 +89,13 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidBecomeActive(_ notification: Notification) {
         launchAtLoginController.refresh()
+        Task { [weak self] in
+            await self?.imdsProxyController.refresh()
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        imdsProxyController.stop()
         ipcController.stop()
     }
 }

@@ -21,6 +21,7 @@ struct IMDSRouterTests {
             now: now
         )
         #expect(tokenResponse.statusCode == 200)
+        #expect(tokenResponse.headers["X-Aws-Ec2-Metadata-Token-Ttl-Seconds"] == "21600")
         let token = try #require(String(data: tokenResponse.body, encoding: .utf8))
 
         let roleList = router.response(
@@ -141,6 +142,7 @@ struct IMDSRouterTests {
         let (tokenData, tokenURLResponse) = try await URLSession.shared.data(for: tokenRequest)
         let tokenResponse = try #require(tokenURLResponse as? HTTPURLResponse)
         #expect(tokenResponse.statusCode == 200)
+        #expect(tokenResponse.value(forHTTPHeaderField: "X-Aws-Ec2-Metadata-Token-Ttl-Seconds") == "60")
         let token = try #require(String(data: tokenData, encoding: .utf8))
 
         var credentialsRequest = URLRequest(url: URL(string: "http://127.0.0.1:\(server.boundPort)/latest/meta-data/iam/security-credentials/OrganizationAdmin")!)
@@ -381,6 +383,49 @@ struct IMDSRouterTests {
         let regionResponse = try #require(regionURLResponse as? HTTPURLResponse)
         #expect(regionResponse.statusCode == 200)
         #expect(String(data: regionData, encoding: .utf8) == "us-east-2")
+    }
+
+    @MainActor
+    @Test func localServerBindsConfiguredLoopbackAddress() async throws {
+        let server = LocalIMDSServer(
+            bindAddress: "::1",
+            port: 0,
+            servedProfile: servedProfile,
+            initialCredentials: servedCredentials,
+            credentialProvider: { self.servedCredentials },
+            onRequest: { _ in },
+            onFailure: { _ in }
+        )
+        try await server.start()
+        defer { server.stop() }
+
+        let regionURL = try #require(URL(
+            string: "http://[::1]:\(server.boundPort)/latest/meta-data/placement/region"
+        ))
+        let (regionData, regionURLResponse) = try await URLSession.shared.data(from: regionURL)
+        let regionResponse = try #require(regionURLResponse as? HTTPURLResponse)
+        #expect(regionResponse.statusCode == 200)
+        #expect(String(data: regionData, encoding: .utf8) == "us-east-2")
+    }
+
+    @MainActor
+    @Test func localServerRejectsInvalidBindAddress() async throws {
+        let server = LocalIMDSServer(
+            bindAddress: "localhost",
+            port: 0,
+            servedProfile: servedProfile,
+            initialCredentials: servedCredentials,
+            credentialProvider: { self.servedCredentials },
+            onRequest: { _ in },
+            onFailure: { _ in }
+        )
+
+        do {
+            try await server.start()
+            Issue.record("Expected an invalid bind address error")
+        } catch let error as LocalIMDSServerError {
+            #expect(error.errorDescription == "Bind address localhost is not a valid IPv4 or IPv6 address.")
+        }
     }
 
     private var servedProfile: IMDSServedProfile {

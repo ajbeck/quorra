@@ -8,6 +8,7 @@ struct GeneralSettingsTab: View {
     @Environment(EditorState.self) private var editorState
     @Environment(AppPresentationController.self) private var presentationController
     @Environment(LaunchAtLoginController.self) private var launchAtLoginController
+    @Environment(IMDSProxyController.self) private var imdsProxyController
     @State private var pendingMode: ManagedMode?
     @State private var cliInstallation = CLIInstallationController()
 
@@ -63,6 +64,9 @@ struct GeneralSettingsTab: View {
             Section("Command Line Tool") {
                 cliInstallationSection
             }
+            Section("System Metadata Endpoint") {
+                systemMetadataEndpointSection
+            }
         }
         .formStyle(.grouped)
         .navigationTitle("General")
@@ -88,6 +92,32 @@ struct GeneralSettingsTab: View {
         .task {
             cliInstallation.refresh()
             launchAtLoginController.refresh()
+            await imdsProxyController.refresh()
+        }
+    }
+
+    @ViewBuilder private var systemMetadataEndpointSection: some View {
+        Toggle(
+            "Enable the default EC2 metadata URL",
+            isOn: Binding(
+                get: { imdsProxyController.isInstalled },
+                set: { shouldInstall in
+                    Task { await imdsProxyController.setInstalled(shouldInstall) }
+                }
+            )
+        )
+
+        Text("Quorra asks macOS to route only TCP connections for 169.254.169.254:80 through its Network Extension. The extension relays opaque bytes to Quorra’s sandboxed IMDSv2 server and never interprets, stores, or logs credentials or tokens.")
+            .font(.callout)
+            .foregroundStyle(.secondary)
+
+        if imdsProxyController.isInstalled {
+            LabeledContent("Network Extension", value: imdsProxyController.connectionStatus.description)
+        }
+
+        if let errorMessage = imdsProxyController.errorMessage {
+            Label(errorMessage, systemImage: "exclamationmark.triangle")
+                .foregroundStyle(.red)
         }
     }
 
@@ -206,6 +236,7 @@ struct GeneralSettingsTab: View {
         .environment(EditorState())
         .environment(AppPresentationController())
         .environment(LaunchAtLoginController())
+        .environment(IMDSProxyController())
         .frame(width: 540)
 }
 
@@ -215,6 +246,7 @@ struct GeneralSettingsTab: View {
         .environment(EditorState())
         .environment(AppPresentationController())
         .environment(LaunchAtLoginController())
+        .environment(IMDSProxyController())
         .frame(width: 540)
 }
 
