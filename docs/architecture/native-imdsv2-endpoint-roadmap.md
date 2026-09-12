@@ -1,243 +1,193 @@
 # Native IMDSv2 Endpoint Roadmap
 
-This document is the durable design graph and decision log for exposing
-Quorra's reserved metadata endpoint at the standard EC2 Instance Metadata
-Service address. Update it whenever scope, status, or a decision changes.
+This document is the durable design graph and decision log for making Quorra
+available at the standard EC2 Instance Metadata Service address. Update it
+whenever scope, status, or a decision changes.
 
 ## Goal
 
-Allow host-native AWS tools to use Quorra without an endpoint override by
-serving IMDSv2 at `http://169.254.169.254` while keeping AWS credentials and
-metadata protocol handling out of privileged code.
+Allow AWS SDKs and command-line tools running directly on macOS to use Quorra
+without setting `AWS_EC2_METADATA_SERVICE_ENDPOINT`. A client that opens
+`http://169.254.169.254` must complete the normal IMDSv2 token and metadata
+flows.
 
-The first delivery targets processes running directly on macOS. Virtual
-machines and containers have independent network stacks and are out of scope
-until their routing requirements are designed and tested separately.
+The goal is behavioral compatibility. Quorra does not need to assign
+`169.254.169.254` to a host interface or own a conventional port 80 listener.
+Virtual machines and containers have independent network stacks and remain out
+of scope until their routing requirements are designed separately.
 
 ## Design Graph
 
 ```text
 Canonical EC2-compatible endpoint
-├── public contract
-│   ├── IPv4 address 169.254.169.254/32
-│   ├── HTTP port 80
+├── client-visible contract
+│   ├── destination 169.254.169.254:80
+│   ├── HTTP over TCP
 │   └── IMDSv2 required by default
-├── unprivileged Quorra backend
-│   ├── 127.0.0.1:7114 listener
-│   ├── token and metadata routing
-│   ├── credential refresh
-│   └── request logging and profile switching
-└── privileged network frontend
-    ├── SMAppService launch daemon registration
-    ├── authenticated XPC control plane
-    ├── idempotent lo0 alias ownership
-    ├── 169.254.169.254:80 listener
-    ├── app-group Mach service: 9GEBAJV9R4.quorra.imds-helper
-    ├── byte-stream relay to 127.0.0.1:7114
-    └── cleanup and conflict recovery
-        ├── address already configured
-        ├── port already occupied
-        ├── backend unavailable
-        ├── app or daemon restart
-        └── disable, update, and removal
+├── system-managed transparent proxy
+│   ├── sandboxed Network Extension app extension
+│   ├── one outbound TCP rule for 169.254.169.254/32:80
+│   ├── all unmatched flows bypass Quorra
+│   ├── intercepted flow relayed as an opaque byte stream
+│   └── lifecycle and approval managed by NetworkExtension
+└── sandboxed Quorra backend
+    ├── 127.0.0.1:7114 listener
+    ├── token and metadata routing
+    ├── credential refresh
+    └── request logging and profile switching
 ```
 
 ## Delivery Status
 
 | Stage | Status | Exit condition |
 | --- | --- | --- |
-| Architecture and invariants | Complete | Security boundary and ownership rules are documented |
-| Runtime configuration | Complete | Public and backend endpoints are distinct and options reach the server |
-| Privileged helper | In progress | Signed launch daemon registers and exposes an authenticated control plane |
-| Interface and relay | Complete | Owned `/32` alias and port 80 relay work idempotently |
-| App lifecycle and UX | Not started | Approval, readiness, conflicts, and disablement are visible and recoverable |
-| Distribution | Not started | Universal signed helper passes archive and notarization checks |
-| End-to-end verification | Not started | Standard AWS clients complete IMDSv2 flows without endpoint overrides |
+| Architecture and invariants | Complete | Behavioral goal and Network Extension boundary are documented |
+| Runtime configuration | Complete | Canonical and backend endpoints are distinct and options reach the server |
+| Transparent-proxy feasibility | In progress | A signed extension receives only canonical IMDS TCP flows |
+| Flow relay | Not started | Bidirectional relay reaches the loopback backend with bounded resources |
+| App lifecycle and UX | Not started | Approval, readiness, failure, and disablement are visible and recoverable |
+| Distribution | Not started | Sandboxed App Store archive contains valid extension entitlements and signatures |
+| End-to-end verification | Not started | AWS CLI and an AWS SDK complete IMDSv2 without endpoint overrides |
 
-## Decisions
+## Active Decisions
 
-### D001 — Privilege boundary
+### D013 — Behavioral compatibility over interface ownership
 
-**Decision:** A minimal root launch daemon owns only the network-interface alias,
-the public TCP listener, and a byte-stream relay. The sandboxed Quorra app keeps
-the IMDS protocol, credentials, profile selection, refresh, and logging.
+**Decision:** Use a sandboxed `NETransparentProxyProvider` to intercept outbound
+TCP flows whose destination is exactly `169.254.169.254:80`. Relay each selected
+flow to Quorra's loopback backend. Do not assign the address to `lo0`, bind a
+privileged port, or install a privileged launch daemon.
 
-**Reasoning:** macOS permits only the superuser to modify interface
-configuration. Keeping credential-bearing behavior in the existing user
-process minimizes privileged code and avoids copying AWS credentials across a
-privilege boundary.
+**Reasoning:** The product requirement is that unmodified AWS clients can reach
+the standard IMDSv2 endpoint. Apple provides transparent proxy network rules
+that select flows by destination address and port, and documents an app
+extension as the Mac App Store deployment form. This preserves App Sandbox and
+avoids root privilege while satisfying the observable client contract.
 
-### D002 — Public and backend addresses
+This decision supersedes D001, D003 through D006, and D008 through D012 below.
+Those entries remain in the history section to record why the earlier design
+was abandoned.
 
-**Decision:** The public endpoint is `169.254.169.254:80`; the private backend
-remains `127.0.0.1:7114`. These are separate runtime concepts even though the UI
-presents one reserved endpoint.
+### D014 — Public and backend endpoints remain distinct
 
-**Reasoning:** AWS clients use the standard HTTP endpoint without a port
-override. Quorra already serves the protocol on port 7114, and a loopback
-backend lets the root component remain protocol-agnostic.
+**Decision:** The client-visible destination remains `169.254.169.254:80`; the
+private backend remains `127.0.0.1:7114`.
 
-### D003 — Interface scope
+**Reasoning:** The extension selects the canonical destination without asking
+clients for an override. The existing loopback backend retains all HTTP,
+IMDSv2, profile, credential, and logging behavior.
 
-**Decision:** Add only `169.254.169.254/32` as an alias on `lo0`, never the whole
-`169.254.0.0/16` link-local range and never a wildcard listener.
+### D015 — Narrow transparent-proxy rule
 
-**Reasoning:** A host route makes the address local without claiming unrelated
-link-local traffic or exposing the listener on physical interfaces.
+**Decision:** Install one outbound TCP rule for the single host prefix
+`169.254.169.254/32` and port `80`. Return control to the operating system for
+any flow that does not match the endpoint contract.
 
-### D004 — User authorization
+**Reasoning:** A narrowly scoped rule minimizes impact on the host networking
+stack and makes Quorra independent of unrelated web, link-local, VPN, and local
+network traffic.
 
-**Decision:** Register the helper with `SMAppService.daemon(plistName:)` after an
-explicit user action. Reflect `SMAppService.Status` in the UI and direct the
-user to Login Items settings when approval is required.
+### D016 — Opaque credential transport
 
-**Reasoning:** A launch daemon is the supported macOS mechanism for this
-system-level work and requires user authorization. Quorra already uses
-`SMAppService` and has established status and settings-navigation patterns.
+**Decision:** The extension may transiently copy opaque TCP buffers between the
+intercepted flow and loopback backend, but it never interprets, persists, or
+logs their contents. Release buffers when each flow closes.
 
-### D005 — Control-plane authentication
+**Reasoning:** IMDS tokens and credential responses necessarily cross the
+relay's memory. Keeping protocol behavior in the existing backend produces a
+smaller extension and preserves one implementation of IMDSv2 security rules.
 
-**Decision:** Limit helper commands to status, enable, and disable. Require the
-calling process to have Quorra's signing identifier and Team ID before accepting
-an XPC request. The app likewise requires the helper's exact signing identifier
-and Team ID before sending a request. Keep the shared Objective-C protocol and
-signing constants in `QuorraIPC`; privileged behavior remains private to the
-helper targets.
+### D017 — System-owned approval and lifecycle
 
-**Reasoning:** A system-wide Mach service must not let arbitrary local processes
-change network configuration. Code-signing requirements are stronger than PID,
-UID, or filesystem-path checks. Foundation's connection-level signing
-requirements fail closed before an exported method is dispatched and avoid a
-custom audit-token validation path.
+**Decision:** Configure and enable the transparent proxy through
+`NETransparentProxyManager`. Clearly explain the narrowly scoped endpoint
+interception before macOS presents its network-configuration approval. Treat
+approval denial and a disabled extension as normal recoverable states.
 
-### D006 — Address ownership
+**Reasoning:** Network Extension is Apple's supported system networking
+boundary for sandboxed App Store software. Quorra must not imitate approval,
+install separate privileged code, or assume the extension remains enabled.
 
-**Decision:** If the metadata address is already configured and Quorra cannot
-establish ownership, report a conflict and do not alter it. Remove the alias
-only when the helper can prove it created it. Record ownership in a root-owned,
-mode `0600` marker under `/var/run`; reclaim `marker + alias on lo0` after a
-daemon crash, and treat `alias without marker` as foreign.
+## Superseded Privileged-Helper Design
 
-**Reasoning:** Interface aliases have no native ownership metadata. Refusing to
-take over or remove ambiguous state prevents Quorra from disrupting another
-tool, VPN, or administrator configuration. `/var/run` survives a daemon restart
-but is cleared at reboot, matching the nonpersistent interface alias lifecycle.
+The first implementation assigned `169.254.169.254/32` to `lo0`, bound port 80
+in a root launch daemon, and relayed to the app. It established the following
+useful invariants:
 
-### D007 — Local Network privacy
+- The canonical and loopback backend endpoints are separate runtime concepts.
+- Credentials and IMDS tokens are never persisted or logged by a relay.
+- Relays are bounded and fail closed when their backend is unavailable.
+- Exact code-signing requirements authenticate cross-process control planes.
+- Ambiguous system-owned state must never be removed destructively.
 
-**Decision:** Do not add `NSLocalNetworkUsageDescription` solely for this
-feature. Retain the app's existing incoming-network sandbox entitlement.
-
-**Reasoning:** Apple documents that accepting incoming TCP connections is not a
-Local Network privacy operation and that launch daemons are automatically
-allowed. A usage description should be added only if later work introduces an
-operation that actually requires that permission.
-
-### D008 — Backend outages
-
-**Decision:** Keep the owned alias and public listener active when the
-unprivileged backend is temporarily unavailable. Fail the affected TCP
-connection without buffering its request, then attempt a fresh loopback
-connection for the next client.
-
-**Reasoning:** The app and launch daemon have independent lifecycles. Keeping
-the stable public endpoint avoids privileged interface churn and lets normal
-service resume as soon as Quorra restarts, while a hard concurrent-connection
-limit bounds resource use in the daemon.
-
-### D009 — Transactional activation
-
-**Decision:** Enable by probing the loopback backend, acquiring the owned
-interface alias, and then starting the public listener. If listener startup
-fails, remove the owned alias. Disable in reverse dependency order by stopping
-the listener before removing the alias.
-
-**Reasoning:** This ordering prevents Quorra from advertising a ready endpoint
-without a backend and prevents new clients from arriving while its address is
-being removed. Reporting both startup and rollback failures preserves the
-information needed for safe recovery.
-
-### D010 — Daemon bundle layout
-
-**Decision:** Embed the signed `QuorraIMDSHelper.app` under the main app's
-`Contents/Helpers` directory and point the launch-daemon plist's
-`BundleProgram` at its inner executable. Embed the plist under
-`Contents/Library/LaunchDaemons`.
-
-**Reasoning:** `SMAppService` requires a bundle-relative helper executable and
-a launch-daemon plist in that exact Library directory. Retaining the helper as
-a nested, GUI-less app keeps its private framework, hardened-runtime signature,
-and identifier in one independently verifiable code-signing unit.
-
-### D011 — Opaque credential transport
-
-**Decision:** The privileged helper may transiently copy opaque TCP buffers
-between the public listener and loopback backend, but it never interprets,
-persists, or logs their contents. Release per-connection buffers when each
-connection closes.
-
-**Reasoning:** IMDS credential responses and tokens necessarily cross the
-relay's memory. Treating them strictly as bounded byte streams keeps HTTP,
-token, credential, and AWS behavior out of privileged code while avoiding the
-additional lifecycle and POSIX-server complexity of passing a bound socket to
-the sandboxed app.
-
-### D012 — Sandboxed XPC namespace
-
-**Decision:** Publish the daemon's Mach service as
-`9GEBAJV9R4.quorra.imds-helper`, a child of Quorra's existing App Group ID. The
-app connects with `NSXPCConnection`'s privileged option. Do not use a temporary
-Mach-lookup exception or disable App Sandbox.
-
-**Reasoning:** Apple documents App Groups as the standard namespace for a
-sandboxed client to reach a global launch-daemon XPC endpoint. Quorra's App
-Group entitlement is already provisioning-profile-authorized; the unsandboxed
-daemon does not need to claim that entitlement merely to publish the child
-service name.
+It was superseded because Apple requires Mac App Store apps to remain
+sandboxed, explicitly lists network-setting configuration as incompatible with
+App Sandbox, and does not support a sandboxed app registering an unsandboxed
+job. It also required root for both the interface alias and port 80. The prior
+implementation remains available in branch history through commit `916ce44`
+while the transparent-proxy design is validated.
 
 ## Implementation Sequence
 
-1. Extract endpoint constants and a runtime configuration that distinguishes
-   the public endpoint from the loopback backend.
-2. Add regression tests for reserved-definition repair and runtime option
-   propagation, including IMDSv2-only behavior.
-3. Add the helper executable target, embedded launch-daemon property list,
-   signing configuration, and `SMAppService` controller.
-4. Define the narrow XPC request and response contract and enforce peer
-   code-signing requirements in both directions.
-5. Implement interface inspection, conflict detection, idempotent alias
-   creation, and ownership-aware cleanup behind test doubles.
-6. Implement the public listener and bounded bidirectional relay to the
-   loopback backend.
-7. Integrate helper readiness and failure states with default-endpoint startup,
-   restoration, notifications, Settings, and CLI status.
-8. Extend archive, signature, architecture, notarization, and clean-machine
-   release verification for the nested daemon.
-9. Verify token acquisition and credential retrieval with `curl`, AWS CLI, and
-   an AWS SDK without `AWS_EC2_METADATA_SERVICE_ENDPOINT`.
+1. Remove the launch-daemon target, alias adapter, privileged listener, XPC
+   contract, and `SMAppService` UI from the product.
+2. Add a macOS Network Extension app-extension target embedded in Quorra.
+3. Add the Network Extension entitlement to the containing app and provider;
+   retain App Sandbox and the existing App Group.
+4. Implement and unit-test construction of the exact outbound TCP network rule.
+5. Configure the provider with `NETransparentProxyNetworkSettings` and decline
+   every unmatched flow.
+6. Implement a bounded bidirectional relay from `NEAppProxyTCPFlow` to
+   `127.0.0.1:7114` without inspecting or logging payloads.
+7. Replace helper registration state with `NETransparentProxyManager`
+   configuration and connection status.
+8. Integrate approval, readiness, restoration, notifications, Settings, and
+   CLI status with the default endpoint lifecycle.
+9. Validate a sandboxed App Store archive, provisioning profile, extension
+   embedding, and signatures.
+10. Verify token acquisition and credential retrieval with `curl`, AWS CLI,
+    and an AWS SDK without `AWS_EC2_METADATA_SERVICE_ENDPOINT`.
 
 ## Security and Failure Invariants
 
-- The privileged helper never interprets, persists, or logs AWS credentials or
-  IMDS tokens; it handles them only as bounded, per-connection TCP buffers.
-- The public listener binds exactly `169.254.169.254:80`.
+- The proxy rule matches only outbound TCP to `169.254.169.254:80`.
+- Unmatched traffic is never claimed, inspected, copied, or delayed by Quorra.
+- The extension never interprets, persists, or logs credentials, tokens, or
+  HTTP payloads.
 - The backend listener binds exactly `127.0.0.1:7114`.
-- Interface and port conflicts fail closed and identify the conflicting
-  resource without attempting destructive recovery.
-- Enabling is not reported successful until the alias, public listener, and
-  backend are all ready.
-- Disabling stops new public connections before removing an alias owned by the
-  helper.
+- Concurrent flows and per-flow buffers have explicit limits.
+- Backend unavailability closes only the affected flow and never changes host
+  routes or interface configuration.
 - Secrets remain redacted from logs in both processes.
+- The app and extension remain sandboxed and require no root process.
+
+## Feasibility Gate
+
+Before completing UI integration, verify on a clean macOS 26 system that:
+
+- The provider receives a connection from `curl` to
+  `169.254.169.254:80` even though the address is not assigned locally.
+- A destination-address-and-port rule does not capture unrelated link-local or
+  HTTP traffic.
+- The provider can open and exchange data with `127.0.0.1:7114` under its
+  production sandbox entitlements.
+- Starting and stopping the configuration has understandable system consent
+  and Settings behavior.
+- AWS CLI and at least one AWS SDK complete PUT-token and credential requests
+  without an endpoint environment variable.
+
+If any gate fails because the framework does not deliver this destination to a
+provider, revisit direct Developer ID distribution. Do not restore the root
+design merely to work around signing, provisioning, or test setup problems.
 
 ## Verification Matrix
 
-- Fresh install with helper approval granted, deferred, and denied.
-- Enable, disable, repeated enable, app restart, daemon restart, and reboot.
-- App crash while the daemon is active and daemon crash while the app is active.
-- Existing address on `lo0`, address on another interface, and port 80 already
-  occupied.
+- Fresh install with network configuration approval granted, deferred, and
+  denied.
+- Enable, disable, repeated enable, app restart, extension restart, and reboot.
+- App crash while the extension is active and extension failure while the app
+  is active.
 - VPN enabled, Wi-Fi changes, sleep and wake, and fast user switching.
 - IMDSv2 token creation, invalid and expired tokens, metadata reads, credential
   refresh, and live profile switching.
-- Debug, Developer ID archive, Sparkle update, notarized DMG, and app removal.
+- Debug, Mac App Distribution archive, TestFlight, and Mac App Store validation.
