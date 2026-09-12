@@ -43,11 +43,11 @@ Canonical EC2-compatible endpoint
 | --- | --- | --- |
 | Architecture and invariants | Complete | Behavioral goal and Network Extension boundary are documented |
 | Runtime configuration | Complete | Canonical and backend endpoints are distinct and options reach the server |
-| Transparent-proxy feasibility | In progress | A signed extension receives only canonical IMDS TCP flows |
-| Flow relay | Not started | Bidirectional relay reaches the loopback backend with bounded resources |
-| App lifecycle and UX | Not started | Approval, readiness, failure, and disablement are visible and recoverable |
-| Distribution | Not started | Sandboxed App Store archive contains valid extension entitlements and signatures |
-| End-to-end verification | Not started | AWS CLI and an AWS SDK complete IMDSv2 without endpoint overrides |
+| Transparent-proxy feasibility | Complete | A signed extension receives only canonical IMDS TCP flows |
+| Flow relay | Complete | Bidirectional relay reaches the loopback backend with bounded resources |
+| App lifecycle and UX | In progress | Approval, readiness, failure, and disablement are visible and recoverable |
+| Distribution | In progress | Sandboxed App Store archive contains valid extension entitlements and signatures |
+| End-to-end verification | Complete | AWS CLI and an AWS SDK complete IMDSv2 without endpoint overrides |
 
 ## Active Decisions
 
@@ -107,6 +107,28 @@ approval denial and a disabled extension as normal recoverable states.
 **Reasoning:** Network Extension is Apple's supported system networking
 boundary for sandboxed App Store software. Quorra must not imitate approval,
 install separate privileged code, or assume the extension remains enabled.
+
+### D018 — Preserve approved configuration
+
+**Decision:** Reuse an existing enabled transparent-proxy configuration when
+its provider identity and settings already match Quorra's desired
+configuration. Save preferences only when the configuration must change.
+
+**Reasoning:** macOS persists the user's network-configuration approval. An
+ordinary endpoint stop/start or app relaunch must not rewrite an unchanged
+configuration or cause another approval prompt. Approval may be required again
+after the configuration is removed, the app's signing identity changes, or the
+system network settings are reset.
+
+### D019 — Return the accepted token lifetime
+
+**Decision:** Include `X-Aws-Ec2-Metadata-Token-Ttl-Seconds` on a successful
+IMDSv2 token response, using the same accepted lifetime encoded in the token.
+
+**Reasoning:** The AWS SDK for Go v2 uses this response header to cache and add
+the token to later metadata requests. Returning only the token body works with
+manual clients and the AWS CLI but does not satisfy the complete IMDSv2 client
+contract.
 
 ## Superseded Privileged-Helper Design
 
@@ -191,3 +213,23 @@ design merely to work around signing, provisioning, or test setup problems.
 - IMDSv2 token creation, invalid and expired tokens, metadata reads, credential
   refresh, and live profile switching.
 - Debug, Mac App Distribution archive, TestFlight, and Mac App Store validation.
+
+## Verification Record
+
+### 2026-09-12 — Signed debug feasibility and client compatibility
+
+- Built and ran the sandboxed app with its embedded, signed Network Extension.
+- Granted the macOS network-configuration approval once; a rebuild and relaunch
+  reused the approved configuration without another prompt.
+- Completed IMDSv2 token, role-name, and credential requests with `curl` at
+  `http://169.254.169.254` and confirmed that an IMDSv1 request returns `401`.
+- Resolved credentials and region through the AWS CLI's default provider chain
+  with no endpoint override; the reported sources were `iam-role` and `imds`.
+- Resolved credentials through the AWS SDK for Go v2 default provider chain
+  with no endpoint override; the provider was `EC2RoleProvider`.
+- Passed all 420 QuorraCore tests, including all 14 focused IMDS router tests,
+  after adding the token lifetime response header. The full Xcode test plan
+  passed earlier in the implementation sequence and remains a release gate.
+
+Release archive, TestFlight, App Store validation, denial recovery, reboot,
+sleep/wake, VPN interaction, and extension-failure scenarios remain open.

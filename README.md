@@ -8,7 +8,7 @@ visible, local workflow instead of repeatedly running `aws sso login`, editing
 `~/.aws/config` by hand, or passing credentials through a collection of shell
 scripts. Quorra reads the standard AWS shared configuration, keeps IAM Identity
 Center tokens and temporary role credentials in the macOS Keychain, and can
-serve a profile through a loopback IMDS endpoint for local AWS tooling.
+serve a profile through an IMDS endpoint for local AWS tooling.
 
 ## Screenshots
 
@@ -45,19 +45,32 @@ Run the `QuorraApp` scheme with Command-R.
   flow, refresh sessions, and inspect credential expiry.
 - Copy temporary credentials as shell environment variables.
 - Manage AWS profile and session configuration in the selected AWS folder.
-- Start a local endpoint at `127.0.0.1:<port>` that supports IMDSv2, with IMDSv1
-  fallback, so SDKs and tools can use a selected profile without placing
-  credentials in their environment.
+- Start the default endpoint at AWS's standard metadata URL,
+  `http://169.254.169.254`, so AWS SDKs and CLI tools can use the normal IMDSv2
+  provider chain without an endpoint override.
+- Start additional local endpoints at `127.0.0.1:<port>` for explicit profile
+  selection and compatibility with tools that support a custom metadata URL.
 - Create, stop, inspect, and persist IMDS endpoint definitions independently of
   AWS profile files.
 - Keep IAM Identity Center tokens and temporary role credentials in the macOS
   Keychain.
 
-## How Local IMDS Works
+## How IMDS Works
 
-Quorra never binds a metadata server to AWS's link-local address. It serves
-credentials on `127.0.0.1` and exposes the chosen profile only while its
-endpoint is running. Point a compatible client to the local endpoint:
+Quorra's default endpoint works at the standard EC2 metadata URL:
+
+```text
+http://169.254.169.254
+```
+
+The app remains sandboxed. A narrowly scoped macOS Network Extension forwards
+only outbound TCP traffic for `169.254.169.254:80` to Quorra's private
+`127.0.0.1:7114` backend. macOS asks for permission the first time Quorra
+installs this network configuration. The approval persists across normal
+endpoint restarts and app relaunches.
+
+Additional endpoints listen only on `127.0.0.1`. Point a compatible client to
+one of those endpoints when you want an explicit custom endpoint:
 
 ```sh
 export AWS_EC2_METADATA_SERVICE_ENDPOINT=http://127.0.0.1:9678
@@ -73,8 +86,11 @@ also publishes the active port at
   this is `~/.aws`.
 - IAM Identity Center tokens and temporary role credentials are stored in the
   macOS Keychain, not in Quorra's application files.
-- IMDS endpoints are limited to `127.0.0.1`; they are not exposed on your
-  network.
+- IMDS backends are limited to `127.0.0.1`; they are not exposed on your local
+  network. The default endpoint is reachable through the exact
+  `169.254.169.254:80` Network Extension rule.
+- Quorra asks macOS to approve its narrowly scoped network configuration the
+  first time the default endpoint is enabled.
 - Read Only mode prevents Quorra from writing to the AWS files you selected.
 
 ## Development
