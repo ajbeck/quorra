@@ -1,6 +1,6 @@
 import Foundation
 
-protocol InterfaceAliasSystem {
+public protocol InterfaceAliasSystem {
     func interfaceName(containingIPv4Address address: String) throws -> String?
     func addIPv4Alias(address: String, prefixLength: Int, to interfaceName: String) throws
     func removeIPv4Alias(address: String, from interfaceName: String) throws
@@ -9,23 +9,23 @@ protocol InterfaceAliasSystem {
     func removeOwnershipMarker(at url: URL) throws
 }
 
-enum InterfaceAliasActivation: Equatable {
+public enum InterfaceAliasActivation: Equatable {
     case created
     case reclaimed
 }
 
-enum InterfaceAliasDeactivation: Equatable {
+public enum InterfaceAliasDeactivation: Equatable {
     case notOwned
     case markerRemoved
     case aliasRemoved
 }
 
-enum InterfaceAliasManagerError: LocalizedError, Equatable {
+public enum InterfaceAliasManagerError: LocalizedError, Equatable {
     case addressConflict(interfaceName: String)
     case ownershipConflict(interfaceName: String)
     case ownershipRollbackFailed(String)
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .addressConflict(let interfaceName):
             return "The metadata address is already configured on \(interfaceName)."
@@ -37,14 +37,14 @@ enum InterfaceAliasManagerError: LocalizedError, Equatable {
     }
 }
 
-struct InterfaceAliasManager {
+public struct InterfaceAliasManager {
     private let system: InterfaceAliasSystem
     private let interfaceName: String
     private let address: String
     private let prefixLength: Int
     private let ownershipMarkerURL: URL
 
-    init(
+    public init(
         system: InterfaceAliasSystem,
         interfaceName: String = IMDSNetworkConfiguration.interfaceName,
         address: String = IMDSNetworkConfiguration.publicAddress,
@@ -58,7 +58,7 @@ struct InterfaceAliasManager {
         self.ownershipMarkerURL = ownershipMarkerURL
     }
 
-    func enable() throws -> InterfaceAliasActivation {
+    public func enable() throws -> InterfaceAliasActivation {
         let markerExists = try system.hasOwnershipMarker(at: ownershipMarkerURL)
         let configuredInterface = try system.interfaceName(containingIPv4Address: address)
 
@@ -101,7 +101,7 @@ struct InterfaceAliasManager {
         return .created
     }
 
-    func disable() throws -> InterfaceAliasDeactivation {
+    public func disable() throws -> InterfaceAliasDeactivation {
         guard try system.hasOwnershipMarker(at: ownershipMarkerURL) else {
             return .notOwned
         }
