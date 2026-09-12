@@ -21,6 +21,7 @@ struct IMDSRouterTests {
             now: now
         )
         #expect(tokenResponse.statusCode == 200)
+        #expect(tokenResponse.headers["X-Aws-Ec2-Metadata-Token-Ttl-Seconds"] == "21600")
         let token = try #require(String(data: tokenResponse.body, encoding: .utf8))
 
         let roleList = router.response(
@@ -141,6 +142,7 @@ struct IMDSRouterTests {
         let (tokenData, tokenURLResponse) = try await URLSession.shared.data(for: tokenRequest)
         let tokenResponse = try #require(tokenURLResponse as? HTTPURLResponse)
         #expect(tokenResponse.statusCode == 200)
+        #expect(tokenResponse.value(forHTTPHeaderField: "X-Aws-Ec2-Metadata-Token-Ttl-Seconds") == "60")
         let token = try #require(String(data: tokenData, encoding: .utf8))
 
         var credentialsRequest = URLRequest(url: URL(string: "http://127.0.0.1:\(server.boundPort)/latest/meta-data/iam/security-credentials/OrganizationAdmin")!)

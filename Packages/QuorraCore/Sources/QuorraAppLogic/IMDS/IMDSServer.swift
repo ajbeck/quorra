@@ -287,7 +287,9 @@ struct IMDSRouter: Sendable {
 
         let token = UUID().uuidString.replacingOccurrences(of: "-", with: "")
         tokens[token] = now.addingTimeInterval(ttl)
-        return .text(token)
+        var response = IMDSHTTPResponse.text(token)
+        response.headers["X-Aws-Ec2-Metadata-Token-Ttl-Seconds"] = String(Int(ttl))
+        return response
     }
 
     private func isValidToken(_ token: String, now: Date) -> Bool {
