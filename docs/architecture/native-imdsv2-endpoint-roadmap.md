@@ -108,11 +108,14 @@ UID, or filesystem-path checks.
 
 **Decision:** If the metadata address is already configured and Quorra cannot
 establish ownership, report a conflict and do not alter it. Remove the alias
-only when the helper created it during the current managed lifecycle.
+only when the helper can prove it created it. Record ownership in a root-owned,
+mode `0600` marker under `/var/run`; reclaim `marker + alias on lo0` after a
+daemon crash, and treat `alias without marker` as foreign.
 
 **Reasoning:** Interface aliases have no native ownership metadata. Refusing to
 take over or remove ambiguous state prevents Quorra from disrupting another
-tool, VPN, or administrator configuration.
+tool, VPN, or administrator configuration. `/var/run` survives a daemon restart
+but is cleared at reboot, matching the nonpersistent interface alias lifecycle.
 
 ### D007 — Local Network privacy
 
