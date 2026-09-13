@@ -62,7 +62,7 @@ Canonical EC2-compatible endpoint
 | System-extension packaging | Complete | A development build produces and embeds a `.systemextension` in the required bundle location |
 | Activation lifecycle | In progress | Install, approval, replacement, cancellation, and failure states are handled |
 | Proxy lifecycle and UX | In progress | Activation and network-configuration states are visible and recoverable |
-| Developer ID signing | Not started | Host and extension use explicit Developer ID profiles and pass signature checks |
+| Developer ID signing | In progress | Host and extension use explicit Developer ID profiles and pass signature checks |
 | Notarized release artifact | Not started | CI exports, notarizes, staples, and verifies the complete application |
 | End-to-end release verification | Not started | Installed release candidate passes the clean-machine verification matrix |
 

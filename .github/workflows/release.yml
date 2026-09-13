@@ -134,14 +134,17 @@ jobs:
           CERTIFICATE_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_CERTIFICATE_BASE64 }}
           CERTIFICATE_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_CERTIFICATE_PASSWORD }}
           PROVISIONING_PROFILE_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_PROVISIONING_PROFILE_BASE64 }}
+          SYSTEM_EXTENSION_PROVISIONING_PROFILE_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_SYSTEM_EXTENSION_PROVISIONING_PROFILE_BASE64 }}
         run: |
           certificate_path="$RUNNER_TEMP/developer-id.p12"
           provisioning_profile_path="$RUNNER_TEMP/quorra.provisionprofile"
+          system_extension_provisioning_profile_path="$RUNNER_TEMP/quorra-imds-proxy.provisionprofile"
           signing_keychain="$RUNNER_TEMP/quorra-signing.keychain-db"
           keychain_password="$(uuidgen)"
 
           printf '%s' "$CERTIFICATE_BASE64" | base64 -D > "$certificate_path"
           printf '%s' "$PROVISIONING_PROFILE_BASE64" | base64 -D > "$provisioning_profile_path"
+          printf '%s' "$SYSTEM_EXTENSION_PROVISIONING_PROFILE_BASE64" | base64 -D > "$system_extension_provisioning_profile_path"
 
           security create-keychain -p "$keychain_password" "$signing_keychain"
           security set-keychain-settings -lut 21600 "$signing_keychain"
@@ -152,9 +155,18 @@ jobs:
 
           profile_uuid="$(security cms -D -i "$provisioning_profile_path" | plutil -extract UUID raw -)"
           team_identifier="$(security cms -D -i "$provisioning_profile_path" | plutil -extract 'Entitlements.com\.apple\.developer\.team-identifier' raw -)"
+          system_extension_profile_uuid="$(security cms -D -i "$system_extension_provisioning_profile_path" | plutil -extract UUID raw -)"
+          system_extension_team_identifier="$(security cms -D -i "$system_extension_provisioning_profile_path" | plutil -extract 'Entitlements.com\.apple\.developer\.team-identifier' raw -)"
+
+          if [[ "$system_extension_team_identifier" != "$team_identifier" ]]; then
+            echo "::error::The app and system extension provisioning profiles use different Team IDs."
+            exit 1
+          fi
+
           profile_directory="$HOME/Library/MobileDevice/Provisioning Profiles"
           mkdir -p "$profile_directory"
           cp "$provisioning_profile_path" "$profile_directory/$profile_uuid.provisionprofile"
+          cp "$system_extension_provisioning_profile_path" "$profile_directory/$system_extension_profile_uuid.provisionprofile"
 
           security find-identity -v -p codesigning "$signing_keychain"
 
@@ -163,6 +175,8 @@ jobs:
             echo "SIGNING_KEYCHAIN=$signing_keychain"
             echo "PROVISIONING_PROFILE_UUID=$profile_uuid"
             echo "PROVISIONING_PROFILE_PATH=$profile_directory/$profile_uuid.provisionprofile"
+            echo "SYSTEM_EXTENSION_PROVISIONING_PROFILE_UUID=$system_extension_profile_uuid"
+            echo "SYSTEM_EXTENSION_PROVISIONING_PROFILE_PATH=$profile_directory/$system_extension_profile_uuid.provisionprofile"
           } >> "$GITHUB_ENV"
 
       - name: Archive and export application
@@ -189,6 +203,8 @@ jobs:
               <dict>
                   <key>dev.ajbeck.quorra</key>
                   <string>$PROVISIONING_PROFILE_UUID</string>
+                  <key>dev.ajbeck.quorra.imds-proxy</key>
+                  <string>$SYSTEM_EXTENSION_PROVISIONING_PROFILE_UUID</string>
               </dict>
               <key>signingCertificate</key>
               <string>Developer ID Application</string>
@@ -210,6 +226,7 @@ jobs:
             -skipPackagePluginValidation \
             -archivePath "$archive_path" \
             QUORRA_PROVISIONING_PROFILE_SPECIFIER="$PROVISIONING_PROFILE_UUID" \
+            QUORRA_SYSTEM_EXTENSION_PROVISIONING_PROFILE_SPECIFIER="$SYSTEM_EXTENSION_PROVISIONING_PROFILE_UUID" \
             MARKETING_VERSION="$RELEASE_VERSION" \
             CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER"
 
@@ -239,6 +256,7 @@ jobs:
           RELEASE_VERSION: ${{ steps.release-context.outputs.version }}
         run: |
           info_plist="$EXPORTED_APP_PATH/Contents/Info.plist"
+          app_entitlements_path="$RUNNER_TEMP/quorra-app-entitlements.plist"
           actual_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$info_plist")"
           actual_build="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$info_plist")"
           actual_feed_url="$(/usr/libexec/PlistBuddy -c 'Print :SUFeedURL' "$info_plist")"
@@ -248,6 +266,9 @@ jobs:
           cli_app="$EXPORTED_APP_PATH/Contents/Helpers/QuorraCLI.app"
           cli_executable="$cli_app/Contents/MacOS/quorra-cli"
           cli_entitlements_path="$RUNNER_TEMP/quorra-cli-entitlements.plist"
+          system_extension="$EXPORTED_APP_PATH/Contents/Library/SystemExtensions/dev.ajbeck.quorra.imds-proxy.systemextension"
+          system_extension_executable="$system_extension/Contents/MacOS/dev.ajbeck.quorra.imds-proxy"
+          system_extension_entitlements_path="$RUNNER_TEMP/quorra-imds-proxy-entitlements.plist"
           expected_feed_url="https://github.com/$GITHUB_REPOSITORY/releases/latest/download/appcast.xml"
           expected_public_key='y+F6DQa30xtzo9333VJJIbN+0xoDP6JzmiqSV8/Diko='
 
@@ -286,6 +307,41 @@ jobs:
             exit 1
           fi
 
+          if [[ ! -x "$system_extension_executable" ]]; then
+            echo "::error::The signed IMDS system extension is missing from the exported app."
+            exit 1
+          fi
+
+          app_signature_details="$(codesign -dvvv "$EXPORTED_APP_PATH" 2>&1)"
+          if ! grep -Fq 'Identifier=dev.ajbeck.quorra' <<<"$app_signature_details"; then
+            echo "::error::The Quorra app has the wrong signing identifier."
+            exit 1
+          fi
+          if ! grep -Fq "TeamIdentifier=$APPLE_TEAM_ID" <<<"$app_signature_details"; then
+            echo "::error::The Quorra app has the wrong Team ID."
+            exit 1
+          fi
+          if ! grep -Fq '(runtime)' <<<"$app_signature_details"; then
+            echo "::error::The Quorra app is not signed with hardened runtime."
+            exit 1
+          fi
+          if ! grep -Fq 'Authority=Developer ID Application:' <<<"$app_signature_details"; then
+            echo "::error::The Quorra app is not signed with a Developer ID Application identity."
+            exit 1
+          fi
+
+          codesign -d --entitlements - --xml "$EXPORTED_APP_PATH" > "$app_entitlements_path" 2>/dev/null
+          app_network_entitlement="$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.networking.networkextension:0' "$app_entitlements_path")"
+          app_system_extension_install="$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.system-extension.install' "$app_entitlements_path")"
+          if [[ "$app_network_entitlement" != 'app-proxy-provider-systemextension' ]]; then
+            echo "::error::The Quorra app is missing its Developer ID Network Extension entitlement."
+            exit 1
+          fi
+          if [[ "$app_system_extension_install" != 'true' ]]; then
+            echo "::error::The Quorra app cannot install its system extension."
+            exit 1
+          fi
+
           cli_signature_details="$(codesign -dvvv "$cli_app" 2>&1)"
           if ! grep -Fq 'Identifier=dev.ajbeck.quorra.cli' <<<"$cli_signature_details"; then
             echo "::error::The Quorra CLI has the wrong signing identifier."
@@ -304,6 +360,36 @@ jobs:
           cli_app_group="$(/usr/libexec/PlistBuddy -c 'Print :com.apple.security.application-groups:0' "$cli_entitlements_path")"
           if [[ "$cli_app_group" != '9GEBAJV9R4.quorra' ]]; then
             echo "::error::The Quorra CLI is missing the shared App Group entitlement."
+            exit 1
+          fi
+
+          system_extension_signature_details="$(codesign -dvvv "$system_extension" 2>&1)"
+          if ! grep -Fq 'Identifier=dev.ajbeck.quorra.imds-proxy' <<<"$system_extension_signature_details"; then
+            echo "::error::The IMDS system extension has the wrong signing identifier."
+            exit 1
+          fi
+          if ! grep -Fq "TeamIdentifier=$APPLE_TEAM_ID" <<<"$system_extension_signature_details"; then
+            echo "::error::The IMDS system extension has the wrong Team ID."
+            exit 1
+          fi
+          if ! grep -Fq '(runtime)' <<<"$system_extension_signature_details"; then
+            echo "::error::The IMDS system extension is not signed with hardened runtime."
+            exit 1
+          fi
+          if ! grep -Fq 'Authority=Developer ID Application:' <<<"$system_extension_signature_details"; then
+            echo "::error::The IMDS system extension is not signed with a Developer ID Application identity."
+            exit 1
+          fi
+
+          codesign -d --entitlements - --xml "$system_extension" > "$system_extension_entitlements_path" 2>/dev/null
+          system_extension_app_group="$(/usr/libexec/PlistBuddy -c 'Print :com.apple.security.application-groups:0' "$system_extension_entitlements_path")"
+          system_extension_network_entitlement="$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.networking.networkextension:0' "$system_extension_entitlements_path")"
+          if [[ "$system_extension_app_group" != '9GEBAJV9R4.quorra' ]]; then
+            echo "::error::The IMDS system extension is missing the shared App Group entitlement."
+            exit 1
+          fi
+          if [[ "$system_extension_network_entitlement" != 'app-proxy-provider-systemextension' ]]; then
+            echo "::error::The IMDS system extension is missing its Developer ID Network Extension entitlement."
             exit 1
           fi
 
@@ -411,6 +497,7 @@ jobs:
       - name: Remove signing assets
         if: ${{ always() && steps.release-context.outputs.tag != '' }}
         run: |
-          rm -f "$RUNNER_TEMP/developer-id.p12" "$RUNNER_TEMP/quorra.provisionprofile" "$RUNNER_TEMP/AuthKey_"*.p8
+          rm -f "$RUNNER_TEMP/developer-id.p12" "$RUNNER_TEMP/quorra.provisionprofile" "$RUNNER_TEMP/quorra-imds-proxy.provisionprofile" "$RUNNER_TEMP/AuthKey_"*.p8
           rm -f "$PROVISIONING_PROFILE_PATH"
+          rm -f "$SYSTEM_EXTENSION_PROVISIONING_PROFILE_PATH"
           security delete-keychain "$SIGNING_KEYCHAIN" || true

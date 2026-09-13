@@ -558,7 +558,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = QuorraIMDSNetworkExtension/QuorraIMDSNetworkExtension.entitlements;
-				CODE_SIGN_STYLE = Automatic;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Developer ID Application";
+				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
@@ -584,6 +585,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "dev.ajbeck.quorra.imds-proxy";
 				PRODUCT_NAME = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+				PROVISIONING_PROFILE_SPECIFIER = "$(QUORRA_SYSTEM_EXTENSION_PROVISIONING_PROFILE_SPECIFIER)";
 				QUORRA_NETWORK_EXTENSION_ENTITLEMENT = "app-proxy-provider-systemextension";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
