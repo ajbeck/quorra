@@ -1,4 +1,4 @@
-import AppKit
+import ServiceManagement
 import SwiftUI
 
 struct IMDSSystemExtensionGuidance: View {
@@ -8,7 +8,7 @@ struct IMDSSystemExtensionGuidance: View {
         switch status {
         case .awaitingApproval:
             guidance(
-                message: "Approve Quorra’s system extension in System Settings under General → Login Items & Extensions. Quorra will continue automatically after approval.",
+                message: "macOS is waiting for Quorra’s Network Extension to be enabled. In Login Items & Extensions, click the info button beside Quorra under Extensions, then turn on its Network Extension. Quorra will continue automatically.",
                 systemImage: "exclamationmark.shield.fill",
                 color: .orange,
                 showsSettingsButton: true
@@ -45,10 +45,8 @@ struct IMDSSystemExtensionGuidance: View {
             Spacer(minLength: 8)
 
             if showsSettingsButton {
-                Button("Open System Settings") {
-                    NSWorkspace.shared.open(
-                        URL(filePath: "/System/Applications/System Settings.app")
-                    )
+                Button("Open Login Items & Extensions") {
+                    SMAppService.openSystemSettingsLoginItems()
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)

@@ -166,7 +166,7 @@ final class IMDSSystemExtensionController: NSObject, OSSystemExtensionRequestDel
         case .missingEntitlement, .codeSignatureInvalid, .validationFailed:
             return "This Quorra build is not signed correctly for its system extension."
         case .forbiddenBySystemPolicy, .authorizationRequired:
-            return "Allow Quorra’s system extension in System Settings, then try again."
+            return "Enable Quorra’s Network Extension in System Settings under General → Login Items & Extensions, then try again."
         case .requestCanceled:
             return "System extension activation was canceled."
         default:
