@@ -18,7 +18,7 @@ serve a profile through an IMDS endpoint for local AWS tooling.
 
 ## Install
 
-Quorra requires macOS 26 (Tahoe) or later.
+Quorra requires an Apple silicon Mac running macOS 26.4 (Tahoe) or later.
 
 1. Download `Quorra.dmg` from the [latest GitHub release](https://github.com/ajbeck/quorra/releases/latest).
 2. Open the disk image and move `Quorra.app` to `/Applications`.
@@ -123,9 +123,9 @@ Extensions disables the extension but does not uninstall it.
 
 ## Development
 
-The app is built with SwiftUI and targets macOS 26. Run all tests in Xcode with
-Command-U. The local `AWSConfigINI` Swift package provides the parser and
-atomic writer used for AWS shared-config files.
+The app is built with SwiftUI, targets macOS 26.4, and ships for Apple silicon.
+Run all tests in Xcode with Command-U. The local `AWSConfigINI` Swift package
+provides the parser and atomic writer used for AWS shared-config files.
 
 For release build, signing, notarization, and DMG details, see
 [Distribution](docs/Distribution.md). Parser and encoder documentation is in

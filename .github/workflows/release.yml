@@ -266,7 +266,8 @@ jobs:
             QUORRA_LOGIN_ITEM_PROVISIONING_PROFILE_SPECIFIER="$LOGIN_ITEM_PROVISIONING_PROFILE_UUID" \
             QUORRA_SYSTEM_EXTENSION_PROVISIONING_PROFILE_SPECIFIER="$SYSTEM_EXTENSION_PROVISIONING_PROFILE_UUID" \
             MARKETING_VERSION="$RELEASE_VERSION" \
-            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER"
+            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
+            ARCHS=arm64
 
           xcodebuild -exportArchive \
             -archivePath "$archive_path" \
@@ -301,6 +302,7 @@ jobs:
           RELEASE_VERSION: ${{ steps.release-context.outputs.version }}
         run: |
           info_plist="$EXPORTED_APP_PATH/Contents/Info.plist"
+          app_executable="$EXPORTED_APP_PATH/Contents/MacOS/quorra"
           app_entitlements_path="$RUNNER_TEMP/quorra-app-entitlements.plist"
           actual_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$info_plist")"
           actual_build="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$info_plist")"
@@ -364,6 +366,18 @@ jobs:
             echo "::error::The signed IMDS system extension is missing from the exported app."
             exit 1
           fi
+
+          for executable in \
+            "$app_executable" \
+            "$cli_executable" \
+            "$login_item_executable" \
+            "$system_extension_executable"; do
+            architectures="$(lipo -archs "$executable")"
+            if [[ "$architectures" != 'arm64' ]]; then
+              echo "::error::$executable must contain only the arm64 architecture; found: $architectures"
+              exit 1
+            fi
+          done
 
           app_signature_details="$(codesign -dvvv "$EXPORTED_APP_PATH" 2>&1)"
           if ! grep -Fq 'Identifier=dev.ajbeck.quorra' <<<"$app_signature_details"; then
@@ -475,17 +489,6 @@ jobs:
             echo "::error::The IMDS system extension is missing its Developer ID Network Extension entitlement."
             exit 1
           fi
-
-          for architecture in arm64 x86_64; do
-            if ! lipo "$cli_executable" -verify_arch "$architecture"; then
-              echo "::error::The Quorra CLI is missing its $architecture slice."
-              exit 1
-            fi
-            if ! lipo "$login_item_executable" -verify_arch "$architecture"; then
-              echo "::error::The Quorra login item is missing its $architecture slice."
-              exit 1
-            fi
-          done
 
           actual_cli_version="$("$cli_executable" version)"
           if [[ "$actual_cli_version" != "$RELEASE_VERSION" ]]; then

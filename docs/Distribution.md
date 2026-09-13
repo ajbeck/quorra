@@ -55,12 +55,14 @@ automation write permissions, so no personal access token is needed.
 
 ## Release verification
 
-The workflow validates the exported application, login item, CLI, and nested
-system-extension signatures and entitlements, validates the notarization ticket
-after stapling, and assesses the DMG with Gatekeeper before uploading it. Test a
-downloaded release on a separate user account before announcing it, including
-normal Finder launch, quiet launch-at-login behavior, launch from the mounted
-DMG, and system-extension activation after moving the app to `/Applications`.
+The workflow validates that Quorra's four executables—the application, login
+item, CLI, and nested system extension—contain only the Apple silicon `arm64`
+architecture. It also validates their signatures and entitlements, validates
+the notarization ticket after stapling, and assesses the DMG with Gatekeeper
+before uploading it. Test a downloaded release on a separate user account
+before announcing it, including normal Finder launch, quiet launch-at-login
+behavior, launch from the mounted DMG, and system-extension activation after
+moving the app to `/Applications`.
 
 Before merging a Release Please pull request, run the **Release** workflow from
 its branch with `candidate_version` set to the pending three-component version,
