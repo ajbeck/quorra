@@ -1,8 +1,22 @@
-# Native IMDSv2 Endpoint Roadmap
+# Direct Distribution IMDSv2 System Extension Roadmap
 
 This document is the durable design graph and decision log for making Quorra
-available at the standard EC2 Instance Metadata Service address. Update it
-whenever scope, status, or a decision changes.
+available at the standard EC2 Instance Metadata Service address through a
+Developer ID distributed system extension. This is the working implementation
+checklist and decision log; update it whenever scope, status, or a decision
+changes.
+
+## Distribution Decision
+
+Quorra is distributed directly as a notarized Developer ID application. The
+IMDS transparent proxy is packaged as a Network Extension system extension in
+`quorra.app/Contents/Library/SystemExtensions`, not as a Mac App Store
+`.appex`. The containing app remains sandboxed.
+
+The release artifact, Sparkle update feed, embedded CLI, and system extension
+are one product. Mac App Store and TestFlight distribution are out of scope for
+this implementation because Apple uses a different Network Extension packaging
+form for those channels.
 
 ## Goal
 
@@ -25,11 +39,12 @@ Canonical EC2-compatible endpoint
 │   ├── HTTP over TCP
 │   └── IMDSv2 required by default
 ├── system-managed transparent proxy
-│   ├── sandboxed Network Extension app extension
+│   ├── sandboxed Network Extension system extension
 │   ├── one outbound TCP rule for 169.254.169.254/32:80
 │   ├── all unmatched flows bypass Quorra
 │   ├── intercepted flow relayed as an opaque byte stream
-│   └── lifecycle and approval managed by NetworkExtension
+│   ├── activation and replacement managed by SystemExtensions
+│   └── proxy configuration managed by NetworkExtension
 └── sandboxed Quorra backend
     ├── 127.0.0.1:7114 listener
     ├── token and metadata routing
@@ -41,27 +56,31 @@ Canonical EC2-compatible endpoint
 
 | Stage | Status | Exit condition |
 | --- | --- | --- |
-| Architecture and invariants | Complete | Behavioral goal and Network Extension boundary are documented |
+| Direct-distribution architecture | Complete | Developer ID system-extension boundary and release gates are documented |
 | Runtime configuration | Complete | Canonical and backend endpoints are distinct and options reach the server |
-| Transparent-proxy feasibility | Complete | A signed extension receives only canonical IMDS TCP flows |
-| Flow relay | Complete | Bidirectional relay reaches the loopback backend with bounded resources |
-| App lifecycle and UX | In progress | Approval, readiness, failure, and disablement are visible and recoverable |
-| Distribution | In progress | Sandboxed App Store archive contains valid extension entitlements and signatures |
-| End-to-end verification | Complete | AWS CLI and an AWS SDK complete IMDSv2 without endpoint overrides |
+| App-extension prototype | Complete | The `.appex` prototype receives and relays only canonical IMDS TCP flows |
+| System-extension packaging | In progress | A development-signed `.systemextension` is embedded in the required bundle location |
+| Activation lifecycle | Not started | Install, approval, replacement, cancellation, and failure states are handled |
+| Proxy lifecycle and UX | Not started | Activation and network-configuration states are visible and recoverable |
+| Developer ID signing | Not started | Host and extension use explicit Developer ID profiles and pass signature checks |
+| Notarized release artifact | Not started | CI exports, notarizes, staples, and verifies the complete application |
+| End-to-end release verification | Not started | Installed release candidate passes the clean-machine verification matrix |
 
 ## Active Decisions
 
 ### D013 — Behavioral compatibility over interface ownership
 
-**Decision:** Use a sandboxed `NETransparentProxyProvider` to intercept outbound
-TCP flows whose destination is exactly `169.254.169.254:80`. Relay each selected
+**Decision:** Use a sandboxed `NETransparentProxyProvider`, packaged as a
+Developer ID Network Extension system extension, to intercept outbound TCP
+flows whose destination is exactly `169.254.169.254:80`. Relay each selected
 flow to Quorra's loopback backend. Do not assign the address to `lo0`, bind a
 privileged port, or install a privileged launch daemon.
 
 **Reasoning:** The product requirement is that unmodified AWS clients can reach
 the standard IMDSv2 endpoint. Apple provides transparent proxy network rules
-that select flows by destination address and port, and documents an app
-extension as the Mac App Store deployment form. This preserves App Sandbox and
+that select flows by destination address and port. Apple documents a system
+extension as the Developer ID deployment form and an app extension as the Mac
+App Store deployment form. The system extension preserves App Sandbox and
 avoids root privilege while satisfying the observable client contract.
 
 This decision supersedes D001, D003 through D006, and D008 through D012 below.
@@ -97,7 +116,7 @@ logs their contents. Release buffers when each flow closes.
 relay's memory. Keeping protocol behavior in the existing backend produces a
 smaller extension and preserves one implementation of IMDSv2 security rules.
 
-### D017 — System-owned approval and lifecycle
+### D017 — System-owned proxy configuration
 
 **Decision:** Configure and enable the transparent proxy through
 `NETransparentProxyManager`. Clearly explain the narrowly scoped endpoint
@@ -105,8 +124,8 @@ interception before macOS presents its network-configuration approval. Treat
 approval denial and a disabled extension as normal recoverable states.
 
 **Reasoning:** Network Extension is Apple's supported system networking
-boundary for sandboxed App Store software. Quorra must not imitate approval,
-install separate privileged code, or assume the extension remains enabled.
+boundary. Quorra must not imitate approval, install separate privileged code,
+or assume the configuration remains enabled.
 
 ### D018 — Preserve approved configuration
 
@@ -130,7 +149,64 @@ the token to later metadata requests. Returning only the token body works with
 manual clients and the AWS CLI but does not satisfy the complete IMDSv2 client
 contract.
 
-## Superseded Privileged-Helper Design
+### D020 — Direct Developer ID distribution
+
+**Decision:** Ship a notarized Developer ID application and continue using
+Sparkle for updates. Do not produce a Mac App Store or TestFlight artifact in
+this implementation.
+
+**Reasoning:** Apple's documented deployment form for a Network Extension
+outside the Mac App Store is a system extension. Maintaining both `.appex` and
+`.systemextension` artifacts would create two activation paths, entitlement
+sets, signing configurations, and test matrices before the direct channel is
+proven.
+
+### D021 — System extension activation precedes proxy configuration
+
+**Decision:** The app activates the embedded extension with
+`OSSystemExtensionManager` before it creates or starts the
+`NETransparentProxyManager` configuration. Activation state and network
+configuration state are modeled separately.
+
+**Reasoning:** A system extension can require installation, user approval,
+replacement approval, or restart independently of the transparent proxy
+configuration. Combining those states would produce misleading readiness and
+error reporting.
+
+### D022 — One active desktop user per Mac for the first release
+
+**Decision:** Support one active Quorra desktop session per Mac. Fail closed
+when the loopback backend is unavailable, surface backend port conflicts, and
+document the local-process trust boundary. Fast user switching and a second
+simultaneous Quorra session are unsupported until explicitly designed.
+
+**Reasoning:** The installed system extension and network configuration are
+system-scoped while Quorra's backend, credentials, and Keychain state belong to
+a logged-in user. An explicit restriction is safer than allowing a global
+proxy to route silently to an ambiguous user session.
+
+### D023 — Normal Xcode export first
+
+**Decision:** Use Xcode 27's normal Developer ID archive/export workflow with
+separate explicit provisioning profiles for the host and system extension.
+Only adopt manual inside-out signing if a reproducible Xcode export defect
+requires it.
+
+**Reasoning:** Normal export keeps nested-code signing, entitlements, and
+notarization aligned with Apple's supported toolchain and minimizes custom
+release machinery.
+
+## Superseded Designs
+
+### Mac App Store app-extension packaging
+
+The signed `.appex` prototype proved that the transparent-proxy rule, relay,
+loopback backend, AWS CLI, and AWS SDK behavior work. It is superseded only as a
+distribution form: Apple documents `.appex` for Mac App Store distribution and
+`.systemextension` for Developer ID distribution. The provider and relay logic
+remain the basis of the system extension.
+
+### Privileged helper
 
 The first implementation assigned `169.254.169.254/32` to `lo0`, bound port 80
 in a root launch daemon, and relayed to the app. It established the following
@@ -151,24 +227,34 @@ while the transparent-proxy design is validated.
 
 ## Implementation Sequence
 
-1. Remove the launch-daemon target, alias adapter, privileged listener, XPC
-   contract, and `SMAppService` UI from the product.
-2. Add a macOS Network Extension app-extension target embedded in Quorra.
-3. Add the Network Extension entitlement to the containing app and provider;
-   retain App Sandbox and the existing App Group.
-4. Implement and unit-test construction of the exact outbound TCP network rule.
-5. Configure the provider with `NETransparentProxyNetworkSettings` and decline
-   every unmatched flow.
-6. Implement a bounded bidirectional relay from `NEAppProxyTCPFlow` to
-   `127.0.0.1:7114` without inspecting or logging payloads.
-7. Replace helper registration state with `NETransparentProxyManager`
-   configuration and connection status.
-8. Integrate approval, readiness, restoration, notifications, Settings, and
-   CLI status with the default endpoint lifecycle.
-9. Validate a sandboxed App Store archive, provisioning profile, extension
-   embedding, and signatures.
-10. Verify token acquisition and credential retrieval with `curl`, AWS CLI,
-    and an AWS SDK without `AWS_EC2_METADATA_SERVICE_ENDPOINT`.
+- [x] Prove the exact transparent-proxy rule and bounded relay in a signed app
+  extension.
+- [x] Verify IMDSv2 with `curl`, AWS CLI, and an AWS SDK without an endpoint
+  environment override.
+- [ ] Convert the provider target product from `.appex` to `.systemextension`.
+- [ ] Embed it at `Contents/Library/SystemExtensions` and add the system
+  extension entry point that calls `NEProvider.startSystemExtensionMode()`.
+- [ ] Change the provider entitlement to
+  `app-proxy-provider-systemextension`; add
+  `com.apple.developer.system-extension.install` to the host.
+- [ ] Add an activation controller using `OSSystemExtensionManager` and model
+  activation, approval, replacement, cancellation, restart, and failure.
+- [ ] Gate `NETransparentProxyManager` installation/start on successful system
+  extension activation without rewriting an unchanged approved configuration.
+- [ ] Add UI and diagnostics for `/Applications` installation, system-extension
+  approval, network-configuration approval, failure, and recovery.
+- [ ] Enforce and document the first-release single-active-user policy and
+  backend port-conflict behavior.
+- [ ] Register the host and extension identifiers/capabilities in the Apple
+  Developer portal and create separate Developer ID provisioning profiles.
+- [ ] Update CI export options and signing imports for both profiles; verify the
+  embedded path, identifiers, Team ID, entitlements, hardened runtime, and
+  nested signatures.
+- [ ] Export, notarize, staple, and Gatekeeper-assess a prerelease artifact.
+- [ ] Verify clean install, approval, update, restart, uninstall, VPN, sleep,
+  wake, multi-user failure behavior, and AWS CLI/SDK compatibility.
+- [ ] Update installation, troubleshooting, privacy, security, and release
+  documentation before shipping.
 
 ## Security and Failure Invariants
 
@@ -181,11 +267,13 @@ while the transparent-proxy design is validated.
 - Backend unavailability closes only the affected flow and never changes host
   routes or interface configuration.
 - Secrets remain redacted from logs in both processes.
-- The app and extension remain sandboxed and require no root process.
+- The app and system extension remain sandboxed and require no root process.
+- The system extension is activated only from the matching Team ID host app.
+- A missing user backend or ambiguous ownership fails closed.
 
 ## Feasibility Gate
 
-Before completing UI integration, verify on a clean macOS 26 system that:
+Before completing release integration, verify on a clean macOS 26 system that:
 
 - The provider receives a connection from `curl` to
   `169.254.169.254:80` even though the address is not assigned locally.
@@ -193,14 +281,17 @@ Before completing UI integration, verify on a clean macOS 26 system that:
   HTTP traffic.
 - The provider can open and exchange data with `127.0.0.1:7114` under its
   production sandbox entitlements.
-- Starting and stopping the configuration has understandable system consent
-  and Settings behavior.
+- System-extension activation and transparent-proxy configuration have
+  understandable, distinct consent and Settings behavior.
 - AWS CLI and at least one AWS SDK complete PUT-token and credential requests
   without an endpoint environment variable.
+- An app installed outside `/Applications` receives an actionable explanation.
+- A Sparkle update replaces the approved extension without orphaning the old
+  version or leaving the proxy in an ambiguous state.
 
-If any gate fails because the framework does not deliver this destination to a
-provider, revisit direct Developer ID distribution. Do not restore the root
-design merely to work around signing, provisioning, or test setup problems.
+If any gate fails, first distinguish packaging/signing, activation, proxy
+configuration, and relay failures. Do not restore the root design merely to
+work around signing, provisioning, or test setup problems.
 
 ## Verification Matrix
 
@@ -212,7 +303,13 @@ design merely to work around signing, provisioning, or test setup problems.
 - VPN enabled, Wi-Fi changes, sleep and wake, and fast user switching.
 - IMDSv2 token creation, invalid and expired tokens, metadata reads, credential
   refresh, and live profile switching.
-- Debug, Mac App Distribution archive, TestFlight, and Mac App Store validation.
+- Development-signed debug build and Developer ID release archive.
+- Notarization, stapling, Gatekeeper assessment, first install, and update over
+  an older system extension.
+- App outside `/Applications`, approval deferred/denied, extension replacement
+  denied, restart required, and stale configuration recovery.
+- Logout, login, fast user switching, second-user launch, backend absence, and
+  port ownership conflicts; unsupported combinations must fail visibly.
 
 ## Verification Record
 
@@ -231,5 +328,13 @@ design merely to work around signing, provisioning, or test setup problems.
   after adding the token lifetime response header. The full Xcode test plan
   passed earlier in the implementation sequence and remains a release gate.
 
-Release archive, TestFlight, App Store validation, denial recovery, reboot,
-sleep/wake, VPN interaction, and extension-failure scenarios remain open.
+Developer ID system-extension conversion, release archive, notarization,
+denial recovery, reboot, sleep/wake, VPN interaction, Sparkle replacement, and
+extension-failure scenarios remain open.
+
+## Authoritative References
+
+- [TN3134: Network Extension provider deployment](https://developer.apple.com/documentation/technotes/tn3134-network-extension-provider-deployment)
+- [Installing system extensions and drivers](https://developer.apple.com/documentation/systemextensions/installing-system-extensions-and-drivers)
+- [`NEProvider.startSystemExtensionMode()`](https://developer.apple.com/documentation/networkextension/neprovider/startsystemextensionmode())
+- [Network Extension entitlement](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.developer.networking.networkextension)
