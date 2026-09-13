@@ -260,6 +260,7 @@ jobs:
             -clonedSourcePackagesDirPath "$SOURCE_PACKAGES_PATH" \
             -packageCachePath "$PACKAGE_CACHE_PATH" \
             -skipPackagePluginValidation \
+            -showBuildTimingSummary \
             -archivePath "$archive_path" \
             QUORRA_PROVISIONING_PROFILE_SPECIFIER="$PROVISIONING_PROFILE_UUID" \
             QUORRA_LOGIN_ITEM_PROVISIONING_PROFILE_SPECIFIER="$LOGIN_ITEM_PROVISIONING_PROFILE_UUID" \

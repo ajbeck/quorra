@@ -102,6 +102,7 @@ jobs:
           -packageCachePath "$PACKAGE_CACHE_PATH"
           -disableAutomaticPackageResolution
           -skipPackagePluginValidation
+          -showBuildTimingSummary
           -resultBundlePath "$RUNNER_TEMP/quorra-tests.xcresult"
           CODE_SIGNING_ALLOWED=NO
 
