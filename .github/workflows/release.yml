@@ -10,6 +10,10 @@ on:
         description: Existing release tag to package and upload
         required: false
         type: string
+      candidate_version:
+        description: Version to package the selected ref as a notarized Actions artifact
+        required: false
+        type: string
 
 concurrency:
   group: release-${{ github.ref }}
@@ -43,6 +47,7 @@ jobs:
 
       - name: Create release automation token
         id: release-token
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.candidate_version == '' }}
         uses: actions/create-github-app-token@v3
         with:
           client-id: ${{ vars.RELEASE_PLEASE_CLIENT_ID }}
@@ -53,7 +58,9 @@ jobs:
 
       - name: Create release pull request or GitHub release
         id: release
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.release_tag == '' }}
+        if: >-
+          ${{ github.event_name != 'workflow_dispatch' ||
+              (inputs.release_tag == '' && inputs.candidate_version == '') }}
         uses: googleapis/release-please-action@v5
         with:
           token: ${{ steps.release-token.outputs.token }}
@@ -61,6 +68,7 @@ jobs:
           manifest-file: .release-please-manifest.json
 
       - name: Sync pending release pull request
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.candidate_version == '' }}
         env:
           GH_TOKEN: ${{ steps.release-token.outputs.token }}
           GH_REPO: ${{ github.repository }}
@@ -91,33 +99,53 @@ jobs:
 
       - name: Configure release asset packaging
         id: release-context
-        if: ${{ steps.release.outputs.release_created == 'true' || inputs.release_tag != '' }}
+        if: >-
+          ${{ steps.release.outputs.release_created == 'true' ||
+              inputs.release_tag != '' || inputs.candidate_version != '' }}
         env:
           AUTOMATED_RELEASE_TAG: ${{ steps.release.outputs.tag_name }}
           AUTOMATED_RELEASE_VERSION: ${{ steps.release.outputs.version }}
+          CANDIDATE_VERSION: ${{ inputs.candidate_version }}
           GH_TOKEN: ${{ steps.release-token.outputs.token }}
           GH_REPO: ${{ github.repository }}
           MANUAL_RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
-          release_tag="${MANUAL_RELEASE_TAG:-$AUTOMATED_RELEASE_TAG}"
-          release_version="${AUTOMATED_RELEASE_VERSION:-${release_tag#v}}"
+          if [[ -n "$MANUAL_RELEASE_TAG" && -n "$CANDIDATE_VERSION" ]]; then
+            echo '::error::Choose either an existing release tag or a candidate version, not both.'
+            exit 1
+          fi
 
-          gh release view "$release_tag" --json tagName > /dev/null
+          if [[ -n "$CANDIDATE_VERSION" ]]; then
+            if [[ ! "$CANDIDATE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo '::error::Candidate version must contain three dot-separated integers, for example 0.6.0.'
+              exit 1
+            fi
+            release_ref="$GITHUB_SHA"
+            release_tag=''
+            release_version="$CANDIDATE_VERSION"
+          else
+            release_tag="${MANUAL_RELEASE_TAG:-$AUTOMATED_RELEASE_TAG}"
+            release_ref="$release_tag"
+            release_version="${AUTOMATED_RELEASE_VERSION:-${release_tag#v}}"
+
+            gh release view "$release_tag" --json tagName > /dev/null
+          fi
 
           {
+            echo "ref=$release_ref"
             echo "tag=$release_tag"
             echo "version=$release_version"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Check out release commit
-        if: ${{ steps.release-context.outputs.tag != '' }}
+      - name: Check out packaged commit
+        if: ${{ steps.release-context.outputs.version != '' }}
         uses: actions/checkout@v7
         with:
-          ref: ${{ steps.release-context.outputs.tag }}
+          ref: ${{ steps.release-context.outputs.ref }}
 
       - name: Restore Swift package cache
         id: swift-package-cache
-        if: ${{ steps.release-context.outputs.tag != '' }}
+        if: ${{ steps.release-context.outputs.version != '' }}
         uses: actions/cache/restore@v6
         with:
           path: |
@@ -129,7 +157,7 @@ jobs:
             ${{ runner.os }}-${{ runner.arch }}-xcode-${{ steps.xcode.outputs.version }}-quorra-packages-
 
       - name: Import distribution signing assets
-        if: ${{ steps.release-context.outputs.tag != '' }}
+        if: ${{ steps.release-context.outputs.version != '' }}
         env:
           CERTIFICATE_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_CERTIFICATE_BASE64 }}
           CERTIFICATE_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_CERTIFICATE_PASSWORD }}
@@ -188,7 +216,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Archive and export application
-        if: ${{ steps.release-context.outputs.tag != '' }}
+        if: ${{ steps.release-context.outputs.version != '' }}
         env:
           PACKAGE_CACHE_PATH: ${{ steps.xcode.outputs.package_cache_path }}
           RELEASE_VERSION: ${{ steps.release-context.outputs.version }}
@@ -252,7 +280,7 @@ jobs:
 
       - name: Save Swift package cache
         if: >-
-          ${{ steps.release-context.outputs.tag != '' && steps.swift-package-cache.outputs.cache-hit != 'true' }}
+          ${{ steps.release-context.outputs.version != '' && steps.swift-package-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v6
         with:
           path: |
@@ -262,7 +290,7 @@ jobs:
             ${{ runner.os }}-${{ runner.arch }}-xcode-${{ steps.xcode.outputs.version }}-quorra-packages-${{ hashFiles('Quorra.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'Packages/QuorraCore/Package.swift') }}
 
       - name: Verify packaged application version
-        if: ${{ steps.release-context.outputs.tag != '' }}
+        if: ${{ steps.release-context.outputs.version != '' }}
         env:
           RELEASE_VERSION: ${{ steps.release-context.outputs.version }}
         run: |
@@ -460,7 +488,7 @@ jobs:
           fi
 
       - name: Create signed disk image
-        if: ${{ steps.release-context.outputs.tag != '' }}
+        if: ${{ steps.release-context.outputs.version != '' }}
         env:
           RELEASE_VERSION: ${{ steps.release-context.outputs.version }}
         run: |
@@ -476,7 +504,7 @@ jobs:
           echo "DMG_PATH=$dmg_path" >> "$GITHUB_ENV"
 
       - name: Notarize and staple disk image
-        if: ${{ steps.release-context.outputs.tag != '' }}
+        if: ${{ steps.release-context.outputs.version != '' }}
         env:
           NOTARY_KEY_BASE64: ${{ secrets.APPLE_NOTARY_KEY_BASE64 }}
           NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
@@ -547,8 +575,17 @@ jobs:
             "$APPCAST_PATH#appcast.xml" \
             --clobber
 
+      - name: Upload notarized release candidate
+        if: ${{ steps.release-context.outputs.version != '' && steps.release-context.outputs.tag == '' }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: Quorra-${{ steps.release-context.outputs.version }}-candidate-${{ github.run_number }}
+          path: ${{ env.DMG_PATH }}
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Remove signing assets
-        if: ${{ always() && steps.release-context.outputs.tag != '' }}
+        if: ${{ always() && steps.release-context.outputs.version != '' }}
         run: |
           rm -f "$RUNNER_TEMP/developer-id.p12" "$RUNNER_TEMP/quorra.provisionprofile" "$RUNNER_TEMP/quorra-login-item.provisionprofile" "$RUNNER_TEMP/quorra-imds-proxy.provisionprofile" "$RUNNER_TEMP/AuthKey_"*.p8
           rm -f "$PROVISIONING_PROFILE_PATH"

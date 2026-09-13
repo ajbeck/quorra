@@ -61,3 +61,17 @@ after stapling, and assesses the DMG with Gatekeeper before uploading it. Test a
 downloaded release on a separate user account before announcing it, including
 normal Finder launch, quiet launch-at-login behavior, launch from the mounted
 DMG, and system-extension activation after moving the app to `/Applications`.
+
+Before merging a Release Please pull request, run the **Release** workflow from
+its branch with `candidate_version` set to the pending three-component version,
+for example `0.6.0`. Candidate mode signs, exports, notarizes, staples, and
+verifies the selected commit without creating or modifying a GitHub release. It
+uploads the resulting DMG as a seven-day workflow artifact for clean-machine
+testing. Leave `release_tag` empty in candidate mode.
+
+Verify a candidate as both a fresh install and an in-place update from the
+latest release. Exercise system-extension approval granted, deferred, and
+denied; restart and sleep/wake; common VPN use; default AWS CLI and SDK
+credential resolution without endpoint or region environment variables; and
+app deletion. Do not merge the Release Please pull request until the candidate
+passes this matrix.
