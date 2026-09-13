@@ -59,8 +59,8 @@ Canonical EC2-compatible endpoint
 | Direct-distribution architecture | Complete | Developer ID system-extension boundary and release gates are documented |
 | Runtime configuration | Complete | Canonical and backend endpoints are distinct and options reach the server |
 | App-extension prototype | Complete | The `.appex` prototype receives and relays only canonical IMDS TCP flows |
-| System-extension packaging | In progress | A development-signed `.systemextension` is embedded in the required bundle location |
-| Activation lifecycle | Not started | Install, approval, replacement, cancellation, and failure states are handled |
+| System-extension packaging | Complete | A development build produces and embeds a `.systemextension` in the required bundle location |
+| Activation lifecycle | In progress | Install, approval, replacement, cancellation, and failure states are handled |
 | Proxy lifecycle and UX | Not started | Activation and network-configuration states are visible and recoverable |
 | Developer ID signing | Not started | Host and extension use explicit Developer ID profiles and pass signature checks |
 | Notarized release artifact | Not started | CI exports, notarizes, staples, and verifies the complete application |
@@ -231,10 +231,10 @@ while the transparent-proxy design is validated.
   extension.
 - [x] Verify IMDSv2 with `curl`, AWS CLI, and an AWS SDK without an endpoint
   environment override.
-- [ ] Convert the provider target product from `.appex` to `.systemextension`.
-- [ ] Embed it at `Contents/Library/SystemExtensions` and add the system
+- [x] Convert the provider target product from `.appex` to `.systemextension`.
+- [x] Embed it at `Contents/Library/SystemExtensions` and add the system
   extension entry point that calls `NEProvider.startSystemExtensionMode()`.
-- [ ] Change the provider entitlement to
+- [x] Change the provider entitlement to
   `app-proxy-provider-systemextension`; add
   `com.apple.developer.system-extension.install` to the host.
 - [ ] Add an activation controller using `OSSystemExtensionManager` and model

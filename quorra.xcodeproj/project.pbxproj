@@ -13,7 +13,7 @@
 		1BA1B1C12FB0000000000001 /* AWSConfigINI in Frameworks */ = {isa = PBXBuildFile; productRef = 1BA1B1C22FB0000000000002 /* AWSConfigINI */; };
 		1BA1B1C42FC0000000000004 /* QuorraAppLogic in Frameworks */ = {isa = PBXBuildFile; productRef = 1BA1B1C52FC0000000000005 /* QuorraAppLogic */; };
 		213712AC305585AA0036671E /* NetworkExtension.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 213712AB305585AA0036671E /* NetworkExtension.framework */; };
-		213712B4305585AB0036671E /* QuorraIMDSNetworkExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 213712AA305585AA0036671E /* QuorraIMDSNetworkExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		213712B4305585AB0036671E /* dev.ajbeck.quorra.imds-proxy.systemextension in Embed System Extensions */ = {isa = PBXBuildFile; fileRef = 213712AA305585AA0036671E /* dev.ajbeck.quorra.imds-proxy.systemextension */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		218FE06E304DC905008239F8 /* QuorraCLIKit in Frameworks */ = {isa = PBXBuildFile; productRef = 218FE06D304DC905008239F8 /* QuorraCLIKit */; };
 		218FE071304DC92F008239F8 /* QuorraCLI.app in CopyFiles */ = {isa = PBXBuildFile; fileRef = 21E8E026304DC82400467434 /* QuorraCLI.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
@@ -36,14 +36,14 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		213712B9305585AB0036671E /* Embed Foundation Extensions */ = {
+		213712B9305585AB0036671E /* Embed System Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
-			dstPath = "";
-			dstSubfolder = PlugIns;
+			dstPath = "$(SYSTEM_EXTENSIONS_FOLDER_PATH)";
+			dstSubfolderSpec = 16;
 			files = (
-				213712B4305585AB0036671E /* QuorraIMDSNetworkExtension.appex in Embed Foundation Extensions */,
+				213712B4305585AB0036671E /* dev.ajbeck.quorra.imds-proxy.systemextension in Embed System Extensions */,
 			);
-			name = "Embed Foundation Extensions";
+			name = "Embed System Extensions";
 		};
 		218FD8B1304D894B008239F8 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
@@ -58,7 +58,7 @@
 /* Begin PBXFileReference section */
 		1B5F7C8D2FACE2A100833D01 /* quorra.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = quorra.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1B84B1B32FB1D87700D138C8 /* quorra.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = quorra.xctestplan; sourceTree = "<group>"; };
-		213712AA305585AA0036671E /* QuorraIMDSNetworkExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = QuorraIMDSNetworkExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		213712AA305585AA0036671E /* dev.ajbeck.quorra.imds-proxy.systemextension */ = {isa = PBXFileReference; explicitFileType = "wrapper.system-extension"; includeInIndex = 0; path = "dev.ajbeck.quorra.imds-proxy.systemextension"; sourceTree = BUILT_PRODUCTS_DIR; };
 		213712AB305585AA0036671E /* NetworkExtension.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = NetworkExtension.framework; path = System/Library/Frameworks/NetworkExtension.framework; sourceTree = SDKROOT; };
 		21E8E026304DC82400467434 /* QuorraCLI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = QuorraCLI.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -136,7 +136,7 @@
 			children = (
 				1B5F7C8D2FACE2A100833D01 /* quorra.app */,
 				21E8E026304DC82400467434 /* QuorraCLI.app */,
-				213712AA305585AA0036671E /* QuorraIMDSNetworkExtension.appex */,
+				213712AA305585AA0036671E /* dev.ajbeck.quorra.imds-proxy.systemextension */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -160,7 +160,7 @@
 				1B5F7C8A2FACE2A100833D01 /* Frameworks */,
 				1B5F7C8B2FACE2A100833D01 /* Resources */,
 				218FD8B1304D894B008239F8 /* CopyFiles */,
-				213712B9305585AB0036671E /* Embed Foundation Extensions */,
+				213712B9305585AB0036671E /* Embed System Extensions */,
 			);
 			buildRules = (
 			);
@@ -197,8 +197,8 @@
 			);
 			name = QuorraIMDSNetworkExtension;
 			productName = QuorraIMDSNetworkExtension;
-			productReference = 213712AA305585AA0036671E /* QuorraIMDSNetworkExtension.appex */;
-			productType = "com.apple.product-type.app-extension";
+			productReference = 213712AA305585AA0036671E /* dev.ajbeck.quorra.imds-proxy.systemextension */;
+			productType = "com.apple.product-type.system-extension";
 		};
 		21E8E025304DC82400467434 /* QuorraCLI */ = {
 			isa = PBXNativeTarget;
@@ -541,7 +541,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 26.4;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "dev.ajbeck.quorra.imds-proxy";
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = "$(PRODUCT_BUNDLE_IDENTIFIER)";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -580,7 +580,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 26.4;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "dev.ajbeck.quorra.imds-proxy";
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = "$(PRODUCT_BUNDLE_IDENTIFIER)";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
