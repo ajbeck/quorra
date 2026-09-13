@@ -66,17 +66,15 @@ jobs:
           echo "source_packages_path=$RUNNER_TEMP/quorra-source-packages" >> "$GITHUB_OUTPUT"
           echo "version=$(xcodebuild -version | awk '/^Xcode / { print $2 }')" >> "$GITHUB_OUTPUT"
 
-      - name: Restore Swift package cache
-        id: swift-package-cache
+      - name: Restore Swift package repository cache
+        id: swift-package-repository-cache
         uses: actions/cache/restore@v6
         with:
-          path: |
-            ${{ steps.xcode.outputs.package_cache_path }}
-            ${{ steps.xcode.outputs.source_packages_path }}
+          path: ${{ steps.xcode.outputs.package_cache_path }}
           key: >-
-            ${{ runner.os }}-${{ runner.arch }}-xcode-${{ steps.xcode.outputs.version }}-quorra-packages-${{ hashFiles('Quorra.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'Packages/QuorraCore/Package.swift') }}
+            ${{ runner.os }}-${{ runner.arch }}-xcode-${{ steps.xcode.outputs.version }}-quorra-package-repositories-v1-${{ hashFiles('Quorra.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'Packages/QuorraCore/Package.swift') }}
           restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-xcode-${{ steps.xcode.outputs.version }}-quorra-packages-
+            ${{ runner.os }}-${{ runner.arch }}-xcode-${{ steps.xcode.outputs.version }}-quorra-package-repositories-v1-
 
       - name: Restore validation build cache
         id: validation-build-cache
@@ -107,16 +105,23 @@ jobs:
           -resultBundlePath "$RUNNER_TEMP/quorra-tests.xcresult"
           CODE_SIGNING_ALLOWED=NO
 
-      - name: Save Swift package cache
+      - name: Report Swift package storage
+        if: ${{ always() }}
+        env:
+          PACKAGE_CACHE_PATH: ${{ steps.xcode.outputs.package_cache_path }}
+          SOURCE_PACKAGES_PATH: ${{ steps.xcode.outputs.source_packages_path }}
+        run: |
+          du -sh "$PACKAGE_CACHE_PATH" "$SOURCE_PACKAGES_PATH" 2>/dev/null || true
+          du -sh "$PACKAGE_CACHE_PATH"/* "$SOURCE_PACKAGES_PATH"/* 2>/dev/null | sort -h || true
+
+      - name: Save Swift package repository cache
         if: >-
-          ${{ success() && github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.swift-package-cache.outputs.cache-hit != 'true' }}
+          ${{ success() && github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.swift-package-repository-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v6
         with:
-          path: |
-            ${{ steps.xcode.outputs.package_cache_path }}
-            ${{ steps.xcode.outputs.source_packages_path }}
+          path: ${{ steps.xcode.outputs.package_cache_path }}
           key: >-
-            ${{ runner.os }}-${{ runner.arch }}-xcode-${{ steps.xcode.outputs.version }}-quorra-packages-${{ hashFiles('Quorra.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'Packages/QuorraCore/Package.swift') }}
+            ${{ runner.os }}-${{ runner.arch }}-xcode-${{ steps.xcode.outputs.version }}-quorra-package-repositories-v1-${{ hashFiles('Quorra.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'Packages/QuorraCore/Package.swift') }}
 
       - name: Save validation build cache
         if: >-
