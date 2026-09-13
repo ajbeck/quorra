@@ -177,16 +177,24 @@ extra eliminated the loop and returned the idle debug process to 0% CPU.
 
 **Decision:** Keep background presentation and login registration as separate
 user choices. “Run in the menu bar only” uses AppKit's `.accessory` activation
-policy and suppresses/restoration-disables the main SwiftUI scene. “Launch
-Quorra at login” registers `SMAppService.mainApp`. If macOS requires approval,
-Settings explains the state and links to Login Items.
+policy. Normal Finder and Dock launches retain SwiftUI's automatic launch and
+restoration behavior so an explicit user launch presents the main window.
+“Launch Quorra at login” registers the embedded `QuorraLoginItem` with
+`SMAppService.loginItem(identifier:)`. The helper reads the menu-bar-only choice
+from the shared App Group and launches the main app hidden only for a quiet
+login launch. The helper remains sandboxed and has no network or privileged
+capabilities. If macOS requires approval, Settings explains the state and links
+to Login Items. Existing `SMAppService.mainApp` registrations are removed as
+soon as the helper becomes enabled.
 
 **Evidence:** Apple documents `.accessory` as hiding the Dock and application
-menu while retaining programmatic activation and windows. SwiftUI's suppressed
-launch behavior avoids presenting the scene when no state is restored, and
-disabled restoration prevents a window from unexpectedly returning. Apple
-documents `SMAppService.mainApp` as the supported way to launch the same main
-application on subsequent logins; no helper target is needed.
+menu while retaining programmatic activation and windows. SwiftUI documents
+that a suppressed default launch behavior also suppresses presentation when the
+user clicks a running app with no visible windows, which made explicit launches
+appear to do nothing. Apple documents `SMAppService.loginItem(identifier:)` for
+an app bundle embedded in `Contents/Library/LoginItems`; the helper uses
+`NSWorkspace.OpenConfiguration` to control activation and visibility for that
+specific login launch without suppressing normal app launches.
 
 ### D009 — Notification navigation from background state
 
