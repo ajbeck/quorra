@@ -177,16 +177,29 @@ extra eliminated the loop and returned the idle debug process to 0% CPU.
 
 **Decision:** Keep background presentation and login registration as separate
 user choices. “Run in the menu bar only” uses AppKit's `.accessory` activation
-policy and suppresses/restoration-disables the main SwiftUI scene. “Launch
-Quorra at login” registers `SMAppService.mainApp`. If macOS requires approval,
-Settings explains the state and links to Login Items.
+policy. Normal Finder and Dock launches retain SwiftUI's automatic launch and
+restoration behavior so an explicit user launch presents the main window.
+“Launch Quorra at login” registers the embedded `QuorraLoginItem` with
+`SMAppService.loginItem(identifier:)`. The helper reads the menu-bar-only choice
+from the shared App Group and launches the main app hidden only for a quiet
+login launch. The helper remains sandboxed and has no network or privileged
+capabilities. If macOS requires approval, Settings explains the state and links
+to Login Items. Existing `SMAppService.mainApp` registrations are removed as
+soon as the helper becomes enabled.
 
 **Evidence:** Apple documents `.accessory` as hiding the Dock and application
-menu while retaining programmatic activation and windows. SwiftUI's suppressed
-launch behavior avoids presenting the scene when no state is restored, and
-disabled restoration prevents a window from unexpectedly returning. Apple
-documents `SMAppService.mainApp` as the supported way to launch the same main
-application on subsequent logins; no helper target is needed.
+menu while retaining programmatic activation and windows. SwiftUI documents
+that a suppressed default launch behavior also suppresses presentation when the
+user clicks a running app with no visible windows, which made explicit launches
+appear to do nothing. Apple documents `SMAppService.loginItem(identifier:)` for
+an app bundle embedded in `Contents/Library/LoginItems`; the helper uses
+`NSWorkspace.OpenConfiguration` to control activation and visibility for that
+specific login launch without suppressing normal app launches. A signed macOS
+26 validation confirmed that the helper starts Quorra with zero on-screen
+windows and that opening the same app in Finder activates the existing process
+and presents its main window. `SMAppService.Status.notFound` is treated as an
+unseen service that can still be registered, rather than as a missing build
+artifact.
 
 ### D009 — Notification navigation from background state
 
@@ -377,11 +390,10 @@ Release without applying that identity to package targets.
 - A fresh Xcode 27 beta Debug build passed after the internal SwiftPM product
   became `quorra-cli`. Both the embedded executable and
   `swift run quorra-cli --help` still render `USAGE: quorra <subcommand>`.
-- The Release verifier's universal-binary check now uses `lipo`'s correct
-  operand order and passes against the unsigned universal archive (`arm64` and
-  `x86_64`). Entitlement extraction uses the current stdout form, and nested
-  signature integrity remains covered by the enclosing app's Apple-recommended
-  `codesign --verify --deep --strict` check.
+- The Release verifier enforces Apple-silicon-only executables (`arm64`) for the
+  app, CLI, login item, and system extension. Entitlement extraction uses the
+  current stdout form, and nested signature integrity remains covered by the
+  enclosing app's Apple-recommended `codesign --verify --deep --strict` check.
 - Live Terminal-equivalent commands passed for `imds list`, `imds status`,
   `imds stop`, and a no-op `imds switch-profile`. `imds start` reached the app
   and correctly returned the current expired-session error; a successful start
@@ -400,15 +412,19 @@ Release without applying that identity to package targets.
 - The signed Xcode 27 Debug app registered `SMAppService.mainApp` successfully;
   Settings reported launch at login enabled with no approval or error state,
   and the enabled status persisted across an app restart.
-- A fresh unsigned Release archive embeds the current `0.4.0` helper at the
-  stable path with both `arm64` and `x86_64` slices, the CLI bundle identifier,
+- Before the Apple-silicon-only release policy, a fresh unsigned Release archive
+  embedded the current `0.4.0` helper at the stable path with both `arm64` and
+  `x86_64` slices, the CLI bundle identifier,
   and `LSBackgroundOnly`. Local Developer ID archive export remains unavailable
   without the CI distribution provisioning profile; signed Debug verification
   and CI export gates cover signatures and App Group entitlements. A subsequent
   release-shaped archive injected `MARKETING_VERSION=0.4.0`: the app plist and
-  embedded CLI both report `0.4.0`, both executables are universal (`arm64` and
-  `x86_64`), and the helper retains `dev.ajbeck.quorra.cli`,
+  embedded CLI both reported `0.4.0`, both executables were universal (`arm64`
+  and `x86_64`), and the helper retained `dev.ajbeck.quorra.cli`,
   `LSBackgroundOnly`, and public `quorra` usage.
+- A clean unsigned Apple-silicon-only Release archive produced `arm64` app, CLI,
+  login-item, and system-extension executables without compiling any
+  `Objects-normal/x86_64` build products.
 - `actionlint` currently flags the inherited release-token configuration:
   `actions/create-github-app-token@v3` requires `app-id`. The workflow now uses
   the repository's existing `RELEASE_PLEASE_APP_ID`, and `actionlint` passes.

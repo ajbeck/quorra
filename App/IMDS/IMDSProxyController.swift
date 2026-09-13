@@ -45,10 +45,17 @@ final class IMDSProxyController {
     nonisolated static let localizedDescription = "Quorra IMDSv2"
 
     private(set) var connectionStatus: ConnectionStatus = .notInstalled
+    private(set) var systemExtensionStatus: IMDSSystemExtensionStatus = .notRequested
+    private(set) var isChangingInstallation = false
     private(set) var errorMessage: String?
 
     @ObservationIgnored private var manager: NETransparentProxyManager?
     @ObservationIgnored private var statusObserver: NSObjectProtocol?
+    @ObservationIgnored private lazy var systemExtensionController = IMDSSystemExtensionController(
+        bundleIdentifier: Self.providerBundleIdentifier
+    ) { [weak self] status in
+        self?.systemExtensionStatus = status
+    }
 
     init() {
         statusObserver = NotificationCenter.default.addObserver(
@@ -83,6 +90,10 @@ final class IMDSProxyController {
     }
 
     func setInstalled(_ shouldInstall: Bool) async {
+        guard !isChangingInstallation else { return }
+
+        isChangingInstallation = true
+        defer { isChangingInstallation = false }
         errorMessage = nil
         do {
             if shouldInstall {
@@ -128,6 +139,8 @@ final class IMDSProxyController {
     }
 
     private func installConfiguration() async throws -> NETransparentProxyManager {
+        try await systemExtensionController.activate()
+
         let configuredManager = try await loadConfiguredManager()
         if let configuredManager, hasCurrentConfiguration(configuredManager) {
             manager = configuredManager

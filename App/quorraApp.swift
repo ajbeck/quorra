@@ -21,8 +21,8 @@ struct quorraApp: App {
         .modelContainer(appDelegate.metadataContainer)
         .defaultSize(width: 1280, height: 760)
         .windowResizability(.contentMinSize)
-        .defaultLaunchBehavior(appDelegate.presentationController.runsInMenuBarOnly ? .suppressed : .automatic)
-        .restorationBehavior(appDelegate.presentationController.runsInMenuBarOnly ? .disabled : .automatic)
+        .defaultLaunchBehavior(.automatic)
+        .restorationBehavior(.automatic)
         .handlesExternalEvents(matching: [AppNavigationRoute.externalEventMatchPrefix])
         .commands {
             CommandGroup(after: .appInfo) {

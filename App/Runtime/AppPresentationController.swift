@@ -9,9 +9,10 @@ final class AppPresentationController {
 
     @ObservationIgnored private let defaults: UserDefaults
 
-    init(defaults: UserDefaults = .standard) {
-        self.defaults = defaults
-        runsInMenuBarOnly = defaults.bool(forKey: AppPresentationPreferences.menuBarOnlyKey)
+    init(defaults: UserDefaults? = nil) {
+        let resolvedDefaults = defaults ?? AppPresentationPreferences.sharedDefaults()
+        self.defaults = resolvedDefaults
+        runsInMenuBarOnly = resolvedDefaults.bool(forKey: AppPresentationPreferences.menuBarOnlyKey)
     }
 
     func applyCurrentActivationPolicy() {

@@ -521,9 +521,14 @@ public final class LocalIMDSServer {
             startContinuation?.resume()
             startContinuation = nil
         case .failed(let error):
-            let message = LocalIMDSServerError.network(error).localizedDescription
+            let serverError = LocalIMDSServerError.network(
+                error,
+                bindAddress: bindAddress,
+                port: port
+            )
+            let message = serverError.localizedDescription
             if let continuation = startContinuation {
-                continuation.resume(throwing: LocalIMDSServerError.network(error))
+                continuation.resume(throwing: serverError)
                 startContinuation = nil
             } else {
                 onFailure(message)
@@ -693,7 +698,7 @@ public final class LocalIMDSServer {
 enum LocalIMDSServerError: LocalizedError {
     case invalidBindAddress(String)
     case invalidPort(Int)
-    case network(NWError)
+    case network(NWError, bindAddress: String, port: Int)
 
     var errorDescription: String? {
         switch self {
@@ -701,9 +706,9 @@ enum LocalIMDSServerError: LocalizedError {
             return "Bind address \(address) is not a valid IPv4 or IPv6 address."
         case .invalidPort(let port):
             return "Port \(port) is not valid."
-        case .network(let error):
+        case .network(let error, let bindAddress, let port):
             if case .posix(let code) = error, code == .EADDRINUSE {
-                return "Port is already in use."
+                return "The IMDS server could not listen on \(bindAddress):\(port) because that address is already in use. Stop the other server using it, then try again."
             }
             return error.localizedDescription
         }

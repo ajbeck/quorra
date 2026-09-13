@@ -15,4 +15,22 @@ struct QuorraVersionTests {
 
         #expect(QuorraVersion.current == repositoryVersion)
     }
+
+    @Test func packagedCLIUsesItsBundleMarketingVersion() {
+        #expect(
+            QuorraVersion.resolve(
+                bundleIdentifier: "dev.ajbeck.quorra.cli",
+                bundledVersion: "0.6.0"
+            ) == "0.6.0"
+        )
+    }
+
+    @Test func unrelatedBundlesUseTheRepositoryVersion() {
+        #expect(
+            QuorraVersion.resolve(
+                bundleIdentifier: "com.apple.dt.xctest.tool",
+                bundledVersion: "99.0"
+            ) == QuorraVersion.current
+        )
+    }
 }

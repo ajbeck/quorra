@@ -4,6 +4,8 @@ import ServiceManagement
 @MainActor
 @Observable
 final class LaunchAtLoginController {
+    private static let loginItemIdentifier = "dev.ajbeck.quorra.login-item"
+
     enum Status: Equatable {
         case notRegistered
         case enabled
@@ -15,9 +17,15 @@ final class LaunchAtLoginController {
     private(set) var errorMessage: String?
 
     @ObservationIgnored private let service: SMAppService
+    @ObservationIgnored private let legacyService: SMAppService
 
-    init(service: SMAppService = .mainApp) {
-        self.service = service
+    init(
+        service: SMAppService? = nil,
+        legacyService: SMAppService = .mainApp
+    ) {
+        self.service = service ?? .loginItem(identifier: Self.loginItemIdentifier)
+        self.legacyService = legacyService
+        migrateLegacyRegistrationIfNeeded()
         refresh()
     }
 
@@ -33,8 +41,12 @@ final class LaunchAtLoginController {
                 guard !isRequested else { return }
                 try service.register()
             } else {
-                guard status != .notRegistered else { return }
-                try service.unregister()
+                if status == .enabled || status == .requiresApproval {
+                    try service.unregister()
+                }
+                if legacyService.status != .notRegistered {
+                    try legacyService.unregister()
+                }
             }
         } catch {
             errorMessage = error.localizedDescription
@@ -56,9 +68,33 @@ final class LaunchAtLoginController {
         @unknown default:
             status = .notFound
         }
+
+        if status == .enabled, legacyService.status != .notRegistered {
+            do {
+                try legacyService.unregister()
+            } catch {
+                errorMessage = "Quorra enabled its login item but could not remove the previous registration. \(error.localizedDescription)"
+            }
+        }
     }
 
     func openSystemSettings() {
         SMAppService.openSystemSettingsLoginItems()
+    }
+
+    private func migrateLegacyRegistrationIfNeeded() {
+        guard legacyService.status == .enabled
+                || legacyService.status == .requiresApproval else { return }
+
+        do {
+            if service.status == .notRegistered || service.status == .notFound {
+                try service.register()
+            }
+            if service.status == .enabled {
+                try legacyService.unregister()
+            }
+        } catch {
+            errorMessage = "Quorra could not update its launch-at-login registration. \(error.localizedDescription)"
+        }
     }
 }

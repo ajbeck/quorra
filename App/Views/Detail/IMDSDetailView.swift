@@ -14,6 +14,7 @@ struct IMDSDetailView: View {
     @Environment(ProfilesModel.self) private var profilesModel
     @Environment(CredentialsModel.self) private var credentialsModel
     @Environment(IMDSModel.self) private var imdsModel
+    @Environment(IMDSProxyController.self) private var imdsProxyController
     @Environment(AppRuntimeCoordinator.self) private var runtimeCoordinator
     @Environment(DefaultIMDSNotificationCoordinator.self) private var defaultIMDSNotificationCoordinator
     @Environment(\.modelContext) private var modelContext
@@ -135,6 +136,11 @@ struct IMDSDetailView: View {
                     defaultEndpointNotice()
                 }
                 serverStatusPanel(for: node, endpointKey: endpointKey, state: state, runtime: runtime, definition: definition)
+                if DefaultIMDSEndpoint.matches(definition) {
+                    IMDSSystemExtensionGuidance(
+                        status: imdsProxyController.systemExtensionStatus
+                    )
+                }
                 endpointCard(for: state, definition: definition)
                 configurationCard(for: state, definition: definition)
                 IMDSActivityCard(state: state, runtime: runtime, endpointID: endpointKey)

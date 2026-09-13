@@ -57,7 +57,6 @@ struct GeneralSettingsTab: View {
                         set: { launchAtLoginController.setEnabled($0) }
                     )
                 )
-                .disabled(launchAtLoginController.status == .notFound)
 
                 launchAtLoginStatus
             }
@@ -100,25 +99,49 @@ struct GeneralSettingsTab: View {
         Toggle(
             "Enable the default EC2 metadata URL",
             isOn: Binding(
-                get: { imdsProxyController.isInstalled },
+                get: {
+                    imdsProxyController.isInstalled
+                        || imdsProxyController.isChangingInstallation
+                },
                 set: { shouldInstall in
                     Task { await imdsProxyController.setInstalled(shouldInstall) }
                 }
             )
         )
+        .disabled(imdsProxyController.isChangingInstallation)
 
         Text("Quorra asks macOS to route only TCP connections for 169.254.169.254:80 through its Network Extension. The extension relays opaque bytes to Quorra’s sandboxed IMDSv2 server and never interprets, stores, or logs credentials or tokens.")
             .font(.callout)
             .foregroundStyle(.secondary)
 
-        if imdsProxyController.isInstalled {
-            LabeledContent("Network Extension", value: imdsProxyController.connectionStatus.description)
+        if imdsProxyController.systemExtensionStatus != .notRequested {
+            LabeledContent(
+                "System Extension",
+                value: imdsProxyController.systemExtensionStatus.description
+            )
         }
 
-        if let errorMessage = imdsProxyController.errorMessage {
+        if imdsProxyController.isInstalled {
+            LabeledContent(
+                "Network Configuration",
+                value: imdsProxyController.connectionStatus.description
+            )
+        }
+
+        IMDSSystemExtensionGuidance(status: imdsProxyController.systemExtensionStatus)
+
+        if let errorMessage = imdsProxyController.errorMessage,
+           !systemExtensionGuidanceShowsFailure {
             Label(errorMessage, systemImage: "exclamationmark.triangle")
                 .foregroundStyle(.red)
         }
+    }
+
+    private var systemExtensionGuidanceShowsFailure: Bool {
+        if case .failed = imdsProxyController.systemExtensionStatus {
+            return true
+        }
+        return false
     }
 
     private var modeBlurb: String {
@@ -142,10 +165,7 @@ struct GeneralSettingsTab: View {
             Button("Open Login Items Settings") {
                 launchAtLoginController.openSystemSettings()
             }
-        case .notFound:
-            Label("Launch at login is unavailable in this build.", systemImage: "exclamationmark.triangle")
-                .foregroundStyle(.orange)
-        case .notRegistered, .enabled:
+        case .notRegistered, .notFound, .enabled:
             EmptyView()
         }
 
