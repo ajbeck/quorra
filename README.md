@@ -26,6 +26,19 @@ Quorra requires macOS 26 (Tahoe) or later.
 4. Choose **Edit & Manage** to let Quorra update AWS configuration files, or
    **Read Only** to browse profiles and use credentials without changing them.
 
+Quorra must be installed in `/Applications` before the default EC2 metadata
+endpoint can be enabled. The first time you enable it, macOS asks you to approve
+the system extension and then enable Quorra's Network Extension:
+
+1. Allow the system extension when macOS presents the approval request.
+2. Open **System Settings → General → Login Items & Extensions**.
+3. Under **Extensions**, click the info button beside Quorra's Network
+   Extension and turn it on.
+
+Quorra continues starting the endpoint automatically after macOS completes the
+approval. These approvals persist across ordinary endpoint restarts and app
+launches.
+
 The first public release is being prepared. Until then, build the app from
 source using Xcode 26 or later:
 
@@ -65,9 +78,16 @@ http://169.254.169.254
 
 The app remains sandboxed. A narrowly scoped macOS Network Extension forwards
 only outbound TCP traffic for `169.254.169.254:80` to Quorra's private
-`127.0.0.1:7114` backend. macOS asks for permission the first time Quorra
-installs this network configuration. The approval persists across normal
-endpoint restarts and app relaunches.
+`127.0.0.1:7114` backend. macOS separately approves installation of the system
+extension and activation of its network functionality. Both approvals persist
+across normal endpoint restarts and app relaunches. An extension update or a
+reset of system network settings may cause macOS to request approval again.
+
+If Quorra remains on **Waiting for approval**, use its **Open Login Items &
+Extensions** button. Open Quorra's entry under **Extensions** and confirm its
+Network Extension is on. Also confirm Quorra is running from `/Applications`.
+If macOS reports that a restart is required, restart before enabling the
+endpoint again.
 
 Additional endpoints listen only on `127.0.0.1`. Point a compatible client to
 one of those endpoints when you want an explicit custom endpoint:
@@ -92,6 +112,14 @@ also publishes the active port at
 - Quorra asks macOS to approve its narrowly scoped network configuration the
   first time the default endpoint is enabled.
 - Read Only mode prevents Quorra from writing to the AWS files you selected.
+
+## Uninstall
+
+Turn off Quorra's default endpoint before uninstalling to remove its transparent
+proxy configuration. Then quit Quorra and move `Quorra.app` from
+`/Applications` to Trash. macOS removes the system extension with its containing
+app and may ask you to confirm that removal. The switch in Login Items &
+Extensions disables the extension but does not uninstall it.
 
 ## Development
 
