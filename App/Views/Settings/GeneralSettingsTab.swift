@@ -57,7 +57,6 @@ struct GeneralSettingsTab: View {
                         set: { launchAtLoginController.setEnabled($0) }
                     )
                 )
-                .disabled(launchAtLoginController.status == .notFound)
 
                 launchAtLoginStatus
             }
@@ -166,10 +165,7 @@ struct GeneralSettingsTab: View {
             Button("Open Login Items Settings") {
                 launchAtLoginController.openSystemSettings()
             }
-        case .notFound:
-            Label("Launch at login is unavailable in this build.", systemImage: "exclamationmark.triangle")
-                .foregroundStyle(.orange)
-        case .notRegistered, .enabled:
+        case .notRegistered, .notFound, .enabled:
             EmptyView()
         }
 

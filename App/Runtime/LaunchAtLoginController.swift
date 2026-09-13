@@ -41,7 +41,7 @@ final class LaunchAtLoginController {
                 guard !isRequested else { return }
                 try service.register()
             } else {
-                if status != .notRegistered {
+                if status == .enabled || status == .requiresApproval {
                     try service.unregister()
                 }
                 if legacyService.status != .notRegistered {
@@ -87,7 +87,7 @@ final class LaunchAtLoginController {
                 || legacyService.status == .requiresApproval else { return }
 
         do {
-            if service.status == .notRegistered {
+            if service.status == .notRegistered || service.status == .notFound {
                 try service.register()
             }
             if service.status == .enabled {
