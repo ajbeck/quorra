@@ -255,7 +255,7 @@ while the transparent-proxy design is validated.
   extension activation without rewriting an unchanged approved configuration.
 - [ ] Add UI and diagnostics for `/Applications` installation, system-extension
   approval, network-configuration approval, failure, and recovery.
-- [ ] Enforce and document the first-release single-active-user policy and
+- [x] Enforce and document the first-release single-active-user policy and
   backend port-conflict behavior.
 - [ ] Register the host and extension identifiers/capabilities in the Apple
   Developer portal and create separate Developer ID provisioning profiles.

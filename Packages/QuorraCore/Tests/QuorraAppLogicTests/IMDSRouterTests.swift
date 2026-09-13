@@ -428,6 +428,39 @@ struct IMDSRouterTests {
         }
     }
 
+    @MainActor
+    @Test func localServerExplainsAddressConflict() async throws {
+        let firstServer = LocalIMDSServer(
+            port: 0,
+            servedProfile: servedProfile,
+            initialCredentials: servedCredentials,
+            credentialProvider: { self.servedCredentials },
+            onRequest: { _ in },
+            onFailure: { _ in }
+        )
+        try await firstServer.start()
+        defer { firstServer.stop() }
+
+        let conflictingServer = LocalIMDSServer(
+            port: firstServer.boundPort,
+            servedProfile: servedProfile,
+            initialCredentials: servedCredentials,
+            credentialProvider: { self.servedCredentials },
+            onRequest: { _ in },
+            onFailure: { _ in }
+        )
+
+        do {
+            try await conflictingServer.start()
+            Issue.record("Expected an address-in-use error")
+        } catch let error as LocalIMDSServerError {
+            #expect(
+                error.errorDescription
+                    == "The IMDS server could not listen on 127.0.0.1:\(firstServer.boundPort) because that address is already in use. Stop the other server using it, then try again."
+            )
+        }
+    }
+
     private var servedProfile: IMDSServedProfile {
         IMDSServedProfile(
             profileName: "ac:cp:org_admin",
