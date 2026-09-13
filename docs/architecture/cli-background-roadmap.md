@@ -194,7 +194,12 @@ user clicks a running app with no visible windows, which made explicit launches
 appear to do nothing. Apple documents `SMAppService.loginItem(identifier:)` for
 an app bundle embedded in `Contents/Library/LoginItems`; the helper uses
 `NSWorkspace.OpenConfiguration` to control activation and visibility for that
-specific login launch without suppressing normal app launches.
+specific login launch without suppressing normal app launches. A signed macOS
+26 validation confirmed that the helper starts Quorra with zero on-screen
+windows and that opening the same app in Finder activates the existing process
+and presents its main window. `SMAppService.Status.notFound` is treated as an
+unseen service that can still be registered, rather than as a missing build
+artifact.
 
 ### D009 — Notification navigation from background state
 
