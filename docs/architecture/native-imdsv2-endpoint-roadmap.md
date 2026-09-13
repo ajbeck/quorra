@@ -208,6 +208,20 @@ Developer ID profiles specifically. Using that value in Debug makes the normal
 Mac development provisioning profiles invalid even though the product is
 correctly packaged as a `.systemextension`.
 
+### D025 — Disable configuration; let app deletion uninstall
+
+**Decision:** Turning off the default EC2 metadata URL removes Quorra's
+transparent-proxy network configuration but does not deactivate the approved
+system extension. Deleting Quorra is the supported full-uninstall path; do not
+add a routine settings control that submits a system-extension deactivation
+request.
+
+**Reasoning:** Apple automatically uninstalls a system extension when the user
+deletes its containing app. Keeping the inert extension installed makes a
+later re-enable inexpensive, while an explicit deactivation request can itself
+require a restart and adds destructive state that is unnecessary during normal
+endpoint operation.
+
 ## Superseded Designs
 
 ### Mac App Store app-extension packaging
