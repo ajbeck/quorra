@@ -20,10 +20,10 @@ final class LaunchAtLoginController {
     @ObservationIgnored private let legacyService: SMAppService
 
     init(
-        service: SMAppService = .loginItem(identifier: loginItemIdentifier),
+        service: SMAppService? = nil,
         legacyService: SMAppService = .mainApp
     ) {
-        self.service = service
+        self.service = service ?? .loginItem(identifier: Self.loginItemIdentifier)
         self.legacyService = legacyService
         migrateLegacyRegistrationIfNeeded()
         refresh()
