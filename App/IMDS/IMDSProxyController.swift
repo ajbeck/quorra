@@ -46,6 +46,7 @@ final class IMDSProxyController {
 
     private(set) var connectionStatus: ConnectionStatus = .notInstalled
     private(set) var systemExtensionStatus: IMDSSystemExtensionStatus = .notRequested
+    private(set) var isChangingInstallation = false
     private(set) var errorMessage: String?
 
     @ObservationIgnored private var manager: NETransparentProxyManager?
@@ -89,6 +90,10 @@ final class IMDSProxyController {
     }
 
     func setInstalled(_ shouldInstall: Bool) async {
+        guard !isChangingInstallation else { return }
+
+        isChangingInstallation = true
+        defer { isChangingInstallation = false }
         errorMessage = nil
         do {
             if shouldInstall {
