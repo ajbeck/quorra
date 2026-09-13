@@ -6,7 +6,7 @@ struct quorraApp: App {
     @NSApplicationDelegateAdaptor(AppLifecycleDelegate.self) private var appDelegate
 
     var body: some Scene {
-        WindowGroup("Quorra", id: QuorraSceneID.mainWindow) {
+        Window("Quorra", id: QuorraSceneID.mainWindow) {
             RootView()
                 .environment(appDelegate.appModel)
                 .environment(appDelegate.profilesModel)
