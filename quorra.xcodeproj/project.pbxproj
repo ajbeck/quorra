@@ -39,7 +39,7 @@
 		213712B9305585AB0036671E /* Embed System Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			dstPath = "$(SYSTEM_EXTENSIONS_FOLDER_PATH)";
-			dstSubfolderSpec = 16;
+			dstSubfolder = Product;
 			files = (
 				213712B4305585AB0036671E /* dev.ajbeck.quorra.imds-proxy.systemextension in Embed System Extensions */,
 			);

@@ -111,8 +111,18 @@ struct GeneralSettingsTab: View {
             .font(.callout)
             .foregroundStyle(.secondary)
 
+        if imdsProxyController.systemExtensionStatus != .notRequested {
+            LabeledContent(
+                "System Extension",
+                value: imdsProxyController.systemExtensionStatus.description
+            )
+        }
+
         if imdsProxyController.isInstalled {
-            LabeledContent("Network Extension", value: imdsProxyController.connectionStatus.description)
+            LabeledContent(
+                "Network Configuration",
+                value: imdsProxyController.connectionStatus.description
+            )
         }
 
         if let errorMessage = imdsProxyController.errorMessage {

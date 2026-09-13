@@ -237,9 +237,9 @@ while the transparent-proxy design is validated.
 - [x] Change the provider entitlement to
   `app-proxy-provider-systemextension`; add
   `com.apple.developer.system-extension.install` to the host.
-- [ ] Add an activation controller using `OSSystemExtensionManager` and model
+- [x] Add an activation controller using `OSSystemExtensionManager` and model
   activation, approval, replacement, cancellation, restart, and failure.
-- [ ] Gate `NETransparentProxyManager` installation/start on successful system
+- [x] Gate `NETransparentProxyManager` installation/start on successful system
   extension activation without rewriting an unchanged approved configuration.
 - [ ] Add UI and diagnostics for `/Applications` installation, system-extension
   approval, network-configuration approval, failure, and recovery.
