@@ -33,9 +33,9 @@ final class IMDSProxyController {
         var description: String {
             switch self {
             case .notInstalled: return "Not configured"
-            case .disconnected: return "Ready"
+            case .disconnected: return "Configured"
             case .connecting: return "Connecting"
-            case .connected: return "Connected"
+            case .connected: return "Active"
             case .disconnecting: return "Disconnecting"
             }
         }
@@ -104,6 +104,27 @@ final class IMDSProxyController {
             await refresh()
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    func repairConfiguration() async throws {
+        guard !isChangingInstallation else { return }
+
+        isChangingInstallation = true
+        defer { isChangingInstallation = false }
+        errorMessage = nil
+
+        do {
+            if let configuredManager = try await loadConfiguredManager() {
+                configuredManager.connection.stopVPNTunnel()
+                try await remove(configuredManager)
+            }
+            manager = nil
+            connectionStatus = .notInstalled
+            _ = try await installConfiguration()
+        } catch {
+            errorMessage = error.localizedDescription
+            throw error
         }
     }
 

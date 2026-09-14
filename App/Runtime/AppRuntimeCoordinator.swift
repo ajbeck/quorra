@@ -130,6 +130,22 @@ final class AppRuntimeCoordinator {
         }
     }
 
+    func repairDefaultEndpoint() async {
+        let endpointID = DefaultIMDSEndpoint.stableIDString
+        await stopDefaultEndpoint()
+
+        do {
+            try await imdsProxyController.repairConfiguration()
+            imdsModel.rememberDefaultEndpointShouldRun(true)
+            await requestReconciliation(force: true)
+        } catch {
+            imdsModel.setState(
+                .failed(port: DefaultIMDSEndpoint.port, message: error.localizedDescription),
+                forEndpointID: endpointID
+            )
+        }
+    }
+
     func signIn(to sessionName: String) {
         guard let session = profilesModel.findSession(named: sessionName),
               let startURLString = session.session?.ssoStartUrl,

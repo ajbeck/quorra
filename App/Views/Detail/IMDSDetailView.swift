@@ -498,14 +498,35 @@ struct IMDSDetailView: View {
             .pressFeedback()
 
         case .failed:
-            stoppedEndpointAction(
-                for: node,
-                endpointKey: endpointKey,
-                definition: definition,
-                readyTitle: "Retry",
-                readySystemImage: "arrow.clockwise"
-            )
+            if shouldOfferConfigurationRepair(for: state, definition: definition) {
+                Button {
+                    Task { await runtimeCoordinator.repairDefaultEndpoint() }
+                } label: {
+                    Label("Repair", systemImage: "wrench.and.screwdriver")
+                }
+                .buttonStyle(.borderedProminent)
+                .pressFeedback()
+                .help("Recreate the default endpoint’s macOS routing configuration")
+            } else {
+                stoppedEndpointAction(
+                    for: node,
+                    endpointKey: endpointKey,
+                    definition: definition,
+                    readyTitle: "Retry",
+                    readySystemImage: "arrow.clockwise"
+                )
+            }
         }
+    }
+
+    private func shouldOfferConfigurationRepair(
+        for state: IMDSEndpointState,
+        definition: IMDSEndpointDefinition
+    ) -> Bool {
+        guard DefaultIMDSEndpoint.matches(definition),
+              let message = state.failureMessage else { return false }
+        return message == IMDSProxyControllerError.connectionFailed.errorDescription
+            || message == IMDSProxyControllerError.connectionTimedOut.errorDescription
     }
 
     @ViewBuilder

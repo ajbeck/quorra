@@ -114,6 +114,11 @@ struct GeneralSettingsTab: View {
             .font(.callout)
             .foregroundStyle(.secondary)
 
+        LabeledContent(
+            "Routing Configuration",
+            value: imdsProxyController.connectionStatus.description
+        )
+
         if imdsProxyController.systemExtensionStatus != .notRequested {
             LabeledContent(
                 "System Extension",
