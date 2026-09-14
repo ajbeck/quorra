@@ -222,6 +222,46 @@ later re-enable inexpensive, while an explicit deactivation request can itself
 require a restart and adds destructive state that is unnecessary during normal
 endpoint operation.
 
+### D026 — Repair stale network configuration in place
+
+**Decision:** Treat system-extension installation and transparent-proxy
+configuration as separate states. When the extension is installed but the
+default endpoint cannot connect, offer an explicit repair action that removes
+Quorra's saved `NETransparentProxyManager` configuration and creates a fresh
+one for the currently installed provider.
+
+**Reasoning:** macOS can preserve a network configuration whose code-signing
+requirement names an older development build after the extension has been
+replaced by a Developer ID build. The new provider is then correctly installed
+but cannot satisfy the stale configuration's designated requirement. Recreating
+only the routing configuration repairs that mismatch without deactivating the
+approved system extension.
+
+### D027 — Dock presence follows interactive windows
+
+**Decision:** Quorra uses the regular application activation policy whenever a
+main or Settings window is open. If the user enables background-only behavior,
+Quorra returns to the accessory policy only after the last interactive window
+closes; losing focus never closes or hides a window.
+
+**Reasoning:** Opening an application establishes the macOS expectation that it
+has a Dock icon and persistent windows. The accessory policy remains useful for
+a quiet menu-bar process, but it must not make an explicitly opened Quorra
+window disappear when the user switches applications.
+
+### D028 — Settings are organized by user task
+
+**Decision:** Use stable macOS Settings toolbar panes for General, Background,
+IMDS, and About. Keep each pane as a native grouped form, and use one compact
+extension-to-routing status path in the IMDS pane to communicate the dependency
+between those otherwise separate states.
+
+**Reasoning:** Apple's Human Interface Guidelines recommend stable,
+noncustomizable panes for macOS app settings, grouping related controls, and
+using switches for significant on/off behavior. Task-based panes make the
+previous long list easier to scan while keeping system integration and its
+recovery action together.
+
 ## Superseded Designs
 
 ### Mac App Store app-extension packaging
@@ -364,3 +404,6 @@ extension-failure scenarios remain open.
 - [Installing system extensions and drivers](https://developer.apple.com/documentation/systemextensions/installing-system-extensions-and-drivers)
 - [`NEProvider.startSystemExtensionMode()`](https://developer.apple.com/documentation/networkextension/neprovider/startsystemextensionmode())
 - [Network Extension entitlement](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.developer.networking.networkextension)
+- [Human Interface Guidelines: Settings](https://developer.apple.com/design/human-interface-guidelines/settings)
+- [Human Interface Guidelines: Layout](https://developer.apple.com/design/human-interface-guidelines/layout)
+- [Human Interface Guidelines: Toggles](https://developer.apple.com/design/human-interface-guidelines/toggles)
