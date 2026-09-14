@@ -3,6 +3,8 @@ import SwiftData
 public enum QuorraMetadataSchema {
     public static var modelTypes: [any PersistentModel.Type] {
         [
+        SessionDefinition.self,
+        ProfileDefinition.self,
         IMDSEndpointDefinition.self,
         IMDSEndpointLogEntry.self
         ]
