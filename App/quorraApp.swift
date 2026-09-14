@@ -56,6 +56,7 @@ struct quorraApp: App {
                 .environment(appDelegate.presentationController)
                 .environment(appDelegate.launchAtLoginController)
                 .environment(appDelegate.imdsProxyController)
+                .environment(appDelegate.runtimeCoordinator)
                 .background(
                     InteractiveWindowRegistration(
                         presentationController: appDelegate.presentationController

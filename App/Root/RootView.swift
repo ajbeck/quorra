@@ -71,6 +71,7 @@ extension ProcessInfo {
         .environment(AppModel(initialPhase: .setup))
         .environment(AppRuntimeCoordinator.preview())
         .environment(DefaultIMDSNotificationCoordinator())
+        .environment(AppPresentationController())
 }
 
 #Preview("Root – ready") {
@@ -79,6 +80,7 @@ extension ProcessInfo {
         .environment(AppModel(initialPhase: .ready(url)))
         .environment(AppRuntimeCoordinator.preview())
         .environment(DefaultIMDSNotificationCoordinator())
+        .environment(AppPresentationController())
 }
 
 #Preview("Root – error") {
@@ -86,6 +88,7 @@ extension ProcessInfo {
         .environment(AppModel(initialPhase: .error(.folderMissing)))
         .environment(AppRuntimeCoordinator.preview())
         .environment(DefaultIMDSNotificationCoordinator())
+        .environment(AppPresentationController())
 }
 
 #endif
