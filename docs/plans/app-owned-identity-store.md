@@ -65,8 +65,25 @@ Only `sso-session` sections and the profiles that reference them with an account
 
 The import runs once, in `AppRuntimeCoordinator` right after the first successful load of the AWS folder, and a UserDefaults flag (`IdentityImportStorage`) records completion. Failure leaves the flag unset so the next launch retries, and the error goes to the `dev.ajbeck.quorra` log. Records are matched by name, so a later manual re-import (a settings action in the export layer) updates rather than duplicates.
 
+### D9. Store edits are not gated by the file mode
+
+The managed and read-only modes described what Quorra may do to the AWS files. Sessions and profiles now live in the store, so the mode no longer applies to creating, editing, or deleting them, and the read-only banners and disabled controls are gone from those views. The mode setting stays in General settings until the export layer turns it into the export switch (approved shape, point 4). Until that layer lands nothing writes the AWS files, whatever the mode says.
+
+### D10. `ProfilesModel` leaves the package too
+
+Once the views read the store, nothing in the app or the CLI used `ProfilesModel` (the CLI reads through `ProfileCatalogLoader` in `QuorraProfiles`). The class, its file writers, and their tests are removed; the derivation tests exercise `ProfileCatalogLoader.derive` directly, which the import still relies on. The import loads the folder with `ProfileCatalogLoader.load(folder:)` off the main actor, as the model did.
+
+### D11. Save and Discard drafts stay
+
+Session and profile detail views keep an explicit draft compared against the stored values: Save validates, applies, and calls `modelContext.save()`; Discard resets; a failed save rolls the context back and shows the error. SwiftData autosave with inline editing was considered and rejected because these fields decide which credentials an endpoint serves, so the review step stays. Approved by AJ on 14 September 2026 (Q1).
+
+### D12. Profile creation and the portal listing
+
+The profile sheet lists accounts with `ListAccounts` and roles with `ListAccountRoles` through the session's stored token, on the portal host of the session's Identity Center region, which the token records. AWS: `sso_region` is "the AWS Region that contains your IAM Identity Center portal host" (https://docs.aws.amazon.com/sdkref/latest/guide/feature-sso-credentials.html). The two verbs are new on `IdentityCenterServicing` and `CredentialsModel`. A signed-out session (`.notSignedIn` or `.tokenExpired`) falls back to typed account ID and role name, with a footer that says to sign in. The default name is the session name, the portal account name (or the typed account ID), and the role name joined by colons, lowercased, with whitespace runs replaced by `-`; it is shown as the placeholder so the user can type another name. Sessions require an https start URL and a region at creation, since both are needed to sign in. Approved by AJ on 14 September 2026 (Q2).
+
 ## Verification
 
 - `models`: warning-free build, package tests for cascade, nullify, and upsert; launch against an existing store. Done 14 September 2026: 512 tests passed, launch against the real store succeeded.
 - `import`: importer tests for scope, idempotence, and endpoint linking; launch against the real AWS folder and confirm the log line. Done 14 September 2026: 516 tests passed; the launch logged "Imported 1 sessions and 5 profiles into the identity store; linked 3 endpoints; left 0 profiles in the file."
 - `runtime`: tests for store lookups, default-endpoint linking, and the IPC sign-in coordinator on a store; launch and query the running app over IPC. Done 14 September 2026: 517 tests passed; `quorra-cli imds list` and `imds status default` against the debug app listed every endpoint with its store-resolved profile, and the default endpoint reported the credential path's own "session token has expired" state rather than a lookup failure.
+- `ui`: warning-free build; package tests for the portal listing verbs; previews of the object list, the creation sheets, and both detail views render on fixture data; launch against the real store and query it over IPC. Done 14 September 2026: 512 tests passed (the seven `ProfilesModel` file-writer tests left with the class, two portal listing tests joined); the six previews rendered; the debug app launched against the real store with no crash report, and `quorra-cli imds list` listed every endpoint with its store-resolved profile while the default endpoint still reported the credential path's own expired-token state.

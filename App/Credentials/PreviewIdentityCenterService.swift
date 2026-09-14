@@ -6,6 +6,9 @@ import IAMIdentityCenter
 /// service shouldn't actually do anything. `signIn` traps if called — previews that need
 /// to exercise sign-in should seed model state directly via the `seed*ForTesting` helpers.
 struct PreviewIdentityCenterService: IdentityCenterServicing {
+    /// When false, account and role listing behaves like a signed-out session.
+    var portalListingAvailable = true
+
     nonisolated let events: AsyncStream<AuthEvent> = AsyncStream.makeStream(of: AuthEvent.self).stream
 
     @concurrent
@@ -94,6 +97,25 @@ struct PreviewIdentityCenterService: IdentityCenterServicing {
         roleName: String
     ) async -> ProfileAuthStatus {
         .notSignedIn(sessionName: sessionName)
+    }
+
+    /// Sample listing for the profile picker previews; the session name does not matter.
+    @concurrent
+    func accounts(forSession sessionName: String) async throws -> [PortalAccount] {
+        guard portalListingAvailable else { throw IAMIdentityCenterError.notSignedIn }
+        return [
+            PortalAccount(accountId: "699475923216", accountName: "Spaceport", emailAddress: "aws@spaceport.example"),
+            PortalAccount(accountId: "699475923217", accountName: "Ground Control", emailAddress: "aws@ground.example"),
+        ]
+    }
+
+    @concurrent
+    func roles(forSession sessionName: String, accountId: String) async throws -> [PortalRole] {
+        guard portalListingAvailable else { throw IAMIdentityCenterError.notSignedIn }
+        return [
+            PortalRole(accountId: accountId, roleName: "OrganizationAdmin"),
+            PortalRole(accountId: accountId, roleName: "ReadOnlyAccess"),
+        ]
     }
 }
 #endif

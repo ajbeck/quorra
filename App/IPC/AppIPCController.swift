@@ -166,12 +166,6 @@ private final class AppIPCRequestHandler {
                 code: error.code,
                 message: error.message
             )
-        } catch AppRuntimeOperationError.profilesNotReady {
-            return .failure(
-                requestID: request.requestID,
-                code: .notReady,
-                message: AppRuntimeOperationError.profilesNotReady.localizedDescription
-            )
         } catch ProfileSignInOperationError.profilesNotReady {
             return .failure(
                 requestID: request.requestID,
