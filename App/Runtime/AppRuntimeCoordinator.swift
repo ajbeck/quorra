@@ -5,6 +5,9 @@ import Observation
 import QuorraAppLogic
 import QuorraProfiles
 import SwiftData
+import os
+
+private let runtimeLogger = Logger(subsystem: "dev.ajbeck.quorra", category: "Runtime")
 
 struct DefaultEndpointAuthenticationNotice: Equatable, Identifiable {
     let endpointID: String
@@ -72,6 +75,7 @@ final class AppRuntimeCoordinator {
     @ObservationIgnored private let notificationCoordinator: DefaultIMDSNotificationCoordinator
     @ObservationIgnored private let authenticationBrowser: AuthenticationBrowser
     @ObservationIgnored private let modelContext: ModelContext
+    @ObservationIgnored private let identityImportStorage: IdentityImportStorage
 
     @ObservationIgnored private var hasStarted = false
     @ObservationIgnored private var isReconciling = false
@@ -91,7 +95,8 @@ final class AppRuntimeCoordinator {
         imdsProxyController: IMDSProxyController,
         notificationCoordinator: DefaultIMDSNotificationCoordinator,
         authenticationBrowser: AuthenticationBrowser,
-        modelContext: ModelContext
+        modelContext: ModelContext,
+        identityImportStorage: IdentityImportStorage = .default
     ) {
         self.appModel = appModel
         self.profilesModel = profilesModel
@@ -101,6 +106,7 @@ final class AppRuntimeCoordinator {
         self.notificationCoordinator = notificationCoordinator
         self.authenticationBrowser = authenticationBrowser
         self.modelContext = modelContext
+        self.identityImportStorage = identityImportStorage
     }
 
     func start() async {
@@ -325,6 +331,17 @@ final class AppRuntimeCoordinator {
         }
     }
 
+    private func importIdentityStoreIfNeeded() {
+        guard !identityImportStorage.hasCompleted else { return }
+        do {
+            let summary = try IdentityStoreImporter.importSSOProfiles(from: profilesModel.groups, into: modelContext)
+            identityImportStorage.markCompleted()
+            runtimeLogger.info("Imported \(summary.sessions) sessions and \(summary.profiles) profiles into the identity store; linked \(summary.linkedEndpoints) endpoints; left \(summary.skippedProfiles.count) profiles in the file.")
+        } catch {
+            runtimeLogger.error("Identity store import failed: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
     private func reconcileObservedState(force: Bool) async {
         handleSignInPresentationChange()
 
@@ -342,6 +359,9 @@ final class AppRuntimeCoordinator {
         }
 
         guard case .loaded = profilesModel.loadState else { return }
+        if folderChanged {
+            importIdentityStoreIfNeeded()
+        }
         let eligibleProfileNames = eligibleDefaultEndpointProfiles.map(\.id)
         let profilesChanged = eligibleProfileNames != previousEligibleProfileNames
         let credentialStatusChanged = credentialsModel.profileStatus != previousProfileStatus
