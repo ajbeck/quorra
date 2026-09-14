@@ -328,15 +328,14 @@ struct ProfileDetailView: View {
     }
 
     private func signIn(sessionName: String) {
-        guard let session = profilesModel.findSession(named: sessionName),
-              let startURLString = session.session?.ssoStartUrl,
-              let startURL = URL(string: startURLString),
-              let region = session.session?.ssoRegion else {
+        guard let session = try? IdentityStore.session(named: sessionName, in: modelContext),
+              let startURL = URL(string: session.startURL) else {
             detailSelection = .session(name: sessionName)
             return
         }
 
-        let scopes = session.session?.ssoRegistrationScopes ?? ["sso:account:access"]
+        let region = session.region
+        let scopes = session.registrationScopes
         Task {
             await credentialsModel.signIn(
                 sessionName: sessionName,

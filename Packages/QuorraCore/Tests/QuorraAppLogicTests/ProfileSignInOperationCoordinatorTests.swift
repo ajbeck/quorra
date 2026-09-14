@@ -1,12 +1,26 @@
 import Foundation
 import IAMIdentityCenter
 import QuorraIPC
+import SwiftData
 import Testing
 @testable import QuorraAppLogic
 
 @MainActor
 @Suite("Profile sign-in operations")
 struct ProfileSignInOperationCoordinatorTests {
+    /// Held for the suite's lifetime: a context outlives nothing once its container is released.
+    private let container: ModelContainer
+
+    init() throws {
+        container = try QuorraMetadataSchema.makeContainer(inMemory: true)
+        let context = container.mainContext
+        let session = SessionDefinition(name: "production", startURL: "https://example.awsapps.com/start", region: "us-east-1")
+        context.insert(session)
+        context.insert(ProfileDefinition(name: "production-admin", session: session, accountID: "111111111111", roleName: "AdministratorAccess", region: "us-east-1"))
+        context.insert(ProfileDefinition(name: "static", session: nil, accountID: "", roleName: ""))
+        try context.save()
+    }
+
     @Test func operationMovesFromStartingToWaitingToSucceeded() async throws {
         let service = StubIdentityCenterService()
         await service.setVerificationToFire(Self.verification)
@@ -73,12 +87,7 @@ struct ProfileSignInOperationCoordinatorTests {
     private func makeCoordinator(
         service: StubIdentityCenterService
     ) -> ProfileSignInOperationCoordinator {
-        let profilesModel = ProfilesModel.previewLoaded(config: Self.config)
-        let credentialsModel = CredentialsModel(service: service)
-        return ProfileSignInOperationCoordinator(
-            profilesModel: profilesModel,
-            credentialsModel: credentialsModel
-        )
+        ProfileSignInOperationCoordinator(modelContext: container.mainContext, credentialsModel: CredentialsModel(service: service))
     }
 
     private func terminalOperation(
@@ -110,20 +119,4 @@ struct ProfileSignInOperationCoordinatorTests {
         region: "us-east-1",
         sessionName: "production"
     )
-
-    private static let config = """
-    [sso-session production]
-    sso_start_url = https://example.awsapps.com/start
-    sso_region = us-east-1
-    sso_registration_scopes = sso:account:access
-
-    [profile production-admin]
-    sso_session = production
-    sso_account_id = 111111111111
-    sso_role_name = AdministratorAccess
-    region = us-east-1
-
-    [profile static]
-    region = us-east-1
-    """
 }

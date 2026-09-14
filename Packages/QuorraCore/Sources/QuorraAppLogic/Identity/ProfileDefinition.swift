@@ -49,3 +49,11 @@ public final class ProfileDefinition {
         }
     }
 }
+
+public extension ProfileDefinition {
+    /// The Identity Center coordinates credentials are keyed by, or `nil` when the profile has no session.
+    var credentialCoordinates: (session: String, account: String, role: String, region: String, key: String)? {
+        guard let session else { return nil }
+        return (session.name, accountID, roleName, region ?? "us-east-1", "\(session.name):\(accountID):\(roleName)")
+    }
+}

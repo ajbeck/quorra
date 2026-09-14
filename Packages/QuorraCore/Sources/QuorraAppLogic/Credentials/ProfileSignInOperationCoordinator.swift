@@ -1,5 +1,6 @@
 import Foundation
 import QuorraIPC
+import SwiftData
 
 public enum ProfileSignInOperationError: LocalizedError, Equatable {
     case profilesNotReady
@@ -38,35 +39,28 @@ public final class ProfileSignInOperationCoordinator {
         var task: Task<Void, Never>?
     }
 
-    private let profilesModel: ProfilesModel
+    private let modelContext: ModelContext
     private let credentialsModel: CredentialsModel
     private var operations: [UUID: StoredOperation] = [:]
     private let completedOperationRetention: TimeInterval = 15 * 60
 
-    public init(profilesModel: ProfilesModel, credentialsModel: CredentialsModel) {
-        self.profilesModel = profilesModel
+    public init(modelContext: ModelContext, credentialsModel: CredentialsModel) {
+        self.modelContext = modelContext
         self.credentialsModel = credentialsModel
     }
 
     public func begin(profileName: String) throws -> QuorraProfileSignInOperationRecord {
-        guard case .loaded = profilesModel.loadState else {
-            throw ProfileSignInOperationError.profilesNotReady
-        }
-        guard let profile = profilesModel.findProfile(named: profileName) else {
+        guard let profile = try IdentityStore.profile(named: profileName, in: modelContext) else {
             throw ProfileSignInOperationError.profileNotFound(profileName)
         }
-        guard let sessionName = profile.profile.ssoSession, !sessionName.isEmpty else {
+        guard let session = profile.session else {
             throw ProfileSignInOperationError.profileDoesNotUseIdentityCenter(profileName)
         }
-        guard let session = profilesModel.findSession(named: sessionName) else {
-            throw ProfileSignInOperationError.sessionNotFound(sessionName)
-        }
-        guard let startURLString = session.session?.ssoStartUrl,
-              let startURL = URL(string: startURLString),
-              let region = session.session?.ssoRegion,
-              !region.isEmpty else {
+        let sessionName = session.name
+        guard let startURL = URL(string: session.startURL), !session.region.isEmpty else {
             throw ProfileSignInOperationError.invalidSession(sessionName)
         }
+        let region = session.region
 
         pruneCompletedOperations()
 
@@ -82,7 +76,7 @@ public final class ProfileSignInOperationCoordinator {
         )
         operations[operationID] = StoredOperation(record: record)
 
-        let scopes = session.session?.ssoRegistrationScopes ?? ["sso:account:access"]
+        let scopes = session.registrationScopes
         let task = Task { @MainActor [weak self] in
             guard let self else { return }
             let result = await credentialsModel.signIn(
