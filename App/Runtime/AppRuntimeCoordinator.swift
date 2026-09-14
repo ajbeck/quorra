@@ -54,6 +54,10 @@ final class AppRuntimeCoordinator {
     private(set) var authenticationNotice: DefaultEndpointAuthenticationNotice?
     private(set) var defaultEndpointProfileName: String?
 
+    var isDefaultEndpointEnabled: Bool {
+        imdsModel.shouldRestoreDefaultEndpoint
+    }
+
     var activeSignIns: [SignInProgress] {
         credentialsModel.inFlight.values.sorted {
             $0.sessionName.localizedStandardCompare($1.sessionName) == .orderedAscending
@@ -132,12 +136,14 @@ final class AppRuntimeCoordinator {
 
     func repairDefaultEndpoint() async {
         let endpointID = DefaultIMDSEndpoint.stableIDString
+        let shouldResume = imdsModel.shouldRestoreDefaultEndpoint
         await stopDefaultEndpoint()
 
         do {
             try await imdsProxyController.repairConfiguration()
-            imdsModel.rememberDefaultEndpointShouldRun(true)
-            await requestReconciliation(force: true)
+            if shouldResume {
+                await requestReconciliation(force: true)
+            }
         } catch {
             imdsModel.setState(
                 .failed(port: DefaultIMDSEndpoint.port, message: error.localizedDescription),
@@ -464,6 +470,7 @@ final class AppRuntimeCoordinator {
         let endpointID = DefaultIMDSEndpoint.stableIDString
         imdsProxyController.stop()
         imdsModel.stopEndpoint(forEndpointID: endpointID)
+        await imdsProxyController.setInstalled(false)
     }
 
     private func presentAuthenticationNoticeIfNeeded(
