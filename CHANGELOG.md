@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/ajbeck/quorra/compare/v0.6.0...v0.6.1) (2026-09-14)
+
+
+### Bug Fixes
+
+* recover system integration state for 0.6.1 ([#61](https://github.com/ajbeck/quorra/issues/61)) ([5f70b6a](https://github.com/ajbeck/quorra/commit/5f70b6aad1b6d54c136a3281bf6d3a757464981b))
+
 ## [0.6.0](https://github.com/ajbeck/quorra/compare/v0.5.2...v0.6.0) (2026-09-13)
 
 
