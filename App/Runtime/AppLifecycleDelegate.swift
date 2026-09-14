@@ -61,7 +61,6 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
         self.runtimeCoordinator = runtimeCoordinator
         self.ipcController = AppIPCController(
             runtimeCoordinator: runtimeCoordinator,
-            profilesModel: profilesModel,
             credentialsModel: credentialsModel,
             imdsModel: imdsModel,
             modelContext: metadataContainer.mainContext

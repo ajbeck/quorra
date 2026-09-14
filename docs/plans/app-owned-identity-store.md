@@ -21,12 +21,13 @@ Costs accepted: the standardized region setting has no IMDS fallback (https://do
 ## Stack
 
 ```
-(main) <- refactor/native-list <- feat/remove-folders <- feat/identity-store-models <- feat/identity-store-import <- feat/identity-store-ui <- feat/identity-store-export <- feat/identity-store-cli
+(main) <- refactor/native-list <- feat/remove-folders <- feat/identity-store-models <- feat/identity-store-import <- feat/identity-store-runtime <- feat/identity-store-ui <- feat/identity-store-export <- feat/identity-store-cli
 ```
 
 - `models`: the two entities, the endpoint link, schema registration, tests.
 - `import`: read the AWS folder once and populate the store; map endpoint `profileName` to the imported profile.
-- `ui`: sidebar, object list, detail views, creation flows, and the IMDS model read the store; sign-in resolves sessions from the store.
+- `runtime`: the IMDS engine, the runtime coordinator, the default-endpoint repair, the IPC sign-in coordinator, and the IMDS detail view resolve profiles and sessions from the store; reconciliation also runs when a save touches identity entities.
+- `ui`: sidebar, object list, session and profile detail views, creation and deletion flows read the store; `ProfilesModel` leaves the app.
 - `export`: opt-in one-way writer; settings; the read-only mode becomes the export switch.
 - `cli`: profile listing over IPC; remove the file reader from the CLI.
 
@@ -48,6 +49,10 @@ The folder feature linked records by id strings. The identity model uses SwiftDa
 
 `IMDSEndpointDefinition` gains an optional `profile` relationship in the models layer. `profileName` stays so existing endpoints keep working until the import layer maps names to records; the ui layer stops reading it and a later layer removes it.
 
+### D8. The runtime keys profiles by name, from the store
+
+Every runtime path (endpoint start and switch, the default endpoint, IPC) already addressed profiles by name, and names are unique in the store, so the runtime keeps name-keyed APIs and resolves them through `IdentityStore` lookups. Endpoint writes set both `profileName` and the `profile` relationship so either can be read. Reconciliation runs on `ModelContext.didSave` for the context that owns the store, filtered to identity entities so IMDS log batches do not trigger it; Apple recommends specifying the context as the notification object (https://developer.apple.com/documentation/SwiftData/ModelContext).
+
 ### D5. Migration
 
 Adding entities and an optional relationship is a lightweight change; no `VersionedSchema`, for the reason recorded in `docs/plans/remove-folders.md` D2. Verify by launching against an existing store.
@@ -64,3 +69,4 @@ The import runs once, in `AppRuntimeCoordinator` right after the first successfu
 
 - `models`: warning-free build, package tests for cascade, nullify, and upsert; launch against an existing store. Done 14 September 2026: 512 tests passed, launch against the real store succeeded.
 - `import`: importer tests for scope, idempotence, and endpoint linking; launch against the real AWS folder and confirm the log line. Done 14 September 2026: 516 tests passed; the launch logged "Imported 1 sessions and 5 profiles into the identity store; linked 3 endpoints; left 0 profiles in the file."
+- `runtime`: tests for store lookups, default-endpoint linking, and the IPC sign-in coordinator on a store; launch and query the running app over IPC. Done 14 September 2026: 517 tests passed; `quorra-cli imds list` and `imds status default` against the debug app listed every endpoint with its store-resolved profile, and the default endpoint reported the credential path's own "session token has expired" state rather than a lookup failure.
