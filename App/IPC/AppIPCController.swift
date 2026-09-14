@@ -12,7 +12,6 @@ final class AppIPCController {
 
     init(
         runtimeCoordinator: AppRuntimeCoordinator,
-        profilesModel: ProfilesModel,
         credentialsModel: CredentialsModel,
         imdsModel: IMDSModel,
         modelContext: ModelContext,
@@ -25,7 +24,7 @@ final class AppIPCController {
             appVersion: appVersion,
             runtimeCoordinator: runtimeCoordinator,
             profileSignInCoordinator: ProfileSignInOperationCoordinator(
-                profilesModel: profilesModel,
+                modelContext: modelContext,
                 credentialsModel: credentialsModel
             ),
             imdsModel: imdsModel,
