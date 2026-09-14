@@ -4,6 +4,7 @@ import SwiftUI
 
 struct QuorraMenuBarView: View {
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.openSettings) private var openSettings
     let appUpdater: AppUpdater
     let presentationController: AppPresentationController
     let runtimeCoordinator: AppRuntimeCoordinator
@@ -63,14 +64,19 @@ struct QuorraMenuBarView: View {
         Divider()
 
         Toggle(
-            "Show Quorra in Dock",
+            "Keep Quorra in Dock",
             isOn: Binding(
                 get: { !presentationController.runsInMenuBarOnly },
                 set: { presentationController.setRunsInMenuBarOnly(!$0) }
             )
         )
 
-        SettingsLink()
+        Button("Settings…") {
+            presentationController.prepareForInteractivePresentation()
+            openSettings()
+            NSApplication.shared.activate()
+        }
+        .keyboardShortcut(",")
 
         Button("Check for Updates…") {
             appUpdater.checkForUpdates()
@@ -115,6 +121,7 @@ struct QuorraMenuBarView: View {
     }
 
     private func presentMainWindow() {
+        presentationController.prepareForInteractivePresentation()
         openWindow(id: QuorraSceneID.mainWindow)
         NSApplication.shared.activate()
     }

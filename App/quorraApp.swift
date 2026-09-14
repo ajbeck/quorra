@@ -16,7 +16,13 @@ struct quorraApp: App {
                 .environment(appDelegate.imdsProxyController)
                 .environment(appDelegate.notificationCoordinator)
                 .environment(appDelegate.runtimeCoordinator)
+                .environment(appDelegate.presentationController)
                 .environment(\.authenticationBrowser, appDelegate.authenticationBrowser)
+                .background(
+                    InteractiveWindowRegistration(
+                        presentationController: appDelegate.presentationController
+                    )
+                )
         }
         .modelContainer(appDelegate.metadataContainer)
         .defaultSize(width: 1280, height: 760)
@@ -50,6 +56,12 @@ struct quorraApp: App {
                 .environment(appDelegate.presentationController)
                 .environment(appDelegate.launchAtLoginController)
                 .environment(appDelegate.imdsProxyController)
+                .environment(appDelegate.runtimeCoordinator)
+                .background(
+                    InteractiveWindowRegistration(
+                        presentationController: appDelegate.presentationController
+                    )
+                )
         }
         .modelContainer(appDelegate.metadataContainer)
     }

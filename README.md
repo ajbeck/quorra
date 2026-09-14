@@ -83,11 +83,19 @@ extension and activation of its network functionality. Both approvals persist
 across normal endpoint restarts and app relaunches. An extension update or a
 reset of system network settings may cause macOS to request approval again.
 
-If Quorra remains on **Waiting for approval**, use its **Open Login Items &
+If Quorra remains on **Approval required**, use its **Open Login Items &
 Extensions** button. Open Quorra's entry under **Extensions** and confirm its
 Network Extension is on. Also confirm Quorra is running from `/Applications`.
 If macOS reports that a restart is required, restart before enabling the
 endpoint again.
+
+If the system extension is installed but the endpoint still can't connect,
+open **Quorra → Settings → IMDS** and choose **Recreate Routing
+Configuration…**. This replaces the saved macOS Network Extension
+configuration while preserving the system-extension approval. Turning off the
+default endpoint removes only its routing configuration; the approved system
+extension remains installed so macOS doesn't need to approve it again the next
+time the endpoint is enabled.
 
 Additional endpoints listen only on `127.0.0.1`. Point a compatible client to
 one of those endpoints when you want an explicit custom endpoint:

@@ -45,7 +45,7 @@ struct CredentialsModelTests {
         #expect(model.inFlight["test-session"]?.userCode == "ABCD-1234")
 
         await stub.releaseHold()
-        await signInTask.value
+        _ = await signInTask.value
     }
 
     // MARK: - Success clears inFlight and lastError
@@ -185,7 +185,7 @@ struct CredentialsModelTests {
         #expect(model.lastError["test-session"] == nil)
 
         await stub.releaseHold()
-        await signInTask.value
+        _ = await signInTask.value
     }
 
     // MARK: - observeStatus populates status cache

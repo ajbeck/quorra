@@ -12,17 +12,17 @@ enum IMDSSystemExtensionStatus: Equatable {
     var description: String {
         switch self {
         case .notRequested:
-            return "Not activated"
+            return "Not checked"
         case .activating:
-            return "Activating"
+            return "Installing"
         case .awaitingApproval:
-            return "Waiting for approval"
+            return "Approval required"
         case .activated:
-            return "Activated"
+            return "Installed"
         case .restartRequired:
             return "Restart required"
         case .failed:
-            return "Activation failed"
+            return "Installation failed"
         }
     }
 }
