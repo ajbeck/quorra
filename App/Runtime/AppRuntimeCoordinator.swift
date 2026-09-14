@@ -18,7 +18,6 @@ struct DefaultEndpointAuthenticationNotice: Equatable, Identifiable {
 }
 
 enum AppRuntimeOperationError: LocalizedError {
-    case profilesNotReady
     case profileNotFound(String)
     case endpointNotConfigured(String)
     case authenticationRequired(profileName: String, sessionName: String)
@@ -28,8 +27,6 @@ enum AppRuntimeOperationError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .profilesNotReady:
-            return "Quorra is still loading profiles. Try again in a moment."
         case .profileNotFound(let name):
             return "The profile ‘\(name)’ is unavailable or is missing its SSO configuration."
         case .endpointNotConfigured(let name):
@@ -68,7 +65,6 @@ final class AppRuntimeCoordinator {
     }
 
     @ObservationIgnored private let appModel: AppModel
-    @ObservationIgnored private let profilesModel: ProfilesModel
     @ObservationIgnored private let credentialsModel: CredentialsModel
     @ObservationIgnored private let imdsModel: IMDSModel
     @ObservationIgnored private let imdsProxyController: IMDSProxyController
@@ -90,7 +86,6 @@ final class AppRuntimeCoordinator {
 
     init(
         appModel: AppModel,
-        profilesModel: ProfilesModel,
         credentialsModel: CredentialsModel,
         imdsModel: IMDSModel,
         imdsProxyController: IMDSProxyController,
@@ -100,7 +95,6 @@ final class AppRuntimeCoordinator {
         identityImportStorage: IdentityImportStorage = .default
     ) {
         self.appModel = appModel
-        self.profilesModel = profilesModel
         self.credentialsModel = credentialsModel
         self.imdsModel = imdsModel
         self.imdsProxyController = imdsProxyController
@@ -186,9 +180,6 @@ final class AppRuntimeCoordinator {
     }
 
     func startEndpoint(_ definition: IMDSEndpointDefinition) async throws {
-        guard case .loaded = profilesModel.loadState else {
-            throw AppRuntimeOperationError.profilesNotReady
-        }
         guard !definition.profileName.isEmpty else {
             throw AppRuntimeOperationError.endpointNotConfigured(definition.name)
         }
@@ -222,9 +213,6 @@ final class AppRuntimeCoordinator {
     }
 
     func switchDefaultEndpointProfile(to profileName: String) async throws {
-        guard case .loaded = profilesModel.loadState else {
-            throw AppRuntimeOperationError.profilesNotReady
-        }
         guard let targetNode = eligibleDefaultEndpointProfiles.first(where: { $0.name == profileName }) else {
             throw AppRuntimeOperationError.profileNotFound(profileName)
         }
@@ -325,8 +313,6 @@ final class AppRuntimeCoordinator {
     private func installObservation() {
         withObservationTracking {
             _ = appModel.phase
-            _ = profilesModel.loadState
-            _ = profilesModel.groups
             _ = credentialsModel.profileStatus
             _ = credentialsModel.inFlight
         } onChange: { [weak self] in
@@ -355,10 +341,14 @@ final class AppRuntimeCoordinator {
         }
     }
 
-    private func importIdentityStoreIfNeeded() {
+    private func importIdentityStoreIfNeeded(from folderURL: URL) async {
         guard !identityImportStorage.hasCompleted else { return }
         do {
-            let summary = try IdentityStoreImporter.importSSOProfiles(from: profilesModel.groups, into: modelContext)
+            // Reading and parsing the folder grows with the user's configuration; keep it off the main actor.
+            let catalog = try await Task.detached(priority: .userInitiated) {
+                try ProfileCatalogLoader.load(folder: folderURL)
+            }.value
+            let summary = try IdentityStoreImporter.importSSOProfiles(from: catalog.groups, into: modelContext)
             identityImportStorage.markCompleted()
             runtimeLogger.info("Imported \(summary.sessions) sessions and \(summary.profiles) profiles into the identity store; linked \(summary.linkedEndpoints) endpoints; left \(summary.skippedProfiles.count) profiles in the file.")
         } catch {
@@ -379,12 +369,7 @@ final class AppRuntimeCoordinator {
         let folderChanged = loadedFolderURL != folderURL
         if folderChanged {
             loadedFolderURL = folderURL
-            await profilesModel.load(folder: folderURL)
-        }
-
-        guard case .loaded = profilesModel.loadState else { return }
-        if folderChanged {
-            importIdentityStoreIfNeeded()
+            await importIdentityStoreIfNeeded(from: folderURL)
         }
         let eligibleProfileNames = eligibleDefaultEndpointProfiles.map(\.name)
         let profilesChanged = eligibleProfileNames != previousEligibleProfileNames
@@ -556,13 +541,11 @@ extension AppRuntimeCoordinator {
     static func preview() -> AppRuntimeCoordinator {
         let container = try! QuorraMetadataSchema.makeContainer(inMemory: true)
         let appModel = AppModel(initialPhase: .setup)
-        let profilesModel = ProfilesModel()
         let credentialsModel = CredentialsModel(service: PreviewIdentityCenterService())
         let imdsModel = IMDSModel()
         let notificationCoordinator = DefaultIMDSNotificationCoordinator()
         return AppRuntimeCoordinator(
             appModel: appModel,
-            profilesModel: profilesModel,
             credentialsModel: credentialsModel,
             imdsModel: imdsModel,
             imdsProxyController: IMDSProxyController(),

@@ -36,7 +36,7 @@ sso_role_name = DevAccess
 
     private func groups(_ text: String = configText) throws -> SidebarGroups {
         let config = try AWSConfigINIDocument(text, flavor: .config)
-        return ProfilesModel.derive(config: config, credentials: AWSConfigINIDocument(empty: .credentials))
+        return ProfileCatalogLoader.derive(config: config, credentials: AWSConfigINIDocument(empty: .credentials))
     }
 
     @MainActor
