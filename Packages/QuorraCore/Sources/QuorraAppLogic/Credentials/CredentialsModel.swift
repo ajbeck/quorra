@@ -253,6 +253,16 @@ public final class CredentialsModel {
         )
     }
 
+    /// Lists the accounts a signed-in session can reach, for the profile picker.
+    public func accounts(forSession sessionName: String) async throws -> [PortalAccount] {
+        try await service.accounts(forSession: sessionName)
+    }
+
+    /// Lists the roles a signed-in session can assume in `accountId`.
+    public func roles(forSession sessionName: String, accountId: String) async throws -> [PortalRole] {
+        try await service.roles(forSession: sessionName, accountId: accountId)
+    }
+
     // MARK: - Private
 
     /// Reacts to an `AuthEvent` from the service. Runs on MainActor.

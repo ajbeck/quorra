@@ -1,5 +1,5 @@
 import SwiftUI
-import QuorraProfiles
+import QuorraAppLogic
 
 struct ObjectListRow: View {
     let item: ObjectListItem
@@ -12,9 +12,9 @@ struct ObjectListRow: View {
                     .foregroundStyle(.secondary)
                     .frame(width: 18)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(session.id)
+                    Text(session.name)
                         .lineLimit(1)
-                    Text("\(session.profiles.count) \(session.profiles.count == 1 ? "profile" : "profiles")")
+                    Text("\(session.profileCount) \(session.profileCount == 1 ? "profile" : "profiles")")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -25,15 +25,15 @@ struct ObjectListRow: View {
 
         case .profile(let profile):
             HStack(spacing: 8) {
-                Image(systemName: profile.via.isSSO ? "key" : "folder")
+                Image(systemName: "key")
                     .foregroundStyle(.secondary)
                     .frame(width: 18)
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(profile.id)
+                    Text(profile.name)
                         .lineLimit(1)
                     ViaBadge(
-                        label: profile.via.label,
-                        color: profile.via.badgeColor
+                        label: profile.sessionName ?? "no session",
+                        color: profile.sessionName.map { Theme.sessionBadgeColor(for: $0) }
                     )
                 }
                 Spacer(minLength: 8)
@@ -101,17 +101,6 @@ private struct IMDSBadge: View {
             return "live"
         case .failed:
             return "failed"
-        }
-    }
-}
-
-private extension ProfileVia {
-    var badgeColor: Color? {
-        switch self {
-        case .session(let name):
-            return Theme.sessionBadgeColor(for: name)
-        case .longTerm, .other:
-            return nil
         }
     }
 }

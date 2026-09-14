@@ -1,100 +1,90 @@
 import SwiftUI
-import AWSConfigINI
 import IAMIdentityCenter
 import QuorraAppLogic
-import QuorraProfiles
 import SwiftData
 
 struct ProfileDetailView: View {
-    let node: ProfileNode
+    let profile: ProfileDefinition
     @Binding var detailSelection: DetailSelection?
     @Binding var sourceSelection: SourceSelection
     @Binding var searchText: String
-    @Environment(AppModel.self) private var appModel
-    @Environment(ProfilesModel.self) private var profilesModel
     @Environment(EditorState.self) private var editorState
     @Environment(CredentialsModel.self) private var credentialsModel
     @Environment(IMDSModel.self) private var imdsModel
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.openSettings) private var openSettings
     @Query private var endpointDefinitions: [IMDSEndpointDefinition]
-    @State private var draft: Profile
+    @State private var draft: ProfileDraft
     @State private var isEditing = false
     @State private var isPresentingEndpointEditor = false
-    @State private var isPresentingSaveError = false
-    @State private var saveError: AWSConfigINIError?
+    @State private var saveError: String?
 
     init(
-        node: ProfileNode,
+        profile: ProfileDefinition,
         detailSelection: Binding<DetailSelection?>,
         sourceSelection: Binding<SourceSelection>,
         searchText: Binding<String>
     ) {
-        self.node = node
+        self.profile = profile
         self._detailSelection = detailSelection
         self._sourceSelection = sourceSelection
         self._searchText = searchText
-        self._draft = State(initialValue: node.profile)
+        self._draft = State(initialValue: ProfileDraft(profile))
     }
 
-    private var isReadOnly: Bool { appModel.mode == .readOnly }
-    private var isDirty: Bool { draft != node.profile }
-    private var showsEditors: Bool { !isReadOnly && isEditing }
+    private var stored: ProfileDraft { ProfileDraft(profile) }
+    private var isDirty: Bool { draft != stored }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 header
-                if isReadOnly { readOnlyNotice }
-                if let coords = ssoCredentialCoordinates { credentialsCard(coords) }
+                if let coords = profile.credentialCoordinates { credentialsCard(coords) }
                 identityCard
-                if draft.ssoSession != nil { sessionCard }
-                if draft.roleArn != nil || draft.sourceProfile != nil { roleCard }
-                if draft.credentialProcess != nil { credentialProcessCard }
+                sessionCard
             }
             .padding(32)
             .frame(maxWidth: 960, alignment: .leading)
         }
-        .navigationTitle(node.id)
+        .navigationTitle(profile.name)
         .navigationSubtitle(isDirty ? "Edited" : "")
         .sheet(isPresented: $isPresentingEndpointEditor) {
             IMDSEndpointEditorSheet(
                 mode: .create,
                 existingNames: Set(endpointDefinitions.map(\.name)),
                 usedPorts: Set(endpointDefinitions.map(\.port)),
-                profiles: profilesModel.groups.flatProfiles.map(\.node),
+                profiles: (try? IdentityStore.eligibleProfiles(in: modelContext)) ?? [],
                 initialDraft: endpointDraftForProfile()
             ) { draft in
                 try createEndpoint(from: draft)
             }
         }
-        .onChange(of: node) { _, newValue in
-            draft = newValue.profile
+        .onChange(of: stored) { _, newValue in
+            draft = newValue
             isEditing = false
         }
         .onChange(of: isDirty) { _, newValue in
-            editorState.dirtyDescription = newValue ? "changes to profile \(node.id)" : nil
+            editorState.dirtyDescription = newValue ? "changes to profile \(profile.name)" : nil
         }
         .onDisappear {
             editorState.dirtyDescription = nil
         }
         .alert(
             "Couldn't save",
-            isPresented: $isPresentingSaveError,
-            presenting: saveError
-        ) { _ in
-            Button("Retry") { Task { await save() } }
+            isPresented: Binding(
+                get: { saveError != nil },
+                set: { if !$0 { saveError = nil } }
+            )
+        ) {
             Button("OK", role: .cancel) { }
-        } message: { error in
-            Text([error.errorDescription, error.recoverySuggestion]
-                .compactMap { $0 }.joined(separator: "\n\n"))
+        } message: {
+            Text(saveError ?? "")
         }
     }
 
     private var header: some View {
         HStack(alignment: .firstTextBaseline, spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(node.id)
+                Text(profile.name)
                     .font(.largeTitle.weight(.semibold))
                     .lineLimit(1)
                 if isDirty {
@@ -109,19 +99,16 @@ struct ProfileDetailView: View {
             if isEditing {
                 HStack(spacing: 8) {
                     Button("Discard", role: .destructive) {
-                        draft = node.profile
+                        draft = stored
                         isEditing = false
                     }
-                    .disabled(!isDirty)
 
-                    Button("Save") {
-                        Task { await save() }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!isDirty)
-                    .keyboardShortcut(.defaultAction)
+                    Button("Save") { save() }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(!isDirty)
+                        .keyboardShortcut(.defaultAction)
                 }
-            } else if !isReadOnly {
+            } else {
                 Button {
                     isEditing = true
                 } label: {
@@ -131,53 +118,19 @@ struct ProfileDetailView: View {
         }
     }
 
-    private var readOnlyNotice: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "lock.fill")
-                .foregroundStyle(.secondary)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Read Only mode")
-                    .font(.callout.weight(.semibold))
-                Text("Quorra won't write to your AWS files.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 0)
-            Button("Open Settings…") { openSettings() }
-                .controlSize(.small)
-        }
-        .padding(14)
-        .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
-    }
-
-    /// SSO-backed profiles expose the credentials reveal section (D31). Non-SSO profiles
-    /// (static creds, role-assumption, credential_process) don't — `ProfileAuthStatus` /
-    /// `liveCredentials` only apply to the SSO path.
-    private var ssoCredentialCoordinates: (session: String, account: String, role: String, region: String)? {
-        guard let session = draft.ssoSession,
-              let account = draft.ssoAccountId,
-              let role = draft.ssoRoleName else {
-            return nil
-        }
-        // The Portal call is region-scoped. The profile's own region is the documented
-        // input; absent that, default to us-east-1.
-        return (session, account, role, draft.region ?? "us-east-1")
-    }
-
     private func credentialsCard(
-        _ coords: (session: String, account: String, role: String, region: String)
+        _ coords: (session: String, account: String, role: String, region: String, key: String)
     ) -> some View {
         DetailCard("Credentials") {
             CredentialsRevealSection(
-                profileName: node.id,
+                profileName: profile.name,
                 sessionName: coords.session,
                 accountId: coords.account,
                 roleName: coords.role,
                 region: coords.region,
-                imdsEndpointCount: profileEndpointDefinitions.count,
+                imdsEndpointCount: profile.endpoints.count,
                 onSignIn: {
-                    signIn(sessionName: coords.session)
+                    signIn()
                 },
                 onViewIMDS: {
                     if let endpoint = preferredProfileEndpoint {
@@ -198,49 +151,32 @@ struct ProfileDetailView: View {
     private var identityCard: some View {
         DetailCard("Identity") {
             DetailField("Region") {
-                if !showsEditors {
-                    valueText(draft.region)
+                if !isEditing {
+                    valueText(profile.region)
                 } else {
-                    TextField("us-east-1", text: $draft.region.unwrapped())
+                    TextField("us-east-1", text: $draft.region)
                         .fontDesign(.monospaced)
                         .textFieldStyle(.roundedBorder)
                         .frame(maxWidth: 260)
                 }
             }
             DetailDivider()
-            DetailField("Output") {
-                if !showsEditors {
-                    valueText(draft.output)
+            DetailField("Account ID") {
+                if !isEditing {
+                    valueText(profile.accountID)
                 } else {
-                    Picker("Output", selection: $draft.output.unwrapped()) {
-                        Text("(default)").tag("")
-                        Text("json").tag("json")
-                        Text("text").tag("text")
-                        Text("table").tag("table")
-                        Text("yaml").tag("yaml")
-                        Text("yaml-stream").tag("yaml-stream")
-                    }
-                    .labelsHidden()
-                    .frame(maxWidth: 180)
-                }
-            }
-            DetailDivider()
-            DetailField("SSO Account ID") {
-                if !showsEditors {
-                    valueText(draft.ssoAccountId)
-                } else {
-                    TextField("123456789012", text: $draft.ssoAccountId.unwrapped())
+                    TextField("123456789012", text: $draft.accountID)
                         .fontDesign(.monospaced)
                         .textFieldStyle(.roundedBorder)
                         .frame(maxWidth: 260)
                 }
             }
             DetailDivider()
-            DetailField("SSO Role Name") {
-                if !showsEditors {
-                    valueText(draft.ssoRoleName)
+            DetailField("Role Name") {
+                if !isEditing {
+                    valueText(profile.roleName)
                 } else {
-                    TextField("AdministratorAccess", text: $draft.ssoRoleName.unwrapped())
+                    TextField("AdministratorAccess", text: $draft.roleName)
                         .textFieldStyle(.roundedBorder)
                         .frame(maxWidth: 320)
                 }
@@ -249,13 +185,13 @@ struct ProfileDetailView: View {
     }
 
     private var sessionCard: some View {
-        DetailCard("SSO Session") {
+        DetailCard("Session") {
             DetailField("Session") {
                 HStack(spacing: 8) {
-                    valueText(draft.ssoSession)
-                    if let sessionName = draft.ssoSession {
+                    valueText(profile.session?.name)
+                    if let session = profile.session {
                         Button {
-                            detailSelection = .session(name: sessionName)
+                            detailSelection = .session(name: session.name)
                         } label: {
                             Label("View", systemImage: "arrow.up.right.square")
                         }
@@ -263,41 +199,11 @@ struct ProfileDetailView: View {
                     }
                 }
             }
-        }
-    }
-
-    private var roleCard: some View {
-        DetailCard("Role") {
-            editableTextField("Role ARN", value: $draft.roleArn, prompt: "arn:aws:iam::123456789012:role/MyRole")
-            DetailDivider()
-            editableTextField("Source Profile", value: $draft.sourceProfile, prompt: "default")
-            DetailDivider()
-            editableTextField("Role Session Name", value: $draft.roleSessionName, prompt: "my-session")
-            DetailDivider()
-            editableTextField("MFA Serial", value: $draft.mfaSerial, prompt: "arn:aws:iam::123456789012:mfa/user")
-        }
-    }
-
-    private var credentialProcessCard: some View {
-        DetailCard("Credential Process") {
-            editableTextField("Command", value: $draft.credentialProcess, prompt: "/path/to/helper --profile name", monospaced: true)
-        }
-    }
-
-    private func editableTextField(
-        _ label: String,
-        value: Binding<String?>,
-        prompt: String,
-        monospaced: Bool = false
-    ) -> some View {
-        DetailField(label) {
-            if !showsEditors {
-                valueText(value.wrappedValue)
-            } else {
-                TextField(prompt, text: value.unwrapped())
-                    .fontDesign(monospaced ? .monospaced : .default)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(maxWidth: 520)
+            if profile.session == nil {
+                Text("This profile is not linked to a session, so it cannot serve credentials. Delete it and add it again under a session.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 4)
             }
         }
     }
@@ -314,26 +220,24 @@ struct ProfileDetailView: View {
         return value
     }
 
-    private func save() async {
+    private func save() {
+        if let message = draft.validationMessage {
+            saveError = message
+            return
+        }
+        draft.apply(to: profile)
         do {
-            try await profilesModel.save(draft, for: node, mode: appModel.mode)
+            try modelContext.save()
             isEditing = false
-        } catch let err as AWSConfigINIError {
-            saveError = err
-            isPresentingSaveError = true
         } catch {
-            saveError = .malformedInput(error.localizedDescription)
-            isPresentingSaveError = true
+            modelContext.rollback()
+            saveError = error.localizedDescription
         }
     }
 
-    private func signIn(sessionName: String) {
-        guard let session = try? IdentityStore.session(named: sessionName, in: modelContext),
-              let startURL = URL(string: session.startURL) else {
-            detailSelection = .session(name: sessionName)
-            return
-        }
-
+    private func signIn() {
+        guard let session = profile.session, let startURL = URL(string: session.startURL) else { return }
+        let sessionName = session.name
         let region = session.region
         let scopes = session.registrationScopes
         Task {
@@ -346,14 +250,10 @@ struct ProfileDetailView: View {
         }
     }
 
-    private var profileEndpointDefinitions: [IMDSEndpointDefinition] {
-        endpointDefinitions.filter { $0.profileName == node.id }
-    }
-
     /// Prefer the endpoint already serving this profile. When none is running, retain a
     /// deterministic single-click destination instead of making the user choose twice.
     private var preferredProfileEndpoint: IMDSEndpointDefinition? {
-        profileEndpointDefinitions.sorted { lhs, rhs in
+        profile.endpoints.sorted { lhs, rhs in
             let lhsRank = endpointNavigationRank(lhs)
             let rhsRank = endpointNavigationRank(rhs)
             if lhsRank != rhsRank { return lhsRank < rhsRank }
@@ -382,8 +282,9 @@ struct ProfileDetailView: View {
 
     private func endpointDraftForProfile() -> IMDSEndpointEditorDraft {
         IMDSEndpointEditorDraft(
-            name: node.id,
-            profileName: node.id,
+            name: profile.name,
+            profileName: profile.name,
+            profile: profile,
             port: firstAvailablePort(from: 9678),
             bindAddress: "127.0.0.1",
             allowsIMDSv1: true,
@@ -394,9 +295,14 @@ struct ProfileDetailView: View {
     private func createEndpoint(from draft: IMDSEndpointEditorDraft) throws {
         let endpoint = draft.makeEndpoint()
         modelContext.insert(endpoint)
-        try modelContext.save()
+        do {
+            try modelContext.save()
+        } catch {
+            modelContext.delete(endpoint)
+            throw error
+        }
         sourceSelection = .imdsEndpoints
-        searchText = node.id
+        searchText = profile.name
         detailSelection = .imds(endpointID: endpoint.stableIDString)
     }
 
@@ -412,19 +318,12 @@ struct ProfileDetailView: View {
 
 #if DEBUG
 
-#Preview("Edit mode (clean)") {
-    ProfileDetailPreviewHarness(mode: .managed)
-}
-
-#Preview("Read Only") {
-    ProfileDetailPreviewHarness(mode: .readOnly)
+#Preview("Ready") {
+    ProfileDetailPreviewHarness()
 }
 
 #Preview("Expired session") {
-    ProfileDetailPreviewHarness(
-        mode: .managed,
-        profileStatus: .signInExpired(sessionName: "astrocompute")
-    )
+    ProfileDetailPreviewHarness(profileStatus: .signInExpired(sessionName: "astrocompute"))
 }
 
 #Preview("Profile not found") {
@@ -432,27 +331,16 @@ struct ProfileDetailView: View {
 }
 
 private struct ProfileDetailPreviewHarness: View {
-    let mode: ManagedMode
     @State private var selection: DetailSelection? = .profile(name: "ac:cp:org_admin")
     @State private var sourceSelection: SourceSelection = .profiles
     @State private var searchText = ""
-    @State private var appModel: AppModel
-    @State private var profilesModel: ProfilesModel
     @State private var editorState = EditorState()
     @State private var credentialsModel: CredentialsModel
     @State private var imdsModel = IMDSModel()
+    private let metadataContainer = PreviewIdentityFixtures.makeContainer()
+    private let profile: ProfileDefinition
 
-    init(
-        mode: ManagedMode,
-        profileStatus: ProfileAuthStatus? = .ready(expiresAt: Date().addingTimeInterval(6 * 3600 + 12 * 60))
-    ) {
-        self.mode = mode
-        let folderURL = URL(filePath: "/preview/.aws", directoryHint: .isDirectory)
-        let profilesModel = ProfilesModel.previewLoaded(
-            config: PreviewAWSFixtures.mockupConfig,
-            credentials: PreviewAWSFixtures.mockupCredentials,
-            folder: folderURL
-        )
+    init(profileStatus: ProfileAuthStatus? = .ready(expiresAt: Date().addingTimeInterval(6 * 3600 + 12 * 60))) {
         let credentialsModel = CredentialsModel(service: PreviewIdentityCenterService())
         if let profileStatus {
             credentialsModel.seedProfileStatusForTesting(
@@ -460,32 +348,22 @@ private struct ProfileDetailPreviewHarness: View {
                 key: "astrocompute:699475923216:OrganizationAdmin"
             )
         }
-
-        _appModel = State(initialValue: AppModel(initialPhase: .ready(folderURL), initialMode: mode))
-        _profilesModel = State(initialValue: profilesModel)
         _credentialsModel = State(initialValue: credentialsModel)
+        profile = try! IdentityStore.profile(named: "ac:cp:org_admin", in: metadataContainer.mainContext)!
     }
 
     var body: some View {
-        Group {
-            if let node = profilesModel.findProfile(named: "ac:cp:org_admin") {
-                ProfileDetailView(
-                    node: node,
-                    detailSelection: $selection,
-                    sourceSelection: $sourceSelection,
-                    searchText: $searchText
-                )
-                    .environment(appModel)
-                    .environment(profilesModel)
-                    .environment(editorState)
-                    .environment(credentialsModel)
-                    .environment(imdsModel)
-            } else {
-                ContentUnavailableView("Profile not found", systemImage: "questionmark.circle")
-            }
-        }
-        .frame(width: 900, height: 720)
-        .modelContainer(try! QuorraMetadataSchema.makeContainer(inMemory: true))
+        ProfileDetailView(
+            profile: profile,
+            detailSelection: $selection,
+            sourceSelection: $sourceSelection,
+            searchText: $searchText
+        )
+            .environment(editorState)
+            .environment(credentialsModel)
+            .environment(imdsModel)
+            .frame(width: 900, height: 720)
+            .modelContainer(metadataContainer)
     }
 }
 

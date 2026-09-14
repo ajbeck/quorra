@@ -1,8 +1,6 @@
 import SwiftUI
-import AWSConfigINI
 import IAMIdentityCenter
 import QuorraAppLogic
-import QuorraProfiles
 import SwiftData
 
 struct MainView: View {
@@ -96,7 +94,6 @@ struct MainView: View {
     let folderURL = URL(filePath: "/nonexistent/aws-folder")
     MainView(folderURL: folderURL)
         .environment(AppModel(initialPhase: .ready(folderURL)))
-        .environment(ProfilesModel.previewLoaded(config: "", folder: folderURL))
         .environment(EditorState())
         .environment(CredentialsModel(service: PreviewIdentityCenterService()))
         .environment(IMDSModel())
@@ -136,14 +133,11 @@ struct MainView: View {
 }
 
 private struct MainViewSampleDataHarness: View {
-    private static let previewEndpointID = UUID(uuidString: "00000000-0000-0000-0000-000000009678")!
-
     private let folderURL = URL(filePath: "/preview/.aws", directoryHint: .isDirectory)
     private let initialSourceSelection: SourceSelection
     private let initialDetailSelection: DetailSelection?
     private let initialSearchText: String
     @State private var appModel: AppModel
-    @State private var profilesModel: ProfilesModel
     @State private var editorState: EditorState
     @State private var credentialsModel: CredentialsModel
     @State private var imdsModel: IMDSModel
@@ -158,11 +152,6 @@ private struct MainViewSampleDataHarness: View {
         initialDetailSelection = detailSelection
         initialSearchText = searchText
         let folderURL = URL(filePath: "/preview/.aws", directoryHint: .isDirectory)
-        let profiles = ProfilesModel.previewLoaded(
-            config: PreviewAWSFixtures.mockupConfig,
-            credentials: PreviewAWSFixtures.mockupCredentials,
-            folder: folderURL
-        )
         let creds = CredentialsModel(service: PreviewIdentityCenterService())
         creds.seedProfileStatusForTesting(.ready(expiresAt: Date().addingTimeInterval(6 * 3600 + 12 * 60)), key: "astrocompute:699475923216:OrganizationAdmin")
         creds.seedProfileStatusForTesting(.ready(expiresAt: Date().addingTimeInterval(6 * 3600 + 12 * 60)), key: "astrocompute:699475923216:ManagementAdmin")
@@ -174,19 +163,10 @@ private struct MainViewSampleDataHarness: View {
         creds.seedStatusForTesting(.signedOut, sessionName: "orion-labs")
 
         let imds = IMDSModel()
-        let metadataContainer = try! QuorraMetadataSchema.makeContainer(inMemory: true)
-        let endpoint = IMDSEndpointDefinition(
-            id: Self.previewEndpointID,
-            name: "localhost:9678",
-            profileName: "ac:cp:org_admin",
-            port: 9678
-        )
-        metadataContainer.mainContext.insert(endpoint)
-        try! metadataContainer.mainContext.save()
-        imds.setState(.active(port: 9678), forEndpointID: endpoint.stableIDString)
+        let metadataContainer = PreviewIdentityFixtures.makeContainer(seedsEndpoint: true)
+        imds.setState(.active(port: 9678), forEndpointID: PreviewIdentityFixtures.endpointID.uuidString)
 
         _appModel = State(initialValue: AppModel(initialPhase: .ready(folderURL)))
-        _profilesModel = State(initialValue: profiles)
         _editorState = State(initialValue: EditorState())
         _credentialsModel = State(initialValue: creds)
         _imdsModel = State(initialValue: imds)
@@ -201,7 +181,6 @@ private struct MainViewSampleDataHarness: View {
             initialSearchText: initialSearchText
         )
             .environment(appModel)
-            .environment(profilesModel)
             .environment(editorState)
             .environment(credentialsModel)
             .environment(imdsModel)

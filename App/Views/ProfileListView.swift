@@ -1,43 +1,22 @@
 import SwiftUI
-import AWSConfigINI
-import IAMIdentityCenter
 import QuorraAppLogic
-import QuorraProfiles
 import SwiftData
 
 struct ObjectListView: View {
     @Binding var sourceSelection: SourceSelection
     @Binding var detailSelection: DetailSelection?
     @Binding var searchText: String
-    @Environment(AppModel.self) private var appModel
-    @Environment(ProfilesModel.self) private var profilesModel
     @Environment(IMDSModel.self) private var imdsModel
     @Environment(\.modelContext) private var modelContext
+    @Query private var sessionDefinitions: [SessionDefinition]
+    @Query private var profileDefinitions: [ProfileDefinition]
     @Query private var endpointDefinitions: [IMDSEndpointDefinition]
 
     @State private var presentedSheet: CreationSheet?
     @State private var pendingDeletion: ObjectListItem?
-    @State private var actionError: AWSConfigINIError?
-    @State private var isPresentingActionError = false
+    @State private var deletionError: String?
 
     var body: some View {
-        switch profilesModel.loadState {
-        case .idle, .loading:
-            ProgressView()
-                .controlSize(.small)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        case .failed:
-            ContentUnavailableView(
-                "Failed to Load Items",
-                systemImage: "exclamationmark.triangle",
-                description: Text("Quorra couldn't read your AWS configuration.")
-            )
-        case .loaded:
-            loadedView
-        }
-    }
-
-    private var loadedView: some View {
         VStack(spacing: 0) {
             header
             listContent
@@ -49,36 +28,28 @@ struct ObjectListView: View {
         .sheet(item: $presentedSheet) { sheet in
             switch sheet {
             case .session:
-                AddSessionSheet(existingNames: Set(sortedSessions.map(\.id))) { name, session in
-                    try await profilesModel.createSession(named: name, session: session, mode: appModel.mode)
-                    searchText = ""
-                    sourceSelection = .sessions
-                    detailSelection = .session(name: name)
+                AddSessionSheet(existingNames: Set(sessionDefinitions.map(\.name))) { session in
+                    try insertAndSave(session)
+                    select(.sessions, .session(name: session.name))
                 }
             case .profile:
                 AddProfileSheet(
-                    existingNames: Set(profileItems.map(\.id)),
-                    sessions: sortedSessions,
-                    defaultSessionName: nil
-                ) { name, profile in
-                    try await profilesModel.createProfile(named: name, profile: profile, mode: appModel.mode)
-                    searchText = ""
-                    sourceSelection = .profiles
-                    detailSelection = .profile(name: name)
+                    existingNames: Set(profileDefinitions.map(\.name)),
+                    sessions: sortedSessions
+                ) { profile in
+                    try insertAndSave(profile)
+                    select(.profiles, .profile(name: profile.name))
                 }
             case .imdsEndpoint:
                 IMDSEndpointEditorSheet(
                     mode: .create,
                     existingNames: Set(endpointDefinitions.map(\.name)),
                     usedPorts: Set(endpointDefinitions.map(\.port)),
-                    profiles: profileItems.map(\.node)
+                    profiles: eligibleProfiles
                 ) { draft in
                     let endpoint = draft.makeEndpoint()
-                    modelContext.insert(endpoint)
-                    try modelContext.save()
-                    searchText = ""
-                    sourceSelection = .imdsEndpoints
-                    detailSelection = .imds(endpointID: endpoint.stableIDString)
+                    try insertAndSave(endpoint)
+                    select(.imdsEndpoints, .imds(endpointID: endpoint.stableIDString))
                 }
             }
         }
@@ -92,7 +63,7 @@ struct ObjectListView: View {
         ) {
             if let pendingDeletion {
                 Button(deletionButtonTitle(for: pendingDeletion), role: .destructive) {
-                    Task { await delete(pendingDeletion) }
+                    delete(pendingDeletion)
                 }
             }
             Button("Cancel", role: .cancel) { pendingDeletion = nil }
@@ -102,14 +73,15 @@ struct ObjectListView: View {
             }
         }
         .alert(
-            "Couldn't update items",
-            isPresented: $isPresentingActionError,
-            presenting: actionError
-        ) { _ in
+            "Couldn't delete",
+            isPresented: Binding(
+                get: { deletionError != nil },
+                set: { if !$0 { deletionError = nil } }
+            )
+        ) {
             Button("OK", role: .cancel) { }
-        } message: { error in
-            Text([error.errorDescription, error.recoverySuggestion]
-                .compactMap { $0 }.joined(separator: "\n\n"))
+        } message: {
+            Text(deletionError ?? "")
         }
     }
 
@@ -185,7 +157,7 @@ struct ObjectListView: View {
                     .frame(width: 26, height: 26)
                     .contentShape(.rect)
                     .disabled(isCreationDisabled(defaultCreationSheet))
-                    .help("New \(defaultCreationSheet.title)")
+                    .help(creationHelp(for: defaultCreationSheet))
                 } else {
                     Menu {
                         creationMenu
@@ -233,7 +205,6 @@ struct ObjectListView: View {
         } label: {
             Label("New Session", systemImage: "cloud")
         }
-        .disabled(isCreationDisabled(.session))
 
         Button {
             presentedSheet = .profile
@@ -265,10 +236,23 @@ struct ObjectListView: View {
 
     private func isCreationDisabled(_ sheet: CreationSheet) -> Bool {
         switch sheet {
-        case .session, .profile:
-            isReadOnly
+        case .session:
+            false
+        case .profile:
+            sessionDefinitions.isEmpty
         case .imdsEndpoint:
-            profileItems.isEmpty
+            eligibleProfiles.isEmpty
+        }
+    }
+
+    private func creationHelp(for sheet: CreationSheet) -> String {
+        switch sheet {
+        case .session:
+            return "New Session"
+        case .profile:
+            return sessionDefinitions.isEmpty ? "Add a session before adding profiles." : "New Profile"
+        case .imdsEndpoint:
+            return eligibleProfiles.isEmpty ? "Add a profile before adding IMDS endpoints." : "New IMDS Endpoint"
         }
     }
 
@@ -284,25 +268,46 @@ struct ObjectListView: View {
         }
     }
 
-    private var sortedSessions: [SSOSessionNode] {
-        profilesModel.groups.ssoSessions.sorted {
-            $0.id.localizedStandardCompare($1.id) == .orderedAscending
+    private var sortedSessions: [SessionDefinition] {
+        sessionDefinitions.sorted {
+            $0.name.localizedStandardCompare($1.name) == .orderedAscending
         }
     }
 
-    private var profileItems: [SidebarProfileItem] {
-        profilesModel.groups.flatProfiles
+    /// `default` first, then by name, matching the AWS CLI's own ordering.
+    private var sortedProfiles: [ProfileDefinition] {
+        profileDefinitions.sorted { lhs, rhs in
+            let lhsDefault = lhs.name == "default"
+            let rhsDefault = rhs.name == "default"
+            if lhsDefault != rhsDefault { return lhsDefault }
+            return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+        }
     }
 
-    private var imdsItems: [IMDSEndpointListItem] {
+    private var eligibleProfiles: [ProfileDefinition] {
+        sortedProfiles.filter { $0.session != nil }
+    }
+
+    private var sessionItems: [ObjectListItem] {
+        sortedSessions.map {
+            .session(SessionListItem(name: $0.name, startURL: $0.startURL, region: $0.region, profileCount: $0.profiles.count))
+        }
+    }
+
+    private var profileItems: [ObjectListItem] {
+        sortedProfiles.map {
+            .profile(ProfileListItem(name: $0.name, sessionName: $0.session?.name, accountID: $0.accountID, roleName: $0.roleName))
+        }
+    }
+
+    private var imdsItems: [ObjectListItem] {
         endpointDefinitions.map { definition in
             IMDSEndpointListItem(
                 endpointID: definition.stableIDString,
                 name: definition.name,
-                profileName: definition.profileName,
+                profileName: definition.profile?.name ?? "",
                 port: definition.port,
-                state: imdsModel.state(forEndpointID: definition.stableIDString),
-                profile: profilesModel.findProfile(named: definition.profileName)
+                state: imdsModel.state(forEndpointID: definition.stableIDString)
             )
         }
             .sorted {
@@ -311,18 +316,7 @@ struct ObjectListView: View {
                 }
                 return $0.title.localizedStandardCompare($1.title) == .orderedAscending
             }
-    }
-
-    private var sessionItems: [ObjectListItem] {
-        sortedSessions.map { .session($0) }
-    }
-
-    private var profileObjectItems: [ObjectListItem] {
-        profileItems.map { .profile($0) }
-    }
-
-    private var imdsObjectItems: [ObjectListItem] {
-        imdsItems.map { .imds($0) }
+            .map { .imds($0) }
     }
 
     private var filteredSessionItems: [ObjectListItem] {
@@ -330,23 +324,23 @@ struct ObjectListView: View {
     }
 
     private var filteredProfileItems: [ObjectListItem] {
-        filtered(profileObjectItems)
+        filtered(profileItems)
     }
 
     private var filteredIMDSItems: [ObjectListItem] {
-        filtered(imdsObjectItems)
+        filtered(imdsItems)
     }
 
     private var sourceItems: [ObjectListItem] {
         switch sourceSelection {
         case .all:
-            return sessionItems + profileObjectItems + imdsObjectItems
+            return sessionItems + profileItems + imdsItems
         case .sessions:
             return sessionItems
         case .profiles:
-            return profileObjectItems
+            return profileItems
         case .imdsEndpoints:
-            return imdsObjectItems
+            return imdsItems
         }
     }
 
@@ -389,15 +383,11 @@ struct ObjectListView: View {
         return "\(count) \(count == 1 ? "item" : "items")"
     }
 
-    private var isReadOnly: Bool {
-        appModel.mode == .readOnly
-    }
-
     private var canDeleteSelectedItem: Bool {
         guard let selectedItem else { return false }
         switch selectedItem {
         case .session, .profile:
-            return !isReadOnly
+            return true
         case .imds(let endpoint):
             return !endpoint.isDefault
         }
@@ -407,9 +397,9 @@ struct ObjectListView: View {
         guard let selectedItem else { return "Select an item to remove." }
         switch selectedItem {
         case .session:
-            return isReadOnly ? "Switch to Edit & Manage mode to remove sessions." : "Remove selected session"
+            return "Delete selected session"
         case .profile:
-            return isReadOnly ? "Switch to Edit & Manage mode to remove profiles." : "Remove selected profile"
+            return "Delete selected profile"
         case .imds(let endpoint):
             return endpoint.isDefault
                 ? "The Default IMDS Endpoint is always available."
@@ -421,7 +411,7 @@ struct ObjectListView: View {
         guard let pendingDeletion else { return "Remove item?" }
         switch pendingDeletion {
         case .session:
-            return "Delete SSO session?"
+            return "Delete session?"
         case .profile:
             return "Delete profile?"
         case .imds:
@@ -432,9 +422,9 @@ struct ObjectListView: View {
     private func deletionButtonTitle(for item: ObjectListItem) -> String {
         switch item {
         case .session(let session):
-            return "Delete \(session.id)"
+            return "Delete \(session.name)"
         case .profile(let profile):
-            return "Delete \(profile.id)"
+            return "Delete \(profile.name)"
         case .imds(let endpoint):
             return "Remove \(endpoint.title)"
         }
@@ -443,48 +433,66 @@ struct ObjectListView: View {
     private func deletionMessage(for item: ObjectListItem) -> String {
         switch item {
         case .session(let session):
-            return "This removes the [sso-session \(session.id)] section. Profiles that reference it remain in your config."
+            let profiles = "\(session.profileCount) \(session.profileCount == 1 ? "profile" : "profiles")"
+            return "This deletes \(session.name) and its \(profiles) from Quorra. IMDS endpoints serving those profiles are stopped and left without a profile."
         case .profile(let profile):
-            return "This removes \(profile.id) from your AWS config and credentials files. Any running IMDS endpoint for this profile will be stopped."
+            return "This deletes \(profile.name) from Quorra. Any IMDS endpoint serving it is stopped and left without a profile."
         case .imds(let endpoint):
-            return "This removes the \(endpoint.title) IMDS endpoint definition from Quorra. It does not change ~/.aws/config."
+            return "This removes the \(endpoint.title) IMDS endpoint and its activity log from Quorra."
         }
     }
 
-    private func delete(_ item: ObjectListItem) async {
+    private func select(_ source: SourceSelection, _ detail: DetailSelection) {
+        searchText = ""
+        sourceSelection = source
+        detailSelection = detail
+    }
+
+    private func insertAndSave(_ model: some PersistentModel) throws {
+        modelContext.insert(model)
+        do {
+            try modelContext.save()
+        } catch {
+            modelContext.delete(model)
+            throw error
+        }
+    }
+
+    private func delete(_ item: ObjectListItem) {
         pendingDeletion = nil
         do {
             switch item {
             case .session(let session):
-                try await profilesModel.deleteSession(named: session.id, mode: appModel.mode)
-                if detailSelection == item.detailSelection {
-                    detailSelection = nil
+                guard let definition = sessionDefinitions.first(where: { $0.name == session.name }) else { return }
+                for profile in definition.profiles {
+                    stopEndpoints(serving: profile)
                 }
+                modelContext.delete(definition)
+                try modelContext.save()
             case .profile(let profile):
-                for definition in endpointDefinitions where definition.profileName == profile.id {
-                    imdsModel.stopEndpoint(forEndpointID: definition.stableIDString)
-                }
-                try await profilesModel.deleteProfile(named: profile.id, mode: appModel.mode)
-                if detailSelection == item.detailSelection {
-                    detailSelection = nil
-                }
+                guard let definition = profileDefinitions.first(where: { $0.name == profile.name }) else { return }
+                stopEndpoints(serving: definition)
+                modelContext.delete(definition)
+                try modelContext.save()
             case .imds(let endpoint):
-                if let definition = endpointDefinitions.first(where: { $0.stableIDString == endpoint.endpointID }) {
-                    imdsModel.stopEndpoint(forEndpointID: definition.stableIDString)
-                    try IMDSEndpointLogStore.deleteAll(endpointID: definition.stableID, in: modelContext)
-                    modelContext.delete(definition)
-                    try modelContext.save()
-                }
-                if detailSelection == item.detailSelection {
-                    detailSelection = nil
-                }
+                guard let definition = endpointDefinitions.first(where: { $0.stableIDString == endpoint.endpointID }) else { return }
+                imdsModel.stopEndpoint(forEndpointID: definition.stableIDString)
+                try IMDSEndpointLogStore.deleteAll(endpointID: definition.stableID, in: modelContext)
+                modelContext.delete(definition)
+                try modelContext.save()
             }
-        } catch let err as AWSConfigINIError {
-            actionError = err
-            isPresentingActionError = true
+            if detailSelection == item.detailSelection {
+                detailSelection = nil
+            }
         } catch {
-            actionError = .malformedInput(error.localizedDescription)
-            isPresentingActionError = true
+            modelContext.rollback()
+            deletionError = error.localizedDescription
+        }
+    }
+
+    private func stopEndpoints(serving profile: ProfileDefinition) {
+        for endpoint in profile.endpoints {
+            imdsModel.stopEndpoint(forEndpointID: endpoint.stableIDString)
         }
     }
 }
@@ -500,297 +508,6 @@ private enum CreationSheet: Identifiable {
         case .profile: return "profile"
         case .imdsEndpoint: return "imdsEndpoint"
         }
-    }
-
-    var title: String {
-        switch self {
-        case .session: "Session"
-        case .profile: "Profile"
-        case .imdsEndpoint: "IMDS Endpoint"
-        }
-    }
-}
-
-enum ObjectListItem: Identifiable, Hashable {
-    case session(SSOSessionNode)
-    case profile(SidebarProfileItem)
-    case imds(IMDSEndpointListItem)
-
-    var id: String {
-        switch self {
-        case .session(let session):
-            return "session:\(session.id)"
-        case .profile(let profile):
-            return "profile:\(profile.id)"
-        case .imds(let endpoint):
-            return "imds:\(endpoint.id)"
-        }
-    }
-
-    var detailSelection: DetailSelection {
-        switch self {
-        case .session(let session):
-            return .session(name: session.id)
-        case .profile(let profile):
-            return .profile(name: profile.id)
-        case .imds(let endpoint):
-            return .imds(endpointID: endpoint.endpointID)
-        }
-    }
-
-    var searchText: String {
-        switch self {
-        case .session(let session):
-            return "session \(session.id) \(session.session?.ssoStartUrl ?? "") \(session.session?.ssoRegion ?? "")"
-        case .profile(let profile):
-            return "profile \(profile.id) \(profile.via.label) \(profile.node.profile.ssoAccountId ?? "") \(profile.node.profile.ssoRoleName ?? "")"
-        case .imds(let endpoint):
-            return "imds endpoint \(endpoint.title) \(endpoint.profileName) \(endpoint.subtitle) \(endpoint.state.searchText)"
-        }
-    }
-}
-
-struct IMDSEndpointListItem: Identifiable, Hashable {
-    let endpointID: String
-    let name: String?
-    let profileName: String
-    let port: Int?
-    let state: IMDSEndpointState
-    let profile: ProfileNode?
-
-    var id: String { endpointID }
-    var isDefault: Bool { DefaultIMDSEndpoint.matches(endpointID: endpointID) }
-
-    var title: String {
-        if let name {
-            return name
-        }
-        if let port = state.port ?? port {
-            return "localhost:\(port)"
-        }
-        return profileName
-    }
-
-    var subtitle: String {
-        if let port = state.port ?? port {
-            return "localhost:\(port) -> \(profileName)"
-        }
-        return "serving \(profileName)"
-    }
-}
-
-private struct AddSessionSheet: View {
-    let existingNames: Set<String>
-    let onCreate: (String, SSOSession) async throws -> Void
-
-    @Environment(\.dismiss) private var dismiss
-    @State private var name = ""
-    @State private var startURL = ""
-    @State private var region = ""
-    @State private var scopes = "sso:account:access"
-    @State private var validationMessage: String?
-    @State private var isSaving = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Text("Add SSO Session")
-                .font(.title3.weight(.semibold))
-
-            Form {
-                TextField("Name", text: $name)
-                TextField("Start URL", text: $startURL)
-                TextField("Region", text: $region)
-                TextField("Scopes", text: $scopes)
-            }
-            .formStyle(.grouped)
-
-            if let validationMessage {
-                Label(validationMessage, systemImage: "exclamationmark.triangle")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-            }
-
-            HStack {
-                Spacer()
-                Button("Cancel", role: .cancel) { dismiss() }
-                Button("Add") {
-                    Task { await add() }
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(isSaving)
-                .keyboardShortcut(.defaultAction)
-            }
-        }
-        .padding(24)
-        .frame(width: 440)
-    }
-
-    private func add() async {
-        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedName.isEmpty else {
-            validationMessage = "Session name is required."
-            return
-        }
-        guard !existingNames.contains(trimmedName) else {
-            validationMessage = "A session named \(trimmedName) already exists."
-            return
-        }
-
-        isSaving = true
-        validationMessage = nil
-        do {
-            try await onCreate(
-                trimmedName,
-                SSOSession(
-                    ssoStartUrl: nilIfBlank(startURL),
-                    ssoRegion: nilIfBlank(region),
-                    ssoRegistrationScopes: scopesList
-                )
-            )
-            dismiss()
-        } catch let error as LocalizedError {
-            validationMessage = error.errorDescription ?? error.localizedDescription
-        } catch {
-            validationMessage = error.localizedDescription
-        }
-        isSaving = false
-    }
-
-    private var scopesList: [String]? {
-        let values = scopes
-            .split(separator: ",")
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-        return values.isEmpty ? nil : values
-    }
-
-    private func nilIfBlank(_ value: String) -> String? {
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
-    }
-}
-
-private struct AddProfileSheet: View {
-    private static let noSessionTag = "__quorra_no_sso_session__"
-
-    let existingNames: Set<String>
-    let sessions: [SSOSessionNode]
-    let onCreate: (String, Profile) async throws -> Void
-
-    @Environment(\.dismiss) private var dismiss
-    @State private var name = ""
-    @State private var selectedSessionName: String
-    @State private var region: String
-    @State private var accountID = ""
-    @State private var roleName = ""
-    @State private var validationMessage: String?
-    @State private var isSaving = false
-
-    init(
-        existingNames: Set<String>,
-        sessions: [SSOSessionNode],
-        defaultSessionName: String?,
-        onCreate: @escaping (String, Profile) async throws -> Void
-    ) {
-        self.existingNames = existingNames
-        self.sessions = sessions
-        self.onCreate = onCreate
-
-        let initialSessionName = defaultSessionName ?? Self.noSessionTag
-        _selectedSessionName = State(initialValue: initialSessionName)
-        _region = State(initialValue: sessions.first(where: { $0.id == initialSessionName })?.session?.ssoRegion ?? "")
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Text("Add Profile")
-                .font(.title3.weight(.semibold))
-
-            Form {
-                TextField("Name", text: $name)
-
-                Picker("SSO Session", selection: $selectedSessionName) {
-                    Text("None").tag(Self.noSessionTag)
-                    ForEach(sessions) { session in
-                        Text(session.id).tag(session.id)
-                    }
-                }
-
-                if selectedSessionName != Self.noSessionTag {
-                    TextField("Region", text: $region)
-                    TextField("SSO Account ID", text: $accountID)
-                    TextField("SSO Role Name", text: $roleName)
-                }
-            }
-            .formStyle(.grouped)
-            .onChange(of: selectedSessionName) { _, newValue in
-                guard region.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                      let sessionRegion = sessions.first(where: { $0.id == newValue })?.session?.ssoRegion else {
-                    return
-                }
-                region = sessionRegion
-            }
-
-            if let validationMessage {
-                Label(validationMessage, systemImage: "exclamationmark.triangle")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-            }
-
-            HStack {
-                Spacer()
-                Button("Cancel", role: .cancel) { dismiss() }
-                Button("Add") {
-                    Task { await add() }
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(isSaving)
-                .keyboardShortcut(.defaultAction)
-            }
-        }
-        .padding(24)
-        .frame(width: 460)
-    }
-
-    private func add() async {
-        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedName.isEmpty else {
-            validationMessage = "Profile name is required."
-            return
-        }
-        guard !existingNames.contains(trimmedName) else {
-            validationMessage = "A profile named \(trimmedName) already exists."
-            return
-        }
-
-        isSaving = true
-        validationMessage = nil
-        do {
-            try await onCreate(trimmedName, profile)
-            dismiss()
-        } catch let error as LocalizedError {
-            validationMessage = error.errorDescription ?? error.localizedDescription
-        } catch {
-            validationMessage = error.localizedDescription
-        }
-        isSaving = false
-    }
-
-    private var profile: Profile {
-        guard selectedSessionName != Self.noSessionTag else {
-            return Profile()
-        }
-        return Profile(
-            region: nilIfBlank(region),
-            ssoSession: selectedSessionName,
-            ssoAccountId: nilIfBlank(accountID),
-            ssoRoleName: nilIfBlank(roleName)
-        )
-    }
-
-    private func nilIfBlank(_ value: String) -> String? {
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
     }
 }
 
@@ -811,28 +528,13 @@ private extension SourceSelection {
     var emptyDescription: String {
         switch self {
         case .all:
-            return "Create a session, profile, or IMDS endpoint to see it here."
+            return "Add a session, profile, or IMDS endpoint to see it here."
         case .sessions:
-            return "Create an SSO session to see it here."
+            return "Add an IAM Identity Center session to see it here."
         case .profiles:
-            return "Create a profile to see it here."
+            return "Sign in to a session, then add a profile for one of its accounts."
         case .imdsEndpoints:
-            return "Create an IMDS endpoint to see it here."
-        }
-    }
-}
-
-private extension IMDSEndpointState {
-    var searchText: String {
-        switch self {
-        case .inactive:
-            return "imds inactive"
-        case .starting(let port):
-            return "imds starting localhost 127.0.0.1 \(port)"
-        case .active(let port):
-            return "imds active live localhost 127.0.0.1 \(port)"
-        case .failed(let port, let message):
-            return "imds failed localhost 127.0.0.1 \(port) \(message)"
+            return "Add an IMDS endpoint to see it here."
         }
     }
 }
@@ -859,12 +561,9 @@ private extension IMDSEndpointState {
 }
 
 private struct ObjectListPreviewHarness: View {
-    private static let previewEndpointID = UUID(uuidString: "00000000-0000-0000-0000-000000009678")!
-
     @State private var sourceSelection: SourceSelection
     @State private var detailSelection: DetailSelection?
     @State private var searchText: String
-    @State private var profilesModel: ProfilesModel
     @State private var imdsModel: IMDSModel
     private let metadataContainer: ModelContainer
 
@@ -875,28 +574,15 @@ private struct ObjectListPreviewHarness: View {
         seedsEndpointDefinition: Bool = false
     ) {
         let imdsModel = IMDSModel()
-        let metadataContainer = try! QuorraMetadataSchema.makeContainer(inMemory: true)
         if seedsEndpointDefinition {
-            let endpoint = IMDSEndpointDefinition(
-                id: Self.previewEndpointID,
-                name: "localhost:9678",
-                profileName: "ac:cp:org_admin",
-                port: 9678
-            )
-            metadataContainer.mainContext.insert(endpoint)
-            try! metadataContainer.mainContext.save()
-            imdsModel.setState(.active(port: 9678), forEndpointID: endpoint.stableIDString)
+            imdsModel.setState(.active(port: 9678), forEndpointID: PreviewIdentityFixtures.endpointID.uuidString)
         }
 
         _sourceSelection = State(initialValue: sourceSelection)
         _detailSelection = State(initialValue: detailSelection)
         _searchText = State(initialValue: searchText)
-        _profilesModel = State(initialValue: ProfilesModel.previewLoaded(
-            config: PreviewAWSFixtures.mockupConfig,
-            credentials: PreviewAWSFixtures.mockupCredentials
-        ))
         _imdsModel = State(initialValue: imdsModel)
-        self.metadataContainer = metadataContainer
+        metadataContainer = PreviewIdentityFixtures.makeContainer(seedsEndpoint: seedsEndpointDefinition)
     }
 
     var body: some View {
@@ -915,9 +601,8 @@ private struct ObjectListPreviewHarness: View {
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .environment(profilesModel)
         .environment(imdsModel)
-        .environment(AppModel(initialPhase: .ready(URL(filePath: "/preview/.aws"))))
+        .environment(CredentialsModel(service: PreviewIdentityCenterService()))
         .modelContainer(metadataContainer)
         .frame(width: 860, height: 560)
     }
