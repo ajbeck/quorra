@@ -6,6 +6,7 @@ struct RootView: View {
     @Environment(AppModel.self) private var appModel
     @Environment(AppRuntimeCoordinator.self) private var runtimeCoordinator
     @Environment(DefaultIMDSNotificationCoordinator.self) private var notificationCoordinator
+    @Environment(AppPresentationController.self) private var presentationController
 
     var body: some View {
         Group {
@@ -45,8 +46,11 @@ struct RootView: View {
             allowing: [AppNavigationRoute.externalEventMatchPrefix]
         )
         .onOpenURL { url in
-            guard AppNavigationRoute(url: url) == .defaultIMDSEndpoint else { return }
-            notificationCoordinator.requestEndpointOpen()
+            guard let route = AppNavigationRoute(url: url) else { return }
+            presentationController.prepareForInteractivePresentation()
+            if route == .defaultIMDSEndpoint {
+                notificationCoordinator.requestEndpointOpen()
+            }
             NSApplication.shared.activate()
         }
     }

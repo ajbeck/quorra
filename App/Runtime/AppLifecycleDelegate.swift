@@ -94,6 +94,21 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    func applicationShouldHandleReopen(
+        _ sender: NSApplication,
+        hasVisibleWindows flag: Bool
+    ) -> Bool {
+        presentationController.prepareForInteractivePresentation()
+
+        if let window = sender.windows.first(where: { $0.title == "Quorra" }) {
+            window.makeKeyAndOrderFront(nil)
+        } else {
+            NSWorkspace.shared.open(AppNavigationRoute.mainWindowURL)
+        }
+        sender.activate()
+        return true
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         imdsProxyController.stop()
         ipcController.stop()

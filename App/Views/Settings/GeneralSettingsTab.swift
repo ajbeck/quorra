@@ -39,14 +39,14 @@ struct GeneralSettingsTab: View {
             }
             Section("Menu Bar") {
                 Toggle(
-                    "Run in the menu bar only",
+                    "Keep Quorra in the Dock",
                     isOn: Binding(
-                        get: { presentationController.runsInMenuBarOnly },
-                        set: { presentationController.setRunsInMenuBarOnly($0) }
+                        get: { !presentationController.runsInMenuBarOnly },
+                        set: { presentationController.setRunsInMenuBarOnly(!$0) }
                     )
                 )
 
-                Text("Hides Quorra from the Dock and opens its main window only when you choose Open Quorra from the menu bar.")
+                Text("When off, Quorra hides its Dock icon after you close its last window and continues running in the menu bar. Opening Quorra always shows its Dock icon.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
 
@@ -158,7 +158,7 @@ struct GeneralSettingsTab: View {
 
     @ViewBuilder private var launchAtLoginStatus: some View {
         if !presentationController.runsInMenuBarOnly && launchAtLoginController.isRequested {
-            Text("Quorra will also open its main window at login. Turn on menu-bar-only mode for a quiet background launch.")
+            Text("Quorra will also open its main window at login. Turn off Keep Quorra in the Dock for a quiet background launch.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
