@@ -47,7 +47,6 @@ struct ProfileDetailView: View {
                 header
                 if isReadOnly { readOnlyNotice }
                 if let coords = ssoCredentialCoordinates { credentialsCard(coords) }
-                organizationCard
                 identityCard
                 if draft.ssoSession != nil { sessionCard }
                 if draft.roleArn != nil || draft.sourceProfile != nil { roleCard }
@@ -245,19 +244,6 @@ struct ProfileDetailView: View {
                         .textFieldStyle(.roundedBorder)
                         .frame(maxWidth: 320)
                 }
-            }
-        }
-    }
-
-    private var organizationCard: some View {
-        DetailCard("Organization") {
-            DetailField("Folder") {
-                MetadataFolderPicker(
-                    objectKind: .profile,
-                    objectID: node.id,
-                    isEnabled: true
-                )
-                .labelsHidden()
             }
         }
     }

@@ -929,16 +929,6 @@ struct IMDSDetailView: View {
                     Text(String(definition.hopLimit))
                         .font(.callout.monospacedDigit())
                 }
-
-                configurationRow("Folder") {
-                    MetadataFolderPicker(
-                        objectKind: .imdsEndpoint,
-                        objectID: definition.stableIDString,
-                        isEnabled: true
-                    )
-                    .labelsHidden()
-                    .controlSize(.small)
-                }
             }
         }
     }

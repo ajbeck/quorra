@@ -5,15 +5,6 @@ import Testing
 
 @Suite("Metadata models")
 struct MetadataModelTests {
-    @Test func folder_assignments_have_stable_object_keys() {
-        let key = MetadataFolderAssignment.objectKey(
-            kind: .profile,
-            objectID: "ac:cp:org_admin"
-        )
-
-        #expect(key == "profile:ac:cp:org_admin")
-    }
-
     @Test func imds_endpoint_definitions_expose_loopback_urls() {
         let endpoint = IMDSEndpointDefinition(
             name: "Terraform",

@@ -13,8 +13,6 @@ struct ObjectListView: View {
     @Environment(ProfilesModel.self) private var profilesModel
     @Environment(IMDSModel.self) private var imdsModel
     @Environment(\.modelContext) private var modelContext
-    @Query private var folders: [MetadataFolder]
-    @Query private var folderAssignments: [MetadataFolderAssignment]
     @Query private var endpointDefinitions: [IMDSEndpointDefinition]
 
     @State private var presentedSheet: CreationSheet?
@@ -143,8 +141,6 @@ struct ObjectListView: View {
                             ForEach(filteredSessionItems, id: \.detailSelection) { item in
                                 ObjectListRow(item: item)
                                     .tag(item.detailSelection)
-                                    .contextMenu { folderAssignmentMenu(for: item) }
-                                    .draggable(item.dragPayload)
                             }
                         }
                     }
@@ -153,8 +149,6 @@ struct ObjectListView: View {
                             ForEach(filteredProfileItems, id: \.detailSelection) { item in
                                 ObjectListRow(item: item)
                                     .tag(item.detailSelection)
-                                    .contextMenu { folderAssignmentMenu(for: item) }
-                                    .draggable(item.dragPayload)
                             }
                         }
                     }
@@ -163,8 +157,6 @@ struct ObjectListView: View {
                             ForEach(filteredIMDSItems, id: \.detailSelection) { item in
                                 ObjectListRow(item: item)
                                     .tag(item.detailSelection)
-                                    .contextMenu { folderAssignmentMenu(for: item) }
-                                    .draggable(item.dragPayload)
                             }
                         }
                     }
@@ -172,39 +164,8 @@ struct ObjectListView: View {
                     ForEach(visibleItems, id: \.detailSelection) { item in
                         ObjectListRow(item: item)
                             .tag(item.detailSelection)
-                            .contextMenu { folderAssignmentMenu(for: item) }
-                            .draggable(item.dragPayload)
                     }
                 }
-            }
-        }
-    }
-
-    @ViewBuilder private func folderAssignmentMenu(for item: ObjectListItem) -> some View {
-        let targetFolders = sortedFolders(for: item.objectKind)
-        if targetFolders.isEmpty {
-            Text("No \(item.objectKind.title.lowercased()) folders")
-        } else {
-            Menu("Move to Folder") {
-                ForEach(targetFolders, id: \.stableIDString) { folder in
-                    Button {
-                        move(item, to: folder)
-                    } label: {
-                        if isAssigned(item, to: folder) {
-                            Label(folder.name, systemImage: "checkmark")
-                        } else {
-                            Text(folder.name)
-                        }
-                    }
-                }
-            }
-        }
-
-        if assignedFolder(for: item) != nil {
-            Button {
-                removeFolderAssignment(for: item)
-            } label: {
-                Label("Remove from Folder", systemImage: "xmark")
             }
         }
     }
@@ -299,12 +260,6 @@ struct ObjectListView: View {
             .profile
         case .imdsEndpoints:
             .imdsEndpoint
-        case .folder(let kind, _, _):
-            switch kind {
-            case .session: .session
-            case .profile: .profile
-            case .imdsEndpoint: .imdsEndpoint
-            }
         }
     }
 
@@ -392,8 +347,6 @@ struct ObjectListView: View {
             return profileObjectItems
         case .imdsEndpoints:
             return imdsObjectItems
-        case .folder(let kind, let folderID, _):
-            return assignedItems(kind: kind, folderID: folderID)
         }
     }
 
@@ -407,89 +360,6 @@ struct ObjectListView: View {
             return filteredProfileItems
         case .imdsEndpoints:
             return filteredIMDSItems
-        case .folder:
-            return filtered(sourceItems)
-        }
-    }
-
-    private func assignedItems(kind: MetadataObjectKind, folderID: UUID) -> [ObjectListItem] {
-        let assignedIDs = Set(
-            folderAssignments
-                .filter { $0.objectKind == kind && $0.folderID == folderID }
-                .map(\.objectID)
-        )
-
-        return items(for: kind).filter { assignedIDs.contains($0.objectID) }
-    }
-
-    private func sortedFolders(for kind: MetadataObjectKind) -> [MetadataFolder] {
-        folders
-            .filter { $0.kind == kind }
-            .sorted {
-                if $0.sortIndex != $1.sortIndex {
-                    return $0.sortIndex < $1.sortIndex
-                }
-                return $0.name.localizedStandardCompare($1.name) == .orderedAscending
-            }
-    }
-
-    private func assignedFolder(for item: ObjectListItem) -> MetadataFolder? {
-        guard let assignment = folderAssignments.first(where: {
-            $0.objectKind == item.objectKind && $0.objectID == item.objectID
-        }) else {
-            return nil
-        }
-        return folders.first { $0.stableIDString == assignment.folderIDString }
-    }
-
-    private func isAssigned(_ item: ObjectListItem, to folder: MetadataFolder) -> Bool {
-        assignedFolder(for: item)?.stableIDString == folder.stableIDString
-    }
-
-    private func move(_ item: ObjectListItem, to folder: MetadataFolder) {
-        do {
-            if let assignment = folderAssignments.first(where: {
-                $0.objectKind == item.objectKind && $0.objectID == item.objectID
-            }) {
-                assignment.move(to: folder.stableID)
-            } else {
-                modelContext.insert(MetadataFolderAssignment(
-                    objectKind: item.objectKind,
-                    objectID: item.objectID,
-                    folderID: folder.stableID
-                ))
-            }
-            try modelContext.save()
-        } catch {
-            actionError = .malformedInput(error.localizedDescription)
-            isPresentingActionError = true
-        }
-    }
-
-    private func removeFolderAssignment(for item: ObjectListItem) {
-        do {
-            for assignment in folderAssignments where assignment.objectKind == item.objectKind && assignment.objectID == item.objectID {
-                modelContext.delete(assignment)
-            }
-            try modelContext.save()
-
-            if case .folder = sourceSelection, detailSelection == item.detailSelection {
-                detailSelection = nil
-            }
-        } catch {
-            actionError = .malformedInput(error.localizedDescription)
-            isPresentingActionError = true
-        }
-    }
-
-    private func items(for kind: MetadataObjectKind) -> [ObjectListItem] {
-        switch kind {
-        case .session:
-            return sessionItems
-        case .profile:
-            return profileObjectItems
-        case .imdsEndpoint:
-            return imdsObjectItems
         }
     }
 
@@ -677,32 +547,6 @@ enum ObjectListItem: Identifiable, Hashable {
         case .imds(let endpoint):
             return "imds endpoint \(endpoint.title) \(endpoint.profileName) \(endpoint.subtitle) \(endpoint.state.searchText)"
         }
-    }
-
-    var objectKind: MetadataObjectKind {
-        switch self {
-        case .session:
-            return .session
-        case .profile:
-            return .profile
-        case .imds:
-            return .imdsEndpoint
-        }
-    }
-
-    var objectID: String {
-        switch self {
-        case .session(let session):
-            return session.id
-        case .profile(let profile):
-            return profile.id
-        case .imds(let endpoint):
-            return endpoint.id
-        }
-    }
-
-    var dragPayload: MetadataObjectDragPayload {
-        MetadataObjectDragPayload(kind: objectKind, objectID: objectID)
     }
 }
 
@@ -961,8 +805,6 @@ private extension SourceSelection {
             return "key"
         case .imdsEndpoints:
             return "antenna.radiowaves.left.and.right"
-        case .folder(let kind, _, _):
-            return kind.systemImage
         }
     }
 
@@ -976,8 +818,6 @@ private extension SourceSelection {
             return "Create a profile to see it here."
         case .imdsEndpoints:
             return "Create an IMDS endpoint to see it here."
-        case .folder:
-            return "Assign items to this folder to see them here."
         }
     }
 }

@@ -3,8 +3,6 @@ import SwiftData
 public enum QuorraMetadataSchema {
     public static var modelTypes: [any PersistentModel.Type] {
         [
-        MetadataFolder.self,
-        MetadataFolderAssignment.self,
         IMDSEndpointDefinition.self,
         IMDSEndpointLogEntry.self
         ]
