@@ -34,48 +34,35 @@ struct SourceSidebarView: View {
     }
 
     private var sourceList: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 6) {
-                sourceButton(
-                    .all,
-                    title: "All",
-                    systemImage: "square.grid.2x2",
-                    count: allObjectCount
-                )
-
-                Divider()
-                    .padding(.vertical, 4)
-
-                sourceButton(
-                    .sessions,
-                    title: "Sessions",
-                    systemImage: "cloud",
-                    count: sessionCount
-                )
-                .contextMenu { folderContextMenu(for: .session) }
-                folderRows(for: .session)
-
-                sourceButton(
-                    .profiles,
-                    title: "Profiles",
-                    systemImage: "key",
-                    count: profileCount
-                )
-                .contextMenu { folderContextMenu(for: .profile) }
-                folderRows(for: .profile)
-
-                sourceButton(
-                    .imdsEndpoints,
-                    title: "IMDS Endpoints",
-                    systemImage: "antenna.radiowaves.left.and.right",
-                    count: imdsEndpointCount
-                )
-                .contextMenu { folderContextMenu(for: .imdsEndpoint) }
-                folderRows(for: .imdsEndpoint)
+        List(selection: $selection) {
+            Section {
+                SourceSidebarRow(title: "All", systemImage: "square.grid.2x2")
+                    .badge(allObjectCount)
+                    .tag(SourceSelection.all)
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 12)
+
+            Section {
+                ForEach(sourceItems, id: \.selection) { item in
+                    SourceSidebarRow(title: item.title, systemImage: item.systemImage)
+                        .padding(.leading, item.folder == nil ? 0 : 18)
+                        .badge(item.count)
+                        .tag(item.selection)
+                        .contextMenu {
+                            if let folder = item.folder {
+                                folderRowContextMenu(for: folder)
+                            } else {
+                                folderContextMenu(for: item.kind)
+                            }
+                        }
+                        .dropDestination(for: MetadataObjectDragPayload.self, isEnabled: item.folder != nil) { payloads, _ in
+                            guard let folder = item.folder else { return }
+                            assign(payloads, to: folder)
+                        }
+                }
+            }
         }
+        .listStyle(.sidebar)
+        .badgeProminence(.decreased)
         .sheet(item: $folderCreationRequest) { request in
             AddMetadataFolderSheet(kind: request.kind, existingNames: folderNames(for: request.kind)) { name in
                 try createFolder(kind: request.kind, name: name)
@@ -122,41 +109,23 @@ struct SourceSidebarView: View {
         }
     }
 
-    private func sourceButton(
-        _ candidate: SourceSelection,
-        title: String,
-        systemImage: String,
-        count: Int
-    ) -> some View {
-        Button {
-            selection = candidate
-        } label: {
-            SourceSidebarRow(
-                title: title,
-                systemImage: systemImage,
-                count: count
-            )
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
-            .contentShape(RoundedRectangle(cornerRadius: 6))
+    private var sourceItems: [SourceSidebarItem] {
+        MetadataObjectKind.allCases.flatMap { kind in
+            [SourceSidebarItem(selection: parentSelection(for: kind), title: kind.title, systemImage: kind.systemImage, count: count(for: kind), kind: kind, folder: nil)]
+                + sortedFolders(for: kind).map { folder in
+                    SourceSidebarItem(selection: folder.sourceSelection, title: folder.name, systemImage: "folder", count: folderCount(folder), kind: kind, folder: folder)
+                }
         }
-        .buttonStyle(NavigationRowButtonStyle(isSelected: selection == candidate))
     }
 
-    @ViewBuilder private func folderRows(for kind: MetadataObjectKind) -> some View {
-        ForEach(sortedFolders(for: kind), id: \.stableIDString) { folder in
-            sourceButton(
-                .folder(kind: kind, folderID: folder.stableID, name: folder.name),
-                title: folder.name,
-                systemImage: "folder",
-                count: folderCount(folder)
-            )
-            .padding(.leading, 18)
-            .contextMenu { folderRowContextMenu(for: folder) }
-            .dropDestination(for: MetadataObjectDragPayload.self) { (payloads, _: CGPoint) -> Bool in
-                assign(payloads, to: folder)
-            }
+    private func count(for kind: MetadataObjectKind) -> Int {
+        switch kind {
+        case .session:
+            return sessionCount
+        case .profile:
+            return profileCount
+        case .imdsEndpoint:
+            return imdsEndpointCount
         }
     }
 
@@ -275,9 +244,9 @@ struct SourceSidebarView: View {
         }
     }
 
-    private func assign(_ payloads: [MetadataObjectDragPayload], to folder: MetadataFolder) -> Bool {
+    private func assign(_ payloads: [MetadataObjectDragPayload], to folder: MetadataFolder) {
         let compatiblePayloads = payloads.filter { $0.kind == folder.kind }
-        guard !compatiblePayloads.isEmpty else { return false }
+        guard !compatiblePayloads.isEmpty else { return }
 
         do {
             for payload in compatiblePayloads {
@@ -294,10 +263,8 @@ struct SourceSidebarView: View {
                 }
             }
             try modelContext.save()
-            return true
         } catch {
             folderActionError = error.localizedDescription
-            return false
         }
     }
 
@@ -313,10 +280,24 @@ struct SourceSidebarView: View {
     }
 }
 
-private struct SourceSidebarRow: View {
+private extension MetadataFolder {
+    var sourceSelection: SourceSelection {
+        .folder(kind: kind, folderID: stableID, name: name)
+    }
+}
+
+private struct SourceSidebarItem {
+    let selection: SourceSelection
     let title: String
     let systemImage: String
     let count: Int
+    let kind: MetadataObjectKind
+    let folder: MetadataFolder?
+}
+
+private struct SourceSidebarRow: View {
+    let title: String
+    let systemImage: String
 
     var body: some View {
         HStack(spacing: 10) {
@@ -328,19 +309,7 @@ private struct SourceSidebarRow: View {
 
             Text(title)
                 .lineLimit(1)
-
-            Spacer(minLength: 8)
-
-            Text("\(count)")
-                .font(.caption.weight(.semibold))
-                .monospacedDigit()
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 7)
-                .padding(.vertical, 2)
-                .background(.quaternary, in: Capsule())
-                .accessibilityLabel("\(count) items")
         }
-        .padding(.vertical, 2)
     }
 }
 
@@ -503,6 +472,7 @@ private struct RenameMetadataFolderSheet: View {
 
 private struct SourceSidebarPreviewHarness: View {
     private static let previewEndpointID = UUID(uuidString: "00000000-0000-0000-0000-000000009678")!
+    private static let previewFolderID = UUID(uuidString: "00000000-0000-0000-0000-00000000F01D")!
 
     @State private var selection: SourceSelection = .all
     @State private var profilesModel = ProfilesModel.previewLoaded(
@@ -522,6 +492,7 @@ private struct SourceSidebarPreviewHarness: View {
             port: 9678
         )
         metadataContainer.mainContext.insert(endpoint)
+        metadataContainer.mainContext.insert(MetadataFolder(id: Self.previewFolderID, kind: .profile, name: "Work", sortIndex: 0))
         try! metadataContainer.mainContext.save()
         imdsModel.setState(.active(port: 9678), forEndpointID: endpoint.stableIDString)
 
