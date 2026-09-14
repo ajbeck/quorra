@@ -27,34 +27,6 @@ extension View {
     }
 }
 
-struct NavigationRowButtonStyle: ButtonStyle {
-    let isSelected: Bool
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .background(
-                Color.accentColor.opacity(backgroundOpacity(isPressed: configuration.isPressed)),
-                in: RoundedRectangle(cornerRadius: 6)
-            )
-            .animation(
-                reduceMotion ? nil : .easeOut(duration: 0.10),
-                value: configuration.isPressed
-            )
-            .animation(
-                reduceMotion ? nil : .easeInOut(duration: 0.12),
-                value: isSelected
-            )
-    }
-
-    private func backgroundOpacity(isPressed: Bool) -> Double {
-        if isSelected {
-            return isPressed ? 0.24 : 0.18
-        }
-        return isPressed ? 0.10 : 0
-    }
-}
-
 struct CopyConfirmationButton: View {
     let value: String
     var title = "Copy"
