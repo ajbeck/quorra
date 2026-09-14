@@ -274,9 +274,9 @@ jobs:
             -exportOptionsPlist "$export_options_path" \
             -exportPath "$export_path"
 
-          codesign --verify --deep --strict --verbose=4 "$export_path/quorra.app"
+          codesign --verify --deep --strict --verbose=4 "$export_path/Quorra.app"
 
-          echo "EXPORTED_APP_PATH=$export_path/quorra.app" >> "$GITHUB_ENV"
+          echo "EXPORTED_APP_PATH=$export_path/Quorra.app" >> "$GITHUB_ENV"
 
       - name: Report Swift package storage
         if: ${{ always() && steps.release-context.outputs.version != '' }}
@@ -302,7 +302,7 @@ jobs:
           RELEASE_VERSION: ${{ steps.release-context.outputs.version }}
         run: |
           info_plist="$EXPORTED_APP_PATH/Contents/Info.plist"
-          app_executable="$EXPORTED_APP_PATH/Contents/MacOS/quorra"
+          app_executable="$EXPORTED_APP_PATH/Contents/MacOS/Quorra"
           app_entitlements_path="$RUNNER_TEMP/quorra-app-entitlements.plist"
           actual_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$info_plist")"
           actual_build="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$info_plist")"

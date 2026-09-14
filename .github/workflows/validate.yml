@@ -133,7 +133,7 @@ jobs:
         with:
           path: ${{ steps.xcode.outputs.derived_data_path }}
           key: >-
-            ${{ runner.os }}-${{ runner.arch }}-xcode-${{ steps.xcode.outputs.version }}-quorra-derived-data-${{ hashFiles('Quorra.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'Quorra.xcodeproj/project.pbxproj', 'Packages/QuorraCore/Package.swift') }}
+            ${{ runner.os }}-${{ runner.arch }}-xcode-${{ steps.xcode.outputs.version }}-quorra-derived-data-${{ hashFiles('Quorra.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'quorra.xcodeproj/project.pbxproj', 'Packages/QuorraCore/Package.swift') }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-xcode-${{ steps.xcode.outputs.version }}-quorra-derived-data-
 
@@ -182,7 +182,7 @@ jobs:
         with:
           path: ${{ steps.xcode.outputs.derived_data_path }}
           key: >-
-            ${{ runner.os }}-${{ runner.arch }}-xcode-${{ steps.xcode.outputs.version }}-quorra-derived-data-${{ hashFiles('Quorra.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'Quorra.xcodeproj/project.pbxproj', 'Packages/QuorraCore/Package.swift') }}
+            ${{ runner.os }}-${{ runner.arch }}-xcode-${{ steps.xcode.outputs.version }}-quorra-derived-data-${{ hashFiles('Quorra.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'quorra.xcodeproj/project.pbxproj', 'Packages/QuorraCore/Package.swift') }}
 
       - name: Upload test results
         if: ${{ failure() }}
