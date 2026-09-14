@@ -10,6 +10,7 @@ public final class IMDSEndpointDefinition {
     public var bindAddress: String
     public var allowsIMDSv1: Bool
     public var hopLimit: Int
+    public var profile: ProfileDefinition?
     public var createdAt: Date
     public var updatedAt: Date
 
