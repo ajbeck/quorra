@@ -37,7 +37,8 @@ struct IPCCommandClient: Sendable {
              .profileSignInCancel,
              .imdsList,
              .imdsStatus,
-             .imdsStop:
+             .imdsStop,
+             .profileList:
             return 2
         }
     }

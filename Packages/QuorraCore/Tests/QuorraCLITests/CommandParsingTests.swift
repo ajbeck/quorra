@@ -15,17 +15,16 @@ struct CommandParsingTests {
     }
 
     @Test func parsesProfileListOptions() throws {
-        let command = try QuorraCLI.parseAsRoot([
-            "profiles", "list",
-            "--config-file", "/tmp/config",
-            "--credentials-file", "/tmp/credentials",
-            "--format", "json",
-        ])
+        let command = try QuorraCLI.parseAsRoot(["profiles", "list", "--format", "json"])
         let list = try #require(command as? ProfileListCommand)
 
-        #expect(list.configFile == "/tmp/config")
-        #expect(list.credentialsFile == "/tmp/credentials")
         #expect(list.format == .json)
+    }
+
+    @Test func rejectsTheRemovedProfileListFileOptions() {
+        #expect(throws: (any Error).self) {
+            try QuorraCLI.parseAsRoot(["profiles", "list", "--config-file", "/tmp/config"])
+        }
     }
 
     @Test func parsesProfileSignInCommand() throws {

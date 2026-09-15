@@ -21,6 +21,7 @@ public enum QuorraIPCOperation: String, Codable, CaseIterable, Sendable {
     case imdsStart = "imds.start"
     case imdsStop = "imds.stop"
     case imdsSwitchProfile = "imds.switch-profile"
+    case profileList = "profiles.list"
 }
 
 public enum QuorraProfileSignInState: String, Codable, Sendable {
@@ -70,6 +71,24 @@ public struct QuorraProfileSignInOperationRecord: Codable, Equatable, Sendable, 
 
 public struct QuorraIPCAcknowledgement: Codable, Equatable, Sendable {
     public init() {}
+}
+
+/// A profile as the app's identity store holds it. Profiles without a session cannot serve credentials.
+public struct QuorraProfileRecord: Codable, Equatable, Sendable, Identifiable {
+    public var id: String { name }
+    public let name: String
+    public let sessionName: String?
+    public let accountID: String
+    public let roleName: String
+    public let region: String?
+
+    public init(name: String, sessionName: String?, accountID: String, roleName: String, region: String?) {
+        self.name = name
+        self.sessionName = sessionName
+        self.accountID = accountID
+        self.roleName = roleName
+        self.region = region
+    }
 }
 
 public struct QuorraIPCRequest: Codable, Equatable, Sendable {
