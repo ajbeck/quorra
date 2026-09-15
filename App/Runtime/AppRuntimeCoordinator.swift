@@ -58,6 +58,19 @@ final class AppRuntimeCoordinator {
         imdsModel.shouldRestoreDefaultEndpoint
     }
 
+    /// Names of the profiles the Default IMDS Endpoint can serve, for the menu bar picker.
+    var defaultEndpointProfileChoices: [String] {
+        eligibleDefaultEndpointProfiles.map(\.name)
+    }
+
+    /// The session the served profile needs signed in, or `nil` when its credentials are ready.
+    var defaultEndpointSignInSessionName: String? {
+        guard let profileName = defaultEndpointProfileName,
+              let profile = try? IdentityStore.profile(named: profileName, in: modelContext),
+              case .needsSignIn(let sessionName) = credentialsModel.readiness(for: profile) else { return nil }
+        return sessionName
+    }
+
     var activeSignIns: [SignInProgress] {
         credentialsModel.inFlight.values.sorted {
             $0.sessionName.localizedStandardCompare($1.sessionName) == .orderedAscending
@@ -81,6 +94,8 @@ final class AppRuntimeCoordinator {
     @ObservationIgnored private var loadedFolderURL: URL?
     @ObservationIgnored private var previousEligibleProfileNames: [String] = []
     @ObservationIgnored private var previousProfileStatus: [String: ProfileAuthStatus] = [:]
+    @ObservationIgnored private var previousSessionStatus: [String: SessionAuthStatus] = [:]
+    @ObservationIgnored private var previousRefreshFailure: Set<String> = []
     @ObservationIgnored private var previousSignIns: [String: SignInProgress] = [:]
     @ObservationIgnored private var storeSaveObserver: (any NSObjectProtocol)?
 
@@ -122,10 +137,6 @@ final class AppRuntimeCoordinator {
 
         await appModel.resolveStoredBookmark()
         await requestReconciliation(force: true)
-    }
-
-    func dismissAuthenticationNotice() {
-        authenticationNotice = nil
     }
 
     func openAuthenticationPage(for sessionName: String) {
@@ -283,6 +294,7 @@ final class AppRuntimeCoordinator {
 
     private func observeCredentialStatus(for node: ProfileDefinition) async {
         guard let coordinates = credentialCoordinates(for: node) else { return }
+        await credentialsModel.observeStatus(forSession: coordinates.session)
         await credentialsModel.observeProfileStatus(
             forSession: coordinates.session,
             accountId: coordinates.account,
@@ -291,12 +303,8 @@ final class AppRuntimeCoordinator {
     }
 
     private func authenticationRequiredError(for node: ProfileDefinition) -> AppRuntimeOperationError? {
-        switch credentialStatus(for: node) {
-        case .notSignedIn(let sessionName), .signInExpired(let sessionName):
-            return .authenticationRequired(profileName: node.name, sessionName: sessionName)
-        case .ready, .none:
-            return nil
-        }
+        guard case .needsSignIn(let sessionName) = credentialsModel.readiness(for: node) else { return nil }
+        return .authenticationRequired(profileName: node.name, sessionName: sessionName)
     }
 
     /// Sessions, profiles, and endpoint definitions live in the store, so a save that touches them
@@ -314,6 +322,8 @@ final class AppRuntimeCoordinator {
         withObservationTracking {
             _ = appModel.phase
             _ = credentialsModel.profileStatus
+            _ = credentialsModel.status
+            _ = credentialsModel.refreshFailure
             _ = credentialsModel.inFlight
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
@@ -363,6 +373,8 @@ final class AppRuntimeCoordinator {
             loadedFolderURL = nil
             previousEligibleProfileNames = []
             previousProfileStatus = [:]
+            previousSessionStatus = [:]
+            previousRefreshFailure = []
             return
         }
 
@@ -374,17 +386,20 @@ final class AppRuntimeCoordinator {
         let eligibleProfileNames = eligibleDefaultEndpointProfiles.map(\.name)
         let profilesChanged = eligibleProfileNames != previousEligibleProfileNames
         let credentialStatusChanged = credentialsModel.profileStatus != previousProfileStatus
+            || credentialsModel.status != previousSessionStatus
+            || credentialsModel.refreshFailure != previousRefreshFailure
 
         guard force || folderChanged || profilesChanged || credentialStatusChanged else { return }
 
         previousEligibleProfileNames = eligibleProfileNames
-        previousProfileStatus = credentialsModel.profileStatus
         if force || folderChanged || profilesChanged {
             await credentialsModel.initializeStatuses(
                 forSessions: ((try? IdentityStore.sessions(in: modelContext)) ?? []).map(\.name)
             )
-            previousProfileStatus = credentialsModel.profileStatus
         }
+        previousProfileStatus = credentialsModel.profileStatus
+        previousSessionStatus = credentialsModel.status
+        previousRefreshFailure = credentialsModel.refreshFailure
         await reconcileDefaultEndpoint()
     }
 
@@ -438,8 +453,15 @@ final class AppRuntimeCoordinator {
                 imdsModel.stopEndpoint(forEndpointID: endpointID)
             }
         } else if state.isActive {
-            authenticationNotice = nil
-            notificationCoordinator.clearAuthenticationRequiredNotification()
+            // The endpoint keeps serving cached credentials after its session expires, so the
+            // sign-in call to action has to come from here rather than from a failed restore.
+            await observeCredentialStatus(for: node)
+            if case .needsSignIn = credentialsModel.readiness(for: node) {
+                await presentAuthenticationNoticeIfNeeded(for: node, endpointID: endpointID)
+            } else {
+                authenticationNotice = nil
+                notificationCoordinator.clearAuthenticationRequiredNotification()
+            }
             return
         }
 
@@ -498,28 +520,18 @@ final class AppRuntimeCoordinator {
         for node: ProfileDefinition,
         endpointID: String
     ) async {
-        guard let coordinates = credentialCoordinates(for: node) else { return }
-        await credentialsModel.observeProfileStatus(
-            forSession: coordinates.session,
-            accountId: coordinates.account,
-            roleName: coordinates.role
-        )
-        guard !credentialStatus(for: node).isReady else { return }
+        await observeCredentialStatus(for: node)
+        guard case .needsSignIn(let sessionName) = credentialsModel.readiness(for: node) else { return }
 
-        switch credentialsModel.profileStatus[coordinates.key] {
-        case .notSignedIn(let sessionName), .signInExpired(let sessionName):
-            let notice = DefaultEndpointAuthenticationNotice(
-                endpointID: endpointID,
-                profileName: node.name,
-                sessionName: sessionName
-            )
-            let shouldNotify = authenticationNotice != notice
-            authenticationNotice = notice
-            if shouldNotify {
-                await notificationCoordinator.notifyAuthenticationRequired(profileName: node.name)
-            }
-        case .ready, .none:
-            break
+        let notice = DefaultEndpointAuthenticationNotice(
+            endpointID: endpointID,
+            profileName: node.name,
+            sessionName: sessionName
+        )
+        let shouldNotify = authenticationNotice != notice
+        authenticationNotice = notice
+        if shouldNotify {
+            await notificationCoordinator.notifyAuthenticationRequired(profileName: node.name, sessionName: sessionName)
         }
     }
 
@@ -530,10 +542,6 @@ final class AppRuntimeCoordinator {
         return (coordinates.session, coordinates.account, coordinates.role, coordinates.key)
     }
 
-    private func credentialStatus(for node: ProfileDefinition) -> ProfileAuthStatus? {
-        guard let coordinates = credentialCoordinates(for: node) else { return nil }
-        return credentialsModel.profileStatus[coordinates.key]
-    }
 }
 
 #if DEBUG
@@ -556,10 +564,3 @@ extension AppRuntimeCoordinator {
     }
 }
 #endif
-
-private extension Optional where Wrapped == ProfileAuthStatus {
-    var isReady: Bool {
-        if case .ready = self { return true }
-        return false
-    }
-}
