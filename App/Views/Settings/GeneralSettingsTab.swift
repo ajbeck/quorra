@@ -4,8 +4,7 @@ import SwiftUI
 
 struct GeneralSettingsTab: View {
     @Environment(AppModel.self) private var appModel
-    @Environment(EditorState.self) private var editorState
-    @State private var pendingMode: ManagedMode?
+    @Environment(IdentityExportCoordinator.self) private var exportCoordinator
 
     var body: some View {
         Form {
@@ -13,56 +12,51 @@ struct GeneralSettingsTab: View {
                 folderRow
             }
 
-            Section("File access") {
-                Picker("Quorra can", selection: Binding(
-                    get: { appModel.mode },
-                    set: { newValue in
-                        if editorState.dirtyDescription != nil && newValue != appModel.mode {
-                            pendingMode = newValue
-                        } else {
-                            Task { await appModel.setMode(newValue) }
-                        }
-                    }
-                )) {
-                    Text("Edit and manage").tag(ManagedMode.managed)
-                    Text("Read only").tag(ManagedMode.readOnly)
-                }
-                .pickerStyle(.radioGroup)
+            Section("Export") {
+                Toggle("Export to AWS folder", isOn: exportEnabled)
 
-                Text(modeBlurb)
+                Text(exportBlurb)
                     .font(.callout)
                     .foregroundStyle(.secondary)
+
+                if let failure = exportCoordinator.lastExportFailure {
+                    LabeledContent {
+                        Button("Retry") {
+                            Task { await exportCoordinator.exportIfEnabled() }
+                        }
+                        .disabled(exportCoordinator.isExporting)
+                    } label: {
+                        Label(failure, systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.orange)
+                    }
+                }
             }
         }
         .formStyle(.grouped)
         .navigationTitle("General")
-        .confirmationDialog(
-            "You have unsaved changes",
-            isPresented: Binding(
-                get: { pendingMode != nil },
-                set: { if !$0 { pendingMode = nil } }
-            ),
-            titleVisibility: .visible
-        ) {
-            Button("Discard and switch", role: .destructive) {
-                if let mode = pendingMode {
-                    Task { await appModel.setMode(mode) }
-                    editorState.dirtyDescription = nil
-                    pendingMode = nil
-                }
-            }
-            Button("Cancel", role: .cancel) { pendingMode = nil }
-        } message: {
-            Text(editorState.dirtyDescription ?? "")
-        }
     }
 
-    private var modeBlurb: String {
+    /// Turning export on writes the whole store once so the file catches up with edits made while it was off.
+    private var exportEnabled: Binding<Bool> {
+        Binding(
+            get: { appModel.mode == .managed },
+            set: { isOn in
+                Task {
+                    await appModel.setMode(isOn ? .managed : .readOnly)
+                    if isOn {
+                        await exportCoordinator.exportIfEnabled()
+                    }
+                }
+            }
+        )
+    }
+
+    private var exportBlurb: String {
         switch appModel.mode {
         case .managed:
-            return "Quorra updates the AWS configuration and credentials files when you save changes."
+            return "Quorra writes the sessions and profiles you manage here into the AWS config file so the AWS CLI and SDKs can use them. Other sections and keys are kept."
         case .readOnly:
-            return "Quorra reads your AWS files without changing them."
+            return "Quorra keeps the sessions and profiles in the app only and never writes to your AWS files."
         }
     }
 
@@ -74,7 +68,16 @@ struct GeneralSettingsTab: View {
                     .font(.body.monospaced())
                     .textSelection(.enabled)
             }
-            Button("Choose Folder…") { Task { await changeFolder() } }
+            HStack {
+                Button("Choose Folder…") { Task { await changeFolder() } }
+                Button("Re-import from AWS Folder") { Task { await exportCoordinator.reimport() } }
+                    .disabled(exportCoordinator.isImporting)
+            }
+            if let message = exportCoordinator.lastImportMessage {
+                Text(message)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
         case .restoring, .setup, .error:
             Text("Folder access hasn’t been granted. Reopen Quorra to complete setup.")
                 .foregroundStyle(.secondary)
@@ -92,14 +95,21 @@ struct GeneralSettingsTab: View {
 #Preview("General – ready") {
     GeneralSettingsTab()
         .environment(AppModel(initialPhase: .ready(URL(filePath: "/Users/example/.aws"))))
-        .environment(EditorState())
+        .environment(IdentityExportCoordinator.preview(importMessage: "Imported 1 session and 5 profiles."))
+        .frame(width: 560)
+}
+
+#Preview("General – export failed") {
+    GeneralSettingsTab()
+        .environment(AppModel(initialPhase: .ready(URL(filePath: "/Users/example/.aws"))))
+        .environment(IdentityExportCoordinator.preview(failure: "You don’t have permission to save the file “config” in the folder “.aws”."))
         .frame(width: 560)
 }
 
 #Preview("General – setup") {
     GeneralSettingsTab()
         .environment(AppModel(initialPhase: .setup))
-        .environment(EditorState())
+        .environment(IdentityExportCoordinator.preview())
         .frame(width: 560)
 }
 
