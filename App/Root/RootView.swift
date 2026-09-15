@@ -4,7 +4,6 @@ import SwiftUI
 
 struct RootView: View {
     @Environment(AppModel.self) private var appModel
-    @Environment(AppRuntimeCoordinator.self) private var runtimeCoordinator
     @Environment(DefaultIMDSNotificationCoordinator.self) private var notificationCoordinator
     @Environment(AppPresentationController.self) private var presentationController
 
@@ -22,24 +21,6 @@ struct RootView: View {
             case .error(let err):
                 ErrorView(error: err)
             }
-        }
-        .alert(
-            "Default IMDS Endpoint needs sign-in",
-            isPresented: Binding(
-                get: { runtimeCoordinator.authenticationNotice != nil },
-                set: { if !$0 { runtimeCoordinator.dismissAuthenticationNotice() } }
-            ),
-            presenting: runtimeCoordinator.authenticationNotice
-        ) { notice in
-            Button("Sign In") {
-                notificationCoordinator.requestEndpointOpen()
-                runtimeCoordinator.signIn(to: notice.sessionName)
-            }
-            Button("Not Now", role: .cancel) {
-                runtimeCoordinator.dismissAuthenticationNotice()
-            }
-        } message: { notice in
-            Text("The active profile “\(notice.profileName)” needs you to sign in before the Default IMDS Endpoint can resume on \(DefaultIMDSEndpoint.bindAddress):\(DefaultIMDSEndpoint.port).")
         }
         .handlesExternalEvents(
             preferring: [AppNavigationRoute.externalEventMatchPrefix],
