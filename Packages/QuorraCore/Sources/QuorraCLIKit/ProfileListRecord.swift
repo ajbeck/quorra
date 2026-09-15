@@ -1,19 +1,17 @@
-import QuorraProfiles
+import QuorraIPC
 
 struct ProfileListRecord: Encodable, Equatable {
     let name: String
-    let source: String
     let session: String?
     let region: String?
-    let account: String?
-    let role: String?
+    let account: String
+    let role: String
 
-    init(item: SidebarProfileItem) {
-        name = item.id
-        source = item.via.label
-        session = item.node.profile.ssoSession
-        region = item.node.profile.region ?? item.node.profile.ssoRegion
-        account = item.node.profile.ssoAccountId
-        role = item.node.profile.ssoRoleName
+    init(record: QuorraProfileRecord) {
+        name = record.name
+        session = record.sessionName
+        region = record.region
+        account = record.accountID
+        role = record.roleName
     }
 }

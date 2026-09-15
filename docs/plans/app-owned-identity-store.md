@@ -33,6 +33,7 @@ Costs accepted: the standardized region setting has no IMDS fallback (https://do
 - `fix/portal-region` (folded into the stack above `ui` on 15 September 2026): role-credential minting calls the Portal in the session's Identity Center region, which the stored token records, instead of the profile's default region. The profile region stays on the minted credential for SDK use.
 - `feat/sign-in-calls-to-action` (above `fix/portal-region`, 15 September 2026): shared credential readiness, sign-in calls to action in the endpoint detail, the notification, and the menu bar; the launch alert is gone. Decisions in `docs/plans/sign-in-calls-to-action.md`.
 - `feat/identity-store-export` (above `feat/sign-in-calls-to-action`, 15 September 2026): the store-to-file writer (D13, D14), the export switch, the re-import action, and the setup copy. Verified 15 September 2026: warning-free build, 527 tests (9 new in `IdentityStoreExporterTests`, including a real temp-file write through the shared lock), previews of General settings (ready, export failed) and Setup, and a real-store launch that leaves the config file untouched because nothing saved. A live export against a real AWS folder was deliberately not run on AJ's machine.
+- `feat/identity-store-cli` (above `feat/identity-store-export`, 15 September 2026): `profiles list` over IPC (D15); the CLI file reader and its options removed. Verified 15 September 2026: warning-free build, 525 tests (three file-location tests removed, one parsing test added), and a real-store launch where `quorra-cli profiles list` returned the store's five profiles in table, names, and JSON form over IPC and rejected `--config-file`.
 
 ## Decisions
 
@@ -93,6 +94,10 @@ Value format (approved by AJ on 16 September 2026): the AWSConfigINI writer writ
 ### D14. Export switch, header, failures, and re-import (approved by AJ on 15 September 2026)
 
 The managed and read-only modes become one switch, "Export to AWS folder", backed by the stored mode so existing preferences carry over: managed is on, read-only is off. Store edits never depend on it (D9). The header written on first export no longer claims the whole file; it says Quorra updates the sso-session and profile sections it lists, keeps other sections and keys, and normalizes formatting on write. Export failures are not alerts: the export coordinator records the last failure and General settings shows it under the switch with a Retry button; the store save itself is unaffected. "Re-import from AWS Folder" sits beside the folder row in General settings, runs the importer's upsert with no confirmation because nothing is deleted, and reports a one-line result. The button has no ellipsis because it opens nothing further.
+
+### D15. The CLI lists profiles from the store (approved by AJ on 15 September 2026)
+
+`quorra-cli profiles list` asks the running app over a new `profiles.list` IPC operation and no longer parses the AWS files itself. The `--config-file` and `--credentials-file` options are gone, since the file is no longer the source of truth and the CLI is pre-1.0; `--format` stays. The listing shows every profile in the store, linked to a session or not, and the `source` column and JSON field are gone because the store only holds Identity Center profiles. `QuorraCLIKit` no longer depends on `QuorraProfiles`. The command now needs the app running, which changes the roadmap's "intentionally standalone" note for this one command.
 
 ## Verification
 
