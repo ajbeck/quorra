@@ -176,7 +176,7 @@ D10 is a macOS 27 platform bug reproduced with nothing but `List`, `Section`, `T
 - [x] Opus: convert `ObjectListView` (D2, D5, D8) and its preview harnesses. Done 14 September 2026; the previews only rendered after D12.
 - [x] Fable: remove `NavigationRowButtonStyle` (D7).
 - [x] Fable: rerun the build and test plan, run the app and check both columns (accessibility rows, selection, light and dark), review the combined diff. Done 14 September 2026: warning-free build, 509 tests passed, both columns are `AXOutline` rows in the running app, clicking an object row drives the detail column, all four previews render in light and the sidebar also in dark.
-- [ ] AJ: in the running app, try Up and Down arrows in both columns. AJ reported on 15 September 2026 that the arrows moved nothing; see D13 for the cause and the fix. AJ dropped type-to-select from scope the same day. Still for AJ: confirm the arrows with the keyboard after D13.
+- [x] AJ: in the running app, try Up and Down arrows in both columns. AJ reported on 15 September 2026 that the arrows moved nothing; see D13 for the cause and the fix. AJ dropped type-to-select from scope the same day and confirmed with the keyboard that the arrows work in both columns after D13.
 
 ## Verification
 
