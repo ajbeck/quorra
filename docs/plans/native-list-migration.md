@@ -129,6 +129,10 @@ Applied: `ObjectListRow` now lives in `App/Views/ObjectListRow.swift` with its t
 
 Rule going forward: a `List` row view whose body has `if` or `switch` at any level belongs in its own file, not in the file whose preview renders the list.
 
+### D13. Arrow keys move the list selection through `onMoveCommand`, with focus set by a click (15 September 2026)
+
+AJ found that Up and Down arrows moved no selection in either column. A debug event monitor showed every arrow key reaching the app with the window itself as first responder: a click selected a row but never gave the `List` keyboard focus. The same held in a bare `NavigationSplitView` with two `List(selection:)` columns and with an NSTableView-backed `Table`, built against the macOS 27.0 SDK on macOS 27.0 (26A428). Apple's `List` and `NavigationSplitView` pages prescribe nothing beyond `List(selection:)` for arrow navigation and the macOS 27 release notes list no change. A first attempt made the `List` the root of the content column because background automation (computer-use `app_batch`, which posts input straight to the process) showed the selection moving after that change; AJ's keyboard and system-level synthesized input both disagreed, so that change was dropped. AJ's research pointed at the pattern from the WWDC23 session "The SwiftUI cookbook for focus" (https://developer.apple.com/videos/play/wwdc2023/10162/): make the list focusable and handle `onMoveCommand`, which Apple documents as the action to perform "when the user presses an arrow key on a Mac keyboard" (https://developer.apple.com/documentation/swiftui/view/onmovecommand(perform:)). Tested in the bare sample with system-level input: `.focusable()` plus `.onMoveCommand` alone never fired, because a click still did not focus the list. Adding a `@FocusState` bound with `focused(_:)` (https://developer.apple.com/documentation/swiftui/view/focused(_:)) and setting it from a `simultaneousGesture(TapGesture())` on the list made the click focus the list, and the arrows then moved the selection in both columns. `focusEffectDisabled()` (https://developer.apple.com/documentation/swiftui/view/focuseffectdisabled(_:)) hides the focus ring a focused list otherwise draws, matching Finder and Mail, where a clicked list shows no ring. Applied to both columns. The sidebar walks `SourceSelection.allCases` (the enum is now `CaseIterable`; declaration order is the sidebar order). The object list walks `visibleItems`, wraps its `List` in a `ScrollViewReader`, and calls `scrollTo` on the new row so a long list keeps the selection visible; with no selection, Down selects the first row and Up the last, as AppKit tables do. Focus is set only by a click, never by a selection change, so programmatic navigation (a source change, a search, a View button in a detail view) does not pull focus away from where the user is typing or arrowing. Type-to-select was dropped from scope by AJ the same day.
+
 ## Open Questions
 
 ### Q1. Object list chrome after migration
@@ -166,19 +170,19 @@ D10 is a macOS 27 platform bug reproduced with nothing but `List`, `Section`, `T
 ## Checklist
 
 - [x] Fable: convert `SourceSidebarView` (D1, D3, D4, D5, D6, D10, D11).
-- [x] Fable: build, run, confirm accessibility tree shows list rows with a selected state, arrow keys and type-to-select work, sidebar icon size applies, light and dark appearance both render. Done so far: warning-free build, live app shows `AXOutline` rows with native badges and selection, sidebar icon size applies, preview renders in light with a nested folder row. Still open: folder rows, context menus, and drop in the running app (needs a folder created from the context menu, which needs the screen unlocked), and the dark preview. Closed 14 September 2026: the dark sidebar preview rendered, and the folder checks are moot because Q3 removed folders.
+- [x] Fable: build, run, confirm accessibility tree shows list rows with a selected state, sidebar icon size applies, light and dark appearance both render. Arrow keys were re-verified on 15 September 2026 with system-level synthesized input after D13; type-to-select was dropped from scope. Done so far: warning-free build, live app shows `AXOutline` rows with native badges and selection, sidebar icon size applies, preview renders in light with a nested folder row. Still open: folder rows, context menus, and drop in the running app (needs a folder created from the context menu, which needs the screen unlocked), and the dark preview. Closed 14 September 2026: the dark sidebar preview rendered, and the folder checks are moot because Q3 removed folders.
 - [x] AJ: answer Q1.
 - [x] AJ: decide Q2. Superseded by Q3 on 14 September 2026.
 - [x] Opus: convert `ObjectListView` (D2, D5, D8) and its preview harnesses. Done 14 September 2026; the previews only rendered after D12.
 - [x] Fable: remove `NavigationRowButtonStyle` (D7).
 - [x] Fable: rerun the build and test plan, run the app and check both columns (accessibility rows, selection, light and dark), review the combined diff. Done 14 September 2026: warning-free build, 509 tests passed, both columns are `AXOutline` rows in the running app, clicking an object row drives the detail column, all four previews render in light and the sidebar also in dark.
-- [ ] AJ: in the running app, try Up and Down arrows and type-to-select in both columns. Key presses are the one thing the background automation cannot send. The folder parts of this check are gone with Q3.
+- [ ] AJ: in the running app, try Up and Down arrows in both columns. AJ reported on 15 September 2026 that the arrows moved nothing; see D13 for the cause and the fix. AJ dropped type-to-select from scope the same day. Still for AJ: confirm the arrows with the keyboard after D13.
 
 ## Verification
 
 - Build through the Xcode MCP `BuildProject`; the build must stay warning-free.
 - Run the app, screenshot each column, and inspect the accessibility summary: rows should no longer appear as plain buttons, and the selected row should carry the selected state.
-- Keyboard: Up and Down arrows move the selection in both columns; typing a prefix selects the matching row.
+- Keyboard: Up and Down arrows move the selection in both columns (D13). Type-to-select was dropped from scope by AJ on 15 September 2026.
 - System Settings, Appearance, Sidebar icon size: changing it resizes the sidebar rows.
 - Xcode previews in both files still render.
 - Run the `quorra` test plan through `RunAllTests`.
