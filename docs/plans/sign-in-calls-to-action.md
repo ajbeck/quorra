@@ -26,7 +26,7 @@ The credential prompt depends on the session, not on the run state. A running en
 
 ### D5. Menu bar
 
-Two additions to the top group: "Sign In to session…" appears first whenever the served profile's session needs sign-in, wired to the coordinator's sign-in; a "Serve Profile" picker lists the eligible profiles from the store as a submenu with the current one checked (one submenu level, per the HIG on menus). A menu cannot show an error, so a failed switch opens the endpoint detail where the failure is displayed. The "Serving profile" line stays for at-a-glance status. A badged menu bar icon was offered and left for AJ to decide; it needs an asset.
+Two additions to the top group: "Sign In to session…" appears first whenever the served profile's session needs sign-in, wired to the coordinator's sign-in; a "Serve Profile" picker lists the eligible profiles from the store as a submenu with the current one checked (one submenu level, per the HIG on menus). A menu cannot show an error, so a failed switch opens the endpoint detail where the failure is displayed. The "Serving profile" line stays for at-a-glance status. The menu bar icon itself changes state (AJ agreed on 15 September 2026): while the served profile needs sign-in, the label swaps the Quorra glyph for the `person.badge.key` symbol the other calls to action use, through `MenuBarExtra(content:label:)` (macOS 13 and later, https://developer.apple.com/documentation/swiftui/menubarextra/init(content:label:)). System extras such as Wi-Fi and Battery change their symbol with state, so no badged asset is needed.
 
 ## Verification (15 September 2026)
 
