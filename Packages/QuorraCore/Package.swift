@@ -61,7 +61,6 @@ let package = Package(
             name: "QuorraCLIKit",
             dependencies: [
                 "QuorraIPC",
-                "QuorraProfiles",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ]
         ),
@@ -71,7 +70,7 @@ let package = Package(
         ),
         .testTarget(
             name: "QuorraCLITests",
-            dependencies: ["QuorraCLIKit", "QuorraProfiles", "AWSConfigINI"]
+            dependencies: ["QuorraCLIKit", "QuorraIPC"]
         ),
         .testTarget(
             name: "QuorraIPCTests",

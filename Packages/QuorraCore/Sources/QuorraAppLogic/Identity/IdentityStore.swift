@@ -15,6 +15,12 @@ public enum IdentityStore {
         return try context.fetch(descriptor).first
     }
 
+    /// Every profile, linked to a session or not, sorted by name.
+    public static func profiles(in context: ModelContext) throws -> [ProfileDefinition] {
+        try context.fetch(FetchDescriptor<ProfileDefinition>())
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
     /// Profiles that can serve credentials: those linked to a session, sorted by name.
     public static func eligibleProfiles(in context: ModelContext) throws -> [ProfileDefinition] {
         try context.fetch(FetchDescriptor<ProfileDefinition>())
