@@ -157,6 +157,9 @@ extension IdentityCenterService {
     ) async throws -> RoleCredentials {
         // Fetch a fresh bearer. `liveToken` internally handles the session lock (D26 — we do NOT
         // take it again here to avoid deadlock). Throws `.notSignedIn` / `.tokenExpired` on failure.
+        // The Portal host lives in the session's Identity Center region, which the bearer records
+        // (`sso_region`, https://docs.aws.amazon.com/sdkref/latest/guide/feature-sso-credentials.html);
+        // `region` is the profile's default region and only travels on the minted credential.
         let bearer = try await liveToken(forSession: sessionName)
 
         // D30: emit mintingCredentials immediately before the Portal call (bearer is in hand).
@@ -169,7 +172,7 @@ extension IdentityCenterService {
                 accessToken: bearer.accessToken,
                 accountId: accountId,
                 roleName: roleName,
-                region: region
+                region: bearer.region
             )
         } catch IAMIdentityCenterError.roleNotAssigned {
             // Terminal for this tuple — purge cached row so the next liveCredentials call retries
