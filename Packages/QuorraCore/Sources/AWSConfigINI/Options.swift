@@ -15,10 +15,10 @@ public struct AWSConfigINIDocumentOptions: Sendable {
     /// Default options.
     public static let `default` = AWSConfigINIDocumentOptions(
         preserveBOM: true,
-        managedHeaderText: "# Managed by Quorra. Edits made outside Quorra may be reformatted."
+        managedHeaderText: "# Managed by Quorra. It updates the sso-session and profile sections it lists and keeps other sections and keys. Formatting is normalized on write."
     )
 
-    public init(preserveBOM: Bool = true, managedHeaderText: String = "# Managed by Quorra. Edits made outside Quorra may be reformatted.") {
+    public init(preserveBOM: Bool = true, managedHeaderText: String = "# Managed by Quorra. It updates the sso-session and profile sections it lists and keeps other sections and keys. Formatting is normalized on write.") {
         self.preserveBOM = preserveBOM
         self.managedHeaderText = managedHeaderText
     }

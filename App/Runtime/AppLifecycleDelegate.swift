@@ -17,6 +17,7 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
     let authenticationBrowser: AuthenticationBrowser
     let credentialsModel: CredentialsModel
     let runtimeCoordinator: AppRuntimeCoordinator
+    let exportCoordinator: IdentityExportCoordinator
     let ipcController: AppIPCController
 
     override init() {
@@ -55,6 +56,7 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
             modelContext: metadataContainer.mainContext
         )
         self.runtimeCoordinator = runtimeCoordinator
+        self.exportCoordinator = IdentityExportCoordinator(appModel: appModel, modelContext: metadataContainer.mainContext)
         notificationCoordinator.signInHandler = { [weak runtimeCoordinator] sessionName in
             runtimeCoordinator?.signIn(to: sessionName)
         }
@@ -72,6 +74,7 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        exportCoordinator.start()
         ipcController.start()
 
         Task { [weak self] in
