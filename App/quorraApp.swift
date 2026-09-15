@@ -37,7 +37,7 @@ struct quorraApp: App {
             }
         }
 
-        MenuBarExtra("Quorra", image: "QuorraMenuBarIcon") {
+        MenuBarExtra {
             QuorraMenuBarView(
                 appUpdater: appDelegate.appUpdater,
                 presentationController: appDelegate.presentationController,
@@ -45,6 +45,8 @@ struct quorraApp: App {
                 imdsModel: appDelegate.imdsModel,
                 notificationCoordinator: appDelegate.notificationCoordinator
             )
+        } label: {
+            QuorraMenuBarLabel(runtimeCoordinator: appDelegate.runtimeCoordinator)
         }
 
         Settings {

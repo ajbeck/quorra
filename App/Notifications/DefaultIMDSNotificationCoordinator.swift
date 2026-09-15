@@ -7,14 +7,22 @@ import UserNotifications
 private enum DefaultIMDSNotification {
     nonisolated static let requestIdentifier = "default-imds-endpoint-authentication-required"
     nonisolated static let categoryIdentifier = "DEFAULT_IMDS_ENDPOINT_AUTHENTICATION_REQUIRED"
+    nonisolated static let signInActionIdentifier = "DEFAULT_IMDS_ENDPOINT_SIGN_IN"
+    nonisolated static let sessionNameKey = "sessionName"
 }
 
 /// Coordinates the Default IMDS Endpoint's local notification with in-app navigation.
-/// Foreground delivery is suppressed because MainView presents the richer sign-in alert.
+///
+/// The notification is the app's only unprompted signal that the served profile needs sign-in; it
+/// is shown in the foreground too, and its Sign In action starts the device flow without opening the
+/// main window. Clicking the notification body opens the endpoint detail.
 @MainActor
 @Observable
 final class DefaultIMDSNotificationCoordinator: NSObject, UNUserNotificationCenterDelegate {
     private(set) var endpointOpenRequestID: UUID?
+
+    /// Starts a sign-in for the session named in a notification's Sign In action.
+    @ObservationIgnored var signInHandler: (@MainActor (String) -> Void)?
 
     @ObservationIgnored private let notificationCenter: UNUserNotificationCenter
 
@@ -22,6 +30,20 @@ final class DefaultIMDSNotificationCoordinator: NSObject, UNUserNotificationCent
         self.notificationCenter = notificationCenter
         super.init()
         notificationCenter.delegate = self
+        notificationCenter.setNotificationCategories([
+            UNNotificationCategory(
+                identifier: DefaultIMDSNotification.categoryIdentifier,
+                actions: [
+                    UNNotificationAction(
+                        identifier: DefaultIMDSNotification.signInActionIdentifier,
+                        title: "Sign In",
+                        options: []
+                    )
+                ],
+                intentIdentifiers: [],
+                options: []
+            )
+        ])
     }
 
     /// Requests permission at the moment the user enables the persistent endpoint,
@@ -41,7 +63,7 @@ final class DefaultIMDSNotificationCoordinator: NSObject, UNUserNotificationCent
         }
     }
 
-    func notifyAuthenticationRequired(profileName: String) async {
+    func notifyAuthenticationRequired(profileName: String, sessionName: String) async {
         let settings = await notificationCenter.notificationSettings()
         guard settings.authorizationStatus == .authorized
                 || settings.authorizationStatus == .provisional else { return }
@@ -55,9 +77,10 @@ final class DefaultIMDSNotificationCoordinator: NSObject, UNUserNotificationCent
 
         let content = UNMutableNotificationContent()
         content.title = "Default IMDS Endpoint needs sign-in"
-        content.body = "Sign in to the active profile \(profileName) so Quorra can resume serving credentials on \(DefaultIMDSEndpoint.bindAddress):\(DefaultIMDSEndpoint.port)."
+        content.body = "Sign in to \(sessionName) so Quorra can keep serving credentials for \(profileName) on \(DefaultIMDSEndpoint.bindAddress):\(DefaultIMDSEndpoint.port)."
         content.categoryIdentifier = DefaultIMDSNotification.categoryIdentifier
         content.threadIdentifier = DefaultIMDSNotification.categoryIdentifier
+        content.userInfo = [DefaultIMDSNotification.sessionNameKey: sessionName]
         content.sound = .default
 
         let request = UNNotificationRequest(
@@ -90,11 +113,7 @@ final class DefaultIMDSNotificationCoordinator: NSObject, UNUserNotificationCent
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
-        if notification.request.content.categoryIdentifier == DefaultIMDSNotification.categoryIdentifier {
-            completionHandler([])
-        } else {
-            completionHandler([.banner, .sound])
-        }
+        completionHandler([.banner, .sound])
     }
 
     nonisolated func userNotificationCenter(
@@ -102,16 +121,26 @@ final class DefaultIMDSNotificationCoordinator: NSObject, UNUserNotificationCent
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
-        guard response.notification.request.content.categoryIdentifier
-                == DefaultIMDSNotification.categoryIdentifier,
-              response.actionIdentifier == UNNotificationDefaultActionIdentifier else {
+        let content = response.notification.request.content
+        guard content.categoryIdentifier == DefaultIMDSNotification.categoryIdentifier else {
             completionHandler()
             return
         }
 
-        Task { @MainActor [weak self] in
-            self?.requestEndpointOpen()
-            NSWorkspace.shared.open(AppNavigationRoute.defaultIMDSEndpointURL)
+        switch response.actionIdentifier {
+        case DefaultIMDSNotification.signInActionIdentifier:
+            let sessionName = content.userInfo[DefaultIMDSNotification.sessionNameKey] as? String
+            Task { @MainActor [weak self] in
+                guard let sessionName else { return }
+                self?.signInHandler?(sessionName)
+            }
+        case UNNotificationDefaultActionIdentifier:
+            Task { @MainActor [weak self] in
+                self?.requestEndpointOpen()
+                NSWorkspace.shared.open(AppNavigationRoute.defaultIMDSEndpointURL)
+            }
+        default:
+            break
         }
         completionHandler()
     }
