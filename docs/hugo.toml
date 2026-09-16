@@ -1,0 +1,31 @@
+baseURL = "https://quorra.ajbeck.dev/"
+locale = "en-GB"
+title = "Quorra"
+enableGitInfo = true
+
+# No tag or category archives on this site; suppressing them keeps Hugo from
+# generating empty taxonomy pages and warning about missing templates.
+disableKinds = ["taxonomy", "term"]
+
+# Hugo writes into docs/public and caches in docs/resources; both are gitignored.
+# Never commit the publishDir — the Pages workflow builds it fresh.
+publishDir = "public"
+
+[params]
+  description = "Sign in once and Quorra serves an AWS IAM Identity Center role at the standard EC2 metadata address, so the CLI, the SDKs and Terraform find credentials the way they would on an instance."
+  # Single source of truth for the version shown in the header and on the download
+  # button. Kept in step with version.txt by the release job — see notes in the
+  # design canvas. Until that is wired, bump this by hand at release time.
+  appVersion = "1.1.0"
+  repo = "https://github.com/ajbeck/quorra"
+  latestRelease = "https://github.com/ajbeck/quorra/releases/latest"
+
+[markup]
+  [markup.tableOfContents]
+    startLevel = 2
+    endLevel = 3
+  [markup.highlight]
+    # Emit classes rather than inline styles so one generated stylesheet per
+    # ground can be swapped, instead of recolouring every code block.
+    noClasses = false
+    lineNos = false

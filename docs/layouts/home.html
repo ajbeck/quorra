@@ -1,0 +1,8 @@
+{{ define "main" }}
+<main>
+<h1>{{ site.Title }}</h1>
+{{ .Content }}
+<hr>
+<p>Version {{ site.Params.appVersion }} · built {{ now.Format "2006-01-02 15:04 MST" }}</p>
+</main>
+{{ end }}

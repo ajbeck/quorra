@@ -1,0 +1,91 @@
+name: Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - docs/**
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+# Only one concurrent deployment. Queued runs are allowed to finish rather than
+# being cancelled, so a deployment is never left half-applied.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    name: Build site
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      # Matches the version developers run locally. Bump both together.
+      HUGO_VERSION: 0.165.0
+      HUGO_ENVIRONMENT: production
+      TZ: Europe/London
+
+    steps:
+      - name: Install Hugo
+        run: |
+          wget -O "${{ runner.temp }}/hugo.deb" \
+            "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_linux-amd64.deb"
+          sudo dpkg -i "${{ runner.temp }}/hugo.deb"
+
+      - name: Check out
+        uses: actions/checkout@v5
+        with:
+          # enableGitInfo in hugo.toml needs real history for page dates.
+          fetch-depth: 0
+
+      - name: Configure Pages
+        id: pages
+        uses: actions/configure-pages@v5
+
+      - name: Cache Hugo resources
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/.cache/hugo
+          key: hugo-${{ runner.os }}-${{ hashFiles('docs/**') }}
+          restore-keys: hugo-${{ runner.os }}-
+
+      - name: Build
+        # base_url follows the Pages settings, so it is the custom domain once
+        # that is configured and the github.io URL before then. No edit needed
+        # here when the domain is switched on.
+        run: |
+          hugo build \
+            --source docs \
+            --gc \
+            --minify \
+            --baseURL "${{ steps.pages.outputs.base_url }}/" \
+            --cacheDir "${{ runner.temp }}/.cache/hugo"
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: docs/public
+
+  deploy:
+    name: Deploy to Pages
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v5
