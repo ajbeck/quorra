@@ -13,30 +13,26 @@ path:
   caption: "Every hop between your tools and a temporary role, and what each one is allowed to touch."
   prelude: "AWS IAM Identity Center · device authorization, once per session"
   steps:
-    - key: "A"
-      group: "YOUR TOOLS"
+    - group: "YOUR TOOLS"
       title: "AWS CLI · SDKs · Terraform"
       detail: "unmodified provider chain"
       notes:
         - "GET /latest/meta-data/…"
         - "no AWS_PROFILE, no endpoint override"
-    - key: "B"
-      group: "MACOS"
+    - group: "MACOS"
       title: "Network Extension"
       detail: "169.254.169.254:80 only"
       notes:
         - "forwards opaque TCP bytes"
         - "never interprets, stores or logs them"
-    - key: "C"
-      group: "QUORRA (SANDBOXED)"
+    - group: "QUORRA (SANDBOXED)"
       title: "Local IMDSv2 server"
       detail: "127.0.0.1:7114"
       highlight: true
       notes:
         - "mints IMDSv1 + IMDSv2 responses for the served profile"
         - "binds 127.0.0.1 only · never reachable from your network"
-    - key: "D"
-      group: "MACOS KEYCHAIN"
+    - group: "MACOS KEYCHAIN"
       title: "Session token"
       detail: "+ role credentials"
       # The arrow before this step points back into Quorra: the keychain is

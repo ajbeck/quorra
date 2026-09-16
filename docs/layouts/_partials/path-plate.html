@@ -27,7 +27,7 @@
       </li>
       {{- end }}
       <li class="flow__step{{ if $step.highlight }} flow__step--on{{ end }}">
-        <p class="flow__group"><span class="flow__key">{{ $step.key }}</span> {{ $step.group }}</p>
+        <p class="flow__group">{{ $step.group }}</p>
         <h3 class="flow__title">{{ $step.title }}</h3>
         <p class="flow__detail">{{ $step.detail }}</p>
         {{- with $step.notes }}
