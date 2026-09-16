@@ -15,7 +15,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "1B5F7C8C2FACE2A100833D01"
-               BuildableName = "quorra.app"
+               BuildableName = "Quorra.app"
                BlueprintName = "quorra"
                ReferencedContainer = "container:quorra.xcodeproj">
             </BuildableReference>
@@ -75,7 +75,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "1B5F7C8C2FACE2A100833D01"
-            BuildableName = "quorra.app"
+            BuildableName = "Quorra.app"
             BlueprintName = "quorra"
             ReferencedContainer = "container:quorra.xcodeproj">
          </BuildableReference>
@@ -92,7 +92,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "1B5F7C8C2FACE2A100833D01"
-            BuildableName = "quorra.app"
+            BuildableName = "Quorra.app"
             BlueprintName = "quorra"
             ReferencedContainer = "container:quorra.xcodeproj">
          </BuildableReference>
