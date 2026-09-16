@@ -42,7 +42,11 @@ struct ObjectListView: View {
     private var loadedView: some View {
         VStack(spacing: 0) {
             header
-            objectListContainer
+            listContent
+                .frame(maxHeight: .infinity)
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    objectMutationBar
+                }
         }
         .sheet(item: $presentedSheet) { sheet in
             switch sheet {
@@ -128,73 +132,52 @@ struct ObjectListView: View {
         .padding(.bottom, 8)
     }
 
-    private var objectListContainer: some View {
-        VStack(spacing: 0) {
-            listContent
-                .frame(maxHeight: .infinity)
-
-            objectMutationBar
-        }
-        .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .padding(.horizontal, 12)
-        .padding(.bottom, 12)
-        .frame(maxHeight: .infinity)
-    }
-
     @ViewBuilder private var listContent: some View {
         if visibleItems.isEmpty {
             emptyState
         } else {
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 4) {
-                    if case .all = sourceSelection {
-                        objectSection("Sessions", items: filteredSessionItems)
-                        objectSection("Profiles", items: filteredProfileItems)
-                        objectSection("IMDS Endpoints", items: filteredIMDSItems)
-                    } else {
-                        ForEach(visibleItems) { item in
-                            objectButton(for: item)
+            List(selection: $detailSelection) {
+                if case .all = sourceSelection {
+                    if !filteredSessionItems.isEmpty {
+                        Section("Sessions") {
+                            ForEach(filteredSessionItems, id: \.detailSelection) { item in
+                                ObjectListRow(item: item)
+                                    .tag(item.detailSelection)
+                                    .contextMenu { folderAssignmentMenu(for: item) }
+                                    .draggable(item.dragPayload)
+                            }
                         }
                     }
+                    if !filteredProfileItems.isEmpty {
+                        Section("Profiles") {
+                            ForEach(filteredProfileItems, id: \.detailSelection) { item in
+                                ObjectListRow(item: item)
+                                    .tag(item.detailSelection)
+                                    .contextMenu { folderAssignmentMenu(for: item) }
+                                    .draggable(item.dragPayload)
+                            }
+                        }
+                    }
+                    if !filteredIMDSItems.isEmpty {
+                        Section("IMDS Endpoints") {
+                            ForEach(filteredIMDSItems, id: \.detailSelection) { item in
+                                ObjectListRow(item: item)
+                                    .tag(item.detailSelection)
+                                    .contextMenu { folderAssignmentMenu(for: item) }
+                                    .draggable(item.dragPayload)
+                            }
+                        }
+                    }
+                } else {
+                    ForEach(visibleItems, id: \.detailSelection) { item in
+                        ObjectListRow(item: item)
+                            .tag(item.detailSelection)
+                            .contextMenu { folderAssignmentMenu(for: item) }
+                            .draggable(item.dragPayload)
+                    }
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 8)
             }
         }
-    }
-
-    @ViewBuilder private func objectSection(_ title: String, items: [ObjectListItem]) -> some View {
-        if !items.isEmpty {
-            Text(title)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-                .padding(.horizontal, 8)
-                .padding(.top, 8)
-                .padding(.bottom, 2)
-
-            ForEach(items) { item in
-                objectButton(for: item)
-            }
-        }
-    }
-
-    private func objectButton(for item: ObjectListItem) -> some View {
-        Button {
-            detailSelection = item.detailSelection
-        } label: {
-            ObjectListRow(item: item)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 6)
-                .contentShape(RoundedRectangle(cornerRadius: 6))
-        }
-        .buttonStyle(NavigationRowButtonStyle(isSelected: detailSelection == item.detailSelection))
-        .contextMenu {
-            folderAssignmentMenu(for: item)
-        }
-        .draggable(item.dragPayload)
     }
 
     @ViewBuilder private func folderAssignmentMenu(for item: ObjectListItem) -> some View {
@@ -227,61 +210,60 @@ struct ObjectListView: View {
     }
 
     private var objectMutationBar: some View {
-        HStack(spacing: 0) {
-            if let defaultCreationSheet {
+        VStack(spacing: 0) {
+            Divider()
+
+            HStack(spacing: 0) {
+                if let defaultCreationSheet {
+                    Button {
+                        presentedSheet = defaultCreationSheet
+                    } label: {
+                        Image(systemName: "plus")
+                            .frame(width: 18, height: 18)
+                    }
+                    .frame(width: 26, height: 26)
+                    .contentShape(.rect)
+                    .disabled(isCreationDisabled(defaultCreationSheet))
+                    .help("New \(defaultCreationSheet.title)")
+                } else {
+                    Menu {
+                        creationMenu
+                    } label: {
+                        Image(systemName: "plus")
+                            .frame(width: 18, height: 18)
+                    }
+                    .menuStyle(.borderlessButton)
+                    .menuIndicator(.hidden)
+                    .frame(width: 26, height: 26)
+                    .contentShape(.rect)
+                    .help("Add session, profile, or IMDS endpoint")
+                }
+
+                Rectangle()
+                    .fill(Color.secondary.opacity(0.16))
+                    .frame(width: 1, height: 14)
+
                 Button {
-                    presentedSheet = defaultCreationSheet
+                    if let selectedItem {
+                        pendingDeletion = selectedItem
+                    }
                 } label: {
-                    Image(systemName: "plus")
+                    Image(systemName: "minus")
                         .frame(width: 18, height: 18)
                 }
                 .frame(width: 26, height: 26)
                 .contentShape(.rect)
-                .disabled(isCreationDisabled(defaultCreationSheet))
-                .help("New \(defaultCreationSheet.title)")
-            } else {
-                Menu {
-                    creationMenu
-                } label: {
-                    Image(systemName: "plus")
-                        .frame(width: 18, height: 18)
-                }
-                .menuStyle(.borderlessButton)
-                .menuIndicator(.hidden)
-                .frame(width: 26, height: 26)
-                .contentShape(.rect)
-                .help("Add session, profile, or IMDS endpoint")
+                .disabled(!canDeleteSelectedItem)
+                .help(removeHelp)
+
+                Spacer(minLength: 0)
             }
-
-            Rectangle()
-                .fill(Color.secondary.opacity(0.16))
-                .frame(width: 1, height: 14)
-
-            Button {
-                if let selectedItem {
-                    pendingDeletion = selectedItem
-                }
-            } label: {
-                Image(systemName: "minus")
-                    .frame(width: 18, height: 18)
-            }
-            .frame(width: 26, height: 26)
-            .contentShape(.rect)
-            .disabled(!canDeleteSelectedItem)
-            .help(removeHelp)
-
-            Spacer(minLength: 0)
+            .buttonStyle(.borderless)
+            .controlSize(.small)
+            .padding(.horizontal, 8)
+            .frame(height: 26)
         }
-        .buttonStyle(.borderless)
-        .controlSize(.small)
-        .padding(.horizontal, 8)
-        .frame(height: 26)
-        .background(Color.secondary.opacity(0.10))
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(Color.secondary.opacity(0.12))
-                .frame(height: 1)
-        }
+        .background(.bar)
     }
 
     @ViewBuilder private var creationMenu: some View {
@@ -659,7 +641,7 @@ private enum CreationSheet: Identifiable {
     }
 }
 
-private enum ObjectListItem: Identifiable, Hashable {
+enum ObjectListItem: Identifiable, Hashable {
     case session(SSOSessionNode)
     case profile(SidebarProfileItem)
     case imds(IMDSEndpointListItem)
@@ -724,7 +706,7 @@ private enum ObjectListItem: Identifiable, Hashable {
     }
 }
 
-private struct IMDSEndpointListItem: Identifiable, Hashable {
+struct IMDSEndpointListItem: Identifiable, Hashable {
     let endpointID: String
     let name: String?
     let profileName: String
@@ -750,110 +732,6 @@ private struct IMDSEndpointListItem: Identifiable, Hashable {
             return "localhost:\(port) -> \(profileName)"
         }
         return "serving \(profileName)"
-    }
-}
-
-private struct ObjectListRow: View {
-    let item: ObjectListItem
-
-    var body: some View {
-        switch item {
-        case .session(let session):
-            HStack(spacing: 8) {
-                Image(systemName: "cloud")
-                    .foregroundStyle(.secondary)
-                    .frame(width: 18)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(session.id)
-                        .lineLimit(1)
-                    Text("\(session.profiles.count) \(session.profiles.count == 1 ? "profile" : "profiles")")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-                Spacer(minLength: 8)
-            }
-            .padding(.vertical, 3)
-
-        case .profile(let profile):
-            HStack(spacing: 8) {
-                Image(systemName: profile.via.isSSO ? "key" : "folder")
-                    .foregroundStyle(.secondary)
-                    .frame(width: 18)
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(profile.id)
-                        .lineLimit(1)
-                    ViaBadge(
-                        label: profile.via.label,
-                        color: profile.via.badgeColor
-                    )
-                }
-                Spacer(minLength: 8)
-            }
-            .padding(.vertical, 3)
-
-        case .imds(let endpoint):
-            HStack(spacing: 8) {
-                Image(systemName: "antenna.radiowaves.left.and.right")
-                    .foregroundStyle(endpoint.state.accent)
-                    .frame(width: 18)
-                VStack(alignment: .leading, spacing: 5) {
-                    HStack(spacing: 5) {
-                        Text(endpoint.title)
-                            .fontDesign(endpoint.isDefault ? .default : .monospaced)
-                            .fontWeight(endpoint.isDefault ? .semibold : .regular)
-                            .lineLimit(1)
-                        if endpoint.isDefault {
-                            Image(systemName: "lock.fill")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                                .help("Built-in endpoint; it can’t be deleted")
-                        }
-                    }
-                    HStack(spacing: 6) {
-                        IMDSBadge(state: endpoint.state)
-                        Text(endpoint.profileName.isEmpty ? "Choose a profile" : endpoint.profileName)
-                            .font(.caption)
-                            .foregroundStyle(endpoint.profileName.isEmpty ? Color.orange : Color.secondary)
-                            .lineLimit(1)
-                    }
-                }
-                Spacer(minLength: 8)
-            }
-            .padding(.vertical, 3)
-        }
-    }
-}
-
-private struct IMDSBadge: View {
-    let state: IMDSEndpointState
-
-    var body: some View {
-        HStack(spacing: 5) {
-            Circle()
-                .fill(state.accent)
-                .frame(width: 6, height: 6)
-            Text(text)
-                .font(.caption.weight(.semibold))
-                .monospacedDigit()
-        }
-        .foregroundStyle(state.accent)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 3)
-        .background(state.accent.opacity(0.16), in: Capsule())
-    }
-
-    private var text: String {
-        switch state {
-        case .inactive:
-            return "off"
-        case .starting:
-            return "starting"
-        case .active:
-            return "live"
-        case .failed:
-            return "failed"
-        }
     }
 }
 
@@ -1104,31 +982,7 @@ private extension SourceSelection {
     }
 }
 
-private extension ProfileVia {
-    var badgeColor: Color? {
-        switch self {
-        case .session(let name):
-            return Theme.sessionBadgeColor(for: name)
-        case .longTerm, .other:
-            return nil
-        }
-    }
-}
-
 private extension IMDSEndpointState {
-    var accent: Color {
-        switch self {
-        case .inactive:
-            return .secondary
-        case .starting:
-            return .blue
-        case .active:
-            return .green
-        case .failed:
-            return .orange
-        }
-    }
-
     var searchText: String {
         switch self {
         case .inactive:
