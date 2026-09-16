@@ -1,0 +1,30 @@
+{{- /* A tab strip of the same command in several shells.
+
+       Radio inputs plus labels, switched by CSS :checked — no JavaScript at
+       all, so it works on a page where scripts are blocked or have not loaded,
+       and arrow-key navigation between tabs comes free from the radio group.
+       The panels are all in the DOM, so in-page find still reaches every
+       shell. */ -}}
+{{- $_ := .Inner -}}
+{{- $tabs := .Scratch.Get "tabs" | default slice -}}
+{{- if not $tabs }}{{ errorf "shells: no shell blocks inside (%s)" .Position }}{{ end -}}
+{{- if gt (len $tabs) 4 }}{{ errorf "shells: %d shells, but the stylesheet only switches 4 (%s)" (len $tabs) .Position }}{{ end -}}
+{{- /* Unique per shortcode instance per page: the radios only need to not
+       collide with another group on the same page. UniqueID is a string, so
+       it formats with %s. */ -}}
+{{- $id := printf "sh-%s-%d" (substr .Page.File.UniqueID 0 8) .Ordinal -}}
+<div class="shells">
+  {{- range $i, $tab := $tabs }}
+  <input class="shells__radio" type="radio" name="{{ $id }}" id="{{ $id }}-{{ $i }}"{{ if eq $i 0 }} checked{{ end }}>
+  {{- end }}
+  <div class="shells__tabs">
+    {{- range $i, $tab := $tabs }}
+    <label class="shells__tab" for="{{ $id }}-{{ $i }}">{{ $tab.name }}</label>
+    {{- end }}
+  </div>
+  <div class="shells__panels">
+    {{- range $tabs }}
+    <div class="shells__panel">{{ highlight .code .lang "" }}</div>
+    {{- end }}
+  </div>
+</div>

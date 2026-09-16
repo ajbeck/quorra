@@ -13,14 +13,15 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap">
 
-{{- with resources.Get "css/main.css" }}
-  {{- if hugo.IsProduction }}
-    {{- with . | minify | fingerprint }}
+{{- /* One stylesheet, not two: the syntax-highlighting rules are concatenated
+       onto the end of the site CSS so a docs page costs no extra request. */ -}}
+{{- $css := slice (resources.Get "css/main.css") (resources.Get "css/chroma.css") | resources.Concat "css/site.css" }}
+{{- if hugo.IsProduction }}
+  {{- with $css | minify | fingerprint }}
 <link rel="stylesheet" href="{{ .RelPermalink }}" integrity="{{ .Data.Integrity }}" crossorigin="anonymous">
-    {{- end }}
-  {{- else }}
-<link rel="stylesheet" href="{{ .RelPermalink }}">
   {{- end }}
+{{- else }}
+<link rel="stylesheet" href="{{ $css.RelPermalink }}">
 {{- end }}
 
 {{- with resources.Get "images/quorra.png" }}

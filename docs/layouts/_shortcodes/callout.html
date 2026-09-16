@@ -1,0 +1,16 @@
+{{- /* {{< callout kind="note" >}} … {{< /callout >}}
+
+     Angle delimiters on purpose. A percent-delimited shortcode is spliced
+     into the page before markdown runs, so Goldmark strips its raw HTML
+     unless renderer.unsafe is turned on site-wide. Angle brackets are
+     substituted back after rendering, so the markup survives with unsafe
+     left off; the body is rendered here with markdownify instead, and
+     still takes links, code spans and lists. */ -}}
+{{- $kind := .Get "kind" | default "note" -}}
+{{- $labels := dict "note" "NOTE" "warn" "WATCH OUT" -}}
+{{- $label := index $labels $kind -}}
+{{- if not $label }}{{ errorf "callout: unknown kind %q in %s — use note or warn" $kind .Position }}{{ end -}}
+<aside class="callout callout--{{ $kind }}">
+  <p class="callout__label">{{ $label }}</p>
+  <div class="callout__body">{{ .Inner | markdownify }}</div>
+</aside>

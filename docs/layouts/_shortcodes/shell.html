@@ -1,0 +1,16 @@
+{{- /* One shell inside {{< shells >}}. Angle delimiters, so .Inner stays raw
+       text rather than being run through markdown.
+
+       Renders nothing itself: it appends to the parent's scratch, and the
+       parent draws every panel once its .Inner has been evaluated. */ -}}
+{{- if not .Parent }}{{ errorf "shell: must be used inside a shells shortcode (%s)" .Position }}{{ end -}}
+{{- $name := .Get "name" -}}
+{{- if not $name }}{{ errorf "shell: name is required (%s)" .Position }}{{ end -}}
+{{- /* zsh has no Chroma lexer of its own and is close enough to bash. */ -}}
+{{- $lexers := dict "bash" "bash" "zsh" "bash" "fish" "fish" "powershell" "powershell" -}}
+{{- $lang := .Get "lang" | default (index $lexers $name) | default "text" -}}
+{{- $tabs := .Parent.Scratch.Get "tabs" | default slice -}}
+{{- .Parent.Scratch.Set "tabs" ($tabs | append (dict
+      "name" $name
+      "lang" $lang
+      "code" (trim .Inner "\n"))) -}}

@@ -29,3 +29,9 @@ publishDir = "public"
     # ground can be swapped, instead of recolouring every code block.
     noClasses = false
     lineNos = false
+
+# The header menu. Entries are added only once what they point at exists.
+[[menus.main]]
+  name = "Docs"
+  pageRef = "/docs"
+  weight = 10
