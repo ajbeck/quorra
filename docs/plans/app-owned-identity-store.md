@@ -30,6 +30,7 @@ Costs accepted: the standardized region setting has no IMDS fallback (https://do
 - `ui`: sidebar, object list, session and profile detail views, creation and deletion flows read the store; `ProfilesModel` leaves the app.
 - `export`: opt-in one-way writer; settings; the read-only mode becomes the export switch.
 - `cli`: profile listing over IPC; remove the file reader from the CLI.
+- `fix/portal-region` (folded into the stack above `ui` on 15 September 2026): role-credential minting calls the Portal in the session's Identity Center region, which the stored token records, instead of the profile's default region. The profile region stays on the minted credential for SDK use.
 
 ## Decisions
 
