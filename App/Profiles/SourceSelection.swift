@@ -1,7 +1,7 @@
 import Foundation
 import QuorraAppLogic
 
-enum SourceSelection: Hashable, Sendable {
+enum SourceSelection: Hashable, Sendable, CaseIterable {
     case all
     case sessions
     case profiles

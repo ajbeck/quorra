@@ -15,6 +15,7 @@ struct ObjectListView: View {
     @State private var presentedSheet: CreationSheet?
     @State private var pendingDeletion: ObjectListItem?
     @State private var deletionError: String?
+    @FocusState private var isListFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -106,39 +107,66 @@ struct ObjectListView: View {
         if visibleItems.isEmpty {
             emptyState
         } else {
-            List(selection: $detailSelection) {
-                if case .all = sourceSelection {
-                    if !filteredSessionItems.isEmpty {
-                        Section("Sessions") {
-                            ForEach(filteredSessionItems, id: \.detailSelection) { item in
-                                ObjectListRow(item: item)
-                                    .tag(item.detailSelection)
+            ScrollViewReader { proxy in
+                List(selection: $detailSelection) {
+                    if case .all = sourceSelection {
+                        if !filteredSessionItems.isEmpty {
+                            Section("Sessions") {
+                                ForEach(filteredSessionItems, id: \.detailSelection) { item in
+                                    ObjectListRow(item: item)
+                                        .tag(item.detailSelection)
+                                }
                             }
                         }
-                    }
-                    if !filteredProfileItems.isEmpty {
-                        Section("Profiles") {
-                            ForEach(filteredProfileItems, id: \.detailSelection) { item in
-                                ObjectListRow(item: item)
-                                    .tag(item.detailSelection)
+                        if !filteredProfileItems.isEmpty {
+                            Section("Profiles") {
+                                ForEach(filteredProfileItems, id: \.detailSelection) { item in
+                                    ObjectListRow(item: item)
+                                        .tag(item.detailSelection)
+                                }
                             }
                         }
-                    }
-                    if !filteredIMDSItems.isEmpty {
-                        Section("IMDS Endpoints") {
-                            ForEach(filteredIMDSItems, id: \.detailSelection) { item in
-                                ObjectListRow(item: item)
-                                    .tag(item.detailSelection)
+                        if !filteredIMDSItems.isEmpty {
+                            Section("IMDS Endpoints") {
+                                ForEach(filteredIMDSItems, id: \.detailSelection) { item in
+                                    ObjectListRow(item: item)
+                                        .tag(item.detailSelection)
+                                }
                             }
                         }
-                    }
-                } else {
-                    ForEach(visibleItems, id: \.detailSelection) { item in
-                        ObjectListRow(item: item)
-                            .tag(item.detailSelection)
+                    } else {
+                        ForEach(visibleItems, id: \.detailSelection) { item in
+                            ObjectListRow(item: item)
+                                .tag(item.detailSelection)
+                        }
                     }
                 }
+                .focusable()
+                .focused($isListFocused)
+                .focusEffectDisabled()
+                .simultaneousGesture(TapGesture().onEnded { isListFocused = true })
+                .onMoveCommand { direction in
+                    guard let next = adjacentSelection(direction) else { return }
+                    detailSelection = next
+                    proxy.scrollTo(next)
+                }
             }
+        }
+    }
+
+    /// The row the arrow keys move to, in the order the list shows its rows.
+    private func adjacentSelection(_ direction: MoveCommandDirection) -> DetailSelection? {
+        let rows = visibleItems.map(\.detailSelection)
+        guard let current = detailSelection, let index = rows.firstIndex(of: current) else {
+            return direction == .up ? rows.last : rows.first
+        }
+        switch direction {
+        case .up:
+            return rows[max(index - 1, 0)]
+        case .down:
+            return rows[min(index + 1, rows.count - 1)]
+        default:
+            return nil
         }
     }
 
