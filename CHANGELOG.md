@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.0.0](https://github.com/ajbeck/quorra/compare/v0.6.1...v1.0.0) (2026-09-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* existing metadata stores drop the folder entities through SwiftData's inferred lightweight migration; folder assignments are not preserved.
+
+### Features
+
+* **cli:** list profiles from the identity store over IPC ([#74](https://github.com/ajbeck/quorra/issues/74)) ([96c675d](https://github.com/ajbeck/quorra/commit/96c675de893f49ec2d7c972faea33d2793427ff5))
+* **identity:** add session and profile definitions to the store ([#67](https://github.com/ajbeck/quorra/issues/67)) ([b6fe114](https://github.com/ajbeck/quorra/commit/b6fe114416011cbca0140302125d0e2d070293e2))
+* **identity:** edit sessions and profiles in the store ([#70](https://github.com/ajbeck/quorra/issues/70)) ([f656f2f](https://github.com/ajbeck/quorra/commit/f656f2fee3711bb5029e512da9611ec252c6fc2f))
+* **identity:** export sessions and profiles to the AWS config file ([#73](https://github.com/ajbeck/quorra/issues/73)) ([3d4fa4f](https://github.com/ajbeck/quorra/commit/3d4fa4f6a23a7bca7f753a5d7fd2b69a92bfd236))
+* **identity:** import SSO sessions and profiles from the AWS folder once ([#68](https://github.com/ajbeck/quorra/issues/68)) ([41cf06b](https://github.com/ajbeck/quorra/commit/41cf06bc668d8274aa28ede4cd981fbe12bae5f4))
+* **identity:** resolve runtime profiles and sessions from the store ([#69](https://github.com/ajbeck/quorra/issues/69)) ([6126e39](https://github.com/ajbeck/quorra/commit/6126e392b140000d5b0d89947e58c17f7b18bc6c))
+* **imds:** surface sign-in calls to action for the served session ([#72](https://github.com/ajbeck/quorra/issues/72)) ([af281c4](https://github.com/ajbeck/quorra/commit/af281c4acdc9d70e4b2947011f76546498f272be))
+* remove metadata folders ([#64](https://github.com/ajbeck/quorra/issues/64)) ([802ca3b](https://github.com/ajbeck/quorra/commit/802ca3b692497ff0c87cfc28625a1dd796c83117))
+
+
+### Bug Fixes
+
+* **build:** ship the app bundle as Quorra.app ([#66](https://github.com/ajbeck/quorra/issues/66)) ([5337347](https://github.com/ajbeck/quorra/commit/5337347a555f3d4eac293ddb89e6be13d1a8a5b7))
+* **identity:** mint role credentials in the session's Identity Center region ([#71](https://github.com/ajbeck/quorra/issues/71)) ([471a1cb](https://github.com/ajbeck/quorra/commit/471a1cbcc14b555c04d92d418cbee62514df71fc))
+* **ui:** move the list selection with the arrow keys ([#75](https://github.com/ajbeck/quorra/issues/75)) ([21fecf1](https://github.com/ajbeck/quorra/commit/21fecf10f9efa8473d10e28745fcc883c3c7634e))
+
 ## [0.6.1](https://github.com/ajbeck/quorra/compare/v0.6.0...v0.6.1) (2026-09-14)
 
 
