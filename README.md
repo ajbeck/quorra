@@ -6,9 +6,11 @@ profiles, temporary credentials, and local IMDS endpoints.
 It is for developers who move between AWS accounts and roles and want a
 visible, local workflow instead of repeatedly running `aws sso login`, editing
 `~/.aws/config` by hand, or passing credentials through a collection of shell
-scripts. Quorra reads the standard AWS shared configuration, keeps IAM Identity
-Center tokens and temporary role credentials in the macOS Keychain, and can
-serve a profile through an IMDS endpoint for local AWS tooling.
+scripts. Quorra imports your sessions and profiles from the standard AWS shared
+configuration once, keeps them in its own store, exports them back to
+`~/.aws/config` if you choose, keeps IAM Identity Center tokens and temporary
+role credentials in the macOS Keychain, and can serve a profile through an IMDS
+endpoint for local AWS tooling.
 
 ## Screenshots
 
@@ -22,9 +24,12 @@ Quorra requires an Apple silicon Mac running macOS 26.4 (Tahoe) or later.
 
 1. Download `Quorra.dmg` from the [latest GitHub release](https://github.com/ajbeck/quorra/releases/latest).
 2. Open the disk image and move `Quorra.app` to `/Applications`.
-3. Open Quorra and grant access to your AWS folder, normally `~/.aws`.
-4. Choose **Edit & Manage** to let Quorra update AWS configuration files, or
-   **Read Only** to browse profiles and use credentials without changing them.
+3. Open Quorra and grant access to your AWS folder, normally `~/.aws`. Quorra
+   imports the IAM Identity Center sessions and profiles it finds there.
+4. Choose **Export to AWS Folder** to let Quorra write the sessions and profiles
+   you manage back to the `config` file in that folder, so the AWS CLI and SDKs
+   can use them, or **Keep in Quorra** to leave your AWS files untouched. You
+   can change this later in Settings.
 
 Quorra must be installed in `/Applications` before the default EC2 metadata
 endpoint can be enabled. The first time you enable it, macOS asks you to approve
@@ -39,16 +44,15 @@ Quorra continues starting the endpoint automatically after macOS completes the
 approval. These approvals persist across ordinary endpoint restarts and app
 launches.
 
-The first public release is being prepared. Until then, build the app from
-source using Xcode 26 or later:
+### Upgrading from 0.6
 
-```sh
-git clone https://github.com/ajbeck/quorra.git
-cd quorra
-open Quorra.xcworkspace
-```
-
-Run the `QuorraApp` scheme with Command-R.
+The first launch of 1.0 imports the sessions and profiles from your AWS folder
+into Quorra's store. If you used **Edit & Manage**, **Export to AWS folder** is
+on, and that same launch writes the imported sessions and profiles back to
+`config`, adding a `# Managed by Quorra` header and normalizing spacing while
+keeping your other sections, keys, and comments. **Read Only** becomes Export
+off, and nothing is written. Folders are gone; sessions, profiles, and endpoints
+are listed by kind in the sidebar.
 
 ## What It Does
 
@@ -57,7 +61,9 @@ Run the `QuorraApp` scheme with Command-R.
 - Sign in with AWS IAM Identity Center through the native device authorization
   flow, refresh sessions, and inspect credential expiry.
 - Copy temporary credentials as shell environment variables.
-- Manage AWS profile and session configuration in the selected AWS folder.
+- Keep IAM Identity Center sessions and profiles in Quorra's own store, imported
+  once from your AWS folder, and export them to `~/.aws/config` so the AWS CLI
+  and SDKs can use them.
 - Start the default endpoint at AWS's standard metadata URL,
   `http://169.254.169.254`, so AWS SDKs and CLI tools can use the normal IMDSv2
   provider chain without an endpoint override.
@@ -119,7 +125,9 @@ also publishes the active port at
   `169.254.169.254:80` Network Extension rule.
 - Quorra asks macOS to approve its narrowly scoped network configuration the
   first time the default endpoint is enabled.
-- Read Only mode prevents Quorra from writing to the AWS files you selected.
+- With **Export to AWS folder** off, Quorra never writes to the AWS files you
+  selected. With it on, Quorra updates only the `sso-session` and `profile`
+  sections it manages in `config` and keeps other sections, keys, and comments.
 
 ## Uninstall
 
@@ -132,7 +140,9 @@ Extensions disables the extension but does not uninstall it.
 ## Development
 
 The app is built with SwiftUI, targets macOS 26.4, and ships for Apple silicon.
-Run all tests in Xcode with Command-U. The local `AWSConfigINI` Swift package
+To build from source, clone the repository, open `Quorra.xcworkspace` in
+Xcode 26 or later, and run the `QuorraApp` scheme with Command-R. Run all tests
+in Xcode with Command-U. The local `AWSConfigINI` Swift package
 provides the parser and atomic writer used for AWS shared-config files.
 
 For release build, signing, notarization, and DMG details, see
