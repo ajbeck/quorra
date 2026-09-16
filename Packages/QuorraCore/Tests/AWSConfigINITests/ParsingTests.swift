@@ -244,3 +244,51 @@ struct WarningTests {
         #expect(!presectionWarnings.isEmpty)
     }
 }
+
+// MARK: - Comment attachment across blank lines (revised 16 September 2026)
+
+@Suite("Parsing — comments separated by blank lines")
+struct BlankLineCommentTests {
+    /// A comment block with a blank line between it and the next section or key still
+    /// attaches to that section or key, so a write keeps it. The first live export
+    /// dropped two such blocks from a real config file under the earlier rule.
+    @Test func commentsSeparatedByBlankLinesAttachToNextSectionOrKey() throws {
+        let doc = try AWSConfigINIDocument("""
+        [default]
+        cli_pager =
+
+        ##########################
+        # Example Org
+        # sso_start_url=https://example.awsapps.com/start
+        ##########################
+
+        [sso-session corp]
+        sso_region = us-east-2
+
+        # note above a key
+
+        sso_start_url = https://example.awsapps.com/start
+
+        # label
+
+        [profile legacy]
+        region = us-east-2
+        """)
+        #expect(doc.section("sso-session corp")?.leadingComments == [
+            "##########################",
+            "# Example Org",
+            "# sso_start_url=https://example.awsapps.com/start",
+            "##########################",
+        ])
+        #expect(doc.section("sso-session corp")?.key("sso_start_url")?.leadingComments == ["# note above a key"])
+        #expect(doc.section("profile legacy")?.leadingComments == ["# label"])
+    }
+
+    /// Comments before the first section still become document leading comments on a
+    /// blank line, which is how the managed header round-trips.
+    @Test func preSectionCommentsStillBecomeDocumentLeadingComments() throws {
+        let doc = try AWSConfigINIDocument("# header\n\n[a]\nk = 1\n")
+        #expect(doc.leadingComments == ["# header"])
+        #expect(doc.section("a")?.leadingComments == [])
+    }
+}

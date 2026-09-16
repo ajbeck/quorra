@@ -43,6 +43,7 @@ private enum SettingsPane: String {
         .environment(LaunchAtLoginController())
         .environment(IMDSProxyController())
         .environment(AppRuntimeCoordinator.preview())
+        .environment(IdentityExportCoordinator.preview())
 }
 
 #endif

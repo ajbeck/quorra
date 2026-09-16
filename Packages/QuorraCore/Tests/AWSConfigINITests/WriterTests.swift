@@ -1,7 +1,7 @@
 // WriterTests.swift — canonical writer round-trip + format-contract assertions.
 //
 // Decisions: D03 (canonical, not byte-exact), D14 (separator " = "),
-// D15 (always double-quote), D16 ([default] first), D17 (BOM round-trip lives in BOMTests).
+// D15 (bare values), D16 ([default] first), D17 (BOM round-trip lives in BOMTests).
 
 import Testing
 import Foundation
@@ -80,8 +80,8 @@ struct WriterTests {
     // MARK: - Sub-property maps (D12)
 
     /// Map-typed keys emit `name =` followed by 2-space-indented sorted entries; entry
-    /// values are double-quoted (D15).
-    @Test func subPropertyMapsEmitSortedDoubleQuotedEntries() throws {
+    /// values are written bare (D15).
+    @Test func subPropertyMapsEmitSortedBareEntries() throws {
         let doc = try AWSConfigINIDocument(loadFixtureString("nested_fields"))
         let written = try doc.write()
         let lines = written.components(separatedBy: "\n")
@@ -90,16 +90,17 @@ struct WriterTests {
         let parentIdx = lines.firstIndex(of: "aws_access_key_id =")
         #expect(parentIdx != nil)
         if let i = parentIdx {
-            #expect(lines[i + 1].hasPrefix("  aws_secret_access_key = \""))
-            #expect(lines[i + 2].hasPrefix("  aws_secret_access_key2 = \""))
+            #expect(lines[i + 1].hasPrefix("  aws_secret_access_key = "))
+            #expect(lines[i + 2].hasPrefix("  aws_secret_access_key2 = "))
+            #expect(!lines[i + 1].contains("\""))
         }
 
-        // bar.mp: entries a=b, b=c are sorted and double-quoted.
+        // bar.mp: entries a=b, b=c are sorted and bare.
         let mpIdx = lines.firstIndex(of: "mp =")
         #expect(mpIdx != nil)
         if let i = mpIdx {
-            #expect(lines[i + 1] == "  a = \"b\"")
-            #expect(lines[i + 2] == "  b = \"c\"")
+            #expect(lines[i + 1] == "  a = b")
+            #expect(lines[i + 2] == "  b = c")
         }
     }
 
@@ -143,12 +144,17 @@ struct WriterTests {
     @Test func sectionsSeparatedByOneBlankLine() throws {
         let doc = try AWSConfigINIDocument("[a]\nk = 1\n[b]\nk = 2\n")
         let written = try doc.write()
-        #expect(written.contains("\"1\"\n\n[b]"))
+        #expect(written.contains("k = 1\n\n[b]"))
+    }
+
+    @Test func commentsSeparatedByBlankLinesSurviveWrite() throws {
+        let doc = try AWSConfigINIDocument("[a]\nk = 1\n\n# about b\n\n[b]\nk = 2\n")
+        #expect(try doc.write().contains("# about b\n[b]\n"))
     }
 
     @Test func noTrailingBlankLineAfterLastSection() throws {
         let doc = try AWSConfigINIDocument("[a]\nk = 1\n")
-        #expect(try doc.write().hasSuffix("\"1\"\n"))
+        #expect(try doc.write().hasSuffix("k = 1\n"))
     }
 
     // MARK: - write(to:)

@@ -49,7 +49,7 @@ struct SetupView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Set up Quorra")
                 .font(.system(size: 22, weight: .semibold))
-            Text("Quorra needs access to your AWS configuration folder to read profiles and write changes.")
+            Text("Quorra needs access to your AWS configuration folder to import your sessions and profiles and, if you choose, to export changes back.")
                 .font(.system(size: 14))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -75,7 +75,7 @@ struct SetupView: View {
 
     private var modeCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("HOW SHOULD QUORRA MANAGE THIS FOLDER?")
+            Text("SHOULD QUORRA EXPORT TO THIS FOLDER?")
                 .font(.system(size: 11.5, weight: .semibold))
                 .tracking(0.06 * 11.5)
                 .foregroundStyle(.secondary)
@@ -83,14 +83,14 @@ struct SetupView: View {
             HStack(spacing: 10) {
                 modeOption(
                     .managed,
-                    title: "Edit & Manage",
-                    blurb: "Quorra can add, edit, and reformat profiles in your AWS files. A `# Managed by Quorra` header is added on first save.",
+                    title: "Export to AWS Folder",
+                    blurb: "Quorra writes the sessions and profiles you manage in the app into the config file so the AWS CLI and SDKs can use them. Other sections and keys are kept.",
                     isRecommended: true
                 )
                 modeOption(
                     .readOnly,
-                    title: "Read Only",
-                    blurb: "Quorra reads your profiles and serves credentials, but never writes to your AWS files. Choose this if you hand-edit them.",
+                    title: "Keep in Quorra",
+                    blurb: "Quorra imports your sessions and profiles once and never writes to your AWS files. Choose this if you hand-edit them.",
                     isRecommended: false
                 )
             }

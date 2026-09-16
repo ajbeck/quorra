@@ -52,6 +52,7 @@ struct quorraApp: App {
         Settings {
             SettingsView()
                 .environment(appDelegate.appModel)
+                .environment(appDelegate.exportCoordinator)
                 .environment(appDelegate.appUpdater)
                 .environment(appDelegate.editorState)
                 .environment(appDelegate.presentationController)
