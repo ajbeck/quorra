@@ -10,6 +10,7 @@ final class AppPresentationController {
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private var interactiveWindows: [ObjectIdentifier: WeakWindow] = [:]
     @ObservationIgnored private var windowObservers: [ObjectIdentifier: [NSObjectProtocol]] = [:]
+    @ObservationIgnored private var terminationRequested = false
 
     init(defaults: UserDefaults? = nil) {
         let resolvedDefaults = defaults ?? AppPresentationPreferences.sharedDefaults()
@@ -24,6 +25,29 @@ final class AppPresentationController {
     func prepareForInteractivePresentation() {
         NSApplication.shared.setActivationPolicy(.regular)
         NSApplication.shared.unhide(nil)
+    }
+
+    /// Quits for the explicit Quit paths: the menu bar item, the setup screen, and the CLI.
+    func terminate() {
+        terminationRequested = true
+        NSApplication.shared.terminate(nil)
+    }
+
+    /// Whether an incoming quit should close the app's windows instead. True only for a quit
+    /// the user issued from a window (⌘Q or the App menu) while the app runs in the menu bar
+    /// only. Explicit quits and quits that arrive as Apple events, such as logout, shutdown, the
+    /// Dock, AppleScript, and Sparkle's relaunch during an update, always proceed.
+    func shouldCloseWindowsInsteadOfTerminating() -> Bool {
+        guard runsInMenuBarOnly, !terminationRequested else { return false }
+        guard NSAppleEventManager.shared().currentAppleEvent == nil else { return false }
+        interactiveWindows = interactiveWindows.filter { $0.value.window != nil }
+        return !interactiveWindows.isEmpty
+    }
+
+    func closeInteractiveWindows() {
+        for entry in interactiveWindows.values {
+            entry.window?.performClose(nil)
+        }
     }
 
     func registerInteractiveWindow(_ window: NSWindow) {

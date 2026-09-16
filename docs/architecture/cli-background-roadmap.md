@@ -201,6 +201,8 @@ and presents its main window. `SMAppService.Status.notFound` is treated as an
 unseen service that can still be registered, rather than as a missing build
 artifact.
 
+**Update (16 September 2026):** ⌘Q from a Quorra window no longer quits the app while it runs in the menu bar only. `applicationShouldTerminate` (https://developer.apple.com/documentation/appkit/nsapplicationdelegate/applicationshouldterminate(_:)) closes the app's windows and cancels the quit when the quit came from a window in that mode, so the menu bar item stays. The menu bar's Quit item, the setup screen's Cancel, and the CLI's terminate request quit fully through an explicit path, and any quit that arrives as an Apple event (logout, shutdown, the Dock, AppleScript, Sparkle's relaunch during an update) proceeds untouched, detected through `NSAppleEventManager.currentAppleEvent`. With "Keep Quorra in Dock" on, ⌘Q quits like a regular app, as the HIG describes Quit. AJ asked for this after 1.0 because ⌘Q was taking the menu bar item down with the window.
+
 ### D009 — Notification navigation from background state
 
 **Decision:** Route notification clicks through the navigation-only URL
