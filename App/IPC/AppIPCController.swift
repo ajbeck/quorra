@@ -15,7 +15,8 @@ final class AppIPCController {
         credentialsModel: CredentialsModel,
         imdsModel: IMDSModel,
         modelContext: ModelContext,
-        bundle: Bundle = .main
+        bundle: Bundle = .main,
+        terminate: @escaping @MainActor () -> Void = { NSApplication.shared.terminate(nil) }
     ) {
         let appVersion = bundle.object(
             forInfoDictionaryKey: "CFBundleShortVersionString"
@@ -28,7 +29,8 @@ final class AppIPCController {
                 credentialsModel: credentialsModel
             ),
             imdsModel: imdsModel,
-            modelContext: modelContext
+            modelContext: modelContext,
+            terminate: terminate
         )
 
         server = QuorraIPCServer { request in
@@ -56,19 +58,22 @@ private final class AppIPCRequestHandler {
     private let profileSignInCoordinator: ProfileSignInOperationCoordinator
     private let imdsModel: IMDSModel
     private let modelContext: ModelContext
+    private let terminate: @MainActor () -> Void
 
     init(
         appVersion: String,
         runtimeCoordinator: AppRuntimeCoordinator,
         profileSignInCoordinator: ProfileSignInOperationCoordinator,
         imdsModel: IMDSModel,
-        modelContext: ModelContext
+        modelContext: ModelContext,
+        terminate: @escaping @MainActor () -> Void
     ) {
         self.appVersion = appVersion
         self.runtimeCoordinator = runtimeCoordinator
         self.profileSignInCoordinator = profileSignInCoordinator
         self.imdsModel = imdsModel
         self.modelContext = modelContext
+        self.terminate = terminate
     }
 
     func handle(_ request: QuorraIPCRequest) async -> QuorraIPCResponse {
@@ -80,9 +85,10 @@ private final class AppIPCRequestHandler {
                     payload: QuorraIPCServerInfo(appVersion: appVersion)
                 )
             case .appTerminate:
+                let terminate = terminate
                 Task { @MainActor in
                     try? await Task.sleep(for: .milliseconds(100))
-                    NSApplication.shared.terminate(nil)
+                    terminate()
                 }
                 return try .success(
                     requestID: request.requestID,

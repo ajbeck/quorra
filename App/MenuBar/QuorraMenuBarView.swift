@@ -99,7 +99,7 @@ struct QuorraMenuBarView: View {
         Divider()
 
         Button("Quit Quorra") {
-            NSApplication.shared.terminate(nil)
+            presentationController.terminate()
         }
         .keyboardShortcut("q")
     }

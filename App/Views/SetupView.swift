@@ -5,6 +5,7 @@ import QuorraAppLogic
 
 struct SetupView: View {
     @Environment(AppModel.self) private var appModel
+    @Environment(AppPresentationController.self) private var presentationController
     @State private var pendingFolder: URL?
     @State private var selectedMode: ManagedMode = .managed
 
@@ -204,7 +205,7 @@ struct SetupView: View {
     private var buttonRow: some View {
         HStack(spacing: 10) {
             Button("Cancel") {
-                NSApplication.shared.terminate(nil)
+                presentationController.terminate()
             }
             .keyboardShortcut(.cancelAction)
 
@@ -244,16 +245,19 @@ struct SetupView: View {
 #Preview("Setup – idle (managed)") {
     SetupView()
         .environment(AppModel(initialPhase: .setup))
+        .environment(AppPresentationController())
 }
 
 #Preview("Setup – read-only selected") {
     SetupView(previewSelectedMode: .readOnly)
         .environment(AppModel(initialPhase: .setup))
+        .environment(AppPresentationController())
 }
 
 #Preview("Setup – non-standard warning") {
     SetupView(previewPendingFolder: URL(filePath: "/Users/jordan/work/aws-config"))
         .environment(AppModel(initialPhase: .setup))
+        .environment(AppPresentationController())
 }
 
 #endif

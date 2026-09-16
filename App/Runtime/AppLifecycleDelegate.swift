@@ -21,7 +21,8 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
     let ipcController: AppIPCController
 
     override init() {
-        presentationController = AppPresentationController()
+        let presentationController = AppPresentationController()
+        self.presentationController = presentationController
         launchAtLoginController = LaunchAtLoginController()
         imdsProxyController = IMDSProxyController()
         let metadataContainer = try! QuorraMetadataSchema.makeContainer()
@@ -64,7 +65,8 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
             runtimeCoordinator: runtimeCoordinator,
             credentialsModel: credentialsModel,
             imdsModel: imdsModel,
-            modelContext: metadataContainer.mainContext
+            modelContext: metadataContainer.mainContext,
+            terminate: { presentationController.terminate() }
         )
         super.init()
     }
@@ -108,6 +110,16 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
         }
         sender.activate()
         return true
+    }
+
+    /// ⌘Q from a window closes the window while the app runs in the menu bar only; see
+    /// `AppPresentationController.shouldCloseWindowsInsteadOfTerminating`.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        if presentationController.shouldCloseWindowsInsteadOfTerminating() {
+            presentationController.closeInteractiveWindows()
+            return .terminateCancel
+        }
+        return .terminateNow
     }
 
     func applicationWillTerminate(_ notification: Notification) {
