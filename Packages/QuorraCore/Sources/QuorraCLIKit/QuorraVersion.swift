@@ -2,7 +2,7 @@ import Foundation
 
 enum QuorraVersion {
     /// Updated with the root release version by Release Please.
-    private static let repositoryVersion = "1.0.0" // x-release-please-version
+    private static let repositoryVersion = "1.1.0" // x-release-please-version
 
     /// Uses the host app's marketing version for packaged release candidates.
     static var current: String {

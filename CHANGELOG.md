@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.1.0](https://github.com/ajbeck/quorra/compare/v1.0.0...v1.1.0) (2026-09-16)
+
+
+### Features
+
+* **credentials:** show the exact Copy env snippet and support zsh, fish, and PowerShell ([#83](https://github.com/ajbeck/quorra/issues/83)) ([2933620](https://github.com/ajbeck/quorra/commit/29336209430877cbb26deacbad2755cc0096eebf))
+
+
+### Bug Fixes
+
+* **app:** keep the menu bar item when ⌘Q closes a window ([#78](https://github.com/ajbeck/quorra/issues/78)) ([6357f63](https://github.com/ajbeck/quorra/commit/6357f630871ecb6531743fae372e9321d6e476c0))
+* **credentials:** draw the profile detail once when the selection changes ([#81](https://github.com/ajbeck/quorra/issues/81)) ([d40ef7d](https://github.com/ajbeck/quorra/commit/d40ef7dfb5038b483cf6a0a2d3a7e8e007da4672))
+* **credentials:** keep the shell picker the same width in every card state ([#82](https://github.com/ajbeck/quorra/issues/82)) ([657e77b](https://github.com/ajbeck/quorra/commit/657e77bda5d2072078c529d474ce468ae0c9222c))
+* **menubar:** keep the same icon while a session needs sign-in ([#79](https://github.com/ajbeck/quorra/issues/79)) ([e643db2](https://github.com/ajbeck/quorra/commit/e643db29b27d52480c6b0bd3f043e45e709f4c38))
+
 ## [1.0.0](https://github.com/ajbeck/quorra/compare/v0.6.1...v1.0.0) (2026-09-16)
 
 
