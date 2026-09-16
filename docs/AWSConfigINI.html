@@ -328,7 +328,7 @@ doc.update(<span class="tok-string">"profile dev"</span>) { section <span class=
         <thead><tr><th>member</th><th>type</th><th></th></tr></thead>
         <tbody>
           <tr><td class="field">name</td><td class="type">String</td><td class="note">verbatim header, e.g. <code>"profile dev"</code></td></tr>
-          <tr><td class="field">leadingComments</td><td class="type">[String]</td><td class="note">comments above the <code>[name]</code> line, with their <code>#</code> or <code>;</code> prefix preserved</td></tr>
+          <tr><td class="field">leadingComments</td><td class="type">[String]</td><td class="note">comments above the <code>[name]</code> line, blank lines between allowed, with their # or ; prefix preserved (revised 16 September 2026: a blank line no longer discards them; only comments after the last key of the file are dropped)</td></tr>
           <tr><td class="field">warnings</td><td class="type">[Warning]</td><td class="note">parser tolerances surfaced as diagnostics (duplicate keys, unrecognized lines)</td></tr>
           <tr><td class="field">keys</td><td class="type">[Key]</td><td class="note">ordered, insertion order preserved</td></tr>
           <tr><td class="field">key(_:)</td><td class="type">(String) -> Key?</td><td class="note">case-insensitive lookup; input is lowercased before matching</td></tr>
