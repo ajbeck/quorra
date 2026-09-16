@@ -52,6 +52,15 @@ The folder feature linked records by id strings. The identity model uses SwiftDa
 
 Adding entities and an optional relationship is a lightweight change; no `VersionedSchema`, for the reason recorded in `docs/plans/remove-folders.md` D2. Verify by launching against an existing store.
 
+### D6. Import scope
+
+Only `sso-session` sections and the profiles that reference them with an account id and a role name are imported. Legacy SSO profiles that carry `sso_start_url` themselves, profiles under a session with no start URL or region, and every non-SSO profile stay in the file untouched and are reported as skipped. AWS calls the legacy form "non-refreshable" and recommends the token provider form (https://docs.aws.amazon.com/sdkref/latest/guide/feature-sso-credentials.html), and `aws configure sso` writes the token provider form, so the legacy form is not worth a synthesized session.
+
+### D7. Import trigger
+
+The import runs once, in `AppRuntimeCoordinator` right after the first successful load of the AWS folder, and a UserDefaults flag (`IdentityImportStorage`) records completion. Failure leaves the flag unset so the next launch retries, and the error goes to the `dev.ajbeck.quorra` log. Records are matched by name, so a later manual re-import (a settings action in the export layer) updates rather than duplicates.
+
 ## Verification
 
-- `models`: warning-free build, package tests for cascade, nullify, and upsert; launch against an existing store.
+- `models`: warning-free build, package tests for cascade, nullify, and upsert; launch against an existing store. Done 14 September 2026: 512 tests passed, launch against the real store succeeded.
+- `import`: importer tests for scope, idempotence, and endpoint linking; launch against the real AWS folder and confirm the log line. Done 14 September 2026: 516 tests passed; the launch logged "Imported 1 sessions and 5 profiles into the identity store; linked 3 endpoints; left 0 profiles in the file."
