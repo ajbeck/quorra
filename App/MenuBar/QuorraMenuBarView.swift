@@ -19,9 +19,23 @@ struct QuorraMenuBarView: View {
         Label(endpointStatusTitle, systemImage: endpointStatusImage)
             .disabled(true)
 
+        if let sessionName = runtimeCoordinator.defaultEndpointSignInSessionName {
+            Button {
+                runtimeCoordinator.signIn(to: sessionName)
+            } label: {
+                Label("Sign In to \(sessionName)…", systemImage: "person.badge.key")
+            }
+        }
+
         if let profileName = runtimeCoordinator.defaultEndpointProfileName {
             Text("Serving profile: \(profileName)")
                 .disabled(true)
+
+            Picker("Serve Profile", selection: servedProfileSelection) {
+                ForEach(runtimeCoordinator.defaultEndpointProfileChoices, id: \.self) { name in
+                    Text(name).tag(name)
+                }
+            }
         }
 
         Button(endpointActionTitle) {
@@ -88,6 +102,25 @@ struct QuorraMenuBarView: View {
             NSApplication.shared.terminate(nil)
         }
         .keyboardShortcut("q")
+    }
+
+    /// Switches the served profile through the coordinator. A menu cannot show an error, so a
+    /// failed switch opens the endpoint detail, where the failure is displayed.
+    private var servedProfileSelection: Binding<String> {
+        Binding(
+            get: { runtimeCoordinator.defaultEndpointProfileName ?? "" },
+            set: { newValue in
+                guard newValue != runtimeCoordinator.defaultEndpointProfileName else { return }
+                Task {
+                    do {
+                        try await runtimeCoordinator.switchDefaultEndpointProfile(to: newValue)
+                    } catch {
+                        notificationCoordinator.requestEndpointOpen()
+                        presentMainWindow()
+                    }
+                }
+            }
+        )
     }
 
     private var endpointStatusTitle: String {

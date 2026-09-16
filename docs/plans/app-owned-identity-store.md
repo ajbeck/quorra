@@ -31,6 +31,7 @@ Costs accepted: the standardized region setting has no IMDS fallback (https://do
 - `export`: opt-in one-way writer; settings; the read-only mode becomes the export switch.
 - `cli`: profile listing over IPC; remove the file reader from the CLI.
 - `fix/portal-region` (folded into the stack above `ui` on 15 September 2026): role-credential minting calls the Portal in the session's Identity Center region, which the stored token records, instead of the profile's default region. The profile region stays on the minted credential for SDK use.
+- `feat/sign-in-calls-to-action` (above `fix/portal-region`, 15 September 2026): shared credential readiness, sign-in calls to action in the endpoint detail, the notification, and the menu bar; the launch alert is gone. Decisions in `docs/plans/sign-in-calls-to-action.md`.
 
 ## Decisions
 

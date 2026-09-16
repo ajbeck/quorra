@@ -55,6 +55,9 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
             modelContext: metadataContainer.mainContext
         )
         self.runtimeCoordinator = runtimeCoordinator
+        notificationCoordinator.signInHandler = { [weak runtimeCoordinator] sessionName in
+            runtimeCoordinator?.signIn(to: sessionName)
+        }
         self.ipcController = AppIPCController(
             runtimeCoordinator: runtimeCoordinator,
             credentialsModel: credentialsModel,
