@@ -38,6 +38,10 @@ actor StubPortalRequesting: PortalRequesting {
     private(set) var listAccountsCallCount = 0
     private(set) var listAccountRolesCallCount = 0
     private(set) var getRoleCredentialsCallCount = 0
+    /// The region the most recent list call was routed to.
+    private(set) var lastListRegion: String?
+    /// The region the most recent `getRoleCredentials` call was routed to.
+    private(set) var lastMintRegion: String?
 
     // MARK: - Configuration helpers
 
@@ -62,6 +66,7 @@ actor StubPortalRequesting: PortalRequesting {
 
     func listAccounts(accessToken: String, region: String) async throws -> [PortalAccount] {
         listAccountsCallCount += 1
+        lastListRegion = region
         return try nextListAccountsResult.get()
     }
 
@@ -71,6 +76,7 @@ actor StubPortalRequesting: PortalRequesting {
         region: String
     ) async throws -> [PortalRole] {
         listAccountRolesCallCount += 1
+        lastListRegion = region
         return try nextListAccountRolesResult.get()
     }
 
@@ -81,6 +87,7 @@ actor StubPortalRequesting: PortalRequesting {
         region: String
     ) async throws -> MintedCredential {
         getRoleCredentialsCallCount += 1
+        lastMintRegion = region
         if let block = getRoleCredentialsBlock {
             return try await block()
         }

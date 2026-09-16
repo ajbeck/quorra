@@ -26,7 +26,7 @@ public enum DefaultIMDSEndpoint {
     @MainActor
     public static func ensureDefinition(
         in context: ModelContext,
-        availableProfileNames: [String]
+        availableProfiles: [ProfileDefinition]
     ) throws -> IMDSEndpointDefinition {
         let endpointID = stableIDString
         let descriptor = FetchDescriptor<IMDSEndpointDefinition>(
@@ -51,9 +51,14 @@ public enum DefaultIMDSEndpoint {
                 definition.allowsIMDSv1 = allowsIMDSv1
                 changed = true
             }
-            if !availableProfileNames.contains(definition.profileName),
-               let firstProfileName = availableProfileNames.first {
-                definition.profileName = firstProfileName
+            if let selected = availableProfiles.first(where: { $0.name == definition.profileName }) {
+                if definition.profile !== selected {
+                    definition.profile = selected
+                    changed = true
+                }
+            } else if let first = availableProfiles.first {
+                definition.profileName = first.name
+                definition.profile = first
                 changed = true
             }
             if changed {
@@ -66,12 +71,13 @@ public enum DefaultIMDSEndpoint {
         let definition = IMDSEndpointDefinition(
             id: stableID,
             name: name,
-            profileName: availableProfileNames.first ?? "",
+            profileName: availableProfiles.first?.name ?? "",
             port: port,
             bindAddress: bindAddress,
             allowsIMDSv1: allowsIMDSv1
         )
         context.insert(definition)
+        definition.profile = availableProfiles.first
         try context.save()
         return definition
     }

@@ -56,7 +56,7 @@ private struct ParserState {
     var csectionIndex: Int = -1
     // Key name of the last top-level property placed in the current section
     var ckey: String? = nil
-    // Comments accumulated since last blank line or section/key attachment
+    // Comments accumulated since the last section/key attachment
     var pendingComments: [String] = []
     // Whether we've started accumulating content (for leading-doc comments)
     var firstSectionSeen = false
@@ -64,17 +64,16 @@ private struct ParserState {
     mutating func handle(_ token: LineToken) {
         switch token {
         case .blank:
-            // A blank line breaks comment association. Flush pending comments.
-            // Plan §7.2 task 6 sub-bullet: blank line between comments and next
-            // section/key flushes pending comments rather than attaching them.
-            if firstSectionSeen {
-                pendingComments = []
-            } else {
-                // Before the first section: a blank line flushes pre-section
-                // comments into document.leadingComments (they don't belong to
-                // any section). This supports the M08 managed-mode header which
-                // lives in Document.leadingComments and round-trips through
-                // write→read.
+            // Before the first section: a blank line flushes pre-section
+            // comments into document.leadingComments (they don't belong to
+            // any section). This supports the M08 managed-mode header which
+            // lives in Document.leadingComments and round-trips through
+            // write→read.
+            // After the first section a blank line keeps the comments pending,
+            // so they attach to the next section or key and survive a write.
+            // Revised 16 September 2026: the earlier rule discarded them, which
+            // dropped user comments from the AWS config file on the first export.
+            if !firstSectionSeen {
                 result.leadingComments.append(contentsOf: pendingComments)
                 pendingComments = []
             }

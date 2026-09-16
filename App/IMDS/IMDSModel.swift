@@ -45,7 +45,7 @@ final class IMDSModel {
 
     func startEndpoint(
         endpointID: String,
-        for node: ProfileNode,
+        for profile: ProfileDefinition,
         credentialsModel: CredentialsModel,
         bindAddress: String = "127.0.0.1",
         port: Int = 9678,
@@ -53,20 +53,18 @@ final class IMDSModel {
         logContext: ModelContext? = nil,
         requestRecorder: RequestRecorder? = nil
     ) async {
-        guard let sessionName = node.profile.ssoSession,
-              let accountId = node.profile.ssoAccountId,
-              let roleName = node.profile.ssoRoleName else {
-            endpointsByEndpointID[endpointID] = .failed(port: port, message: "Profile is missing SSO account, role, or session metadata.")
+        guard let coordinates = profile.credentialCoordinates else {
+            endpointsByEndpointID[endpointID] = .failed(port: port, message: "Profile is not linked to an IAM Identity Center session.")
             return
         }
 
         await startEndpoint(
             endpointID: endpointID,
-            profileName: node.id,
-            sessionName: sessionName,
-            accountId: accountId,
-            roleName: roleName,
-            region: node.profile.region ?? "us-east-1",
+            profileName: profile.name,
+            sessionName: coordinates.session,
+            accountId: coordinates.account,
+            roleName: coordinates.role,
+            region: coordinates.region,
             credentialsModel: credentialsModel,
             bindAddress: bindAddress,
             port: port,
@@ -180,18 +178,19 @@ final class IMDSModel {
     @discardableResult
     func switchEndpointProfile(
         endpointID: String,
-        to node: ProfileNode,
+        to profile: ProfileDefinition,
         credentialsModel: CredentialsModel
     ) async throws -> Bool {
         guard let server = serversByEndpointID[endpointID],
               state(forEndpointID: endpointID).isActive,
-              let sessionName = node.profile.ssoSession,
-              let accountId = node.profile.ssoAccountId,
-              let roleName = node.profile.ssoRoleName else {
+              let coordinates = profile.credentialCoordinates else {
             return false
         }
 
-        let region = node.profile.region ?? "us-east-1"
+        let sessionName = coordinates.session
+        let accountId = coordinates.account
+        let roleName = coordinates.role
+        let region = coordinates.region
         let credentials = try await credentialsModel.liveCredentials(
             forSession: sessionName,
             accountId: accountId,
@@ -199,7 +198,7 @@ final class IMDSModel {
             region: region
         )
         let servedProfile = IMDSServedProfile(
-            profileName: node.id,
+            profileName: profile.name,
             sessionName: sessionName,
             accountId: accountId,
             roleName: roleName,
@@ -221,7 +220,7 @@ final class IMDSModel {
         if let runtime = runtimeInfoByEndpointID[endpointID] {
             runtimeInfoByEndpointID[endpointID] = IMDSRuntimeInfo(
                 startedAt: runtime.startedAt,
-                servedProfileName: node.id,
+                servedProfileName: profile.name,
                 requestCount: runtime.requestCount,
                 activity: runtime.activity
             )

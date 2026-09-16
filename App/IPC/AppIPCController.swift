@@ -12,7 +12,6 @@ final class AppIPCController {
 
     init(
         runtimeCoordinator: AppRuntimeCoordinator,
-        profilesModel: ProfilesModel,
         credentialsModel: CredentialsModel,
         imdsModel: IMDSModel,
         modelContext: ModelContext,
@@ -25,7 +24,7 @@ final class AppIPCController {
             appVersion: appVersion,
             runtimeCoordinator: runtimeCoordinator,
             profileSignInCoordinator: ProfileSignInOperationCoordinator(
-                profilesModel: profilesModel,
+                modelContext: modelContext,
                 credentialsModel: credentialsModel
             ),
             imdsModel: imdsModel,
@@ -141,6 +140,19 @@ private final class AppIPCRequestHandler {
                     requestID: request.requestID,
                     payload: endpointRecord(definition)
                 )
+            case .profileList:
+                return try .success(
+                    requestID: request.requestID,
+                    payload: try IdentityStore.profiles(in: modelContext).map { profile in
+                        QuorraProfileRecord(
+                            name: profile.name,
+                            sessionName: profile.session?.name,
+                            accountID: profile.accountID,
+                            roleName: profile.roleName,
+                            region: profile.region
+                        )
+                    }
+                )
             case .imdsSwitchProfile:
                 let definition = try resolveEndpoint(from: request)
                 guard DefaultIMDSEndpoint.matches(definition) else {
@@ -166,12 +178,6 @@ private final class AppIPCRequestHandler {
                 requestID: request.requestID,
                 code: error.code,
                 message: error.message
-            )
-        } catch AppRuntimeOperationError.profilesNotReady {
-            return .failure(
-                requestID: request.requestID,
-                code: .notReady,
-                message: AppRuntimeOperationError.profilesNotReady.localizedDescription
             )
         } catch ProfileSignInOperationError.profilesNotReady {
             return .failure(

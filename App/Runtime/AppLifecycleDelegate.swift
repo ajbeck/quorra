@@ -11,13 +11,13 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
     let metadataContainer: ModelContainer
     let appModel: AppModel
     let appUpdater: AppUpdater
-    let profilesModel: ProfilesModel
     let editorState: EditorState
     let imdsModel: IMDSModel
     let notificationCoordinator: DefaultIMDSNotificationCoordinator
     let authenticationBrowser: AuthenticationBrowser
     let credentialsModel: CredentialsModel
     let runtimeCoordinator: AppRuntimeCoordinator
+    let exportCoordinator: IdentityExportCoordinator
     let ipcController: AppIPCController
 
     override init() {
@@ -27,7 +27,6 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
         let metadataContainer = try! QuorraMetadataSchema.makeContainer()
         let appModel = AppModel()
         let appUpdater = AppUpdater()
-        let profilesModel = ProfilesModel()
         let editorState = EditorState()
         let imdsModel = IMDSModel()
         let notificationCoordinator = DefaultIMDSNotificationCoordinator()
@@ -42,7 +41,6 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
         self.metadataContainer = metadataContainer
         self.appModel = appModel
         self.appUpdater = appUpdater
-        self.profilesModel = profilesModel
         self.editorState = editorState
         self.imdsModel = imdsModel
         self.notificationCoordinator = notificationCoordinator
@@ -50,7 +48,6 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
         self.credentialsModel = credentialsModel
         let runtimeCoordinator = AppRuntimeCoordinator(
             appModel: appModel,
-            profilesModel: profilesModel,
             credentialsModel: credentialsModel,
             imdsModel: imdsModel,
             imdsProxyController: imdsProxyController,
@@ -59,9 +56,12 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
             modelContext: metadataContainer.mainContext
         )
         self.runtimeCoordinator = runtimeCoordinator
+        self.exportCoordinator = IdentityExportCoordinator(appModel: appModel, modelContext: metadataContainer.mainContext)
+        notificationCoordinator.signInHandler = { [weak runtimeCoordinator] sessionName in
+            runtimeCoordinator?.signIn(to: sessionName)
+        }
         self.ipcController = AppIPCController(
             runtimeCoordinator: runtimeCoordinator,
-            profilesModel: profilesModel,
             credentialsModel: credentialsModel,
             imdsModel: imdsModel,
             modelContext: metadataContainer.mainContext
@@ -74,6 +74,7 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        exportCoordinator.start()
         ipcController.start()
 
         Task { [weak self] in

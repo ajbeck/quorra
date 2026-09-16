@@ -1,10 +1,10 @@
 import SwiftUI
 import QuorraAppLogic
-import QuorraProfiles
 
 struct IMDSEndpointEditorDraft {
     var name: String
     var profileName: String
+    var profile: ProfileDefinition?
     var port: Int
     var bindAddress: String
     var allowsIMDSv1: Bool
@@ -13,6 +13,7 @@ struct IMDSEndpointEditorDraft {
     init(
         name: String,
         profileName: String,
+        profile: ProfileDefinition? = nil,
         port: Int,
         bindAddress: String,
         allowsIMDSv1: Bool,
@@ -20,6 +21,7 @@ struct IMDSEndpointEditorDraft {
     ) {
         self.name = name
         self.profileName = profileName
+        self.profile = profile
         self.port = port
         self.bindAddress = bindAddress
         self.allowsIMDSv1 = allowsIMDSv1
@@ -29,7 +31,8 @@ struct IMDSEndpointEditorDraft {
     init(endpoint: IMDSEndpointDefinition) {
         self.init(
             name: endpoint.name,
-            profileName: endpoint.profileName,
+            profileName: endpoint.profile?.name ?? "",
+            profile: endpoint.profile,
             port: endpoint.port,
             bindAddress: endpoint.bindAddress,
             allowsIMDSv1: endpoint.allowsIMDSv1,
@@ -38,7 +41,7 @@ struct IMDSEndpointEditorDraft {
     }
 
     func makeEndpoint() -> IMDSEndpointDefinition {
-        IMDSEndpointDefinition(
+        let endpoint = IMDSEndpointDefinition(
             name: name,
             profileName: profileName,
             port: port,
@@ -46,11 +49,14 @@ struct IMDSEndpointEditorDraft {
             allowsIMDSv1: allowsIMDSv1,
             hopLimit: hopLimit
         )
+        endpoint.profile = profile
+        return endpoint
     }
 
     func apply(to endpoint: IMDSEndpointDefinition) {
         endpoint.name = name
         endpoint.profileName = profileName
+        endpoint.profile = profile
         endpoint.port = port
         endpoint.bindAddress = bindAddress
         endpoint.allowsIMDSv1 = allowsIMDSv1
@@ -86,7 +92,7 @@ struct IMDSEndpointEditorSheet: View {
     let mode: Mode
     let existingNames: Set<String>
     let usedPorts: Set<Int>
-    let profiles: [ProfileNode]
+    let profiles: [ProfileDefinition]
     let initialDraft: IMDSEndpointEditorDraft
     let onSave: (IMDSEndpointEditorDraft) throws -> Void
 
@@ -100,7 +106,7 @@ struct IMDSEndpointEditorSheet: View {
         mode: Mode,
         existingNames: Set<String>,
         usedPorts: Set<Int>,
-        profiles: [ProfileNode],
+        profiles: [ProfileDefinition],
         initialDraft: IMDSEndpointEditorDraft? = nil,
         onSave: @escaping (IMDSEndpointEditorDraft) throws -> Void
     ) {
@@ -126,8 +132,8 @@ struct IMDSEndpointEditorSheet: View {
                 TextField("Name", text: $draft.name)
 
                 Picker("Profile", selection: $draft.profileName) {
-                    ForEach(profiles.sortedByName) { profile in
-                        Text(profile.id).tag(profile.id)
+                    ForEach(profiles.sortedByName, id: \.name) { profile in
+                        Text(profile.name).tag(profile.name)
                     }
                 }
 
@@ -171,6 +177,7 @@ struct IMDSEndpointEditorSheet: View {
         var cleaned = draft
         cleaned.name = cleaned.name.trimmingCharacters(in: .whitespacesAndNewlines)
         cleaned.bindAddress = cleaned.bindAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+        cleaned.profile = profiles.first { $0.name == cleaned.profileName }
 
         guard !cleaned.name.isEmpty else {
             validationMessage = "Endpoint name is required."
@@ -180,7 +187,7 @@ struct IMDSEndpointEditorSheet: View {
             validationMessage = "An endpoint named \(cleaned.name) already exists."
             return
         }
-        guard !cleaned.profileName.isEmpty else {
+        guard cleaned.profile != nil else {
             validationMessage = "Select a profile to serve."
             return
         }
@@ -205,11 +212,12 @@ struct IMDSEndpointEditorSheet: View {
         }
     }
 
-    private static func defaultDraft(profiles: [ProfileNode], usedPorts: Set<Int>) -> IMDSEndpointEditorDraft {
-        let firstProfileName = profiles.first?.id ?? ""
+    private static func defaultDraft(profiles: [ProfileDefinition], usedPorts: Set<Int>) -> IMDSEndpointEditorDraft {
+        let firstProfile = profiles.sortedByName.first
         return IMDSEndpointEditorDraft(
-            name: firstProfileName,
-            profileName: firstProfileName,
+            name: firstProfile?.name ?? "",
+            profileName: firstProfile?.name ?? "",
+            profile: firstProfile,
             port: firstAvailablePort(from: 9678, usedPorts: usedPorts),
             bindAddress: "127.0.0.1",
             allowsIMDSv1: true,
@@ -226,8 +234,8 @@ struct IMDSEndpointEditorSheet: View {
     }
 }
 
-extension [ProfileNode] {
-    var sortedByName: [ProfileNode] {
-        sorted { $0.id.localizedStandardCompare($1.id) == .orderedAscending }
+extension [ProfileDefinition] {
+    var sortedByName: [ProfileDefinition] {
+        sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 }

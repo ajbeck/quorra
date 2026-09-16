@@ -9,7 +9,6 @@ struct quorraApp: App {
         Window("Quorra", id: QuorraSceneID.mainWindow) {
             RootView()
                 .environment(appDelegate.appModel)
-                .environment(appDelegate.profilesModel)
                 .environment(appDelegate.editorState)
                 .environment(appDelegate.credentialsModel)
                 .environment(appDelegate.imdsModel)
@@ -38,7 +37,7 @@ struct quorraApp: App {
             }
         }
 
-        MenuBarExtra("Quorra", image: "QuorraMenuBarIcon") {
+        MenuBarExtra {
             QuorraMenuBarView(
                 appUpdater: appDelegate.appUpdater,
                 presentationController: appDelegate.presentationController,
@@ -46,11 +45,14 @@ struct quorraApp: App {
                 imdsModel: appDelegate.imdsModel,
                 notificationCoordinator: appDelegate.notificationCoordinator
             )
+        } label: {
+            QuorraMenuBarLabel(runtimeCoordinator: appDelegate.runtimeCoordinator)
         }
 
         Settings {
             SettingsView()
                 .environment(appDelegate.appModel)
+                .environment(appDelegate.exportCoordinator)
                 .environment(appDelegate.appUpdater)
                 .environment(appDelegate.editorState)
                 .environment(appDelegate.presentationController)

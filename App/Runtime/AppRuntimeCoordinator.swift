@@ -5,6 +5,9 @@ import Observation
 import QuorraAppLogic
 import QuorraProfiles
 import SwiftData
+import os
+
+private let runtimeLogger = Logger(subsystem: "dev.ajbeck.quorra", category: "Runtime")
 
 struct DefaultEndpointAuthenticationNotice: Equatable, Identifiable {
     let endpointID: String
@@ -15,7 +18,6 @@ struct DefaultEndpointAuthenticationNotice: Equatable, Identifiable {
 }
 
 enum AppRuntimeOperationError: LocalizedError {
-    case profilesNotReady
     case profileNotFound(String)
     case endpointNotConfigured(String)
     case authenticationRequired(profileName: String, sessionName: String)
@@ -25,8 +27,6 @@ enum AppRuntimeOperationError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .profilesNotReady:
-            return "Quorra is still loading profiles. Try again in a moment."
         case .profileNotFound(let name):
             return "The profile ‘\(name)’ is unavailable or is missing its SSO configuration."
         case .endpointNotConfigured(let name):
@@ -58,6 +58,19 @@ final class AppRuntimeCoordinator {
         imdsModel.shouldRestoreDefaultEndpoint
     }
 
+    /// Names of the profiles the Default IMDS Endpoint can serve, for the menu bar picker.
+    var defaultEndpointProfileChoices: [String] {
+        eligibleDefaultEndpointProfiles.map(\.name)
+    }
+
+    /// The session the served profile needs signed in, or `nil` when its credentials are ready.
+    var defaultEndpointSignInSessionName: String? {
+        guard let profileName = defaultEndpointProfileName,
+              let profile = try? IdentityStore.profile(named: profileName, in: modelContext),
+              case .needsSignIn(let sessionName) = credentialsModel.readiness(for: profile) else { return nil }
+        return sessionName
+    }
+
     var activeSignIns: [SignInProgress] {
         credentialsModel.inFlight.values.sorted {
             $0.sessionName.localizedStandardCompare($1.sessionName) == .orderedAscending
@@ -65,13 +78,13 @@ final class AppRuntimeCoordinator {
     }
 
     @ObservationIgnored private let appModel: AppModel
-    @ObservationIgnored private let profilesModel: ProfilesModel
     @ObservationIgnored private let credentialsModel: CredentialsModel
     @ObservationIgnored private let imdsModel: IMDSModel
     @ObservationIgnored private let imdsProxyController: IMDSProxyController
     @ObservationIgnored private let notificationCoordinator: DefaultIMDSNotificationCoordinator
     @ObservationIgnored private let authenticationBrowser: AuthenticationBrowser
     @ObservationIgnored private let modelContext: ModelContext
+    @ObservationIgnored private let identityImportStorage: IdentityImportStorage
 
     @ObservationIgnored private var hasStarted = false
     @ObservationIgnored private var isReconciling = false
@@ -81,26 +94,29 @@ final class AppRuntimeCoordinator {
     @ObservationIgnored private var loadedFolderURL: URL?
     @ObservationIgnored private var previousEligibleProfileNames: [String] = []
     @ObservationIgnored private var previousProfileStatus: [String: ProfileAuthStatus] = [:]
+    @ObservationIgnored private var previousSessionStatus: [String: SessionAuthStatus] = [:]
+    @ObservationIgnored private var previousRefreshFailure: Set<String> = []
     @ObservationIgnored private var previousSignIns: [String: SignInProgress] = [:]
+    @ObservationIgnored private var storeSaveObserver: (any NSObjectProtocol)?
 
     init(
         appModel: AppModel,
-        profilesModel: ProfilesModel,
         credentialsModel: CredentialsModel,
         imdsModel: IMDSModel,
         imdsProxyController: IMDSProxyController,
         notificationCoordinator: DefaultIMDSNotificationCoordinator,
         authenticationBrowser: AuthenticationBrowser,
-        modelContext: ModelContext
+        modelContext: ModelContext,
+        identityImportStorage: IdentityImportStorage = .default
     ) {
         self.appModel = appModel
-        self.profilesModel = profilesModel
         self.credentialsModel = credentialsModel
         self.imdsModel = imdsModel
         self.imdsProxyController = imdsProxyController
         self.notificationCoordinator = notificationCoordinator
         self.authenticationBrowser = authenticationBrowser
         self.modelContext = modelContext
+        self.identityImportStorage = identityImportStorage
     }
 
     func start() async {
@@ -108,13 +124,19 @@ final class AppRuntimeCoordinator {
         hasStarted = true
         previousSignIns = credentialsModel.inFlight
         installObservation()
+        storeSaveObserver = NotificationCenter.default.addObserver(
+            forName: ModelContext.didSave,
+            object: modelContext,
+            queue: .main
+        ) { [weak self] notification in
+            guard Self.saveAffectsRuntime(notification) else { return }
+            Task { @MainActor [weak self] in
+                await self?.requestReconciliation()
+            }
+        }
 
         await appModel.resolveStoredBookmark()
         await requestReconciliation(force: true)
-    }
-
-    func dismissAuthenticationNotice() {
-        authenticationNotice = nil
     }
 
     func openAuthenticationPage(for sessionName: String) {
@@ -153,12 +175,11 @@ final class AppRuntimeCoordinator {
     }
 
     func signIn(to sessionName: String) {
-        guard let session = profilesModel.findSession(named: sessionName),
-              let startURLString = session.session?.ssoStartUrl,
-              let startURL = URL(string: startURLString),
-              let region = session.session?.ssoRegion else { return }
+        guard let session = try? IdentityStore.session(named: sessionName, in: modelContext),
+              let startURL = URL(string: session.startURL) else { return }
 
-        let scopes = session.session?.ssoRegistrationScopes ?? ["sso:account:access"]
+        let region = session.region
+        let scopes = session.registrationScopes
         Task {
             await credentialsModel.signIn(
                 sessionName: sessionName,
@@ -170,13 +191,10 @@ final class AppRuntimeCoordinator {
     }
 
     func startEndpoint(_ definition: IMDSEndpointDefinition) async throws {
-        guard case .loaded = profilesModel.loadState else {
-            throw AppRuntimeOperationError.profilesNotReady
-        }
         guard !definition.profileName.isEmpty else {
             throw AppRuntimeOperationError.endpointNotConfigured(definition.name)
         }
-        guard let node = eligibleDefaultEndpointProfiles.first(where: { $0.id == definition.profileName }) else {
+        guard let node = eligibleDefaultEndpointProfiles.first(where: { $0.name == definition.profileName }) else {
             throw AppRuntimeOperationError.profileNotFound(definition.profileName)
         }
 
@@ -206,10 +224,7 @@ final class AppRuntimeCoordinator {
     }
 
     func switchDefaultEndpointProfile(to profileName: String) async throws {
-        guard case .loaded = profilesModel.loadState else {
-            throw AppRuntimeOperationError.profilesNotReady
-        }
-        guard let targetNode = eligibleDefaultEndpointProfiles.first(where: { $0.id == profileName }) else {
+        guard let targetNode = eligibleDefaultEndpointProfiles.first(where: { $0.name == profileName }) else {
             throw AppRuntimeOperationError.profileNotFound(profileName)
         }
         let definitions = try modelContext.fetch(FetchDescriptor<IMDSEndpointDefinition>())
@@ -220,6 +235,7 @@ final class AppRuntimeCoordinator {
 
         let state = imdsModel.state(forEndpointID: definition.stableIDString)
         let previousProfileName = definition.profileName
+        let previousProfile = definition.profile
         let switchedLive: Bool
         do {
             switchedLive = state.isActive
@@ -241,6 +257,7 @@ final class AppRuntimeCoordinator {
         }
 
         definition.profileName = profileName
+        definition.profile = targetNode
         definition.updatedAt = .now
         do {
             try modelContext.save()
@@ -248,6 +265,7 @@ final class AppRuntimeCoordinator {
         } catch {
             if !switchedLive {
                 definition.profileName = previousProfileName
+                definition.profile = previousProfile
             }
             throw AppRuntimeOperationError.persistenceFailed(error.localizedDescription)
         }
@@ -261,7 +279,7 @@ final class AppRuntimeCoordinator {
     private func throwIfEndpointFailed(_ definition: IMDSEndpointDefinition) throws {
         let state = imdsModel.state(forEndpointID: definition.stableIDString)
         if let failureMessage = state.failureMessage {
-            if let node = profilesModel.findProfile(named: definition.profileName),
+            if let node = try? IdentityStore.profile(named: definition.profileName, in: modelContext),
                let authenticationError = authenticationRequiredError(for: node) {
                 throw authenticationError
             }
@@ -274,8 +292,9 @@ final class AppRuntimeCoordinator {
         }
     }
 
-    private func observeCredentialStatus(for node: ProfileNode) async {
+    private func observeCredentialStatus(for node: ProfileDefinition) async {
         guard let coordinates = credentialCoordinates(for: node) else { return }
+        await credentialsModel.observeStatus(forSession: coordinates.session)
         await credentialsModel.observeProfileStatus(
             forSession: coordinates.session,
             accountId: coordinates.account,
@@ -283,21 +302,28 @@ final class AppRuntimeCoordinator {
         )
     }
 
-    private func authenticationRequiredError(for node: ProfileNode) -> AppRuntimeOperationError? {
-        switch credentialStatus(for: node) {
-        case .notSignedIn(let sessionName), .signInExpired(let sessionName):
-            return .authenticationRequired(profileName: node.id, sessionName: sessionName)
-        case .ready, .none:
-            return nil
+    private func authenticationRequiredError(for node: ProfileDefinition) -> AppRuntimeOperationError? {
+        guard case .needsSignIn(let sessionName) = credentialsModel.readiness(for: node) else { return nil }
+        return .authenticationRequired(profileName: node.name, sessionName: sessionName)
+    }
+
+    /// Sessions, profiles, and endpoint definitions live in the store, so a save that touches them
+    /// re-runs reconciliation; log batches and other saves do not.
+    private nonisolated static func saveAffectsRuntime(_ notification: Notification) -> Bool {
+        let keys: [ModelContext.NotificationKey] = [.insertedIdentifiers, .updatedIdentifiers, .deletedIdentifiers]
+        let entityNames: Set<String> = ["SessionDefinition", "ProfileDefinition", "IMDSEndpointDefinition"]
+        return keys.contains { key in
+            guard let identifiers = notification.userInfo?[key] as? [PersistentIdentifier] else { return false }
+            return identifiers.contains { entityNames.contains($0.entityName) }
         }
     }
 
     private func installObservation() {
         withObservationTracking {
             _ = appModel.phase
-            _ = profilesModel.loadState
-            _ = profilesModel.groups
             _ = credentialsModel.profileStatus
+            _ = credentialsModel.status
+            _ = credentialsModel.refreshFailure
             _ = credentialsModel.inFlight
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
@@ -325,6 +351,21 @@ final class AppRuntimeCoordinator {
         }
     }
 
+    private func importIdentityStoreIfNeeded(from folderURL: URL) async {
+        guard !identityImportStorage.hasCompleted else { return }
+        do {
+            // Reading and parsing the folder grows with the user's configuration; keep it off the main actor.
+            let catalog = try await Task.detached(priority: .userInitiated) {
+                try ProfileCatalogLoader.load(folder: folderURL)
+            }.value
+            let summary = try IdentityStoreImporter.importSSOProfiles(from: catalog.groups, into: modelContext)
+            identityImportStorage.markCompleted()
+            runtimeLogger.info("Imported \(summary.sessions) sessions and \(summary.profiles) profiles into the identity store; linked \(summary.linkedEndpoints) endpoints; left \(summary.skippedProfiles.count) profiles in the file.")
+        } catch {
+            runtimeLogger.error("Identity store import failed: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
     private func reconcileObservedState(force: Bool) async {
         handleSignInPresentationChange()
 
@@ -332,30 +373,33 @@ final class AppRuntimeCoordinator {
             loadedFolderURL = nil
             previousEligibleProfileNames = []
             previousProfileStatus = [:]
+            previousSessionStatus = [:]
+            previousRefreshFailure = []
             return
         }
 
         let folderChanged = loadedFolderURL != folderURL
         if folderChanged {
             loadedFolderURL = folderURL
-            await profilesModel.load(folder: folderURL)
+            await importIdentityStoreIfNeeded(from: folderURL)
         }
-
-        guard case .loaded = profilesModel.loadState else { return }
-        let eligibleProfileNames = eligibleDefaultEndpointProfiles.map(\.id)
+        let eligibleProfileNames = eligibleDefaultEndpointProfiles.map(\.name)
         let profilesChanged = eligibleProfileNames != previousEligibleProfileNames
         let credentialStatusChanged = credentialsModel.profileStatus != previousProfileStatus
+            || credentialsModel.status != previousSessionStatus
+            || credentialsModel.refreshFailure != previousRefreshFailure
 
         guard force || folderChanged || profilesChanged || credentialStatusChanged else { return }
 
         previousEligibleProfileNames = eligibleProfileNames
-        previousProfileStatus = credentialsModel.profileStatus
         if force || folderChanged || profilesChanged {
             await credentialsModel.initializeStatuses(
-                forSessions: profilesModel.groups.ssoSessions.map(\.id)
+                forSessions: ((try? IdentityStore.sessions(in: modelContext)) ?? []).map(\.name)
             )
-            previousProfileStatus = credentialsModel.profileStatus
         }
+        previousProfileStatus = credentialsModel.profileStatus
+        previousSessionStatus = credentialsModel.status
+        previousRefreshFailure = credentialsModel.refreshFailure
         await reconcileDefaultEndpoint()
     }
 
@@ -369,22 +413,14 @@ final class AppRuntimeCoordinator {
         }
     }
 
-    private var eligibleDefaultEndpointProfiles: [ProfileNode] {
-        profilesModel.groups.flatProfiles
-            .map(\.node)
-            .filter {
-                $0.profile.ssoSession != nil
-                    && $0.profile.ssoAccountId != nil
-                    && $0.profile.ssoRoleName != nil
-            }
-            .sorted { $0.id.localizedStandardCompare($1.id) == .orderedAscending }
+    private var eligibleDefaultEndpointProfiles: [ProfileDefinition] {
+        (try? IdentityStore.eligibleProfiles(in: modelContext)) ?? []
     }
 
     private func reconcileDefaultEndpoint() async {
-        let profileNames = eligibleDefaultEndpointProfiles.map(\.id)
         guard let definition = try? DefaultIMDSEndpoint.ensureDefinition(
             in: modelContext,
-            availableProfileNames: profileNames
+            availableProfiles: eligibleDefaultEndpointProfiles
         ) else { return }
         defaultEndpointProfileName = definition.profileName.isEmpty ? nil : definition.profileName
 
@@ -396,7 +432,7 @@ final class AppRuntimeCoordinator {
         }
 
         let endpointID = definition.stableIDString
-        guard let node = profilesModel.findProfile(named: definition.profileName) else {
+        guard let node = definition.profile ?? (try? IdentityStore.profile(named: definition.profileName, in: modelContext)) else {
             imdsModel.stopEndpoint(forEndpointID: endpointID)
             return
         }
@@ -417,8 +453,15 @@ final class AppRuntimeCoordinator {
                 imdsModel.stopEndpoint(forEndpointID: endpointID)
             }
         } else if state.isActive {
-            authenticationNotice = nil
-            notificationCoordinator.clearAuthenticationRequiredNotification()
+            // The endpoint keeps serving cached credentials after its session expires, so the
+            // sign-in call to action has to come from here rather than from a failed restore.
+            await observeCredentialStatus(for: node)
+            if case .needsSignIn = credentialsModel.readiness(for: node) {
+                await presentAuthenticationNoticeIfNeeded(for: node, endpointID: endpointID)
+            } else {
+                authenticationNotice = nil
+                notificationCoordinator.clearAuthenticationRequiredNotification()
+            }
             return
         }
 
@@ -427,7 +470,7 @@ final class AppRuntimeCoordinator {
 
     private func restoreDefaultEndpointIfNeeded(
         _ definition: IMDSEndpointDefinition,
-        node: ProfileNode
+        node: ProfileDefinition
     ) async {
         guard !isRestoringDefaultEndpoint else { return }
         let state = imdsModel.state(forEndpointID: definition.stableIDString)
@@ -474,47 +517,31 @@ final class AppRuntimeCoordinator {
     }
 
     private func presentAuthenticationNoticeIfNeeded(
-        for node: ProfileNode,
+        for node: ProfileDefinition,
         endpointID: String
     ) async {
-        guard let coordinates = credentialCoordinates(for: node) else { return }
-        await credentialsModel.observeProfileStatus(
-            forSession: coordinates.session,
-            accountId: coordinates.account,
-            roleName: coordinates.role
-        )
-        guard !credentialStatus(for: node).isReady else { return }
+        await observeCredentialStatus(for: node)
+        guard case .needsSignIn(let sessionName) = credentialsModel.readiness(for: node) else { return }
 
-        switch credentialsModel.profileStatus[coordinates.key] {
-        case .notSignedIn(let sessionName), .signInExpired(let sessionName):
-            let notice = DefaultEndpointAuthenticationNotice(
-                endpointID: endpointID,
-                profileName: node.id,
-                sessionName: sessionName
-            )
-            let shouldNotify = authenticationNotice != notice
-            authenticationNotice = notice
-            if shouldNotify {
-                await notificationCoordinator.notifyAuthenticationRequired(profileName: node.id)
-            }
-        case .ready, .none:
-            break
+        let notice = DefaultEndpointAuthenticationNotice(
+            endpointID: endpointID,
+            profileName: node.name,
+            sessionName: sessionName
+        )
+        let shouldNotify = authenticationNotice != notice
+        authenticationNotice = notice
+        if shouldNotify {
+            await notificationCoordinator.notifyAuthenticationRequired(profileName: node.name, sessionName: sessionName)
         }
     }
 
     private func credentialCoordinates(
-        for node: ProfileNode
+        for node: ProfileDefinition
     ) -> (session: String, account: String, role: String, key: String)? {
-        guard let session = node.profile.ssoSession,
-              let account = node.profile.ssoAccountId,
-              let role = node.profile.ssoRoleName else { return nil }
-        return (session, account, role, "\(session):\(account):\(role)")
+        guard let coordinates = node.credentialCoordinates else { return nil }
+        return (coordinates.session, coordinates.account, coordinates.role, coordinates.key)
     }
 
-    private func credentialStatus(for node: ProfileNode) -> ProfileAuthStatus? {
-        guard let coordinates = credentialCoordinates(for: node) else { return nil }
-        return credentialsModel.profileStatus[coordinates.key]
-    }
 }
 
 #if DEBUG
@@ -522,13 +549,11 @@ extension AppRuntimeCoordinator {
     static func preview() -> AppRuntimeCoordinator {
         let container = try! QuorraMetadataSchema.makeContainer(inMemory: true)
         let appModel = AppModel(initialPhase: .setup)
-        let profilesModel = ProfilesModel()
         let credentialsModel = CredentialsModel(service: PreviewIdentityCenterService())
         let imdsModel = IMDSModel()
         let notificationCoordinator = DefaultIMDSNotificationCoordinator()
         return AppRuntimeCoordinator(
             appModel: appModel,
-            profilesModel: profilesModel,
             credentialsModel: credentialsModel,
             imdsModel: imdsModel,
             imdsProxyController: IMDSProxyController(),
@@ -539,10 +564,3 @@ extension AppRuntimeCoordinator {
     }
 }
 #endif
-
-private extension Optional where Wrapped == ProfileAuthStatus {
-    var isReady: Bool {
-        if case .ready = self { return true }
-        return false
-    }
-}

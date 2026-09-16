@@ -3,8 +3,8 @@ import Foundation
 import AWSConfigINI
 @testable import QuorraAppLogic
 
-@Suite("ProfilesModel.derive")
-struct ProfilesModelDerivationTests {
+@Suite("ProfileCatalogLoader.derive")
+struct ProfileCatalogDerivationTests {
 
     private func config(_ text: String) throws -> AWSConfigINIDocument {
         try AWSConfigINIDocument(text, flavor: .config)
@@ -38,7 +38,7 @@ sso_session = acme
 sso_account_id = 333333333333
 sso_role_name = DevAccess
 """)
-        let groups = ProfilesModel.derive(config: cfg, credentials: Self.emptyCredentials)
+        let groups = ProfileCatalogLoader.derive(config: cfg, credentials: Self.emptyCredentials)
 
         #expect(groups.ssoSessions.count == 1)
         let session = try #require(groups.ssoSessions.first)
@@ -54,7 +54,7 @@ sso_role_name = DevAccess
 sso_start_url = https://acme.awsapps.com/start
 sso_region = us-east-1
 """)
-        let groups = ProfilesModel.derive(config: cfg, credentials: Self.emptyCredentials)
+        let groups = ProfileCatalogLoader.derive(config: cfg, credentials: Self.emptyCredentials)
 
         #expect(groups.ssoSessions.count == 1)
         let session = try #require(groups.ssoSessions.first)
@@ -68,7 +68,7 @@ sso_region = us-east-1
 aws_access_key_id = test-default-access-key
 aws_secret_access_key = test-default-secret-key
 """)
-        let groups = ProfilesModel.derive(config: Self.emptyConfig, credentials: creds)
+        let groups = ProfileCatalogLoader.derive(config: Self.emptyConfig, credentials: creds)
 
         #expect(groups.longTermKeys.count == 1)
         #expect(groups.longTermKeys.first?.id == "default")
@@ -82,7 +82,7 @@ aws_secret_access_key = test-default-secret-key
 aws_access_key_id = test-default-access-key
 region = us-east-1
 """)
-        let groups = ProfilesModel.derive(config: cfg, credentials: Self.emptyCredentials)
+        let groups = ProfileCatalogLoader.derive(config: cfg, credentials: Self.emptyCredentials)
 
         #expect(groups.longTermKeys.count == 1)
         #expect(groups.longTermKeys.first?.id == "default")
@@ -96,7 +96,7 @@ region = us-east-1
 role_arn = arn:aws:iam::123456789012:role/MyRole
 source_profile = default
 """)
-        let groups = ProfilesModel.derive(config: cfg, credentials: Self.emptyCredentials)
+        let groups = ProfileCatalogLoader.derive(config: cfg, credentials: Self.emptyCredentials)
 
         #expect(groups.other.count == 1)
         #expect(groups.other.first?.id == "assume-role")
@@ -109,7 +109,7 @@ source_profile = default
 [profile cred-process]
 credential_process = /usr/local/bin/quorra-cli credentials --profile cred-process
 """)
-        let groups = ProfilesModel.derive(config: cfg, credentials: Self.emptyCredentials)
+        let groups = ProfileCatalogLoader.derive(config: cfg, credentials: Self.emptyCredentials)
 
         #expect(groups.other.count == 1)
         #expect(groups.other.first?.id == "cred-process")
@@ -134,7 +134,7 @@ sso_account_id = 222
 sso_session = corp
 sso_account_id = 333
 """)
-        let groups = ProfilesModel.derive(config: cfg, credentials: Self.emptyCredentials)
+        let groups = ProfileCatalogLoader.derive(config: cfg, credentials: Self.emptyCredentials)
 
         let session = try #require(groups.ssoSessions.first)
         #expect(session.profiles.first?.id == "default")
@@ -152,7 +152,7 @@ output = json
 [default]
 region = eu-west-1
 """)
-        let groups = ProfilesModel.derive(config: cfg, credentials: creds)
+        let groups = ProfileCatalogLoader.derive(config: cfg, credentials: creds)
 
         // default appears in both files; credentials side has no aws_access_key_id → lands in other
         let node = groups.other.first(where: { $0.id == "default" })
@@ -173,7 +173,7 @@ sso_region = eu-west-1
 [sso-session mango]
 sso_region = ap-southeast-1
 """)
-        let groups = ProfilesModel.derive(config: cfg, credentials: Self.emptyCredentials)
+        let groups = ProfileCatalogLoader.derive(config: cfg, credentials: Self.emptyCredentials)
 
         let ids = groups.ssoSessions.map(\.id)
         #expect(ids == ["zebra", "apple", "mango"])
@@ -195,7 +195,7 @@ aws_secret_access_key = SECRET
 [both-files]
 region = ap-southeast-1
 """)
-        let groups = ProfilesModel.derive(config: cfg, credentials: creds)
+        let groups = ProfileCatalogLoader.derive(config: cfg, credentials: creds)
 
         let configOnly = try #require(groups.other.first(where: { $0.id == "config-only" }))
         #expect(configOnly.origin == .configOnly)
@@ -209,11 +209,10 @@ region = ap-southeast-1
     }
 }
 
-@Suite("ProfilesModel.load")
-@MainActor
-struct ProfilesModelLoadTests {
+@Suite("ProfileCatalogLoader.load")
+struct ProfileCatalogLoadTests {
 
-    @Test func load_populates_groups_from_temp_folder() async throws {
+    @Test func load_populates_groups_from_temp_folder() throws {
         let tmpDir = FileManager.default.temporaryDirectory
             .appending(path: UUID().uuidString, directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
@@ -235,53 +234,21 @@ sso_role_name = DevAccess
             encoding: .utf8
         )
 
-        let model = ProfilesModel()
-        await model.load(folder: tmpDir)
+        let catalog = try ProfileCatalogLoader.load(folder: tmpDir)
 
-        #expect(model.loadState == .loaded)
-        #expect(!model.groups.ssoSessions.isEmpty)
-        #expect(model.groups.ssoSessions.first?.id == "corp")
-        #expect(model.groups.ssoSessions.first?.profiles.count == 1)
+        #expect(!catalog.groups.ssoSessions.isEmpty)
+        #expect(catalog.groups.ssoSessions.first?.id == "corp")
+        #expect(catalog.groups.ssoSessions.first?.profiles.count == 1)
     }
 
-    @Test func load_handles_missing_files_gracefully() async throws {
+    @Test func load_handles_missing_files_gracefully() throws {
         let tmpDir = FileManager.default.temporaryDirectory
             .appending(path: UUID().uuidString, directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tmpDir) }
 
-        let model = ProfilesModel()
-        await model.load(folder: tmpDir)
+        let catalog = try ProfileCatalogLoader.load(folder: tmpDir)
 
-        #expect(model.loadState == .loaded)
-        #expect(model.groups == .empty)
+        #expect(catalog.groups == .empty)
     }
-
-    #if DEBUG
-    @Test func seed_loaded_for_testing_matches_loaded_model_shape() throws {
-        let folder = URL(filePath: "/preview/.aws", directoryHint: .isDirectory)
-        let cfg = try AWSConfigINIDocument("""
-[sso-session corp]
-sso_region = us-east-1
-
-[default]
-sso_session = corp
-sso_account_id = 123456789012
-sso_role_name = DevAccess
-""", flavor: .config)
-        let creds = AWSConfigINIDocument(empty: .credentials)
-
-        let model = ProfilesModel()
-        let groups = model.seedLoadedForTesting(config: cfg, credentials: creds, folder: folder)
-
-        #expect(model.loadState == .loaded)
-        #expect(model.currentFolder == folder)
-        #expect(model.configDocument?.flavor == cfg.flavor)
-        #expect(model.configDocument?.sections.map(\.name) == cfg.sections.map(\.name))
-        #expect(model.credentialsDocument?.flavor == creds.flavor)
-        #expect(model.credentialsDocument?.sections.map(\.name) == creds.sections.map(\.name))
-        #expect(model.groups == groups)
-        #expect(model.findProfile(named: "default") != nil)
-    }
-    #endif
 }

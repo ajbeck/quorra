@@ -4,7 +4,7 @@
 //   D03 — canonical, not byte-exact. Comments and section/key order survive; alignment /
 //          separator / quoting are normalized.
 //   D14 — separator " = " (space-equals-space).
-//   D15 — always double-quote string values.
+//   D15 — string values are written bare (revised 16 September 2026; see ValueEncoding.swift).
 //   D16 — [default] first; other sections in _sections array order.
 //   D17 — BOM re-emitted if document.bomKind != nil.
 //
@@ -15,7 +15,7 @@ import Foundation
 /// Converts `document` to its canonical INI text.
 ///
 /// The output is semantically equivalent to the input but not byte-identical:
-/// separator spacing is normalized to ` = `, all string values are double-quoted,
+/// separator spacing is normalized to ` = `, string values are written bare,
 /// and sections are ordered with `[default]` first.
 ///
 /// - Throws: `AWSConfigINIError.encodeError` if any value contains an unrepresentable

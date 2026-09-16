@@ -30,8 +30,8 @@ enum LineToken: Sendable {
     /// Mirrors: lineTokenContinuation (token.go)
     case continuation(value: String, raw: String, lineIndex: Int)
 
-    /// A blank line (all whitespace). Retained so the parser can break
-    /// pending-comment association when a blank line separates comments
+    /// A blank line (all whitespace). Retained so the parser can move
+    /// pre-section comments into the document's leading comments when a blank line separates comments
     /// from the next section/key.
     case blank(raw: String, lineIndex: Int)
 

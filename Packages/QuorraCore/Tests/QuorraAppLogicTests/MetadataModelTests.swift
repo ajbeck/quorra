@@ -5,15 +5,6 @@ import Testing
 
 @Suite("Metadata models")
 struct MetadataModelTests {
-    @Test func folder_assignments_have_stable_object_keys() {
-        let key = MetadataFolderAssignment.objectKey(
-            kind: .profile,
-            objectID: "ac:cp:org_admin"
-        )
-
-        #expect(key == "profile:ac:cp:org_admin")
-    }
-
     @Test func imds_endpoint_definitions_expose_loopback_urls() {
         let endpoint = IMDSEndpointDefinition(
             name: "Terraform",
@@ -29,17 +20,20 @@ struct MetadataModelTests {
         let container = try QuorraMetadataSchema.makeContainer(inMemory: true)
         let context = container.mainContext
 
-        let created = try DefaultIMDSEndpoint.ensureDefinition(
-            in: context,
-            availableProfileNames: ["alpha", "beta"]
-        )
-        let fetchedAgain = try DefaultIMDSEndpoint.ensureDefinition(
-            in: context,
-            availableProfileNames: ["alpha", "beta"]
-        )
+        let session = SessionDefinition(name: "acme", startURL: "https://acme.awsapps.com/start", region: "us-east-1")
+        let alpha = ProfileDefinition(name: "alpha", session: session, accountID: "111111111111", roleName: "Admin")
+        let beta = ProfileDefinition(name: "beta", session: session, accountID: "222222222222", roleName: "Admin")
+        context.insert(session)
+        context.insert(alpha)
+        context.insert(beta)
+        try context.save()
+
+        let created = try DefaultIMDSEndpoint.ensureDefinition(in: context, availableProfiles: [alpha, beta])
+        let fetchedAgain = try DefaultIMDSEndpoint.ensureDefinition(in: context, availableProfiles: [alpha, beta])
 
         #expect(created.stableIDString == DefaultIMDSEndpoint.stableIDString)
         #expect(created.profileName == "alpha")
+        #expect(created.profile === alpha)
         #expect(created.port == 80)
         #expect(created.bindAddress == "169.254.169.254")
         #expect(DefaultIMDSEndpoint.backendPort == 7_114)
@@ -64,13 +58,17 @@ struct MetadataModelTests {
         context.insert(definition)
         try context.save()
 
-        let repaired = try DefaultIMDSEndpoint.ensureDefinition(
-            in: context,
-            availableProfileNames: ["available"]
-        )
+        let session = SessionDefinition(name: "acme", startURL: "https://acme.awsapps.com/start", region: "us-east-1")
+        let available = ProfileDefinition(name: "available", session: session, accountID: "111111111111", roleName: "Admin")
+        context.insert(session)
+        context.insert(available)
+        try context.save()
+
+        let repaired = try DefaultIMDSEndpoint.ensureDefinition(in: context, availableProfiles: [available])
 
         #expect(repaired.name == "Default IMDS Endpoint")
         #expect(repaired.profileName == "available")
+        #expect(repaired.profile === available)
         #expect(repaired.port == 80)
         #expect(repaired.bindAddress == "169.254.169.254")
         #expect(repaired.allowsIMDSv1 == false)

@@ -186,7 +186,7 @@ public struct AWSConfigINIDocument: Sendable {
     /// Serializes the document to its canonical INI text representation.
     ///
     /// The output is semantically equivalent to the parsed input but not byte-identical.
-    /// Separator spacing is normalized to ` = `, all string values are double-quoted (D15),
+    /// Separator spacing is normalized to ` = `, string values are written bare (D15),
     /// and `[default]` is hoisted to the top (D16). BOM bytes are re-emitted if present (D17).
     ///
     /// - Returns: The canonical INI text, or `""` for an empty document.
