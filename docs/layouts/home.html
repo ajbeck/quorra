@@ -1,8 +1,14 @@
 {{ define "main" }}
-<main>
-<h1>{{ site.Title }}</h1>
-{{ .Content }}
-<hr>
-<p>Version {{ site.Params.appVersion }} · built {{ now.Format "2006-01-02 15:04 MST" }}</p>
-</main>
+{{- /* Placeholder home. The real landing page — hero, the DWG.01 credential
+       path plate, the boundary table and the app section — lands next. */ -}}
+<div class="wrap placeholder">
+  <p class="label label--accent">A NATIVE MAC APP FOR AWS IAM IDENTITY CENTER</p>
+  <h1>Your Mac, with an instance profile.</h1>
+  <div class="lead prose">{{ .Content }}</div>
+  <div class="placeholder__actions">
+    <a class="btn btn--primary btn--lg" href="{{ site.Params.latestRelease }}">Download Quorra.dmg</a>
+    <a class="btn btn--secondary btn--lg" href="{{ site.Params.repo }}">View on GitHub</a>
+  </div>
+  <p class="placeholder__req">Requires macOS 26.4 (Tahoe) or later on Apple silicon.</p>
+</div>
 {{ end }}

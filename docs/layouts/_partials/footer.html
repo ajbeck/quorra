@@ -1,0 +1,15 @@
+<footer class="site-footer">
+  <div class="wrap site-footer__inner">
+    <a class="site-footer__brand" href="{{ "/" | relURL }}">
+      {{- with resources.Get "images/quorra.png" }}
+        {{- with .Resize "52x52 webp" }}
+      <img src="{{ .RelPermalink }}" width="26" height="26" alt="">
+        {{- end }}
+      {{- end }}
+      <span>{{ site.Title }}</span>
+    </a>
+    <span class="site-footer__note">APACHE-2.0 · NOT AFFILIATED WITH AMAZON WEB SERVICES</span>
+    <a class="site-footer__link" href="{{ site.Params.repo }}/releases">Releases</a>
+    <a class="site-footer__link" href="{{ site.Params.repo }}">GitHub</a>
+  </div>
+</footer>

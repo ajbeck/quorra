@@ -1,0 +1,453 @@
+/* Quorra site — foundations.
+   One ground (near-black), one accent (the app's own Tron cyan), two
+   typefaces. Values come from the design canvas Foundations sheet; the
+   contrast ratios noted beside each colour were measured, not estimated. */
+
+:root {
+  /* The site is dark only. Declaring it makes form controls, scrollbars
+     and the like render dark instead of light-on-dark. */
+  color-scheme: dark;
+
+  /* Ground and surfaces */
+  --ground: #0a0d11;
+  --surface: #11161c;
+  --surface-sunken: #0e131a;
+  --surface-raised: #0c1116;
+  --plate: #0b1015;
+
+  /* Rules, lightest to heaviest */
+  --line-soft: #1a222b;
+  --line: #222c36;
+  --line-strong: #2a3540;
+
+  /* Text. Ratios are against --ground. */
+  --text: #e8edf2; /* 16.0:1 */
+  --text-2: #a9b6c3; /* 9.1:1  */
+  --muted: #93a1ae; /*  6.9:1 */
+  --muted-2: #7c8b99; /*  5.1:1 */
+  --faint: #6c7a87; /*  4.0:1 — decorative labels at 11px+ only, never body */
+
+  /* Accent. The app's dark-mode accent, oklch(78% 0.16 220). */
+  --accent: #5fb9de; /*  8.4:1 */
+  --accent-ink: #05181f; /* text on an accent fill */
+  --accent-wash: #0e1d24; /* accent-tinted surface */
+
+  /* Status. Only ever used where the site echoes an app status chip. */
+  --ok: #4ade80;
+  --warn: #f0b070;
+
+  /* Type */
+  --font-sans: Archivo, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --fs-hero: clamp(2.625rem, 1.2rem + 4.4vw, 4.75rem); /* 42 → 76 */
+  --fs-h2: clamp(2rem, 1.4rem + 1.9vw, 2.75rem); /* 32 → 44 */
+  --fs-h3: clamp(1.125rem, 1rem + 0.4vw, 1.3125rem); /* 18 → 21 */
+  --fs-lead: clamp(1.03125rem, 0.95rem + 0.3vw, 1.1875rem); /* 16.5 → 19 */
+  --fs-body: 1rem;
+  --fs-sm: 0.9375rem;
+  --fs-xs: 0.875rem;
+  --fs-label: 0.75rem;
+
+  --lh-tight: 1.04;
+  --lh-heading: 1.12;
+  --lh-body: 1.7;
+
+  /* A mono label: eyebrows, table heads, figure numbers. */
+  --tracking-label: 0.16em;
+
+  /* Space */
+  --gutter: clamp(1.25rem, 5.5vw, 5rem);
+  --wrap: 90rem; /* 1440 — the comp width */
+  --measure: 46rem; /* readable line length for prose */
+
+  --radius-sm: 0.375rem;
+  --radius: 0.625rem;
+  --radius-lg: 0.875rem;
+
+  --section-y: clamp(3rem, 6vw, 5.5rem);
+}
+
+/* Reset, kept to what this site actually needs. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body,
+h1,
+h2,
+h3,
+p,
+figure,
+dl,
+dd,
+ul,
+ol {
+  margin: 0;
+}
+
+ul[class],
+ol[class] {
+  list-style: none;
+  padding: 0;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--ground);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /* Sticks the footer to the bottom on short pages. */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex-grow: 1;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: var(--lh-heading);
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: var(--fs-hero);
+  letter-spacing: -0.035em;
+  line-height: var(--lh-tight);
+}
+h2 {
+  font-size: var(--fs-h2);
+}
+h3 {
+  font-size: var(--fs-h3);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+a {
+  color: var(--accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+a:hover {
+  color: #8fd3f0;
+}
+
+code,
+kbd,
+pre,
+samp {
+  font-family: var(--font-mono);
+}
+
+code {
+  font-size: 0.9em;
+  color: var(--text);
+  background: #151c24;
+  border-radius: var(--radius-sm);
+  padding: 0.125em 0.375em;
+}
+
+pre {
+  overflow-x: auto;
+  background: var(--surface-sunken);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.125rem 1.25rem;
+  font-size: var(--fs-xs);
+  line-height: 1.9;
+}
+
+pre code {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+}
+
+/* Keyboard focus is visible everywhere, and only for keyboard users. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Layout primitives */
+
+.wrap {
+  width: 100%;
+  max-width: var(--wrap);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+.prose {
+  max-width: var(--measure);
+}
+
+.lead {
+  font-size: var(--fs-lead);
+  color: var(--text-2);
+}
+
+/* A mono eyebrow or table head. Uppercase in the markup, not via
+   text-transform, so screen readers are not handed shouting text. */
+.label {
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  letter-spacing: var(--tracking-label);
+  color: var(--faint);
+}
+
+.label--accent {
+  color: var(--accent);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Lets a keyboard user jump the header. Visible only once focused. */
+.skip-link {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  transform: translateY(-120%);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+  padding: 0.75rem 1.25rem;
+  border-radius: 0 0 var(--radius) 0;
+}
+.skip-link:focus {
+  transform: translateY(0);
+  color: var(--accent-ink);
+}
+
+/* Buttons. Anchors styled as buttons — every one of them navigates. */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  /* Keeps the tap target at 44px even at the smaller font size. */
+  min-height: 2.75rem;
+  padding: 0.625rem 1.25rem;
+  border-radius: var(--radius);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.btn--primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.btn--primary:hover {
+  background: #8fd3f0;
+  color: var(--accent-ink);
+}
+
+.btn--secondary {
+  border: 1px solid var(--line-strong);
+  color: var(--text);
+}
+.btn--secondary:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.btn--lg {
+  min-height: 3.25rem;
+  padding: 0.9375rem 1.875rem;
+  font-size: 1rem;
+}
+
+/* A version or requirement chip. */
+.chip {
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  color: var(--muted-2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.3125rem 0.6875rem;
+}
+
+/* Site header */
+
+.site-header {
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.site-header__inner {
+  display: flex;
+  align-items: center;
+  gap: clamp(1rem, 2.5vw, 2.25rem);
+  padding-block: 1.25rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+.brand:hover {
+  color: var(--text);
+}
+
+.brand img {
+  width: 2.125rem;
+  height: 2.125rem;
+  border-radius: 0.5625rem;
+}
+
+.site-header__spacer {
+  flex-grow: 1;
+}
+
+.site-header__link {
+  color: var(--text);
+  text-decoration: none;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+.site-header__link:hover {
+  color: var(--accent);
+}
+
+/* Below the nav breakpoint the chip and the plain GitHub link drop away;
+   the download button and the wordmark always stay. */
+@media (max-width: 40rem) {
+  .site-header__optional {
+    display: none;
+  }
+}
+
+/* Site footer */
+
+.site-footer {
+  border-top: 1px solid var(--line-soft);
+  margin-top: var(--section-y);
+}
+
+.site-footer__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem 2.5rem;
+  padding-block: 2.625rem;
+}
+
+.site-footer__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6875rem;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 1rem;
+  font-weight: 700;
+}
+.site-footer__brand img {
+  width: 1.625rem;
+  height: 1.625rem;
+  border-radius: 0.4375rem;
+}
+
+.site-footer__note {
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  letter-spacing: 0.08em;
+  color: var(--faint);
+  flex-grow: 1;
+}
+
+.site-footer__link {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: var(--fs-xs);
+}
+.site-footer__link:hover {
+  color: var(--accent);
+}
+
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.625rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Placeholder home. Removed when the real landing page lands. */
+
+.placeholder {
+  padding-block: clamp(3.5rem, 9vw, 7rem) var(--section-y);
+}
+
+.placeholder h1 {
+  margin-block: 1.5rem 1.75rem;
+  max-width: 20ch;
+}
+
+.placeholder__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.875rem;
+  margin-top: 2.25rem;
+}
+
+.placeholder__req {
+  margin-top: 1.125rem;
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  color: var(--muted-2);
+}
