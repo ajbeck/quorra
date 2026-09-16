@@ -147,6 +147,11 @@ struct WriterTests {
         #expect(written.contains("k = 1\n\n[b]"))
     }
 
+    @Test func commentsSeparatedByBlankLinesSurviveWrite() throws {
+        let doc = try AWSConfigINIDocument("[a]\nk = 1\n\n# about b\n\n[b]\nk = 2\n")
+        #expect(try doc.write().contains("# about b\n[b]\n"))
+    }
+
     @Test func noTrailingBlankLineAfterLastSection() throws {
         let doc = try AWSConfigINIDocument("[a]\nk = 1\n")
         #expect(try doc.write().hasSuffix("k = 1\n"))
