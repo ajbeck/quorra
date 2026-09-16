@@ -29,3 +29,11 @@ Superseded: the first attempt on this layer drew masked placeholder rows for 200
 Sources: `id(_:)` https://developer.apple.com/documentation/swiftui/view/id(_:), `task(id:priority:_:)` https://developer.apple.com/documentation/swiftui/view/task(id:priority:_:), `kSecUseDataProtectionKeychain` https://developer.apple.com/documentation/security/ksecusedataprotectionkeychain, Working with Concurrency https://developer.apple.com/documentation/security/working-with-concurrency.
 
 Verification: unit tests for the accessor (fresh row returned, inside the skew window nil, missing nil) and the existing `liveCredentials` suite; Debug run on AJ's Mac while AJ switched profiles.
+
+## D4. Shell picker width (approved by AJ on 16 September 2026)
+
+After D3, AJ noticed that the Credentials card's shell picker was not the same width on a profile with credentials as on one without. Measured from rendered previews of the card: the segmented control drew 297 pt wide whenever the card state was ready and 302.5 pt in every other state, the same across repeated renders, with the same font and the same height. The picker had `.frame(width: 300)`, and the control's natural width is 302.5 pt, so the frame under-proposed by 2.5 pt and the control resolved the shortfall differently by state: compressed in the ready state, overflowing and shifted 3 pt left in the others. With `fixedSize()` in place of the frame the control is 302.5 pt in both states. The countdown's `TimelineView` was ruled out first (the widths did not change without it).
+
+Decision: `fixedSize()` replaces the fixed frame. Apple's reference: "Fixes this view at its ideal size." (https://developer.apple.com/documentation/swiftui/view/fixedsize()). The row's footprint is unchanged in practice (the label plus a picker of about 300 pt), so nothing narrower breaks that did not already.
+
+Verification: rendered previews of the ready and role-rejected states measure the same control width; Debug run on AJ's Mac.

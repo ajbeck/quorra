@@ -448,7 +448,11 @@ struct CredentialsRevealSection: View {
                 .pickerStyle(.segmented)
                 .labelsHidden()
                 .controlSize(.small)
-                .frame(width: 300)
+                // Ideal size, not a fixed frame: the control's natural width is 302.5 pt, and a
+                // 300 pt frame made it resolve the shortfall differently per card state (297 pt
+                // when ready, 302.5 pt otherwise), so the picker changed width between profiles
+                // (post-1.0 D4).
+                .fixedSize()
                 .onChange(of: selectedShell) { _, newValue in
                     if !newValue.isAvailable {
                         selectedShell = .bash
