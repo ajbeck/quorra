@@ -303,7 +303,7 @@ doc.update(<span class="tok-string">"profile dev"</span>) { section <span class=
         <p class="api-title"><span class="kind">func</span><span class="name">write()</span> · <span class="name">write(to:mode:options:)</span></p>
         <code class="signature"><span class="tok-keyword">public func</span> write() <span class="tok-keyword">throws</span>(<span class="tok-type">AWSConfigINIError</span>) -> <span class="tok-type">String</span>
 <span class="tok-keyword">public func</span> write(to url: <span class="tok-type">URL</span>, mode: <span class="tok-type">ManagedMode</span> = .managed, options: <span class="tok-type">AWSConfigINIDocumentOptions</span> = .default) <span class="tok-keyword">throws</span>(<span class="tok-type">AWSConfigINIError</span>)</code>
-        <p class="api-desc">Serializes deterministically: <code>[default]</code> hoisted first, other sections in parse order, <code>" = "</code> separator, all string values double-quoted. Atomic-rename only — for cross-process safety use <code>update(at:_:)</code>.</p>
+        <p class="api-desc">Serializes deterministically: <code>[default]</code> hoisted first, other sections in parse order, <code>" = "</code> separator, string values written bare (never quoted). Atomic-rename only — for cross-process safety use <code>update(at:_:)</code>.</p>
       </div>
 
       <div class="api">
@@ -392,7 +392,7 @@ doc.update(<span class="tok-string">"profile dev"</span>) { section <span class=
       <table class="fields">
         <thead><tr><th>swift type</th><th>ini representation</th><th></th></tr></thead>
         <tbody>
-          <tr><td class="field">String, Int*, UInt*, Float, Double</td><td class="type">"value"</td><td class="note">always double-quoted on write</td></tr>
+          <tr><td class="field">String, Int*, UInt*, Float, Double</td><td class="type">value</td><td class="note">written bare on write; a value containing <code>"</code> or a newline is rejected</td></tr>
           <tr><td class="field">Bool</td><td class="type">"true" / "false"</td><td class="note">strict form regardless of leniency setting</td></tr>
           <tr><td class="field">[String]</td><td class="type">"a, b, c"</td><td class="note">comma-joined; the AWS list pattern (e.g. <code>sso_registration_scopes</code>)</td></tr>
           <tr><td class="field">[String: String]</td><td class="type">empty parent + indented entries</td><td class="note">the AWS sub-property map shape</td></tr>
@@ -673,7 +673,7 @@ services.entries[<span class="tok-string">"dynamodb"</span>]?[<span class="tok-s
       <div class="pills">
         <span class="pill"><span class="dot">●</span>Parser parity vs AWS Go SDK</span>
         <span class="pill"><span class="dot">●</span>Canonical writer (D03)</span>
-        <span class="pill"><span class="dot">●</span><code>=</code> separator + <code>"value"</code> quoting (D14, D15)</span>
+        <span class="pill"><span class="dot">●</span><code>=</code> separator + bare <code>value</code> (D14, D15 revised 16 September 2026: the AWS CLI reads quotes as part of the value)</span>
         <span class="pill"><span class="dot">●</span><code>[default]</code> first (D16)</span>
         <span class="pill"><span class="dot">●</span>Strict bool grammar (D11)</span>
         <span class="pill"><span class="dot">●</span>fcntl advisory lock (D08)</span>
@@ -687,7 +687,7 @@ services.entries[<span class="tok-string">"dynamodb"</span>]?[<span class="tok-s
       <p>The parser matches the AWS Go SDK's silent-tolerance behavior (parser spec §11): malformed lines are dropped, duplicate keys overwrite + emit a warning, properties before any section are dropped. Look at <code>Section.warnings</code> and <code>Document.globalWarnings</code> for the diagnostics — they don't bubble up as errors.</p>
 
       <h3>Why writes are not byte-exact</h3>
-      <p>The writer is canonical, not faithful. It preserves comments and section/key order, but normalizes alignment, separator spacing, and quoting on every write. This is a deliberate trade-off: byte-exact preservation would require a two-layer trivia AST and an order of magnitude more code. The managed/read-only mode pair gives the user explicit control over whether Quorra reformats their file.</p>
+      <p>The writer is canonical, not faithful. It preserves comments and section/key order, but normalizes alignment, separator spacing, and quoting (quotes around a value are dropped) on every write. This is a deliberate trade-off: byte-exact preservation would require a two-layer trivia AST and an order of magnitude more code. The managed/read-only mode pair gives the user explicit control over whether Quorra reformats their file.</p>
 
       <h3>Why the encoder replaces sections wholesale</h3>
       <p>Codable's natural shape is "serialize value → bytes." Mapping that onto field-level diffs against an existing section requires a secondary diffing engine and adds API surface for marginal gain. Section-replace is simple, predictable, and matches what users expect from <code>JSONEncoder</code>. Per-key comments inside a section are dropped on encode; section-level <code>leadingComments</code> survive.</p>
