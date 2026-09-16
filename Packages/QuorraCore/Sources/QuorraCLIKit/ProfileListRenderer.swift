@@ -1,9 +1,9 @@
 import Foundation
-import QuorraProfiles
+import QuorraIPC
 
 enum ProfileListRenderer {
-    static func render(_ items: [SidebarProfileItem], format: ProfileListOutputFormat) throws -> String {
-        let records = items.map(ProfileListRecord.init)
+    static func render(_ profiles: [QuorraProfileRecord], format: ProfileListOutputFormat) throws -> String {
+        let records = profiles.map(ProfileListRecord.init)
         switch format {
         case .table:
             return renderTable(records)
@@ -17,15 +17,14 @@ enum ProfileListRenderer {
     }
 
     private static func renderTable(_ records: [ProfileListRecord]) -> String {
-        let headers = ["NAME", "SOURCE", "SESSION", "REGION", "ACCOUNT", "ROLE"]
+        let headers = ["NAME", "SESSION", "REGION", "ACCOUNT", "ROLE"]
         let rows = records.map { record in
             [
                 record.name,
-                record.source,
                 record.session ?? "—",
                 record.region ?? "—",
-                record.account ?? "—",
-                record.role ?? "—",
+                record.account,
+                record.role,
             ]
         }
         let widths = headers.indices.map { column in

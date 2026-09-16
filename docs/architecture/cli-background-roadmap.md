@@ -261,6 +261,8 @@ the running app to terminate cleanly over IPC.
 `createsNewApplicationInstance` is false, and `NSApplication.terminate(_:)`
 runs the normal application termination path, including Quorra's IPC shutdown.
 
+**Update (15 September 2026):** `profiles list` now reads the app-owned identity store over IPC (`profiles.list`) and needs the running app, like the IMDS commands; only `version` remains standalone. See D15 in `docs/plans/app-owned-identity-store.md`.
+
 ### D013 — One Quorra process per login session
 
 **Decision:** Set `LSMultipleInstancesProhibited` on the main app. Launch
