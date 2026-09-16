@@ -29,7 +29,6 @@ struct SessionDetailView: View {
             if isReadOnly { readOnlyBanner }
             identitySection
             scopesSection
-            organizationSection
             statusSection
         }
         .formStyle(.grouped)
@@ -132,16 +131,6 @@ struct SessionDetailView: View {
                     prompt: Text("sso:account:access")
                 )
             }
-        }
-    }
-
-    @ViewBuilder private var organizationSection: some View {
-        Section("Organization") {
-            MetadataFolderPicker(
-                objectKind: .session,
-                objectID: node.id,
-                isEnabled: true
-            )
         }
     }
 
