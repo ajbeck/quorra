@@ -1,14 +1,100 @@
 {{ define "main" }}
-{{- /* Placeholder home. The real landing page — hero, the DWG.01 credential
-       path plate, the boundary table and the app section — lands next. */ -}}
-<div class="wrap placeholder">
-  <p class="label label--accent">A NATIVE MAC APP FOR AWS IAM IDENTITY CENTER</p>
-  <h1>Your Mac, with an instance profile.</h1>
-  <div class="lead prose">{{ .Content }}</div>
-  <div class="placeholder__actions">
+{{- $p := .Params }}
+
+{{- with $p.hero }}
+<section class="wrap hero">
+  <div class="hero__body">
+    <p class="label label--accent">{{ .eyebrow }}</p>
+    <h1>{{ .heading }}</h1>
+    <p class="lead hero__lead">{{ .lead }}</p>
+  </div>
+  <div class="hero__actions">
     <a class="btn btn--primary btn--lg" href="{{ site.Params.latestRelease }}">Download Quorra.dmg</a>
     <a class="btn btn--secondary btn--lg" href="{{ site.Params.repo }}">View on GitHub</a>
+    {{- /* Each line of the note is escaped separately, so front matter never
+           has to carry markup and never needs safeHTML. */ -}}
+    {{ with .note }}<p class="hero__note">{{ range $i, $line := split . "\n" }}{{ if $i }}<br>{{ end }}{{ $line }}{{ end }}</p>{{ end }}
   </div>
-  <p class="placeholder__req">Requires macOS 26.4 (Tahoe) or later on Apple silicon.</p>
-</div>
+</section>
+{{- end }}
+
+{{ partial "path-plate.html" $p }}
+
+{{- with $p.boundaries }}
+<section class="wrap section" id="boundaries" aria-labelledby="boundaries-heading">
+  <div class="section__head">
+    <h2 id="boundaries-heading">{{ .heading }}</h2>
+    <p class="section__lead">{{ .lead }}</p>
+  </div>
+  <table class="btable">
+    <thead>
+      <tr>{{ range .columns }}<th scope="col"><span class="label">{{ . }}</span></th>{{ end }}</tr>
+    </thead>
+    <tbody>
+      {{- range .rows }}
+      <tr>
+        <th scope="row">{{ .surface }}</th>
+        <td>{{ .use }}</td>
+        <td><span class="btable__scope">{{ .scope }}</span></td>
+      </tr>
+      {{- end }}
+    </tbody>
+  </table>
+</section>
+{{- end }}
+
+{{- with $p.app }}
+<section class="app" id="app" aria-labelledby="app-heading">
+  <div class="wrap section">
+    <div class="section__head">
+      <h2 id="app-heading">{{ .heading }}</h2>
+      <p class="section__lead">{{ .lead }}</p>
+    </div>
+
+    {{- range .figures }}
+    {{- $fig := . }}
+    <figure class="figure">
+      {{- with resources.Get $fig.image }}
+        {{- /* One source image at two widths, so a phone does not download a
+               1500px screenshot. */ -}}
+        {{- $x1 := .Resize "760x webp q82" }}
+        {{- $x2 := .Resize "1520x webp q82" }}
+      <img
+        src="{{ $x1.RelPermalink }}"
+        srcset="{{ $x1.RelPermalink }} 760w, {{ $x2.RelPermalink }} 1520w"
+        sizes="(min-width: 64rem) 80vw, 100vw"
+        width="{{ $x1.Width }}" height="{{ $x1.Height }}"
+        loading="lazy" decoding="async"
+        alt="{{ $fig.alt }}">
+      {{- end }}
+      <figcaption>
+        <span class="label label--accent">{{ $fig.label }}</span>
+        <span>{{ $fig.caption }}</span>
+      </figcaption>
+    </figure>
+    {{- end }}
+
+    {{- with .features }}
+    <ul class="features">
+      {{- range . }}
+      <li class="feature">
+        <p class="label label--accent">{{ .label }}</p>
+        <p class="feature__body">{{ .body }}</p>
+      </li>
+      {{- end }}
+    </ul>
+    {{- end }}
+  </div>
+</section>
+{{- end }}
+
+{{- with $p.download }}
+<section class="wrap section cta-band" id="download">
+  <div class="cta-band__text">
+    <h2>{{ .heading }} {{ site.Params.appVersion }}</h2>
+    <p class="section__lead">{{ .lead }}</p>
+  </div>
+  <a class="btn btn--primary btn--lg" href="{{ site.Params.latestRelease }}">Download Quorra.dmg</a>
+</section>
+{{- end }}
 {{ end }}

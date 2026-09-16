@@ -1,0 +1,43 @@
+{{- /* The DWG.01 credential-path plate.
+
+     Built from real elements rather than one wide SVG. The comp draws it as a
+     single drawing, but that cannot reflow: an SVG's internals keep their
+     layout at every width. As markup the steps restack on a narrow screen, the
+     text stays selectable, searchable and translatable, and a screen reader
+     reads an ordered list of hops instead of one long alt string. Only the
+     connectors are SVG, and CSS rotates them when the row becomes a column. */ -}}
+
+{{- with .path }}
+<section class="wrap section" id="path" aria-labelledby="path-label">
+  <div class="plate">
+    <div class="plate__head">
+      <p class="label label--accent" id="path-label">{{ .label }}</p>
+      {{ with .caption }}<p class="plate__caption">{{ . }}</p>{{ end }}
+    </div>
+
+    {{ with .prelude }}
+    <p class="plate__prelude">{{ . }}</p>
+    {{ end }}
+
+    <ol class="flow">
+      {{- range $i, $step := .steps }}
+      {{- if $i }}
+      <li class="flow__arrow{{ if $step.inbound }} flow__arrow--back{{ end }}" aria-hidden="true">
+        <svg viewBox="0 0 24 12" width="24" height="12" focusable="false"><path d="M0 6h20M15 1l6 5-6 5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+      </li>
+      {{- end }}
+      <li class="flow__step{{ if $step.highlight }} flow__step--on{{ end }}">
+        <p class="flow__group"><span class="flow__key">{{ $step.key }}</span> {{ $step.group }}</p>
+        <h3 class="flow__title">{{ $step.title }}</h3>
+        <p class="flow__detail">{{ $step.detail }}</p>
+        {{- with $step.notes }}
+        <ul class="flow__notes">
+          {{- range . }}<li>{{ . }}</li>{{ end }}
+        </ul>
+        {{- end }}
+      </li>
+      {{- end }}
+    </ol>
+  </div>
+</section>
+{{- end }}
