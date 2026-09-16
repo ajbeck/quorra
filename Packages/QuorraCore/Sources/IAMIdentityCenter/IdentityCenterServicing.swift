@@ -129,4 +129,16 @@ public protocol IdentityCenterServicing: Sendable {
         accountId: String,
         roleName: String
     ) async -> ProfileAuthStatus
+
+    // MARK: - Identity store additions
+
+    /// Lists the accounts the signed-in user can reach through `sessionName`, for the profile picker.
+    ///
+    /// Throws `.notSignedIn` or `.tokenExpired` when the session has no usable bearer token.
+    @concurrent
+    func accounts(forSession sessionName: String) async throws -> [PortalAccount]
+
+    /// Lists the roles the signed-in user can assume in `accountId` through `sessionName`.
+    @concurrent
+    func roles(forSession sessionName: String, accountId: String) async throws -> [PortalRole]
 }

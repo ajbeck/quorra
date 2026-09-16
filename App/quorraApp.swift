@@ -9,7 +9,6 @@ struct quorraApp: App {
         Window("Quorra", id: QuorraSceneID.mainWindow) {
             RootView()
                 .environment(appDelegate.appModel)
-                .environment(appDelegate.profilesModel)
                 .environment(appDelegate.editorState)
                 .environment(appDelegate.credentialsModel)
                 .environment(appDelegate.imdsModel)

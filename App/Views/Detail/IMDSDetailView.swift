@@ -3,7 +3,6 @@ import AWSConfigINI
 import IAMIdentityCenter
 import SwiftData
 import QuorraAppLogic
-import QuorraProfiles
 
 @MainActor
 struct IMDSDetailView: View {
@@ -11,7 +10,6 @@ struct IMDSDetailView: View {
     @Binding var detailSelection: DetailSelection?
     @Binding var sourceSelection: SourceSelection
     @Binding var searchText: String
-    @Environment(ProfilesModel.self) private var profilesModel
     @Environment(CredentialsModel.self) private var credentialsModel
     @Environment(IMDSModel.self) private var imdsModel
     @Environment(IMDSProxyController.self) private var imdsProxyController
@@ -169,7 +167,7 @@ struct IMDSDetailView: View {
                 mode: .edit,
                 existingNames: Set(endpointDefinitions.map(\.name)),
                 usedPorts: Set(endpointDefinitions.map(\.port)),
-                profiles: profilesModel.groups.flatProfiles.map(\.node),
+                profiles: eligibleEndpointProfiles,
                 initialDraft: IMDSEndpointEditorDraft(endpoint: definition)
             ) { draft in
                 try saveEndpointDefinition(draft, to: definition, endpointKey: endpointKey)
@@ -1309,6 +1307,8 @@ private struct IMDSDetailPreviewHarness: View {
             profileName: "ac:cp:org_admin",
             port: isDefault ? DefaultIMDSEndpoint.port : 9678
         )
+        PreviewIdentityFixtures.seed(into: metadataContainer.mainContext)
+        endpoint.profile = try? IdentityStore.profile(named: "ac:cp:org_admin", in: metadataContainer.mainContext)
         metadataContainer.mainContext.insert(endpoint)
         try! metadataContainer.mainContext.save()
 
@@ -1328,7 +1328,6 @@ private struct IMDSDetailPreviewHarness: View {
             sourceSelection: $sourceSelection,
             searchText: $searchText
         )
-        .environment(ProfilesModel.previewLoaded(config: PreviewAWSFixtures.mockupConfig))
         .environment(CredentialsModel(service: PreviewIdentityCenterService()))
         .environment(model)
         .environment(DefaultIMDSNotificationCoordinator())

@@ -1,32 +1,14 @@
 import SwiftUI
 import SwiftData
 import QuorraAppLogic
-import QuorraProfiles
 
 struct SourceSidebarView: View {
     @Binding var selection: SourceSelection
-    @Environment(ProfilesModel.self) private var profilesModel
-    @Environment(IMDSModel.self) private var imdsModel
+    @Query private var sessionDefinitions: [SessionDefinition]
+    @Query private var profileDefinitions: [ProfileDefinition]
     @Query private var endpointDefinitions: [IMDSEndpointDefinition]
 
     var body: some View {
-        switch profilesModel.loadState {
-        case .idle, .loading:
-            ProgressView()
-                .controlSize(.small)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        case .failed:
-            ContentUnavailableView(
-                "Failed to Load Sources",
-                systemImage: "exclamationmark.triangle",
-                description: Text("Quorra couldn't read your AWS configuration.")
-            )
-        case .loaded:
-            sourceList
-        }
-    }
-
-    private var sourceList: some View {
         List(selection: $selection) {
             Section {
                 SourceSidebarRow(title: "All", systemImage: "square.grid.2x2")
@@ -36,13 +18,13 @@ struct SourceSidebarView: View {
 
             Section {
                 SourceSidebarRow(title: MetadataObjectKind.session.title, systemImage: MetadataObjectKind.session.systemImage)
-                    .badge(sessionCount)
+                    .badge(sessionDefinitions.count)
                     .tag(SourceSelection.sessions)
                 SourceSidebarRow(title: MetadataObjectKind.profile.title, systemImage: MetadataObjectKind.profile.systemImage)
-                    .badge(profileCount)
+                    .badge(profileDefinitions.count)
                     .tag(SourceSelection.profiles)
                 SourceSidebarRow(title: MetadataObjectKind.imdsEndpoint.title, systemImage: MetadataObjectKind.imdsEndpoint.systemImage)
-                    .badge(imdsEndpointCount)
+                    .badge(endpointDefinitions.count)
                     .tag(SourceSelection.imdsEndpoints)
             }
         }
@@ -51,19 +33,7 @@ struct SourceSidebarView: View {
     }
 
     private var allObjectCount: Int {
-        sessionCount + profileCount + imdsEndpointCount
-    }
-
-    private var sessionCount: Int {
-        profilesModel.groups.ssoSessions.count
-    }
-
-    private var profileCount: Int {
-        profilesModel.groups.flatProfiles.count
-    }
-
-    private var imdsEndpointCount: Int {
-        endpointDefinitions.count
+        sessionDefinitions.count + profileDefinitions.count + endpointDefinitions.count
     }
 }
 
@@ -92,32 +62,8 @@ private struct SourceSidebarRow: View {
 }
 
 private struct SourceSidebarPreviewHarness: View {
-    private static let previewEndpointID = UUID(uuidString: "00000000-0000-0000-0000-000000009678")!
-
     @State private var selection: SourceSelection = .all
-    @State private var profilesModel = ProfilesModel.previewLoaded(
-        config: PreviewAWSFixtures.mockupConfig,
-        credentials: PreviewAWSFixtures.mockupCredentials
-    )
-    @State private var imdsModel: IMDSModel
-    private let metadataContainer: ModelContainer
-
-    init() {
-        let imdsModel = IMDSModel()
-        let metadataContainer = try! QuorraMetadataSchema.makeContainer(inMemory: true)
-        let endpoint = IMDSEndpointDefinition(
-            id: Self.previewEndpointID,
-            name: "localhost:9678",
-            profileName: "ac:cp:org_admin",
-            port: 9678
-        )
-        metadataContainer.mainContext.insert(endpoint)
-        try! metadataContainer.mainContext.save()
-        imdsModel.setState(.active(port: 9678), forEndpointID: endpoint.stableIDString)
-
-        _imdsModel = State(initialValue: imdsModel)
-        self.metadataContainer = metadataContainer
-    }
+    private let metadataContainer = PreviewIdentityFixtures.makeContainer(seedsEndpoint: true)
 
     var body: some View {
         NavigationSplitView {
@@ -127,8 +73,6 @@ private struct SourceSidebarPreviewHarness: View {
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .environment(profilesModel)
-        .environment(imdsModel)
         .modelContainer(metadataContainer)
         .frame(width: 700, height: 500)
     }
