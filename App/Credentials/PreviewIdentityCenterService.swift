@@ -56,6 +56,14 @@ struct PreviewIdentityCenterService: IdentityCenterServicing {
         )
     }
 
+    nonisolated func cachedCredentials(
+        forSession sessionName: String,
+        accountId: String,
+        roleName: String
+    ) -> RoleCredentials? {
+        nil
+    }
+
     @concurrent
     func renewCredentials(
         forSession sessionName: String,

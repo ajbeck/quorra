@@ -99,6 +99,22 @@ public protocol IdentityCenterServicing: Sendable {
         region: String
     ) async throws -> RoleCredentials
 
+    /// Returns the cached role credentials for `(sessionName, accountId, roleName)` without suspending.
+    ///
+    /// Reads the Keychain row synchronously and applies the same freshness rule as `liveCredentials`
+    /// (a row inside its refresh skew or past expiry counts as absent), so a value returned here is
+    /// the value `liveCredentials` would have returned without a mint. Returns `nil` when there is
+    /// no usable row, including on any Keychain error; the caller then falls back to
+    /// `liveCredentials`. Never touches the network and never writes the Keychain.
+    ///
+    /// Exists so a SwiftUI view can draw the values in the first frame after a profile change
+    /// (post-1.0 D3 in `docs/plans/post-1.0-fixes.md`).
+    func cachedCredentials(
+        forSession sessionName: String,
+        accountId: String,
+        roleName: String
+    ) -> RoleCredentials?
+
     /// Forces a fresh role-credential mint for `(sessionName, accountId, roleName, region)`.
     ///
     /// Unlike `liveCredentials`, this ignores a still-fresh cached role-credential row. It keeps

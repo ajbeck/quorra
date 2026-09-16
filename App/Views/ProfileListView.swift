@@ -7,6 +7,7 @@ struct ObjectListView: View {
     @Binding var detailSelection: DetailSelection?
     @Binding var searchText: String
     @Environment(IMDSModel.self) private var imdsModel
+    @Environment(CredentialsModel.self) private var credentialsModel
     @Environment(\.modelContext) private var modelContext
     @Query private var sessionDefinitions: [SessionDefinition]
     @Query private var profileDefinitions: [ProfileDefinition]
@@ -25,6 +26,21 @@ struct ObjectListView: View {
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     objectMutationBar
                 }
+        }
+        .task(id: profileDefinitions.compactMap { $0.credentialCoordinates?.key }) {
+            // Observe every profile's status once, so the first frame of a profile's detail
+            // already knows it is ready instead of drawing "Checking" and then redrawing
+            // (post-1.0 D3). Both calls return at once for entries already cached, and the
+            // event stream keeps the entries fresh (D30).
+            for profile in profileDefinitions {
+                guard let coordinates = profile.credentialCoordinates else { continue }
+                await credentialsModel.observeStatus(forSession: coordinates.session)
+                await credentialsModel.observeProfileStatus(
+                    forSession: coordinates.session,
+                    accountId: coordinates.account,
+                    roleName: coordinates.role
+                )
+            }
         }
         .sheet(item: $presentedSheet) { sheet in
             switch sheet {

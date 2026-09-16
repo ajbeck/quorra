@@ -9,6 +9,11 @@ struct DetailView: View {
     @Query private var sessionDefinitions: [SessionDefinition]
     @Query private var profileDefinitions: [ProfileDefinition]
 
+    /// Each item gets explicit identity (`.id`). The `switch` alone keeps the same view across
+    /// selections of the same kind, so its state (the edit draft, the credentials card's values)
+    /// would belong to the previous item for one frame and the detail would draw twice. Apple's
+    /// `id(_:)` reference: "When the proxy value specified by the id parameter changes, the identity
+    /// of the view — for example, its state — is reset." (post-1.0 D3)
     var body: some View {
         switch selection {
         case .none:
@@ -29,12 +34,14 @@ struct DetailView: View {
                     sourceSelection: $sourceSelection,
                     searchText: $searchText
                 )
+                .id(name)
             } else {
                 ContentUnavailableView("Profile not found", systemImage: "questionmark.circle")
             }
         case .session(let name):
             if let session = sessionDefinitions.first(where: { $0.name == name }) {
                 SessionDetailView(session: session)
+                    .id(name)
             } else {
                 ContentUnavailableView("Session not found", systemImage: "questionmark.circle")
             }

@@ -790,8 +790,12 @@ struct CredentialsRevealSection: View {
         )
     }
 
+    /// Runs in the synchronous part of `task(id: key)`, which SwiftUI starts before the view
+    /// appears for the new profile, so whatever is set here is in the first frame. A fresh cached
+    /// row therefore draws at once instead of one frame after the async read (post-1.0 D3); when
+    /// there is none, `creds` stays nil and `fetch()` mints with the spinner as before.
     private func resetCredentialStateForProfileChange() {
-        creds = nil
+        creds = model.cachedCredentials(forSession: sessionName, accountId: accountId, roleName: roleName)
         fetchError = nil
         revealed.removeAll()
     }

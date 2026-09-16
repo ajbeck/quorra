@@ -6,11 +6,18 @@ import Foundation
 /// because SwiftPM test bundles can't carry the `keychain-access-groups` entitlement that the
 /// data-protection keychain requires (TN3137).
 ///
-/// Conformers implement only the byte-level verbs (`read`/`write`/`delete`); the JSON-record
-/// verbs are provided by the default extension below.
+/// Conformers implement only the byte-level verbs (`read`/`readSynchronously`/`write`/`delete`);
+/// the JSON-record verbs are provided by the default extension below.
 public protocol KeychainStore: Sendable {
     /// Read raw bytes for `(service, account)`. Throws `.keychainItemMissing` when absent.
     func read(service: String, account: String) async throws -> Data
+
+    /// Read raw bytes for `(service, account)` without suspending. Throws `.keychainItemMissing`
+    /// when absent.
+    ///
+    /// For callers that cannot await, such as a SwiftUI view that needs a value in the first frame
+    /// after a selection change (post-1.0 D3). Conformers back this with a thread-safe read.
+    func readSynchronously(service: String, account: String) throws -> Data
 
     /// Write raw bytes for `(service, account)`. Overwrites existing.
     func write(_ data: Data, service: String, account: String) async throws
@@ -31,6 +38,9 @@ public protocol KeychainStore: Sendable {
     /// Throws `.keychainItemMissing` if absent, `.keychainMalformed` if the payload won't decode.
     func readRecord<T: Decodable & Sendable>(_ type: T.Type, service: String, account: String) async throws -> T
 
+    /// `readRecord` without suspending; see `readSynchronously`.
+    func readRecordSynchronously<T: Decodable & Sendable>(_ type: T.Type, service: String, account: String) throws -> T
+
     /// Encode `value` to JSON and write it as a single row at `(service, account)`.
     func writeRecord<T: Encodable & Sendable>(_ value: T, service: String, account: String) async throws
 
@@ -41,7 +51,14 @@ public protocol KeychainStore: Sendable {
 /// Default record-verb implementations, layered atop the byte-level verbs each conformer provides.
 public extension KeychainStore {
     func readRecord<T: Decodable & Sendable>(_ type: T.Type, service: String, account: String) async throws -> T {
-        let data = try await read(service: service, account: account)
+        try decodeRecord(type, from: try await read(service: service, account: account))
+    }
+
+    func readRecordSynchronously<T: Decodable & Sendable>(_ type: T.Type, service: String, account: String) throws -> T {
+        try decodeRecord(type, from: try readSynchronously(service: service, account: account))
+    }
+
+    private func decodeRecord<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
         do {
             return try KeychainRecordCoder.decoder.decode(T.self, from: data)
         } catch {
