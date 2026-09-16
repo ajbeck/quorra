@@ -42,17 +42,6 @@ struct CredentialsRevealSection: View {
         case ready
     }
 
-    private enum CredentialShell: String, CaseIterable, Identifiable {
-        case bash
-        case zsh
-        case fish
-        case powershell
-
-        var id: String { rawValue }
-        var label: String { rawValue }
-        var isAvailable: Bool { self == .bash }
-    }
-
     private var key: String { "\(sessionName):\(accountId):\(roleName)" }
 
     private var status: ProfileAuthStatus? { model.profileStatus[key] }
@@ -96,8 +85,11 @@ struct CredentialsRevealSection: View {
         return nil
     }
 
+    /// Exactly what Copy env puts on the pasteboard for the selected shell, with the three
+    /// credential values masked and the region as is (post-1.0 D5).
     private var credentialExportPreview: String {
-        "export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN"
+        let masked = String(repeating: "•", count: 16)
+        return selectedShell.script(accessKeyId: masked, secretAccessKey: masked, sessionToken: masked, region: region)
     }
 
     var body: some View {
@@ -442,7 +434,6 @@ struct CredentialsRevealSection: View {
                     ForEach(CredentialShell.allCases) { shell in
                         Text(shell.label)
                             .tag(shell)
-                            .disabled(!shell.isAvailable)
                     }
                 }
                 .pickerStyle(.segmented)
@@ -453,52 +444,49 @@ struct CredentialsRevealSection: View {
                 // when ready, 302.5 pt otherwise), so the picker changed width between profiles
                 // (post-1.0 D4).
                 .fixedSize()
-                .onChange(of: selectedShell) { _, newValue in
-                    if !newValue.isAvailable {
-                        selectedShell = .bash
-                    }
-                }
+
+                Spacer(minLength: 0)
+
+                copyEnvButton
             }
 
-            commandRow
+            commandBlock
         }
     }
 
-    private var commandRow: some View {
-        HStack(spacing: 0) {
-            HStack(spacing: 10) {
-                Text("$")
-                    .foregroundStyle(.secondary)
-                Text(credentialExportPreview)
-                    .textSelection(.enabled)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+    private var copyEnvButton: some View {
+        Button {
+            if let creds {
+                copyToPasteboard(credentialEnvironmentExports(for: creds))
             }
-            .font(.callout.monospaced())
-            .padding(.horizontal, 12)
-            .frame(maxWidth: .infinity, minHeight: 36, alignment: .leading)
-            .background(Color.black.opacity(0.28))
+        } label: {
+            ViewThatFits(in: .horizontal) {
+                Label("Copy env", systemImage: "doc.on.doc")
+                Image(systemName: "doc.on.doc")
+            }
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        .disabled(creds == nil)
+        .help(creds == nil ? "Credentials are loading." : "Copy this snippet with the real values")
+    }
 
-            Button {
-                if let creds {
-                    copyToPasteboard(credentialEnvironmentExports(for: creds))
-                }
-            } label: {
-                ViewThatFits(in: .horizontal) {
-                    Label("Copy env", systemImage: "doc.on.doc")
-                    Image(systemName: "doc.on.doc")
-                }
+    /// The snippet as Copy env writes it, values masked. Not selectable: the visible text is the
+    /// masked form, and the button is the way to copy the real one.
+    private var commandBlock: some View {
+        Text(credentialExportPreview)
+            .font(.callout.monospaced())
+            .lineSpacing(2)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.black.opacity(0.28))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay {
+                RoundedRectangle(cornerRadius: 8)
+                    .strokeBorder(Color.secondary.opacity(0.08))
             }
-            .buttonStyle(.bordered)
-            .frame(minHeight: 36)
-            .disabled(creds == nil)
-            .help(creds == nil ? "Credentials are loading." : "Copy AWS credential environment exports")
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay {
-            RoundedRectangle(cornerRadius: 8)
-                .strokeBorder(Color.secondary.opacity(0.08))
-        }
     }
 
     private var imdsControlRow: some View {
@@ -829,17 +817,12 @@ struct CredentialsRevealSection: View {
     // MARK: - Clipboard
 
     private func credentialEnvironmentExports(for c: RoleCredentials) -> String {
-        [
-            "export AWS_ACCESS_KEY_ID=\(shellQuoted(c.accessKeyId))",
-            "export AWS_SECRET_ACCESS_KEY=\(shellQuoted(c.secretAccessKey))",
-            "export AWS_SESSION_TOKEN=\(shellQuoted(c.sessionToken))",
-            "export AWS_REGION=\(shellQuoted(c.region))",
-            "export AWS_DEFAULT_REGION=\(shellQuoted(c.region))"
-        ].joined(separator: "\n")
-    }
-
-    private func shellQuoted(_ value: String) -> String {
-        "'\(value.replacingOccurrences(of: "'", with: "'\\''"))'"
+        selectedShell.script(
+            accessKeyId: c.accessKeyId,
+            secretAccessKey: c.secretAccessKey,
+            sessionToken: c.sessionToken,
+            region: c.region
+        )
     }
 
     private func copyToPasteboard(_ value: String) {

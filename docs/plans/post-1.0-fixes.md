@@ -37,3 +37,13 @@ After D3, AJ noticed that the Credentials card's shell picker was not the same w
 Decision: `fixedSize()` replaces the fixed frame. Apple's reference: "Fixes this view at its ideal size." (https://developer.apple.com/documentation/swiftui/view/fixedsize()). The row's footprint is unchanged in practice (the label plus a picker of about 300 pt), so nothing narrower breaks that did not already.
 
 Verification: rendered previews of the ready and role-rejected states measure the same control width; Debug run on AJ's Mac.
+
+## D5. Copy env shows what it copies, for four shells (approved by AJ on 16 September 2026)
+
+AJ asked what Copy env copies and whether the card renders it correctly. It copied five single-quoted `export` lines (access key, secret, session token, `AWS_REGION`, `AWS_DEFAULT_REGION`), while the card showed one selectable line, `export` followed by three variable names, with no values and no region lines; read literally that line is a different, valid bash command. The shell picker offered zsh, fish, and PowerShell, but only bash was enabled.
+
+Decision (AJ: "go with your recommendation"): the card shows exactly the text Copy env will put on the pasteboard for the selected shell, one assignment per line, the three credential values masked and the region in clear. The block is not selectable, because its visible text is the masked form and the button is the copy path. The Copy env button moves up beside the picker so the block can be as tall as the snippet. The snippet lives in `QuorraAppLogic` as `CredentialShell.script(...)`, with all four shells enabled: bash and zsh write `export NAME='value'` (POSIX single quotes, a quote written as `'\''`); fish writes `set -gx NAME 'value'` (fish's Quotes section: "The only meaningful escape sequences in single quotes are \', which escapes a single quote and \\, which escapes the backslash symbol"; `set -gx` is the documented global, exported form); PowerShell writes `$env:NAME = 'value'` (about_Quoting_Rules: a single-quoted string is verbatim, and "To include a single quotation mark in a single-quoted string, use a second consecutive single quote"; about_Environment_Variables gives `$Env:<variable-name> = "<new-value>"` for the current session). Unit tests cover each shell's lines and the quoting of a value with a quote and a backslash.
+
+Sources: https://fishshell.com/docs/current/language.html#quotes, https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_quoting_rules, https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_environment_variables.
+
+Verification: unit tests; rendered preview of the ready state; Debug run on AJ's Mac.
