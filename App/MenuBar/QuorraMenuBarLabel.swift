@@ -1,17 +1,12 @@
 import SwiftUI
 
-/// The menu bar icon. It switches to the sign-in symbol the other calls to action use while the
-/// served profile's session needs the user, the way system extras change their symbol with state.
+/// The menu bar icon. It stays the Quorra glyph in every state; the menu's header line and its
+/// Sign In item carry the sign-in state, and the accessibility label reports it.
 struct QuorraMenuBarLabel: View {
     let runtimeCoordinator: AppRuntimeCoordinator
 
     var body: some View {
-        if runtimeCoordinator.defaultEndpointSignInSessionName != nil {
-            Image(systemName: "person.badge.key")
-                .accessibilityLabel("Quorra, sign-in needed")
-        } else {
-            Image("QuorraMenuBarIcon")
-                .accessibilityLabel("Quorra")
-        }
+        Image("QuorraMenuBarIcon")
+            .accessibilityLabel(runtimeCoordinator.defaultEndpointSignInSessionName != nil ? "Quorra, sign-in needed" : "Quorra")
     }
 }
