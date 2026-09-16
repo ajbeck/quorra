@@ -577,5 +577,36 @@ struct LiveCredentialsTests {
         #expect(creds1.sessionName == "s")
         #expect(creds2.sessionName == "s2")
     }
+
+    // MARK: - cachedCredentials (post-1.0 D3)
+
+    @Test("cachedCredentials returns the cached row outside the skew window without suspending")
+    func cachedCredentialsReturnsFreshRow() async throws {
+        let keychain = InMemoryKeychainStore()
+        try await seedRoleCreds(keychain: keychain, expiresIn: 2 * 3600)
+        let service = makeService(keychain: keychain)
+
+        let creds = service.cachedCredentials(forSession: "s", accountId: "123456789012", roleName: "stub-role")
+
+        #expect(creds?.accessKeyId == "ASIACACHED0000KEY")
+        #expect(creds?.sessionToken == "cached-token")
+    }
+
+    @Test("cachedCredentials returns nil inside the skew window so the caller mints")
+    func cachedCredentialsIsNilInsideSkewWindow() async throws {
+        let keychain = InMemoryKeychainStore()
+        // 8 h original lifetime → 5 min skew; 60 s left is inside it
+        try await seedRoleCreds(keychain: keychain, expiresIn: 60)
+        let service = makeService(keychain: keychain)
+
+        #expect(service.cachedCredentials(forSession: "s", accountId: "123456789012", roleName: "stub-role") == nil)
+    }
+
+    @Test("cachedCredentials returns nil when no row exists")
+    func cachedCredentialsIsNilWhenMissing() {
+        let service = makeService()
+
+        #expect(service.cachedCredentials(forSession: "s", accountId: "123456789012", roleName: "stub-role") == nil)
+    }
 }
 }

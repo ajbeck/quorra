@@ -239,6 +239,14 @@ public final class CredentialsModel {
     }
 
     /// Forces a fresh role-credential mint for an explicit user renewal action.
+    /// Synchronous, Keychain-only read of the cached credentials for a profile tuple, forwarding
+    /// to the actor's `cachedCredentials`. Returns nil when no fresh row exists; the view then
+    /// calls `liveCredentials`. As with `liveCredentials`, the result is NOT stored on the model
+    /// (D31): the view holds it in its own `@State`.
+    public func cachedCredentials(forSession sessionName: String, accountId: String, roleName: String) -> RoleCredentials? {
+        service.cachedCredentials(forSession: sessionName, accountId: accountId, roleName: roleName)
+    }
+
     public func renewCredentials(
         forSession sessionName: String,
         accountId: String,

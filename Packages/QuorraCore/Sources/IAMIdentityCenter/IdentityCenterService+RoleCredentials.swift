@@ -41,6 +41,33 @@ extension IdentityCenterService {
         )
     }
 
+    /// Synchronous, Keychain-only read of the cached row for `(sessionName, accountId, roleName)`;
+    /// see `IdentityCenterServicing.cachedCredentials`. `performLiveCredentials` uses this for its
+    /// cached path, so the two cannot disagree on freshness.
+    ///
+    /// `nonisolated` because it must not suspend: it reads only `keychain` (an immutable,
+    /// `Sendable` store) and never touches actor state such as `inFlightMint`.
+    nonisolated public func cachedCredentials(
+        forSession sessionName: String,
+        accountId: String,
+        roleName: String
+    ) -> RoleCredentials? {
+        let key = "\(sessionName):\(accountId):\(roleName)"
+        guard let cached = try? keychain.readRecordSynchronously(
+            RoleCredentials.self,
+            service: ServiceConstants.roleCredsService,
+            account: key
+        ) else {
+            return nil
+        }
+        let refreshDeadline = ServiceConstants.refreshDeadline(
+            issuedAt: cached.issuedAt,
+            expiresAt: cached.expiresAt
+        )
+        // Outside the skew window the row is fresh; inside it, or past expiry, the caller mints.
+        return Date() < refreshDeadline ? cached : nil
+    }
+
     /// Forces a fresh role-credential mint, bypassing any cached row that is still outside the
     /// normal refresh skew. Used by explicit UI renewal actions where returning the cached row
     /// would make the user's command appear to do nothing.
@@ -74,26 +101,11 @@ extension IdentityCenterService {
             return try await existing.value
         }
 
-        // Attempt to read a cached row from the Keychain
-        let cached = try? await keychain.readRecord(
-            RoleCredentials.self,
-            service: ServiceConstants.roleCredsService,
-            account: key
-        )
-
-        if let cached {
-            let now = Date()
-            let refreshDeadline = ServiceConstants.refreshDeadline(
-                issuedAt: cached.issuedAt,
-                expiresAt: cached.expiresAt
-            )
-            if now < refreshDeadline {
-                // Outside skew window — credentials are fresh, return without minting
-                return cached
-            }
-            // Inside skew or past expiry — fall through to inline mint
+        // Cached row outside its skew window — return without minting
+        if let cached = cachedCredentials(forSession: sessionName, accountId: accountId, roleName: roleName) {
+            return cached
         }
-        // No cached row — fall through to inline mint
+        // Inside skew, past expiry, or no cached row — fall through to inline mint
 
         return try await startInlineMint(
             sessionName: sessionName,

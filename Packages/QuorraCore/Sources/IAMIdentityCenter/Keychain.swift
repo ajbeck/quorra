@@ -32,7 +32,7 @@ public actor Keychain: KeychainStore {
     /// Builds the shared attribute set used to identify a single item across all operations.
     /// Always includes `kSecUseDataProtectionKeychain` to keep items in the data-protection
     /// keychain on macOS rather than the legacy login keychain.
-    private func baseQuery(service: String, account: String) -> [String: Any] {
+    private nonisolated func baseQuery(service: String, account: String) -> [String: Any] {
         [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -51,6 +51,18 @@ public actor Keychain: KeychainStore {
     ///   - account: The `kSecAttrAccount` value.
     /// - Throws: `.keychainItemMissing` if the item is not found, `.keychainStatus` for other OS errors.
     public func read(service: String, account: String) throws -> Data {
+        try readSynchronously(service: service, account: account)
+    }
+
+    /// `read` for callers that cannot suspend (post-1.0 D3).
+    ///
+    /// Runs outside the actor: this wrapper holds only `accessGroup`, and the call is a single
+    /// `SecItemCopyMatching` against the data-protection keychain. Apple's
+    /// `kSecUseDataProtectionKeychain` reference says items accessed with that key behave like iOS
+    /// keychain items, and Apple's *Working with Concurrency* page describes the iOS Security API as
+    /// thread-safe and reentrant; the macOS caveat there (calls that block on a keychain unlock
+    /// prompt) applies to the legacy keychain, which this wrapper never uses.
+    public nonisolated func readSynchronously(service: String, account: String) throws -> Data {
         var query = baseQuery(service: service, account: account)
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
