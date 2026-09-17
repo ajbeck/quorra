@@ -1,0 +1,9 @@
+{{- with resources.Get "js/search.js" }}
+  {{- if hugo.IsProduction }}
+    {{- with . | minify | fingerprint }}
+<script src="{{ .RelPermalink }}" integrity="{{ .Data.Integrity }}" crossorigin="anonymous" defer></script>
+    {{- end }}
+  {{- else }}
+<script src="{{ .RelPermalink }}" defer></script>
+  {{- end }}
+{{- end }}

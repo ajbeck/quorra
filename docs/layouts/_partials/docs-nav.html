@@ -3,6 +3,7 @@
 {{- $current := . -}}
 {{- with site.GetPage "/docs" }}
 <nav class="docs-nav" aria-label="Documentation">
+  {{ partial "docs-search.html" . }}
   {{- range .Sections.ByWeight }}
   <div class="docs-nav__group">
     <p class="label">{{ .Title | upper }}</p>

@@ -1205,3 +1205,91 @@ pre code {
   line-height: 1.6;
   color: var(--muted);
 }
+
+/* Docs search */
+
+.search {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.search__field {
+  display: flex;
+  align-items: center;
+  gap: 0.5625rem;
+  height: 2.375rem;
+  padding-inline: 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--muted-2);
+}
+
+.search__field:focus-within {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.search__field input {
+  flex-grow: 1;
+  min-width: 0;
+  background: none;
+  border: 0;
+  outline: none;
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--fs-xs);
+}
+
+.search__field input::placeholder {
+  color: var(--muted-2);
+}
+
+/* Safari draws its own clear button on type=search; the Escape key already
+   does this and the extra affordance crowds a narrow field. */
+.search__field input::-webkit-search-decoration,
+.search__field input::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.search__results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.search__results:empty {
+  display: none;
+}
+
+.search__hit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding: 0.5rem 0.625rem;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  background: var(--surface-sunken);
+}
+
+.search__hit:hover,
+.search__hit:focus-visible {
+  background: var(--accent-wash);
+}
+
+.search__hit-title {
+  font-size: 0.84375rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.search__hit-section {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.1em;
+  color: var(--muted-2);
+}

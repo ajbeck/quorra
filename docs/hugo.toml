@@ -1,21 +1,29 @@
+# Every bare key has to come before the first table header. In TOML a table
+# claims everything that follows it, so a site setting written below one
+# silently becomes a key inside that table instead.
+
 baseURL = "https://quorra.ajbeck.dev/"
 locale = "en-GB"
 title = "Quorra"
 enableGitInfo = true
 
+# Hugo writes into docs/public and caches in docs/resources; both are gitignored.
+# Never commit the publishDir — the release workflow builds it fresh.
+publishDir = "public"
+
 # No tag or category archives on this site; suppressing them keeps Hugo from
 # generating empty taxonomy pages and warning about missing templates.
 disableKinds = ["taxonomy", "term"]
 
-# Hugo writes into docs/public and caches in docs/resources; both are gitignored.
-# Never commit the publishDir — the Pages workflow builds it fresh.
-publishDir = "public"
+# The home page also builds a JSON index that the docs search fetches.
+[outputs]
+  home = ["html", "rss", "json"]
 
 [params]
   description = "Sign in once and Quorra serves an AWS IAM Identity Center role at the standard EC2 metadata address, so the CLI, the SDKs and Terraform find credentials the way they would on an instance."
-  # Single source of truth for the version shown in the header and on the download
-  # button. Kept in step with version.txt by the release job — see notes in the
-  # design canvas. Until that is wired, bump this by hand at release time.
+  # The version in the header and on the download button. The release workflow
+  # overrides this with HUGO_PARAMS_APPVERSION from the release being
+  # published, so this value only ever applies to a local build.
   appVersion = "1.1.0"
   repo = "https://github.com/ajbeck/quorra"
   latestRelease = "https://github.com/ajbeck/quorra/releases/latest"

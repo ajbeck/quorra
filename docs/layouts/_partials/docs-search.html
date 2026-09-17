@@ -1,0 +1,17 @@
+{{- /* Starts hidden and is revealed by search.js. A search box that cannot
+       search is worse than no search box, so without JavaScript this never
+       appears at all. */ -}}
+{{- with site.Home.OutputFormats.Get "json" }}
+<div class="search" data-search="{{ .RelPermalink }}" hidden>
+  <label class="search__field">
+    <span class="visually-hidden">Search the documentation</span>
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <circle cx="7" cy="7" r="4.6" stroke="currentColor" stroke-width="1.4"/>
+      <path d="M10.5 10.5 L14 14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+    </svg>
+    <input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false">
+  </label>
+  <p class="search__status visually-hidden" data-search-status role="status"></p>
+  <ul class="search__results" data-search-results></ul>
+</div>
+{{- end }}
