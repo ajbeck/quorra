@@ -1,0 +1,12 @@
+{{- /* Search index: one record per docs page. Built at the home page because
+       it needs the whole tree, and fetched once by the docs search. */ -}}
+{{- $records := slice -}}
+{{- range where site.RegularPages "Section" "docs" -}}
+  {{- $records = $records | append (dict
+      "t" .Title
+      "s" (cond .Parent.IsHome "" .Parent.Title)
+      "u" .RelPermalink
+      "d" (string .Description)
+      "b" (.Plain | truncate 1500 "")) -}}
+{{- end -}}
+{{- $records | jsonify -}}

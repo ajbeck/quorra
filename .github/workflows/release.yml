@@ -26,6 +26,12 @@ jobs:
   release:
     runs-on: xcode-27
     timeout-minutes: 45
+    # Exposed so the docs deploy below can build the released commit rather
+    # than whatever main happens to be at when it runs.
+    outputs:
+      release_ref: ${{ steps.release-context.outputs.ref }}
+      release_tag: ${{ steps.release-context.outputs.tag }}
+      release_version: ${{ steps.release-context.outputs.version }}
 
     steps:
       - name: Verify Xcode 27 toolchain
@@ -601,3 +607,74 @@ jobs:
           rm -f "$LOGIN_ITEM_PROVISIONING_PROFILE_PATH"
           rm -f "$SYSTEM_EXTENSION_PROVISIONING_PROFILE_PATH"
           security delete-keychain "$SIGNING_KEYCHAIN" || true
+
+  deploy-docs:
+    name: Deploy docs
+    needs: release
+    # Only a real release publishes the site. A candidate packaging run has a
+    # version but no tag, and must not move the public docs.
+    if: ${{ needs.release.outputs.release_tag != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    # Pages allows one deployment at a time, and a queued one should finish
+    # rather than be cancelled half-applied.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    env:
+      # Matches the version developers run locally. Bump both together.
+      HUGO_VERSION: 0.165.0
+      HUGO_ENVIRONMENT: production
+      TZ: Europe/London
+
+    steps:
+      - name: Check out the released commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release.outputs.release_ref }}
+          # enableGitInfo needs real history for page dates.
+          fetch-depth: 0
+
+      - name: Install Hugo
+        run: |
+          wget -O "$RUNNER_TEMP/hugo.deb" \
+            "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_linux-amd64.deb"
+          sudo dpkg -i "$RUNNER_TEMP/hugo.deb"
+
+      - name: Configure Pages
+        id: pages
+        uses: actions/configure-pages@v6
+
+      - name: Build
+        env:
+          # Hugo reads HUGO_PARAMS_<NAME> into site params, so the version in
+          # the header and on the download button comes from the release being
+          # published. Nothing has to keep a file in step with version.txt.
+          HUGO_PARAMS_APPVERSION: ${{ needs.release.outputs.release_version }}
+        run: |
+          hugo build \
+            --source docs \
+            --gc \
+            --minify \
+            --baseURL "${{ steps.pages.outputs.base_url }}/" \
+            --cacheDir "$RUNNER_TEMP/.cache/hugo"
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs/public
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v5

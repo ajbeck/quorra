@@ -1,0 +1,32 @@
+{{- /* Section links are added in the menu config once the sections they point
+       at exist, so the header never carries a link that goes nowhere. */ -}}
+<header class="site-header">
+  <div class="wrap site-header__inner">
+    <a class="brand" href="{{ "/" | relURL }}">
+      {{- with resources.Get "images/quorra.png" }}
+        {{- with .Resize "68x68 webp" }}
+      <img src="{{ .RelPermalink }}" width="34" height="34" alt="">
+        {{- end }}
+      {{- end }}
+      <span>{{ site.Title }}</span>
+    </a>
+
+    {{- with site.Menus.main }}
+    <nav aria-label="Main">
+      <ul class="site-nav">
+        {{- range . }}
+        <li><a class="site-header__link" href="{{ .URL }}">{{ .Name }}</a></li>
+        {{- end }}
+      </ul>
+    </nav>
+    {{- end }}
+
+    <div class="site-header__spacer"></div>
+
+    {{- with site.Params.appVersion }}
+    <span class="chip site-header__optional">v{{ . }}</span>
+    {{- end }}
+    <a class="site-header__link site-header__optional" href="{{ site.Params.repo }}">GitHub</a>
+    <a class="btn btn--primary" href="{{ site.Params.latestRelease }}">Download</a>
+  </div>
+</header>

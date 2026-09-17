@@ -14,9 +14,9 @@ endpoint for local AWS tooling.
 
 ## Screenshots
 
-![Profiles and credentials](docs/images/profiles-and-credentials.png)
+![Profiles and credentials](old_docs/images/profiles-and-credentials.png)
 
-![Running IMDS endpoint](docs/images/imds-endpoint.png)
+![Running IMDS endpoint](old_docs/images/imds-endpoint.png)
 
 ## Install
 
@@ -146,8 +146,8 @@ in Xcode with Command-U. The local `AWSConfigINI` Swift package
 provides the parser and atomic writer used for AWS shared-config files.
 
 For release build, signing, notarization, and DMG details, see
-[Distribution](docs/Distribution.md). Parser and encoder documentation is in
-[AWSConfigINI](docs/AWSConfigINI.html).
+[Distribution](old_docs/Distribution.md). Parser and encoder documentation is in
+[AWSConfigINI](old_docs/AWSConfigINI.html).
 
 ## License
 

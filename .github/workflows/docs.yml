@@ -1,0 +1,84 @@
+name: Docs
+
+# Manual only. Releases publish the site themselves — see the deploy-docs job
+# in release.yml — and this is the escape hatch for the times that is not what
+# you want: proving the deploy works before a release depends on it, and
+# publishing a documentation fix without waiting for the next version.
+#
+# Deploying from here publishes whatever the chosen ref contains, which may
+# document behaviour that has not shipped yet. That is the trade you are making
+# when you run it.
+on:
+  workflow_dispatch:
+
+# Shared with the release workflow's docs job, so a manual deploy and a release
+# deploy queue behind each other instead of racing for the Pages environment.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  deploy:
+    name: Deploy docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    env:
+      # Matches the version developers run locally and the one in release.yml.
+      HUGO_VERSION: 0.165.0
+      HUGO_ENVIRONMENT: production
+      TZ: Europe/London
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          # enableGitInfo needs real history for page dates.
+          fetch-depth: 0
+
+      - name: Install Hugo
+        run: |
+          wget -O "$RUNNER_TEMP/hugo.deb" \
+            "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_linux-amd64.deb"
+          sudo dpkg -i "$RUNNER_TEMP/hugo.deb"
+
+      - name: Configure Pages
+        id: pages
+        uses: actions/configure-pages@v6
+
+      - name: Build
+        run: |
+          # A release deploy takes the version from the release being
+          # published; a manual one takes whatever the checked-out tree says.
+          HUGO_PARAMS_APPVERSION="$(tr -d '[:space:]' < version.txt)"
+          export HUGO_PARAMS_APPVERSION
+          echo "Building the site as $HUGO_PARAMS_APPVERSION"
+
+          hugo build \
+            --source docs \
+            --gc \
+            --minify \
+            --baseURL "${{ steps.pages.outputs.base_url }}/" \
+            --cacheDir "$RUNNER_TEMP/.cache/hugo"
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs/public
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v5

@@ -1,0 +1,36 @@
+{{ define "main" }}
+{{- $root := site.GetPage "/docs" -}}
+{{- $isRoot := eq .RelPermalink $root.RelPermalink -}}
+<div class="wrap docs">
+  {{ partial "docs-nav.html" . }}
+
+  <article class="docs__article">
+    <h1>{{ .Title }}</h1>
+    {{ with .Content }}<div class="lead docs__lead">{{ . }}</div>{{ end }}
+
+    {{- if $isRoot }}
+    {{- /* The docs root lists every section under its own heading. */ -}}
+    {{- range .Sections.ByWeight }}
+    <section class="index-group">
+      <h2 class="index-group__title">{{ .Title }}</h2>
+      {{ partial "index-cards.html" .RegularPages.ByWeight }}
+    </section>
+    {{- end }}
+    {{- else }}
+    {{- /* A section lists its own pages; the h1 above already names it. */ -}}
+    <section class="index-group">
+      {{ partial "index-cards.html" .RegularPages.ByWeight }}
+    </section>
+    {{- end }}
+  </article>
+
+  <aside class="docs__rail" aria-label="Elsewhere">
+    <div class="docs__rail-links">
+      <a href="{{ site.Params.repo }}">GitHub</a>
+      <a href="{{ site.Params.repo }}/issues">Report a problem</a>
+    </div>
+  </aside>
+</div>
+{{ end }}
+
+{{ define "scripts" }}{{ partial "docs-scripts.html" . }}{{ end }}

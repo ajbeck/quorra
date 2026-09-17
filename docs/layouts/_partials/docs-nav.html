@@ -1,0 +1,22 @@
+{{- /* Left nav, walked from the docs tree by weight. Nothing is maintained by
+       hand: adding a page with a weight puts it in the right place. */ -}}
+{{- $current := . -}}
+{{- with site.GetPage "/docs" }}
+<nav class="docs-nav" aria-label="Documentation">
+  {{ partial "docs-search.html" . }}
+  {{- range .Sections.ByWeight }}
+  <div class="docs-nav__group">
+    <p class="label">{{ .Title | upper }}</p>
+    <ul>
+      {{- range .RegularPages.ByWeight }}
+      {{- $here := eq .RelPermalink $current.RelPermalink }}
+      <li>
+        <a class="docs-nav__link{{ if $here }} docs-nav__link--here{{ end }}"
+           href="{{ .RelPermalink }}"{{ if $here }} aria-current="page"{{ end }}>{{ .Title }}</a>
+      </li>
+      {{- end }}
+    </ul>
+  </div>
+  {{- end }}
+</nav>
+{{- end }}

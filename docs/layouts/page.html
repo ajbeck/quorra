@@ -1,0 +1,74 @@
+{{ define "main" }}
+{{- /* Flatten the docs tree into one reading order — sections by weight, then
+       pages by weight — so previous and next cross section boundaries instead
+       of dead-ending at the edge of a section. */ -}}
+{{- $ordered := slice -}}
+{{- with site.GetPage "/docs" }}
+  {{- range .Sections.ByWeight }}
+    {{- range .RegularPages.ByWeight }}
+      {{- $ordered = $ordered | append . -}}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- $here := -1 -}}
+{{- range $i, $p := $ordered }}
+  {{- if eq $p.RelPermalink $.RelPermalink }}{{ $here = $i }}{{ end -}}
+{{- end }}
+{{- $prev := cond (gt $here 0) (index $ordered (sub $here 1)) nil -}}
+{{- $next := cond (and (ge $here 0) (lt $here (sub (len $ordered) 1))) (index $ordered (add $here 1)) nil -}}
+
+<div class="wrap docs">
+  {{ partial "docs-nav.html" . }}
+
+  <article class="docs__article">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="{{ (site.GetPage "/docs").RelPermalink }}">Docs</a>
+      {{- with .Parent }}{{ if ne .RelPermalink (site.GetPage "/docs").RelPermalink }}
+      <span aria-hidden="true">/</span>
+      <span>{{ .Title }}</span>
+      {{ end }}{{ end }}
+      <span aria-hidden="true">/</span>
+      <span class="breadcrumb__here">{{ .Title }}</span>
+    </nav>
+
+    <h1>{{ .Title }}</h1>
+    {{ with .Description }}<p class="lead docs__lead">{{ . }}</p>{{ end }}
+
+    <div class="docs__body">
+      {{ .Content }}
+    </div>
+
+    {{- if or $prev $next }}
+    <nav class="pager" aria-label="Documentation">
+      {{- with $prev }}
+      <a class="pager__link" href="{{ .RelPermalink }}" rel="prev">
+        <span class="label">← PREVIOUS</span>
+        <span class="pager__title">{{ .Title }}</span>
+      </a>
+      {{- else }}<span></span>{{ end }}
+      {{- with $next }}
+      <a class="pager__link pager__link--next" href="{{ .RelPermalink }}" rel="next">
+        <span class="label">NEXT →</span>
+        <span class="pager__title">{{ .Title }}</span>
+      </a>
+      {{- end }}
+    </nav>
+    {{- end }}
+  </article>
+
+  <aside class="docs__rail" aria-label="On this page">
+    {{- with .TableOfContents }}
+    {{- if gt (len .) 100 }}
+    <p class="label">ON THIS PAGE</p>
+    <div class="toc">{{ . }}</div>
+    {{- end }}
+    {{- end }}
+    <div class="docs__rail-links">
+      <a href="{{ site.Params.repo }}/blob/main/docs/content/{{ .File.Path }}">Edit this page</a>
+      <a href="{{ site.Params.repo }}/issues">Report a problem</a>
+    </div>
+  </aside>
+</div>
+{{ end }}
+
+{{ define "scripts" }}{{ partial "docs-scripts.html" . }}{{ end }}
