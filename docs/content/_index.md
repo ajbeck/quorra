@@ -25,7 +25,7 @@ path:
       notes:
         - "forwards opaque TCP bytes"
         - "never interprets, stores or logs them"
-    - group: "QUORRA (SANDBOXED)"
+    - group: "QUORRA"
       title: "Local IMDSv2 server"
       detail: "127.0.0.1:7114"
       highlight: true
@@ -59,8 +59,8 @@ boundaries:
       use: "Serve a chosen profile to tools that take a custom metadata URL."
       scope: "127.0.0.1 only"
     - surface: "The app itself"
-      use: "Runs in the macOS sandbox for the whole of its life."
-      scope: "sandboxed"
+      use: "Runs as you, notarized and hardened. No root process, no privileged helper."
+      scope: "your user account"
 
 app:
   heading: "Then it gets out of the way"

@@ -9,7 +9,7 @@ Only the default endpoint needs this. It claims `169.254.169.254`, an address yo
 
 Quorra installs a narrowly scoped macOS Network Extension. It forwards outbound TCP for exactly one destination — `169.254.169.254:80` — to Quorra's private backend on `127.0.0.1:7114`.
 
-It relays opaque bytes. It does not interpret, store or log what passes through it, and it sees nothing else on your network. Quorra itself stays in the macOS sandbox throughout.
+It relays opaque bytes. It does not interpret, store or log what passes through it, and it sees nothing else on your network. The extension runs in the macOS sandbox, and nothing runs as root.
 
 ## Two approvals, once
 

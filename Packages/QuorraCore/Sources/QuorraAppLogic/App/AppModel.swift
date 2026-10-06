@@ -194,7 +194,9 @@ public final class AppModel {
         using storage: BookmarkStorage
     ) throws -> ResolvedBookmark {
         let (url, isStale) = try storage.resolve(data)
-        guard url.startAccessingSecurityScopedResource() else {
+        // Outside App Sandbox a folder the sandboxed app bookmarked is readable without its scope.
+        guard url.startAccessingSecurityScopedResource()
+                || FileManager.default.isReadableFile(atPath: url.path) else {
             return .accessDenied
         }
 
