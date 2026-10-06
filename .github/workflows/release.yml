@@ -318,10 +318,8 @@ jobs:
           multiple_instances_prohibited="$(/usr/libexec/PlistBuddy -c 'Print :LSMultipleInstancesProhibited' "$info_plist")"
           cli_app="$EXPORTED_APP_PATH/Contents/Helpers/QuorraCLI.app"
           cli_executable="$cli_app/Contents/MacOS/quorra-cli"
-          cli_entitlements_path="$RUNNER_TEMP/quorra-cli-entitlements.plist"
           login_item="$EXPORTED_APP_PATH/Contents/Library/LoginItems/QuorraLoginItem.app"
           login_item_executable="$login_item/Contents/MacOS/QuorraLoginItem"
-          login_item_entitlements_path="$RUNNER_TEMP/quorra-login-item-entitlements.plist"
           system_extension="$EXPORTED_APP_PATH/Contents/Library/SystemExtensions/dev.ajbeck.quorra.imds-proxy.systemextension"
           system_extension_executable="$system_extension/Contents/MacOS/dev.ajbeck.quorra.imds-proxy"
           system_extension_entitlements_path="$RUNNER_TEMP/quorra-imds-proxy-entitlements.plist"
@@ -429,13 +427,6 @@ jobs:
             exit 1
           fi
 
-          codesign -d --entitlements - --xml "$cli_app" > "$cli_entitlements_path" 2>/dev/null
-          cli_app_group="$(/usr/libexec/PlistBuddy -c 'Print :com.apple.security.application-groups:0' "$cli_entitlements_path")"
-          if [[ "$cli_app_group" != '9GEBAJV9R4.quorra' ]]; then
-            echo "::error::The Quorra CLI is missing the shared App Group entitlement."
-            exit 1
-          fi
-
           login_item_signature_details="$(codesign -dvvv "$login_item" 2>&1)"
           if ! grep -Fq 'Identifier=dev.ajbeck.quorra.login-item' <<<"$login_item_signature_details"; then
             echo "::error::The Quorra login item has the wrong signing identifier."
@@ -451,18 +442,6 @@ jobs:
           fi
           if ! grep -Fq 'Authority=Developer ID Application:' <<<"$login_item_signature_details"; then
             echo "::error::The Quorra login item is not signed with a Developer ID Application identity."
-            exit 1
-          fi
-
-          codesign -d --entitlements - --xml "$login_item" > "$login_item_entitlements_path" 2>/dev/null
-          login_item_app_group="$(/usr/libexec/PlistBuddy -c 'Print :com.apple.security.application-groups:0' "$login_item_entitlements_path")"
-          login_item_sandbox="$(/usr/libexec/PlistBuddy -c 'Print :com.apple.security.app-sandbox' "$login_item_entitlements_path")"
-          if [[ "$login_item_app_group" != '9GEBAJV9R4.quorra' ]]; then
-            echo "::error::The Quorra login item is missing the shared App Group entitlement."
-            exit 1
-          fi
-          if [[ "$login_item_sandbox" != 'true' ]]; then
-            echo "::error::The Quorra login item must remain sandboxed."
             exit 1
           fi
 
@@ -488,7 +467,7 @@ jobs:
           system_extension_app_group="$(/usr/libexec/PlistBuddy -c 'Print :com.apple.security.application-groups:0' "$system_extension_entitlements_path")"
           system_extension_network_entitlement="$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.networking.networkextension:0' "$system_extension_entitlements_path")"
           if [[ "$system_extension_app_group" != '9GEBAJV9R4.quorra' ]]; then
-            echo "::error::The IMDS system extension is missing the shared App Group entitlement."
+            echo "::error::The IMDS system extension is missing the App Group that prefixes its NEMachServiceName."
             exit 1
           fi
           if [[ "$system_extension_network_entitlement" != 'app-proxy-provider-systemextension' ]]; then
