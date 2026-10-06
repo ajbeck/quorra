@@ -37,8 +37,6 @@
 	<true/>
 	<key>SUEnableAutomaticChecks</key>
 	<false/>
-	<key>SUEnableInstallerLauncherService</key>
-	<true/>
 	<key>SUFeedURL</key>
 	<string>https://github.com/ajbeck/quorra/releases/latest/download/appcast.xml</string>
 	<key>SUPublicEDKey</key>

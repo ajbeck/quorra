@@ -314,7 +314,6 @@ jobs:
           actual_build="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$info_plist")"
           actual_feed_url="$(/usr/libexec/PlistBuddy -c 'Print :SUFeedURL' "$info_plist")"
           actual_public_key="$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$info_plist")"
-          installer_service="$(/usr/libexec/PlistBuddy -c 'Print :SUEnableInstallerLauncherService' "$info_plist")"
           multiple_instances_prohibited="$(/usr/libexec/PlistBuddy -c 'Print :LSMultipleInstancesProhibited' "$info_plist")"
           cli_app="$EXPORTED_APP_PATH/Contents/Helpers/QuorraCLI.app"
           cli_executable="$cli_app/Contents/MacOS/quorra-cli"
@@ -343,11 +342,6 @@ jobs:
 
           if [[ "$actual_public_key" != "$expected_public_key" ]]; then
             echo "::error::Packaged Sparkle public key does not match the release signing key."
-            exit 1
-          fi
-
-          if [[ "$installer_service" != "true" ]]; then
-            echo "::error::Sparkle installer launcher service is not enabled in the packaged app."
             exit 1
           fi
 
