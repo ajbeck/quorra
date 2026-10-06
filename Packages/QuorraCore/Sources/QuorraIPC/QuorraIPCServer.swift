@@ -36,7 +36,7 @@ public final class QuorraIPCServer: @unchecked Sendable {
         defer { stateLock.unlock() }
         guard source == nil else { return }
 
-        let resolvedEndpoint = try endpoint ?? .shared()
+        let resolvedEndpoint = endpoint ?? .shared()
         let descriptor = try makeListener(at: resolvedEndpoint.socketURL)
         let readSource = DispatchSource.makeReadSource(fileDescriptor: descriptor, queue: queue)
         readSource.setEventHandler { [weak self] in
@@ -65,6 +65,10 @@ public final class QuorraIPCServer: @unchecked Sendable {
     }
 
     private func makeListener(at socketURL: URL) throws -> Int32 {
+        try FileManager.default.createDirectory(
+            at: socketURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
         try removeStaleSocketIfNeeded(at: socketURL)
         let descriptor = try QuorraIPCTransport.makeSocket()
 
