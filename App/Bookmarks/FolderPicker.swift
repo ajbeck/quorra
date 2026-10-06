@@ -3,14 +3,14 @@ import Foundation
 
 enum FolderPicker {
     @MainActor
-    static func pickAWSFolder() async -> URL? {
+    static func pickAWSFolder(startingAt folderURL: URL) async -> URL? {
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
         panel.canCreateDirectories = true
         panel.showsHiddenFiles = true
-        panel.directoryURL = UserHome.awsFolder
+        panel.directoryURL = folderURL
         panel.prompt = "Choose"
         panel.title = "Choose your AWS folder"
         panel.message = "The default location is ~/.aws. Create a new folder if one doesn't exist."
@@ -35,7 +35,7 @@ enum FolderPicker {
         panel.canCreateDirectories = true
         panel.showsHiddenFiles = true
 
-        let preferredDirectory = UserHome.url
+        let preferredDirectory = FileManager.default.homeDirectoryForCurrentUser
             .appending(path: ".local", directoryHint: .isDirectory)
             .appending(path: "bin", directoryHint: .isDirectory)
         panel.directoryURL = existingAncestor(of: preferredDirectory)

@@ -43,12 +43,12 @@ path:
 
 boundaries:
   heading: "What crosses which boundary"
-  lead: "Quorra asks macOS for two approvals and one folder. Nothing else. If you would rather it never touched your AWS files, turn export off and it never writes to them."
+  lead: "Quorra asks macOS for two approvals. Nothing else. It reads your AWS folder and never writes to it unless you turn export on."
   columns: ["SURFACE", "WHAT QUORRA USES IT FOR", "SCOPE"]
   rows:
     - surface: "Your AWS folder"
       use: "Imports sessions and profiles once; writes them back only if you enable export."
-      scope: "one folder you pick"
+      scope: "~/.aws, or a folder you choose"
     - surface: "Network Extension"
       use: "Forwards outbound TCP for the metadata address to Quorra's local backend."
       scope: "169.254.169.254:80"

@@ -61,32 +61,26 @@ struct GeneralSettingsTab: View {
     }
 
     @ViewBuilder private var folderRow: some View {
-        switch appModel.phase {
-        case .ready(let url):
-            LabeledContent("Folder") {
-                Text(url.path(percentEncoded: false))
-                    .font(.body.monospaced())
-                    .textSelection(.enabled)
-            }
-            HStack {
-                Button("Choose Folder…") { Task { await changeFolder() } }
-                Button("Re-import from AWS Folder") { Task { await exportCoordinator.reimport() } }
-                    .disabled(exportCoordinator.isImporting)
-            }
-            if let message = exportCoordinator.lastImportMessage {
-                Text(message)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
-        case .restoring, .setup, .error:
-            Text("Folder access hasn’t been granted. Reopen Quorra to complete setup.")
+        LabeledContent("Folder") {
+            Text(appModel.folderURL.path(percentEncoded: false))
+                .font(.body.monospaced())
+                .textSelection(.enabled)
+        }
+        HStack {
+            Button("Choose Folder…") { Task { await changeFolder() } }
+            Button("Re-import from AWS Folder") { Task { await exportCoordinator.reimport() } }
+                .disabled(exportCoordinator.isImporting)
+        }
+        if let message = exportCoordinator.lastImportMessage {
+            Text(message)
+                .font(.callout)
                 .foregroundStyle(.secondary)
         }
     }
 
     private func changeFolder() async {
-        guard let picked = await FolderPicker.pickAWSFolder() else { return }
-        await appModel.completeSetup(selectedFolder: picked, mode: appModel.mode)
+        guard let picked = await FolderPicker.pickAWSFolder(startingAt: appModel.folderURL) else { return }
+        appModel.chooseFolder(picked)
     }
 }
 
@@ -94,22 +88,15 @@ struct GeneralSettingsTab: View {
 
 #Preview("General – ready") {
     GeneralSettingsTab()
-        .environment(AppModel(initialPhase: .ready(URL(filePath: "/Users/example/.aws"))))
+        .environment(AppModel(folderURL: URL(filePath: "/Users/example/.aws"), mode: .managed))
         .environment(IdentityExportCoordinator.preview(importMessage: "Imported 1 session and 5 profiles."))
         .frame(width: 560)
 }
 
 #Preview("General – export failed") {
     GeneralSettingsTab()
-        .environment(AppModel(initialPhase: .ready(URL(filePath: "/Users/example/.aws"))))
+        .environment(AppModel(folderURL: URL(filePath: "/Users/example/.aws"), mode: .managed))
         .environment(IdentityExportCoordinator.preview(failure: "You don’t have permission to save the file “config” in the folder “.aws”."))
-        .frame(width: 560)
-}
-
-#Preview("General – setup") {
-    GeneralSettingsTab()
-        .environment(AppModel(initialPhase: .setup))
-        .environment(IdentityExportCoordinator.preview())
         .frame(width: 560)
 }
 

@@ -3,13 +3,13 @@ title: "Data and permissions"
 description: "What Quorra asks macOS for, what it stores, and where."
 weight: 20
 ---
-Quorra asks macOS for two approvals and one folder. Nothing else.
+Quorra asks macOS for two approvals. Nothing else.
 
 ## What crosses which boundary
 
 | Surface           | What Quorra uses it for                                                        | Scope                                    |
 | ----------------- | ------------------------------------------------------------------------------ | ---------------------------------------- |
-| Your AWS folder   | Imports sessions and profiles once; writes them back only if you enable export | One folder you pick, normally `~/.aws`   |
+| Your AWS folder   | Imports sessions and profiles once; writes them back only if you enable export | `~/.aws`, or a folder you choose         |
 | Network Extension | Forwards outbound TCP for the metadata address to Quorra's local backend       | `169.254.169.254:80` only                |
 | macOS Keychain    | Stores Identity Center tokens and temporary role credentials                   | Never in Quorra's own files              |
 | Local endpoints   | Serve a chosen profile to tools                                                | Bound to `127.0.0.1`, never your network |
@@ -21,7 +21,7 @@ Identity Center access tokens and temporary role credentials are stored in the m
 
 ## Your AWS files
 
-With **Export to AWS folder** off, Quorra never writes to the files you selected.
+With **Export to AWS folder** off, which is the default, Quorra never writes to your AWS files.
 
 With it on, Quorra updates only the `sso-session` and `profile` sections it manages, and keeps your other sections, keys and comments as they are.
 

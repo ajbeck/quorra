@@ -16,20 +16,20 @@ struct ModePreferenceStorageTests {
         storage = ModePreferenceStorage(defaults: defaults)
     }
 
-    @Test func loadReturnsManagedWhenNoValuePresent() {
-        #expect(storage.load() == .managed)
+    @Test func loadReturnsReadOnlyWhenNoValuePresent() {
+        #expect(storage.load() == .readOnly)
     }
 
-    @Test func saveAndLoadRoundTripReadOnly() {
-        storage.save(.readOnly)
-        #expect(storage.load() == .readOnly)
+    @Test func saveAndLoadRoundTripManaged() {
+        storage.save(.managed)
+        #expect(storage.load() == .managed)
         tearDown()
     }
 
     @Test func clearRemovesValueAndLoadFallsBack() {
-        storage.save(.readOnly)
+        storage.save(.managed)
         storage.clear()
-        #expect(storage.load() == .managed)
+        #expect(storage.load() == .readOnly)
         tearDown()
     }
 
@@ -39,15 +39,15 @@ struct ModePreferenceStorageTests {
         tearDown()
     }
 
-    @Test func bookmarkAndModeStoragesShareSuiteWithoutCollision() {
-        let bookmark = BookmarkStorage(defaults: defaults)
-        let payload = Data([0xDE, 0xAD, 0xBE, 0xEF])
-        bookmark.save(payload)
+    @Test func folderAndModeStoragesShareSuiteWithoutCollision() {
+        let folderStorage = AWSFolderStorage(defaults: defaults)
+        let folder = URL(filePath: "/Users/example/work-aws", directoryHint: .isDirectory)
+        folderStorage.save(folder)
 
-        storage.save(.readOnly)
+        storage.save(.managed)
 
-        #expect(bookmark.load() == payload)
-        #expect(storage.load() == .readOnly)
+        #expect(folderStorage.load() == folder)
+        #expect(storage.load() == .managed)
         tearDown()
     }
 

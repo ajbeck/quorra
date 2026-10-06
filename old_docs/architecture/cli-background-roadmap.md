@@ -359,6 +359,12 @@ Release without applying that identity to package targets.
 
 **Why:** The sandbox was the root of the App Group, the helper-app wrapper around the CLI, the security-scoped bookmark flows for `~/.aws` and the CLI install folder, and Sparkle's sandbox mode. Removing it lets later changes drop each of those. AJ chose this trade-off after the October 2026 architecture review; the cost is the loss of sandbox containment for a process that holds AWS credentials.
 
+### D020 — `~/.aws` without setup
+
+**Decision:** Quorra opens straight to its main window and reads `~/.aws`; there is no setup screen and no folder error screen. **Settings → General → Choose Folder…** points it at another folder, stored as a plain path. A fresh install starts with export off, so Quorra writes the user's AWS files only after they turn **Export to AWS folder** on; existing installs keep their stored choice. A folder the sandboxed app kept as a security-scoped bookmark is converted to a path on first launch.
+
+**Why:** Outside App Sandbox the folder picker is no longer a permission grant, only a way to name a non-default folder, which AJ wanted kept. Without a setup screen there is no moment of consent before writing, so export defaults off. Removes `SetupView`, `ErrorView`, `UserHome`, the app phases and bookmark storage.
+
 ## Open Decisions
 
 - None for the current implementation scope.

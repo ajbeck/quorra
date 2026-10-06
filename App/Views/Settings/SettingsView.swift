@@ -36,7 +36,7 @@ private enum SettingsPane: String {
 
 #Preview {
     SettingsView()
-        .environment(AppModel(initialPhase: .ready(URL(filePath: "/Users/example/.aws"))))
+        .environment(AppModel(folderURL: URL(filePath: "/Users/example/.aws")))
         .environment(AppUpdater(startingUpdater: false))
         .environment(EditorState())
         .environment(AppPresentationController())

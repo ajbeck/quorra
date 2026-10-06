@@ -7,7 +7,7 @@ Quorra keeps sessions and profiles in its own store. It reads your AWS folder on
 
 ## The import
 
-On first run you choose the folder Quorra may access — normally `~/.aws`. Quorra reads the `sso-session` and `profile` sections it finds in `config` and copies them into its store. After that, the store is the source of truth: editing a profile in Quorra changes Quorra's copy.
+On first run Quorra reads the `sso-session` and `profile` sections it finds in `~/.aws/config` and copies them into its store. After that, the store is the source of truth: editing a profile in Quorra changes Quorra's copy.
 
 You can re-read the folder at any time with **Re-import from AWS Folder** in **Settings → General**.
 
@@ -23,12 +23,12 @@ Quorra updates only the `sso-session` and `profile` sections it manages. Your ot
 
 With export **off**, Quorra never writes to your AWS files at all. Choose this if you hand-edit them, or if you would rather nothing outside Quorra changed.
 
-The switch lives in **Settings → General**, and you can change it whenever you like. Turning it on triggers an export straight away.
+Export is off until you turn it on. The switch lives in **Settings → General**, and you can change it whenever you like. Turning it on triggers an export straight away.
 
 ## If an export fails
 
-Settings shows the failure with a **Retry**. Common causes are the folder no longer being where you pointed Quorra, or macOS having revoked access to it — in which case Quorra asks you to choose the folder again.
+Settings shows the failure with a **Retry**. A common cause is the folder no longer being where you pointed Quorra; choose it again in **Settings → General**.
 
 ## A non-standard folder
 
-If you point Quorra somewhere other than `~/.aws`, it warns you once. AWS SDKs read `~/.aws` unless `AWS_CONFIG_FILE` says otherwise, so exporting to a folder the SDKs do not read will not do what you expect.
+You can point Quorra somewhere other than `~/.aws` with **Choose Folder…** in **Settings → General**. AWS SDKs read `~/.aws` unless `AWS_CONFIG_FILE` says otherwise, so exporting to a folder the SDKs do not read will not do what you expect.

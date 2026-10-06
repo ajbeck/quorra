@@ -7,7 +7,7 @@ import Testing
 struct AppModelTests {
     let suiteName: String
     let defaults: UserDefaults
-    let bookmarkStorage: BookmarkStorage
+    let folderStorage: AWSFolderStorage
     let modeStorage: ModePreferenceStorage
 
     init() {
@@ -15,71 +15,43 @@ struct AppModelTests {
         let defaults = UserDefaults(suiteName: name)!
         suiteName = name
         self.defaults = defaults
-        bookmarkStorage = BookmarkStorage(defaults: defaults)
+        folderStorage = AWSFolderStorage(defaults: defaults)
         modeStorage = ModePreferenceStorage(defaults: defaults)
     }
 
-    @Test func initWithoutBookmarkBeginsInSetup() {
-        let model = AppModel(bookmarkStorage: bookmarkStorage, modeStorage: modeStorage)
+    @Test func aFreshInstallReadsTheDefaultFolderWithoutExporting() {
+        let model = AppModel(folderStorage: folderStorage, modeStorage: modeStorage)
 
-        guard case .setup = model.phase else {
-            Issue.record("Expected setup phase when no bookmark is stored")
-            tearDown()
-            return
-        }
-        tearDown()
-    }
-
-    @Test func initWithBookmarkBeginsRestoring() {
-        bookmarkStorage.save(Data([0x01, 0x02, 0x03]))
-
-        let model = AppModel(bookmarkStorage: bookmarkStorage, modeStorage: modeStorage)
-
-        guard case .restoring = model.phase else {
-            Issue.record("Expected restoring phase while a stored bookmark is resolved")
-            tearDown()
-            return
-        }
-        tearDown()
-    }
-
-    @Test func initLoadsPersistedReadOnly() {
-        modeStorage.save(.readOnly)
-        let model = AppModel(bookmarkStorage: bookmarkStorage, modeStorage: modeStorage)
+        #expect(model.folderURL == AWSFolderStorage.defaultFolder)
         #expect(model.mode == .readOnly)
+        tearDown()
+    }
+
+    @Test func initLoadsPersistedManagedMode() {
+        modeStorage.save(.managed)
+        let model = AppModel(folderStorage: folderStorage, modeStorage: modeStorage)
+        #expect(model.mode == .managed)
         tearDown()
     }
 
     @Test func setModePersistsAndPublishes() async {
-        let model = AppModel(bookmarkStorage: bookmarkStorage, modeStorage: modeStorage)
-        await model.setMode(.readOnly)
-        #expect(model.mode == .readOnly)
+        let model = AppModel(folderStorage: folderStorage, modeStorage: modeStorage)
+        await model.setMode(.managed)
+        #expect(model.mode == .managed)
 
-        let model2 = AppModel(bookmarkStorage: bookmarkStorage, modeStorage: modeStorage)
-        #expect(model2.mode == .readOnly)
+        let model2 = AppModel(folderStorage: folderStorage, modeStorage: modeStorage)
+        #expect(model2.mode == .managed)
         tearDown()
     }
 
-    @Test func setModeInErrorPhaseSucceeds() async {
-        let model = AppModel(
-            bookmarkStorage: bookmarkStorage,
-            modeStorage: modeStorage,
-            initialPhase: .error(.folderMissing)
-        )
+    @Test func chooseFolderPersistsAndPublishes() {
+        let folder = URL(filePath: "/Users/example/work-aws", directoryHint: .isDirectory)
+        let model = AppModel(folderStorage: folderStorage, modeStorage: modeStorage)
 
-        await model.setMode(.readOnly)
+        model.chooseFolder(folder)
 
-        #expect(model.mode == .readOnly)
-        tearDown()
-    }
-
-    @Test func resetToSetupPreservesMode() async {
-        modeStorage.save(.readOnly)
-        let model = AppModel(bookmarkStorage: bookmarkStorage, modeStorage: modeStorage)
-
-        await model.resetToSetup()
-
-        #expect(model.mode == .readOnly)
+        #expect(model.folderURL == folder)
+        #expect(AppModel(folderStorage: folderStorage, modeStorage: modeStorage).folderURL == folder)
         tearDown()
     }
 
