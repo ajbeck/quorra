@@ -365,6 +365,12 @@ Release without applying that identity to package targets.
 
 **Why:** Outside App Sandbox the folder picker is no longer a permission grant, only a way to name a non-default folder, which AJ wanted kept. Without a setup screen there is no moment of consent before writing, so export defaults off. Removes `SetupView`, `ErrorView`, `UserHome`, the app phases and bookmark storage.
 
+### D021 — One-click CLI install
+
+**Decision:** **Install** links the `quorra` command into `~/.local/bin`, creating the folder if needed; **Choose Folder…** picks another folder. The installation record stores plain paths. Records saved by the sandboxed app still decode, ignoring their bookmark.
+
+**Why:** Outside App Sandbox the folder picker and security-scoped bookmark (D006) only existed to obtain write access. `~/.local/bin` is the per-user executable folder the XDG Base Directory spec names, and D006 already recommended it. Removes the "no longer has access" state.
+
 ## Open Decisions
 
 - None for the current implementation scope.

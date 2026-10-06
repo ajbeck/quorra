@@ -1,12 +1,11 @@
 import Foundation
 
+/// Records written by the sandboxed Quorra also carry a `directoryBookmark`, which decoding ignores.
 public struct CLIInstallationRecord: Codable, Equatable, Sendable {
-    public let directoryBookmark: Data
     public let commandPath: String
     public let targetPath: String
 
-    public init(directoryBookmark: Data, commandPath: String, targetPath: String) {
-        self.directoryBookmark = directoryBookmark
+    public init(commandPath: String, targetPath: String) {
         self.commandPath = commandPath
         self.targetPath = targetPath
     }
@@ -17,6 +16,11 @@ public struct CLIInstallationStorage: @unchecked Sendable {
 
     public static var `default`: CLIInstallationStorage {
         CLIInstallationStorage(defaults: .standard)
+    }
+
+    /// `~/.local/bin`, the per-user command folder the XDG Base Directory spec names.
+    public static var defaultDirectory: URL {
+        FileManager.default.homeDirectoryForCurrentUser.appending(path: ".local/bin", directoryHint: .isDirectory)
     }
 
     private let defaults: UserDefaults
@@ -39,25 +43,6 @@ public struct CLIInstallationStorage: @unchecked Sendable {
 
     public func clear() {
         defaults.removeObject(forKey: Self.key)
-    }
-
-    public func makeBookmark(for directoryURL: URL) throws -> Data {
-        try directoryURL.bookmarkData(
-            options: .withSecurityScope,
-            includingResourceValuesForKeys: nil,
-            relativeTo: nil
-        )
-    }
-
-    public func resolveBookmark(_ data: Data) throws -> (url: URL, isStale: Bool) {
-        var isStale = false
-        let url = try URL(
-            resolvingBookmarkData: data,
-            options: .withSecurityScope,
-            relativeTo: nil,
-            bookmarkDataIsStale: &isStale
-        )
-        return (url, isStale)
     }
 }
 

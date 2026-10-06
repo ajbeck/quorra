@@ -75,7 +75,7 @@ struct BackgroundSettingsTab: View {
             .font(.callout)
             .foregroundStyle(.secondary)
 
-        Text("Your shell must include the selected folder in PATH.")
+        Text("Installs into ~/.local/bin unless you choose another folder. Your shell must include that folder in PATH.")
             .font(.caption)
             .foregroundStyle(.tertiary)
 
@@ -85,7 +85,10 @@ struct BackgroundSettingsTab: View {
                 .foregroundStyle(Theme.warn)
         case .notInstalled:
             LabeledContent("Status", value: "Not installed")
-            Button("Set Up…") { Task { await chooseCLIInstallFolder() } }
+            HStack {
+                Button("Install") { cliInstallation.installInDefaultFolder() }
+                Button("Choose Folder…") { Task { await chooseCLIInstallFolder() } }
+            }
         case .installed(let url):
             Label("Installed", systemImage: "checkmark.circle.fill")
                 .foregroundStyle(.green)
@@ -104,11 +107,6 @@ struct BackgroundSettingsTab: View {
                 .foregroundStyle(Theme.warn)
             commandPath(url, label: "Conflict")
             Button("Choose Another Folder…") { Task { await chooseCLIInstallFolder() } }
-        case .accessRequired(let url):
-            Label("Quorra no longer has access to the installation folder.", systemImage: "lock.trianglebadge.exclamationmark")
-                .foregroundStyle(Theme.warn)
-            commandPath(url)
-            Button("Choose Folder Again…") { Task { await chooseCLIInstallFolder() } }
         case .failed(let message):
             Label(message, systemImage: "exclamationmark.triangle")
                 .foregroundStyle(Theme.danger)

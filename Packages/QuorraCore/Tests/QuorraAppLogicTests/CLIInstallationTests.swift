@@ -4,6 +4,17 @@ import Testing
 
 @Suite(.serialized)
 struct CLIInstallationTests {
+    @Test func decodesARecordTheSandboxedAppSaved() throws {
+        let legacy = Data(#"{"directoryBookmark":"AAEC","commandPath":"/Users/example/.local/bin/quorra","targetPath":"/Applications/Quorra.app/Contents/Helpers/QuorraCLI.app/Contents/MacOS/quorra-cli"}"#.utf8)
+
+        let record = try JSONDecoder().decode(CLIInstallationRecord.self, from: legacy)
+
+        #expect(record == CLIInstallationRecord(
+            commandPath: "/Users/example/.local/bin/quorra",
+            targetPath: "/Applications/Quorra.app/Contents/Helpers/QuorraCLI.app/Contents/MacOS/quorra-cli"
+        ))
+    }
+
     @Test func installsAndRemovesOwnedLink() throws {
         let fixture = try Fixture()
         defer { fixture.cleanUp() }
