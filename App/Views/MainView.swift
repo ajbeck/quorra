@@ -42,10 +42,10 @@ struct MainView: View {
                 .navigationSplitViewColumnWidth(min: 520, ideal: 760)
         }
         .searchable(text: navigationSearchText, placement: .toolbar, prompt: "Search")
-        .task(id: defaultIMDSNotificationCoordinator.endpointOpenRequestID) {
-            guard defaultIMDSNotificationCoordinator.endpointOpenRequestID != nil else { return }
-            openDefaultEndpoint(DefaultIMDSEndpoint.stableIDString)
-            defaultIMDSNotificationCoordinator.consumeEndpointOpenRequest()
+        .task(id: defaultIMDSNotificationCoordinator.openRequest) {
+            guard let request = defaultIMDSNotificationCoordinator.openRequest else { return }
+            open(request)
+            defaultIMDSNotificationCoordinator.consumeOpenRequest()
         }
     }
 
@@ -76,13 +76,20 @@ struct MainView: View {
         )
     }
 
-    private func openDefaultEndpoint(_ endpointID: String) {
+    private func open(_ request: DetailSelection) {
         var transaction = Transaction()
         transaction.animation = nil
         withTransaction(transaction) {
             searchText = ""
-            sourceSelection = .imdsEndpoints
-            selection = .imds(endpointID: endpointID)
+            switch request {
+            case .session:
+                sourceSelection = .sessions
+            case .profile:
+                sourceSelection = .profiles
+            case .imds:
+                sourceSelection = .imdsEndpoints
+            }
+            selection = request
         }
     }
 

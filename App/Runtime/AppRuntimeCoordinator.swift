@@ -58,9 +58,20 @@ final class AppRuntimeCoordinator {
         imdsModel.shouldRestoreDefaultEndpoint
     }
 
-    /// Names of the profiles the Default IMDS Endpoint can serve, for the menu bar picker.
-    var defaultEndpointProfileChoices: [String] {
+    /// Names of the profiles an IMDS endpoint can serve, for the menu bar pickers.
+    var endpointProfileChoices: [String] {
         eligibleDefaultEndpointProfiles.map(\.name)
+    }
+
+    /// Why the menu bar icon shows its attention badge, or `nil` when nothing needs the user.
+    var attentionReason: String? {
+        if let sessionName = defaultEndpointSignInSessionName {
+            return "\(sessionName) needs sign-in"
+        }
+        if imdsModel.endpointsByEndpointID.values.contains(where: \.isFailed) {
+            return "an IMDS endpoint failed"
+        }
+        return nil
     }
 
     /// The session the served profile needs signed in, or `nil` when its credentials are ready.

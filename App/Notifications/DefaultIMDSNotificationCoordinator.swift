@@ -19,7 +19,8 @@ private enum DefaultIMDSNotification {
 @MainActor
 @Observable
 final class DefaultIMDSNotificationCoordinator: NSObject, UNUserNotificationCenterDelegate {
-    private(set) var endpointOpenRequestID: UUID?
+    /// An item the main window should select the next time it is shown.
+    private(set) var openRequest: DetailSelection?
 
     /// Starts a sign-in for the session named in a notification's Sign In action.
     @ObservationIgnored var signInHandler: (@MainActor (String) -> Void)?
@@ -100,12 +101,16 @@ final class DefaultIMDSNotificationCoordinator: NSObject, UNUserNotificationCent
         )
     }
 
-    func consumeEndpointOpenRequest() {
-        endpointOpenRequestID = nil
+    func consumeOpenRequest() {
+        openRequest = nil
+    }
+
+    func requestOpen(_ selection: DetailSelection) {
+        openRequest = selection
     }
 
     func requestEndpointOpen() {
-        endpointOpenRequestID = UUID()
+        requestOpen(.imds(endpointID: DefaultIMDSEndpoint.stableIDString))
     }
 
     nonisolated func userNotificationCenter(
