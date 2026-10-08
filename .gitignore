@@ -39,3 +39,6 @@ DerivedData/
 docs/public/
 docs/resources/
 docs/.hugo_build.lock
+
+# Local planning doc for the Duck Blind merge, never committed
+/old_docs/architecture/duck-blind-merge.md
