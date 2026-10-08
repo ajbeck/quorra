@@ -125,7 +125,7 @@ struct ObjectListView: View {
         } else {
             ScrollViewReader { proxy in
                 List(selection: $detailSelection) {
-                    if case .all = sourceSelection {
+                    if isSearching {
                         if !filteredSessionItems.isEmpty {
                             Section("Sessions") {
                                 ForEach(filteredSessionItems, id: \.detailSelection) { item in
@@ -267,8 +267,6 @@ struct ObjectListView: View {
 
     private var defaultCreationSheet: CreationSheet? {
         switch sourceSelection {
-        case .all:
-            nil
         case .sessions:
             .session
         case .profiles:
@@ -375,10 +373,12 @@ struct ObjectListView: View {
         filtered(imdsItems)
     }
 
+    /// Search spans every source, so a match is found whichever source is selected.
     private var sourceItems: [ObjectListItem] {
-        switch sourceSelection {
-        case .all:
+        if isSearching {
             return sessionItems + profileItems + imdsItems
+        }
+        switch sourceSelection {
         case .sessions:
             return sessionItems
         case .profiles:
@@ -389,9 +389,10 @@ struct ObjectListView: View {
     }
 
     private var visibleItems: [ObjectListItem] {
-        switch sourceSelection {
-        case .all:
+        if isSearching {
             return filteredSessionItems + filteredProfileItems + filteredIMDSItems
+        }
+        switch sourceSelection {
         case .sessions:
             return filteredSessionItems
         case .profiles:
@@ -420,7 +421,7 @@ struct ObjectListView: View {
 
     private var subtitle: String {
         if isSearching {
-            return "\(sourceSelection.title), \(visibleItems.count) \(visibleItems.count == 1 ? "result" : "results")"
+            return "\(visibleItems.count) \(visibleItems.count == 1 ? "result" : "results")"
         }
 
         let count = sourceItems.count
@@ -558,8 +559,6 @@ private enum CreationSheet: Identifiable {
 private extension SourceSelection {
     var emptySystemImage: String {
         switch self {
-        case .all:
-            return "square.grid.2x2"
         case .sessions:
             return "cloud"
         case .profiles:
@@ -571,8 +570,6 @@ private extension SourceSelection {
 
     var emptyDescription: String {
         switch self {
-        case .all:
-            return "Add a session, profile, or IMDS endpoint to see it here."
         case .sessions:
             return "Add an IAM Identity Center session to see it here."
         case .profiles:
@@ -585,10 +582,6 @@ private extension SourceSelection {
 
 #if DEBUG
 
-#Preview("Object List - all") {
-    ObjectListPreviewHarness(sourceSelection: .all)
-}
-
 #Preview("Object List - profiles") {
     ObjectListPreviewHarness(
         sourceSelection: .profiles,
@@ -598,7 +591,7 @@ private extension SourceSelection {
 
 #Preview("Object List - searching") {
     ObjectListPreviewHarness(
-        sourceSelection: .all,
+        sourceSelection: .profiles,
         searchText: "ac:mgmt",
         seedsEndpointDefinition: true
     )

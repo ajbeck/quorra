@@ -12,7 +12,7 @@ struct MainView: View {
 
     init(
         folderURL: URL,
-        initialSourceSelection: SourceSelection = .all,
+        initialSourceSelection: SourceSelection = .profiles,
         initialDetailSelection: DetailSelection? = nil,
         initialSearchText: String = ""
     ) {
@@ -144,7 +144,7 @@ private struct MainViewSampleDataHarness: View {
     private let metadataContainer: ModelContainer
 
     init(
-        sourceSelection: SourceSelection = .all,
+        sourceSelection: SourceSelection = .profiles,
         detailSelection: DetailSelection? = nil,
         searchText: String = ""
     ) {
