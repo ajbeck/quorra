@@ -36,7 +36,7 @@ enum AppRuntimeOperationError: LocalizedError {
         case .endpointFailed(let message):
             return message
         case .profileSwitchUnavailable:
-            return "Only the Default IMDS Endpoint can switch profiles."
+            return "The Default IMDS Endpoint is not set up yet."
         case .persistenceFailed(let message):
             return "Quorra could not remember the endpoint change. \(message)"
         }
