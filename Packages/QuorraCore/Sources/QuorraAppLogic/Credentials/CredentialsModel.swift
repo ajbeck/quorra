@@ -112,7 +112,8 @@ public final class CredentialsModel {
         sessionName: String,
         startUrl: URL,
         region: String,
-        scopes: [String]
+        scopes: [String],
+        useDeviceCode: Bool = false
     ) async -> CredentialsSignInResult {
         // Clear stale state — guard against false invalidation on no-op assignment
         if lastError[sessionName] != nil { lastError[sessionName] = nil }
@@ -126,6 +127,7 @@ public final class CredentialsModel {
                 region: region,
                 scopes: scopes,
                 clientName: "Quorra",
+                useDeviceCode: useDeviceCode,
                 verificationHandler: { [weak self] verification in
                     guard let self else { return }
                     await self.recordVerification(sessionName: sessionName, verification: verification)

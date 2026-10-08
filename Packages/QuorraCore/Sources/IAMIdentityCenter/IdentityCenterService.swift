@@ -106,13 +106,13 @@ public actor IdentityCenterService: IdentityCenterServicing {
 
     // MARK: - Public API
 
-    /// Drives the full device-grant sign-in flow.
+    /// Drives the full sign-in flow.
     ///
-    /// Reuses a cached OIDC client from Keychain when present and not near-expiry; otherwise calls
-    /// `RegisterClient` first. Calls `StartDeviceAuthorization`, invokes `verificationHandler` once
-    /// with the resulting `DeviceVerification`, then polls `CreateToken` every `interval` seconds until
-    /// the user completes the browser step or the device code expires. Persists the token to Keychain
-    /// and returns it.
+    /// Signs in through the browser with the authorization code grant and PKCE (RFC 7636): the
+    /// handler receives the authorize URL, and a one-use loopback listener receives the code.
+    /// When `useDeviceCode` is set, or the loopback listener cannot start, it uses the device code
+    /// grant instead: the handler receives the user code and the token is polled for. Both paths
+    /// use the session's own OIDC client, registered once for both grants, so either token refreshes.
     ///
     /// Emits `.signInStarted`, then one of `.signedIn` / `.signInCancelled` / `.signInFailed` (D2).
     ///
@@ -122,7 +122,8 @@ public actor IdentityCenterService: IdentityCenterServicing {
     ///   - region: AWS region (e.g. "us-east-1")
     ///   - scopes: OIDC scopes (must include "sso:account:access" for refresh token issuance)
     ///   - clientName: Human-readable client name (default: "Quorra")
-    ///   - verificationHandler: Async callback invoked once with verification info for the UI
+    ///   - useDeviceCode: Sign in with a device code instead of the browser callback
+    ///   - verificationHandler: Async callback invoked once with the page to open (and the user code, if any)
     /// - Returns: Stored SSO token
     /// - Throws: `.invalidClient`, `.expiredDeviceCode`, `.accessDenied`, `.deviceFlowTimedOut`, `.signInAlreadyInProgress`, `.userCancelled`, or transport errors
     public func signIn(
@@ -131,6 +132,7 @@ public actor IdentityCenterService: IdentityCenterServicing {
         region: String,
         scopes: [String],
         clientName: String = "Quorra",
+        useDeviceCode: Bool = false,
         verificationHandler: @escaping @Sendable (DeviceVerification) async -> Void
     ) async throws -> StoredSSOToken {
         if inFlight[sessionName] != nil {
@@ -156,6 +158,7 @@ public actor IdentityCenterService: IdentityCenterServicing {
                     region: region,
                     scopes: scopes,
                     clientName: clientName,
+                    useDeviceCode: useDeviceCode,
                     verificationHandler: verificationHandler
                 )
             }
@@ -212,88 +215,179 @@ public actor IdentityCenterService: IdentityCenterServicing {
         region: String,
         scopes: [String],
         clientName: String,
+        useDeviceCode: Bool,
         verificationHandler: @escaping @Sendable (DeviceVerification) async -> Void
     ) async throws -> StoredSSOToken {
-        let (client, deviceCode, verification) = try await registerAndStartDeviceAuth(
+        let client = try await ensureSessionClient(
             region: region,
             startUrl: startUrl,
             scopes: scopes,
-            clientName: clientName,
-            sessionName: sessionName
+            clientName: clientName
         )
 
-        await verificationHandler(verification)
+        var browserToken: StoredSSOToken?
+        if !useDeviceCode {
+            browserToken = try await browserSignIn(
+                client: client,
+                region: region,
+                scopes: scopes,
+                sessionName: sessionName,
+                verificationHandler: verificationHandler
+            )
+        }
 
-        let token = try await pollForToken(
-            client: client,
-            deviceCode: deviceCode,
-            sessionName: sessionName,
-            verification: verification
-        )
+        let token: StoredSSOToken
+        if let browserToken {
+            token = browserToken
+        } else {
+            token = try await deviceSignIn(
+                client: client,
+                region: region,
+                startUrl: startUrl,
+                scopes: scopes,
+                clientName: clientName,
+                sessionName: sessionName,
+                verificationHandler: verificationHandler
+            )
+        }
 
+        let boundToken = token.boundToClient(Self.sessionClientAccount(region: region, startUrl: startUrl))
         try await keychain.writeRecord(
-            token,
+            boundToken,
             service: ServiceConstants.ssoTokenService,
             account: sessionName
         )
 
-        return token
+        return boundToken
     }
 
-    /// Obtains an OIDC client (cached or freshly registered) and starts device authorization.
+    /// Signs in with the authorization code grant and PKCE. Returns `nil` when the loopback
+    /// callback cannot start, so the caller falls back to a device code.
+    private func browserSignIn(
+        client: StoredOIDCClient,
+        region: String,
+        scopes: [String],
+        sessionName: String,
+        verificationHandler: @escaping @Sendable (DeviceVerification) async -> Void
+    ) async throws -> StoredSSOToken? {
+        let pkce = try OAuthPKCE.generate()
+        let listener = await LoopbackOAuthListener(expectedState: pkce.state)
+
+        let redirectURI: URL
+        do {
+            redirectURI = try await listener.start()
+        } catch BrowserSignInError.callbackUnavailable {
+            logger.notice("Browser sign-in callback unavailable; falling back to a device code")
+            return nil
+        }
+
+        do {
+            let authorizationURL = try pkce.authorizationURL(
+                region: region,
+                clientID: client.clientId,
+                redirectURI: redirectURI,
+                scopes: scopes
+            )
+            await verificationHandler(DeviceVerification(
+                userCode: nil,
+                verificationUri: authorizationURL,
+                verificationUriComplete: authorizationURL,
+                expiresAt: await sleeper.now.addingTimeInterval(TimeInterval(LoopbackOAuthListener.defaultLifetime.components.seconds)),
+                interval: 0
+            ))
+            let code = try await listener.authorizationCode()
+            let oidc = try await oidcClientProvider.client(forRegion: region)
+            return try await oidc.exchangeAuthorizationCode(
+                client: client,
+                code: code,
+                codeVerifier: pkce.verifier,
+                redirectUri: redirectURI.absoluteString,
+                sessionName: sessionName
+            )
+        } catch let error as BrowserSignInError {
+            await listener.cancel()
+            switch error {
+            case .accessDenied:
+                throw IAMIdentityCenterError.accessDenied
+            case .timedOut:
+                throw IAMIdentityCenterError.deviceFlowTimedOut
+            case .callbackUnavailable, .invalidCallback:
+                throw IAMIdentityCenterError.malformedResponse("The browser sign-in could not be completed")
+            }
+        } catch {
+            await listener.cancel()
+            throw error
+        }
+    }
+
+    /// Signs in with the device code grant: shows the user code, then polls for the token.
     ///
-    /// A cached registration is long-lived (`clientSecretExpiresAt` ~90 days) and is required
-    /// to persist across restarts so silent refresh works (the refresh-token grant is bound to
-    /// the `clientId`/`clientSecret` that minted the token — AWS OIDC `CreateToken` requires
-    /// both). But a registration can be invalidated out from under us — revoked, deleted
-    /// server-side, or (historically) cached against the wrong region. The cache check is
-    /// *time-based* only; invalidation surfaces here as `.invalidClient` on first use. The
-    /// documented recovery is to re-register, so on `.invalidClient` we purge the cached client,
-    /// register a fresh one, and retry the device-authorization call exactly once.
-    private func registerAndStartDeviceAuth(
+    /// A cached registration can be invalidated out from under us (revoked or deleted
+    /// server-side). That surfaces as `.invalidClient` on first use; the documented recovery is
+    /// to re-register, so the client is replaced and device authorization retried exactly once.
+    private func deviceSignIn(
+        client: StoredOIDCClient,
         region: String,
         startUrl: URL,
         scopes: [String],
         clientName: String,
-        sessionName: String
-    ) async throws -> (client: StoredOIDCClient, deviceCode: String, verification: DeviceVerification) {
-        let client = try await ensureOIDCClient(region: region, scopes: scopes, clientName: clientName)
+        sessionName: String,
+        verificationHandler: @escaping @Sendable (DeviceVerification) async -> Void
+    ) async throws -> StoredSSOToken {
         let oidc = try await oidcClientProvider.client(forRegion: region)
+        var activeClient = client
+        let deviceCode: String
+        let verification: DeviceVerification
         do {
-            let (deviceCode, verification) = try await oidc.startDeviceAuthorization(
+            (deviceCode, verification) = try await oidc.startDeviceAuthorization(
                 client: client,
                 startUrl: startUrl,
                 sessionName: sessionName
             )
-            return (client, deviceCode, verification)
         } catch IAMIdentityCenterError.invalidClient {
             logger.notice("Cached OIDC client rejected (invalidClient) for region \(region, privacy: .public); re-registering and retrying device authorization")
-            let fresh = try await ensureOIDCClient(
+            activeClient = try await ensureSessionClient(
                 region: region,
+                startUrl: startUrl,
                 scopes: scopes,
                 clientName: clientName,
                 forceReregister: true
             )
-            let (deviceCode, verification) = try await oidc.startDeviceAuthorization(
-                client: fresh,
+            (deviceCode, verification) = try await oidc.startDeviceAuthorization(
+                client: activeClient,
                 startUrl: startUrl,
                 sessionName: sessionName
             )
-            return (fresh, deviceCode, verification)
         }
+
+        await verificationHandler(verification)
+
+        return try await pollForToken(
+            client: activeClient,
+            deviceCode: deviceCode,
+            sessionName: sessionName,
+            verification: verification
+        )
     }
 
-    /// Reads cached OIDC client from Keychain; re-registers if missing, near-expiry, or when
-    /// `forceReregister` is set (used by the `.invalidClient` recovery path). A fresh
-    /// registration overwrites the cached Keychain row for the region, purging a stale one.
-    private func ensureOIDCClient(
+    /// Keychain account of a session's OIDC client: one per Identity Center instance and region.
+    static func sessionClientAccount(region: String, startUrl: URL) -> String {
+        "\(region) \(startUrl.absoluteString)"
+    }
+
+    /// Reads the session's cached OIDC client from Keychain; registers a new one if missing,
+    /// near expiry, registered for other scopes or grants, or when `forceReregister` is set.
+    /// A registration is long-lived (`clientSecretExpiresAt` ~90 days) and must persist across
+    /// restarts so silent refresh works: AWS binds a refresh token to the client that minted it.
+    private func ensureSessionClient(
         region: String,
+        startUrl: URL,
         scopes: [String],
         clientName: String,
         forceReregister: Bool = false
     ) async throws -> StoredOIDCClient {
         let service = ServiceConstants.oidcClientService
-        let account = region
+        let account = Self.sessionClientAccount(region: region, startUrl: startUrl)
 
         if !forceReregister, let cached = try? await keychain.readRecord(
             StoredOIDCClient.self,
@@ -303,13 +397,19 @@ public actor IdentityCenterService: IdentityCenterServicing {
             let leadTime = ServiceConstants.oidcClientReregistrationLeadTime
             let withinLeadTime = cached.secretExpiresAt.timeIntervalSinceNow < leadTime
             let scopeMatches = Set(cached.scopes) == Set(scopes)
-            if !withinLeadTime, scopeMatches {
+            let grantsMatch = Set(cached.grantTypes ?? []) == Set(OAuthGrant.sessionClientGrants)
+            if !withinLeadTime, scopeMatches, grantsMatch {
                 return cached
             }
         }
 
         let oidc = try await oidcClientProvider.client(forRegion: region)
-        let client = try await oidc.registerClient(clientName: clientName, scopes: scopes)
+        let client = try await oidc.registerSessionClient(
+            clientName: clientName,
+            scopes: scopes,
+            issuerUrl: startUrl,
+            redirectUri: OAuthGrant.redirectUri
+        )
         try await keychain.writeRecord(client, service: service, account: account)
         return client
     }

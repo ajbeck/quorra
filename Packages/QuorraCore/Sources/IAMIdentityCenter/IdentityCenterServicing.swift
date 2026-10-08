@@ -22,6 +22,7 @@ public protocol IdentityCenterServicing: Sendable {
         region: String,
         scopes: [String],
         clientName: String,
+        useDeviceCode: Bool,
         verificationHandler: @escaping @Sendable (DeviceVerification) async -> Void
     ) async throws -> StoredSSOToken
 

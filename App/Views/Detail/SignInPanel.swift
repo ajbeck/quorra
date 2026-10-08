@@ -111,10 +111,12 @@ struct SignInPanel: View {
     @ViewBuilder
     private func inProgressView(progress: SignInProgress) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            LabeledContent("User code") {
-                Text(progress.userCode)
-                    .font(.system(.title3, design: .monospaced, weight: .semibold))
-                    .textSelection(.enabled)
+            if let userCode = progress.userCode {
+                LabeledContent("User code") {
+                    Text(userCode)
+                        .font(.system(.title3, design: .monospaced, weight: .semibold))
+                        .textSelection(.enabled)
+                }
             }
 
             AuthenticationBrowserActions(

@@ -3,13 +3,15 @@ title: "Sign in with Identity Center"
 description: "Authorise a session in your browser, and let Quorra keep it refreshed."
 weight: 10
 ---
-Quorra signs in to AWS IAM Identity Center itself, using the native device authorization flow. You do not need the AWS CLI installed to sign in.
+Quorra signs in to AWS IAM Identity Center itself, using the browser sign-in flow (authorization code with PKCE) that the AWS CLI also uses by default. You do not need the AWS CLI installed to sign in.
 
 ## Sign in
 
-Select a session in the sidebar and choose **Sign In**. Quorra opens your browser at the Identity Center portal and shows the user code to confirm. Approve it there, and Quorra picks up the token as soon as AWS confirms.
+Select a session in the sidebar and choose **Sign In**. Quorra opens your browser at the Identity Center portal. Approve the request there, and the browser hands the sign-in back to Quorra on your Mac; there is no code to type.
 
-While a sign-in is in progress, the menu bar shows the code and its expiry, and offers to reopen the authorisation page if you lost the tab.
+While a sign-in is in progress, the menu bar offers to reopen the authorisation page if you lost the tab.
+
+If Quorra cannot receive the browser's response on your Mac, it falls back to the device authorization flow: it shows a user code to confirm in the browser, and the menu bar shows the code and its expiry.
 
 {{< callout kind="note" >}}
 The access token is stored in the macOS Keychain, not in Quorra's application files.

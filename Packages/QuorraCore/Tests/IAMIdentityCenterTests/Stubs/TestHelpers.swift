@@ -53,7 +53,8 @@ func makeStoredClient(
         issuedAt: Date(),
         secretExpiresAt: secretExpiresAt,
         region: region,
-        scopes: scopes
+        scopes: scopes,
+        grantTypes: OAuthGrant.sessionClientGrants
     )
 }
 

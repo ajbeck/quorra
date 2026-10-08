@@ -23,13 +23,22 @@ public struct StoredOIDCClient: Sendable, Hashable, Codable {
     /// Scopes requested at registration time.
     public let scopes: [String]
 
+    /// Grant types requested at registration time. `nil` for clients registered before
+    /// browser sign-in, which AWS limited to the device code and refresh grants.
+    public let grantTypes: [String]?
+
+    /// The Identity Center issuer (start) URL the client was registered for, if any.
+    public let issuerUrl: String?
+
     public init(
         clientId: String,
         clientSecret: String,
         issuedAt: Date,
         secretExpiresAt: Date,
         region: String,
-        scopes: [String]
+        scopes: [String],
+        grantTypes: [String]? = nil,
+        issuerUrl: String? = nil
     ) {
         self.clientId = clientId
         self.clientSecret = clientSecret
@@ -37,6 +46,8 @@ public struct StoredOIDCClient: Sendable, Hashable, Codable {
         self.secretExpiresAt = secretExpiresAt
         self.region = region
         self.scopes = scopes
+        self.grantTypes = grantTypes
+        self.issuerUrl = issuerUrl
     }
 }
 

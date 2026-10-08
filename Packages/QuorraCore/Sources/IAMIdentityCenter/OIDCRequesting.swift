@@ -7,10 +7,23 @@ import Foundation
 /// Apple's documented pattern: *"Replace complex dependencies with stubs… Adopting
 /// dependency injection and protocol-oriented programming."* — Apple Testing documentation.
 public protocol OIDCRequesting: Sendable {
-    func registerClient(
+    /// Registers a client for one Identity Center instance that can use the authorization code
+    /// (PKCE), device code and refresh token grants, so either sign-in mints tokens it can refresh.
+    func registerSessionClient(
         clientName: String,
-        scopes: [String]
+        scopes: [String],
+        issuerUrl: URL,
+        redirectUri: String
     ) async throws -> StoredOIDCClient
+
+    /// Exchanges an authorization code from the browser callback for a token.
+    func exchangeAuthorizationCode(
+        client: StoredOIDCClient,
+        code: String,
+        codeVerifier: String,
+        redirectUri: String,
+        sessionName: String
+    ) async throws -> StoredSSOToken
 
     func startDeviceAuthorization(
         client: StoredOIDCClient,

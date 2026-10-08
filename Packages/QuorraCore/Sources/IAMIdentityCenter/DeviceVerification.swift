@@ -2,10 +2,11 @@ import Foundation
 
 /// Payload passed to the `verificationHandler` callback during `signIn`.
 ///
-/// Contains everything the app needs to open the browser and show the user code.
+/// Contains everything the app needs to open the browser and, for the device code grant, show
+/// the user code. A browser (PKCE) sign-in has no user code: both URLs are the authorization page.
 public struct DeviceVerification: Sendable, Hashable {
-    /// User code to display as a fallback.
-    public let userCode: String
+    /// User code to display as a fallback; `nil` for a browser (PKCE) sign-in.
+    public let userCode: String?
 
     /// Verification URL (without the user code embedded).
     public let verificationUri: URL
@@ -20,7 +21,7 @@ public struct DeviceVerification: Sendable, Hashable {
     public let interval: TimeInterval
 
     public init(
-        userCode: String,
+        userCode: String?,
         verificationUri: URL,
         verificationUriComplete: URL,
         expiresAt: Date,

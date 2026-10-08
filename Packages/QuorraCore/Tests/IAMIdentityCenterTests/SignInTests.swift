@@ -47,6 +47,7 @@ struct SignInTests {
             startUrl: URL(string: "https://example.awsapps.com/start")!,
             region: "us-east-1",
             scopes: ["sso:account:access"],
+            useDeviceCode: true,
             verificationHandler: { await capture.record($0) }
         )
 
@@ -66,7 +67,7 @@ struct SignInTests {
         let persistedClient = try await keychain.readRecord(
             StoredOIDCClient.self,
             service: "dev.ajbeck.quorra.oidc-client",
-            account: "us-east-1"
+            account: "us-east-1 https://example.awsapps.com/start"
         )
         #expect(persistedClient.clientId == "test-client-id")
 
@@ -100,6 +101,7 @@ struct SignInTests {
             startUrl: URL(string: "https://example.awsapps.com/start")!,
             region: "us-east-1",
             scopes: ["sso:account:access"],
+            useDeviceCode: true,
             verificationHandler: { _ in }
         )
 
@@ -127,6 +129,7 @@ struct SignInTests {
                 startUrl: URL(string: "https://example.awsapps.com/start")!,
                 region: "us-east-1",
                 scopes: ["sso:account:access"],
+                useDeviceCode: true,
                 verificationHandler: { _ in }
             )
             Issue.record("Expected .deviceFlowTimedOut")
@@ -166,6 +169,7 @@ struct SignInTests {
                 startUrl: URL(string: "https://example.awsapps.com/start")!,
                 region: "us-east-1",
                 scopes: ["sso:account:access"],
+                useDeviceCode: true,
                 verificationHandler: { _ in }
             )
         }
@@ -214,10 +218,11 @@ struct SignInTests {
                 issuedAt: Date(),
                 secretExpiresAt: Date().addingTimeInterval(90 * 24 * 60 * 60),
                 region: "us-east-1",
-                scopes: ["sso:account:access"]
+                scopes: ["sso:account:access"],
+                grantTypes: OAuthGrant.sessionClientGrants
             ),
             service: "dev.ajbeck.quorra.oidc-client",
-            account: "us-east-1"
+            account: "us-east-1 https://example.awsapps.com/start"
         )
 
         let stub = StubOIDCRequesting()
@@ -236,6 +241,7 @@ struct SignInTests {
             startUrl: URL(string: "https://example.awsapps.com/start")!,
             region: "us-east-1",
             scopes: ["sso:account:access"],
+            useDeviceCode: true,
             verificationHandler: { _ in }
         )
         #expect(token.accessToken == "test-access-token")
@@ -256,10 +262,11 @@ struct SignInTests {
                 issuedAt: Date().addingTimeInterval(-83 * 24 * 60 * 60),
                 secretExpiresAt: Date().addingTimeInterval(6 * 24 * 60 * 60),
                 region: "us-east-1",
-                scopes: ["sso:account:access"]
+                scopes: ["sso:account:access"],
+                grantTypes: OAuthGrant.sessionClientGrants
             ),
             service: "dev.ajbeck.quorra.oidc-client",
-            account: "us-east-1"
+            account: "us-east-1 https://example.awsapps.com/start"
         )
 
         let stub = StubOIDCRequesting()
@@ -277,6 +284,7 @@ struct SignInTests {
             startUrl: URL(string: "https://example.awsapps.com/start")!,
             region: "us-east-1",
             scopes: ["sso:account:access"],
+            useDeviceCode: true,
             verificationHandler: { _ in }
         )
         #expect(token.accessToken == "test-access-token")
@@ -285,7 +293,7 @@ struct SignInTests {
         let storedClient = try await keychain.readRecord(
             StoredOIDCClient.self,
             service: "dev.ajbeck.quorra.oidc-client",
-            account: "us-east-1"
+            account: "us-east-1 https://example.awsapps.com/start"
         )
         #expect(storedClient.clientId == "new-client-id")
 
@@ -301,7 +309,7 @@ struct SignInTests {
                 scopes: ["sso:account:access"]
             ),
             service: "dev.ajbeck.quorra.oidc-client",
-            account: "us-east-1"
+            account: "us-east-1 https://example.awsapps.com/start"
         )
 
         let requestedScopes = ["sso:account:access", "codewhisperer:completions"]
@@ -324,6 +332,7 @@ struct SignInTests {
             startUrl: URL(string: "https://example.awsapps.com/start")!,
             region: "us-east-1",
             scopes: requestedScopes,
+            useDeviceCode: true,
             verificationHandler: { _ in }
         )
 
@@ -331,7 +340,7 @@ struct SignInTests {
         let cached = try await keychain.readRecord(
             StoredOIDCClient.self,
             service: "dev.ajbeck.quorra.oidc-client",
-            account: "us-east-1"
+            account: "us-east-1 https://example.awsapps.com/start"
         )
         #expect(cached.clientId == "new-scope-client-id")
         #expect(Set(cached.scopes) == Set(requestedScopes))
@@ -348,7 +357,7 @@ struct SignInTests {
         try await keychain.writeRecord(
             makeStoredClient(clientId: "stale-client-id", region: "us-east-2"),
             service: "dev.ajbeck.quorra.oidc-client",
-            account: "us-east-2"
+            account: "us-east-2 https://asteroidcomputing.awsapps.com/start"
         )
 
         let stub = StubOIDCRequesting()
@@ -373,6 +382,7 @@ struct SignInTests {
             startUrl: URL(string: "https://asteroidcomputing.awsapps.com/start")!,
             region: "us-east-2",
             scopes: ["sso:account:access"],
+            useDeviceCode: true,
             verificationHandler: { _ in }
         )
 
@@ -385,7 +395,7 @@ struct SignInTests {
         let cached = try await keychain.readRecord(
             StoredOIDCClient.self,
             service: "dev.ajbeck.quorra.oidc-client",
-            account: "us-east-2"
+            account: "us-east-2 https://asteroidcomputing.awsapps.com/start"
         )
         #expect(cached.clientId == "fresh-client-id")
     }
