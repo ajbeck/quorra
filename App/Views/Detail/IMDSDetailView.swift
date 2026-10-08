@@ -275,10 +275,6 @@ struct IMDSDetailView: View {
                         color: statusAccent(for: state),
                         minimumWidth: 72
                     )
-
-                    if !DefaultIMDSEndpoint.matches(definition) {
-                        servedProfileControl(for: node, state: state, definition: definition)
-                    }
                 }
 
                 Text(endpointURL(for: state, definition: definition))
@@ -292,10 +288,8 @@ struct IMDSDetailView: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
 
-                if DefaultIMDSEndpoint.matches(definition) {
-                    servedProfileControl(for: node, state: state, definition: definition)
-                        .padding(.top, 3)
-                }
+                servedProfileControl(for: node, state: state, definition: definition)
+                    .padding(.top, 3)
 
                 credentialPromptRow(for: node, state: state)
             }
@@ -333,79 +327,66 @@ struct IMDSDetailView: View {
         state: IMDSEndpointState,
         definition: IMDSEndpointDefinition
     ) -> some View {
-        if DefaultIMDSEndpoint.matches(definition) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Serving profile")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Serving profile")
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
-                HStack(spacing: 8) {
-                    Label(node.name, systemImage: "person.crop.circle")
-                        .font(.callout)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-
-                    Menu {
-                        ForEach(eligibleEndpointProfiles, id: \.name) { profile in
-                            Button {
-                                guard profile.name != definition.profileName else { return }
-                                let profileName = profile.name
-                                Task {
-                                    await switchDefaultEndpointProfile(
-                                        to: profileName,
-                                        from: node,
-                                        state: state,
-                                        definition: definition
-                                    )
-                                }
-                            } label: {
-                                if profile.name == definition.profileName {
-                                    Label(profile.name, systemImage: "checkmark")
-                                } else {
-                                    Text(profile.name)
-                                }
-                            }
-                        }
-                    } label: {
-                        if isSwitchingProfile {
-                            HStack(spacing: 6) {
-                                ProgressView()
-                                    .controlSize(.mini)
-                                Text("Changing…")
-                            }
-                        } else {
-                            Label("Change Profile", systemImage: "arrow.triangle.swap")
-                        }
-                    }
-                    .menuStyle(.borderedButton)
-                    .controlSize(.small)
-                    .disabled(state.isStarting || isSwitchingProfile)
-                    .pressFeedback()
-                    .help("Change the profile served on \(DefaultIMDSEndpoint.bindAddress):\(DefaultIMDSEndpoint.port)")
-                    .accessibilityLabel("Change served profile. Current profile: \(node.name)")
-
-                    Button {
-                        navigateToProfile(node.name)
-                    } label: {
-                        Label("Open Profile", systemImage: "arrow.up.right.square")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .pressFeedback()
-                    .help("Open profile \(node.name)")
-                }
-            }
-        } else {
-            Button {
-                navigateToProfile(node.name)
-            } label: {
+            HStack(spacing: 8) {
                 Label(node.name, systemImage: "person.crop.circle")
+                    .font(.callout)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+
+                Menu {
+                    ForEach(eligibleEndpointProfiles, id: \.name) { profile in
+                        Button {
+                            guard profile.name != definition.profileName else { return }
+                            let profileName = profile.name
+                            Task {
+                                await switchEndpointProfile(
+                                    to: profileName,
+                                    from: node,
+                                    state: state,
+                                    definition: definition
+                                )
+                            }
+                        } label: {
+                            if profile.name == definition.profileName {
+                                Label(profile.name, systemImage: "checkmark")
+                            } else {
+                                Text(profile.name)
+                            }
+                        }
+                    }
+                } label: {
+                    if isSwitchingProfile {
+                        HStack(spacing: 6) {
+                            ProgressView()
+                                .controlSize(.mini)
+                            Text("Changing…")
+                        }
+                    } else {
+                        Label("Change Profile", systemImage: "arrow.triangle.swap")
+                    }
+                }
+                .menuStyle(.borderedButton)
+                .controlSize(.small)
+                .disabled(state.isStarting || isSwitchingProfile)
+                .pressFeedback()
+                .help("Change the profile served on \(definition.bindAddress):\(definition.port)")
+                .accessibilityLabel("Change served profile. Current profile: \(node.name)")
+
+                Button {
+                    navigateToProfile(node.name)
+                } label: {
+                    Label("Open Profile", systemImage: "arrow.up.right.square")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .pressFeedback()
+                .help("Open profile \(node.name)")
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .tint(.blue)
-            .pressFeedback()
-            .help("Open profile \(node.name)")
         }
     }
 
@@ -758,7 +739,7 @@ struct IMDSDetailView: View {
         (try? IdentityStore.eligibleProfiles(in: modelContext)) ?? []
     }
 
-    private func switchDefaultEndpointProfile(
+    private func switchEndpointProfile(
         to profileName: String,
         from currentNode: ProfileDefinition,
         state: IMDSEndpointState,
@@ -793,7 +774,7 @@ struct IMDSDetailView: View {
             definition.updatedAt = .now
             try modelContext.save()
 
-            if !switchedLive, imdsModel.shouldRestoreDefaultEndpoint {
+            if DefaultIMDSEndpoint.matches(definition), !switchedLive, imdsModel.shouldRestoreDefaultEndpoint {
                 await startEndpoint(
                     endpointKey: definition.stableIDString,
                     for: targetNode,

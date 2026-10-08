@@ -223,14 +223,21 @@ final class AppRuntimeCoordinator {
     }
 
     func switchDefaultEndpointProfile(to profileName: String) async throws {
-        guard let targetNode = eligibleDefaultEndpointProfiles.first(where: { $0.name == profileName }) else {
-            throw AppRuntimeOperationError.profileNotFound(profileName)
-        }
         let definitions = try modelContext.fetch(FetchDescriptor<IMDSEndpointDefinition>())
         guard let definition = definitions.first(where: DefaultIMDSEndpoint.matches) else {
             throw AppRuntimeOperationError.profileSwitchUnavailable
         }
+        try await switchEndpointProfile(definition, to: profileName)
+    }
+
+    /// Changes the profile an endpoint serves. A running endpoint keeps its listener and
+    /// keeps serving the previous profile until the new profile's credentials are ready.
+    func switchEndpointProfile(_ definition: IMDSEndpointDefinition, to profileName: String) async throws {
+        guard let targetNode = eligibleDefaultEndpointProfiles.first(where: { $0.name == profileName }) else {
+            throw AppRuntimeOperationError.profileNotFound(profileName)
+        }
         guard definition.profileName != profileName else { return }
+        let isDefault = DefaultIMDSEndpoint.matches(definition)
 
         let state = imdsModel.state(forEndpointID: definition.stableIDString)
         let previousProfileName = definition.profileName
@@ -251,7 +258,7 @@ final class AppRuntimeCoordinator {
         }
         guard !state.isActive || switchedLive else {
             throw AppRuntimeOperationError.endpointFailed(
-                "Quorra could not switch the running Default IMDS Endpoint."
+                "Quorra could not switch the running endpoint ‘\(definition.name)’."
             )
         }
 
@@ -260,7 +267,9 @@ final class AppRuntimeCoordinator {
         definition.updatedAt = .now
         do {
             try modelContext.save()
-            defaultEndpointProfileName = profileName
+            if isDefault {
+                defaultEndpointProfileName = profileName
+            }
         } catch {
             if !switchedLive {
                 definition.profileName = previousProfileName
@@ -269,7 +278,7 @@ final class AppRuntimeCoordinator {
             throw AppRuntimeOperationError.persistenceFailed(error.localizedDescription)
         }
 
-        if !switchedLive, imdsModel.shouldRestoreDefaultEndpoint {
+        if isDefault, !switchedLive, imdsModel.shouldRestoreDefaultEndpoint {
             await requestReconciliation(force: true)
             try throwIfEndpointFailed(definition)
         }

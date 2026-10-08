@@ -161,19 +161,13 @@ private final class AppIPCRequestHandler {
                 )
             case .imdsSwitchProfile:
                 let definition = try resolveEndpoint(from: request)
-                guard DefaultIMDSEndpoint.matches(definition) else {
-                    throw AppIPCHandlerError(
-                        code: .invalidRequest,
-                        message: "Only the Default IMDS Endpoint can switch profiles."
-                    )
-                }
                 guard let profileName = request.arguments["profile"], !profileName.isEmpty else {
                     throw AppIPCHandlerError(
                         code: .invalidRequest,
                         message: "A profile name is required."
                     )
                 }
-                try await runtimeCoordinator.switchDefaultEndpointProfile(to: profileName)
+                try await runtimeCoordinator.switchEndpointProfile(definition, to: profileName)
                 return try .success(
                     requestID: request.requestID,
                     payload: endpointRecord(definition)

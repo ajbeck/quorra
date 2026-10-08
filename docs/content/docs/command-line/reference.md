@@ -77,7 +77,7 @@ $ quorra imds switch-profile ac:mgmt:admin
 Default IMDS Endpoint now uses ac:mgmt:admin.
 ```
 
-The default endpoint can be switched while it is running.
+Any endpoint can be switched while it is running; it keeps serving the previous profile until the new one's credentials are ready.
 
 ## quorra start, quorra stop
 
