@@ -29,6 +29,13 @@
     {
       "target" : {
         "containerPath" : "container:Packages\/QuorraCore",
+        "identifier" : "DatabaseProxyTests",
+        "name" : "DatabaseProxyTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:Packages\/QuorraCore",
         "identifier" : "QuorraAppLogicTests",
         "name" : "QuorraAppLogicTests"
       }

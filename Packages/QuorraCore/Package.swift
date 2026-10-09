@@ -10,6 +10,7 @@ let package = Package(
     products: [
         .library(name: "AWSConfigINI", targets: ["AWSConfigINI"]),
         .library(name: "IAMIdentityCenter", targets: ["IAMIdentityCenter"]),
+        .library(name: "DatabaseProxy", targets: ["DatabaseProxy"]),
         .library(name: "QuorraProfiles", targets: ["QuorraProfiles"]),
         .library(name: "QuorraIPC", targets: ["QuorraIPC"]),
         .library(name: "QuorraAppLogic", targets: ["QuorraAppLogic"]),
@@ -44,6 +45,23 @@ let package = Package(
             name: "IAMIdentityCenter",
             dependencies: [
                 .product(name: "AWSSSOOIDC", package: "aws-sdk-swift"),
+            ]
+        ),
+        .target(
+            name: "DatabaseProxy",
+            dependencies: [
+                "IAMIdentityCenter",
+                .product(name: "AWSRDS", package: "aws-sdk-swift"),
+            ],
+            resources: [
+                .process("Resources"),
+            ]
+        ),
+        .testTarget(
+            name: "DatabaseProxyTests",
+            dependencies: ["DatabaseProxy", "IAMIdentityCenter"],
+            resources: [
+                .process("Fixtures"),
             ]
         ),
         .target(
