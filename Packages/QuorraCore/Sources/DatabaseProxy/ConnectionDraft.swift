@@ -1,20 +1,20 @@
 import Foundation
 
-nonisolated enum DatabaseEngine: String, Codable, CaseIterable, Identifiable, Sendable {
+public nonisolated enum DatabaseEngine: String, Codable, CaseIterable, Identifiable, Sendable {
     case postgresql
     case mysql
 
-    var id: String { rawValue }
-    var displayName: String { self == .postgresql ? "PostgreSQL" : "MySQL" }
-    var defaultPort: Int { self == .postgresql ? 5432 : 3306 }
-    var suggestedLocalPort: Int { self == .postgresql ? 15432 : 13306 }
+    public var id: String { rawValue }
+    public var displayName: String { self == .postgresql ? "PostgreSQL" : "MySQL" }
+    public var defaultPort: Int { self == .postgresql ? 5432 : 3306 }
+    public var suggestedLocalPort: Int { self == .postgresql ? 15432 : 13306 }
 }
 
-nonisolated enum CredentialKind: String, Codable, CaseIterable, Identifiable, Sendable {
+public nonisolated enum CredentialKind: String, Codable, CaseIterable, Identifiable, Sendable {
     case databasePassword
     case awsIAM
-    var id: String { rawValue }
-    var title: String { self == .awsIAM ? "AWS IAM" : "Database password" }
+    public var id: String { rawValue }
+    public var title: String { self == .awsIAM ? "AWS IAM" : "Database password" }
 }
 
 nonisolated struct CredentialReference: Codable, Equatable, Sendable {
@@ -65,7 +65,7 @@ nonisolated struct ConnectionDraft: Equatable, Sendable {
     }
 }
 
-nonisolated enum ConfigurationError: Error, Equatable, LocalizedError {
+public nonisolated enum ConfigurationError: Error, Equatable, LocalizedError {
     case required(String)
     case invalidPort(String)
     case invalidHost
@@ -83,7 +83,7 @@ nonisolated enum ConfigurationError: Error, Equatable, LocalizedError {
     case localPortInUse(Int)
     case configurationChanged
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .required(let field): "\(field) is required."
         case .invalidPort(let field): "\(field) must be between 1 and 65535."

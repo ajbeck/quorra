@@ -20,6 +20,9 @@ public final class ProfileDefinition {
     @Relationship(deleteRule: .nullify, inverse: \IMDSEndpointDefinition.profile)
     public var endpoints: [IMDSEndpointDefinition]
 
+    @Relationship(deleteRule: .nullify, inverse: \DatabaseConnectionDefinition.profile)
+    public var databaseConnections: [DatabaseConnectionDefinition]
+
     public init(
         id: UUID = UUID(),
         name: String,
@@ -39,6 +42,7 @@ public final class ProfileDefinition {
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.endpoints = []
+        self.databaseConnections = []
     }
 
     public var stableID: UUID {

@@ -2,11 +2,11 @@ import Foundation
 import Network
 import Security
 
-nonisolated enum DatabaseTLSOptions {
-    enum TrustSource: String, Codable, CaseIterable, Identifiable, Sendable {
+public nonisolated enum DatabaseTLSOptions {
+    public enum TrustSource: String, Codable, CaseIterable, Identifiable, Sendable {
         case system, rds, rdsProxy
-        var id: String { rawValue }
-        var title: String {
+        public var id: String { rawValue }
+        public var title: String {
             switch self {
             case .rds: "Amazon RDS certificates"
             case .rdsProxy: "Amazon RDS Proxy certificates"

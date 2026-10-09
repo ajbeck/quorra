@@ -16,9 +16,14 @@ nonisolated protocol DatabaseRoleCredentialProviding: Sendable {
     func credentials(for binding: DatabaseRoleBinding) async throws -> RoleCredentials
 }
 
-nonisolated struct DatabaseLogin: Sendable, CustomStringConvertible, CustomDebugStringConvertible {
-    let username: String
-    let password: String
-    var description: String { "DatabaseLogin(redacted)" }
-    var debugDescription: String { description }
+public nonisolated struct DatabaseLogin: Sendable, CustomStringConvertible, CustomDebugStringConvertible {
+    public let username: String
+    public let password: String
+    public var description: String { "DatabaseLogin(redacted)" }
+    public var debugDescription: String { description }
+
+    public init(username: String, password: String) {
+        self.username = username
+        self.password = password
+    }
 }
