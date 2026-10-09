@@ -1,4 +1,5 @@
 import SwiftUI
+import DatabaseProxy
 import QuorraAppLogic
 
 struct ObjectListRow: View {
@@ -65,6 +66,44 @@ struct ObjectListRow: View {
                             .foregroundStyle(endpoint.profileName.isEmpty ? Color.orange : Color.secondary)
                             .lineLimit(1)
                     }
+                }
+                Spacer(minLength: 8)
+            }
+            .padding(.vertical, 3)
+
+        case .databaseConnection(let connection):
+            HStack(spacing: 8) {
+                Image(systemName: connection.state.systemImage)
+                    .foregroundStyle(connection.state.tint)
+                    .frame(width: 18)
+                    .accessibilityLabel(connection.state.rawValue)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(connection.name)
+                        .lineLimit(1)
+                    Text(connection.subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                Text(verbatim: ":\(connection.localPort)")
+                    .font(.caption.monospaced())
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.vertical, 3)
+
+        case .databaseCredential(let credential):
+            HStack(spacing: 8) {
+                Image(systemName: "person.badge.key")
+                    .foregroundStyle(.secondary)
+                    .frame(width: 18)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(credential.name)
+                        .lineLimit(1)
+                    Text("\(credential.username) · \(credential.connectionCount) \(credential.connectionCount == 1 ? "connection" : "connections")")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
                 Spacer(minLength: 8)
             }

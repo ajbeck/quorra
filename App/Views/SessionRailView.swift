@@ -7,6 +7,8 @@ struct SourceSidebarView: View {
     @Query private var sessionDefinitions: [SessionDefinition]
     @Query private var profileDefinitions: [ProfileDefinition]
     @Query private var endpointDefinitions: [IMDSEndpointDefinition]
+    @Query private var databaseConnections: [DatabaseConnectionDefinition]
+    @Query private var databaseCredentials: [DatabaseCredentialDefinition]
     @FocusState private var isFocused: Bool
 
     var body: some View {
@@ -21,6 +23,14 @@ struct SourceSidebarView: View {
                 SourceSidebarRow(title: MetadataObjectKind.imdsEndpoint.title, systemImage: MetadataObjectKind.imdsEndpoint.systemImage)
                     .badge(endpointDefinitions.count)
                     .tag(SourceSelection.imdsEndpoints)
+            }
+            Section("Databases") {
+                SourceSidebarRow(title: SourceSelection.databaseConnections.title, systemImage: SourceSelection.databaseConnections.systemImage)
+                    .badge(databaseConnections.count)
+                    .tag(SourceSelection.databaseConnections)
+                SourceSidebarRow(title: SourceSelection.databaseCredentials.title, systemImage: SourceSelection.databaseCredentials.systemImage)
+                    .badge(databaseCredentials.count)
+                    .tag(SourceSelection.databaseCredentials)
             }
         }
         .listStyle(.sidebar)

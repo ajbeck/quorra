@@ -16,6 +16,7 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
     let notificationCoordinator: DefaultIMDSNotificationCoordinator
     let authenticationBrowser: AuthenticationBrowser
     let credentialsModel: CredentialsModel
+    let databaseModel: DatabaseModel
     let runtimeCoordinator: AppRuntimeCoordinator
     let exportCoordinator: IdentityExportCoordinator
     let ipcController: AppIPCController
@@ -33,12 +34,19 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
         let imdsModel = IMDSModel()
         let notificationCoordinator = DefaultIMDSNotificationCoordinator()
         let authenticationBrowser = AuthenticationBrowser()
+        let keychain = Keychain(accessGroup: KeychainAccessGroup.shared)
         let credentialsModel = CredentialsModel(
             service: IdentityCenterService(
-                keychain: Keychain(accessGroup: KeychainAccessGroup.shared),
+                keychain: keychain,
                 oidcClientProvider: SDKOIDCClientProvider()
             )
         )
+        let databaseModel = DatabaseModel(
+            context: metadataContainer.mainContext,
+            secrets: DatabaseSecrets(keychain: keychain)
+        ) { [credentialsModel] session, account, role, region in
+            try await credentialsModel.liveCredentials(forSession: session, accountId: account, roleName: role, region: region)
+        }
 
         self.metadataContainer = metadataContainer
         self.appModel = appModel
@@ -48,6 +56,7 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
         self.notificationCoordinator = notificationCoordinator
         self.authenticationBrowser = authenticationBrowser
         self.credentialsModel = credentialsModel
+        self.databaseModel = databaseModel
         let runtimeCoordinator = AppRuntimeCoordinator(
             appModel: appModel,
             credentialsModel: credentialsModel,
@@ -55,7 +64,8 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
             imdsProxyController: imdsProxyController,
             notificationCoordinator: notificationCoordinator,
             authenticationBrowser: authenticationBrowser,
-            modelContext: metadataContainer.mainContext
+            modelContext: metadataContainer.mainContext,
+            databaseModel: databaseModel
         )
         self.runtimeCoordinator = runtimeCoordinator
         self.exportCoordinator = IdentityExportCoordinator(appModel: appModel, modelContext: metadataContainer.mainContext)
@@ -124,6 +134,7 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        databaseModel.flushLog()
         imdsProxyController.stop()
         ipcController.stop()
     }

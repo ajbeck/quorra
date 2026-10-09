@@ -8,6 +8,8 @@ struct DetailView: View {
     @Binding var searchText: String
     @Query private var sessionDefinitions: [SessionDefinition]
     @Query private var profileDefinitions: [ProfileDefinition]
+    @Query private var databaseConnections: [DatabaseConnectionDefinition]
+    @Query private var databaseCredentials: [DatabaseCredentialDefinition]
 
     /// Each item gets explicit identity (`.id`). The `switch` alone keeps the same view across
     /// selections of the same kind, so its state (the edit draft, the credentials card's values)
@@ -52,6 +54,20 @@ struct DetailView: View {
                 sourceSelection: $sourceSelection,
                 searchText: $searchText
             )
+        case .databaseConnection(let id):
+            if let connection = databaseConnections.first(where: { $0.stableIDString == id }) {
+                DatabaseConnectionDetailView(connection: connection)
+                    .id(id)
+            } else {
+                ContentUnavailableView("Connection not found", systemImage: "questionmark.circle")
+            }
+        case .databaseCredential(let id):
+            if let credential = databaseCredentials.first(where: { $0.stableIDString == id }) {
+                DatabaseCredentialDetailView(credential: credential, detailSelection: $selection)
+                    .id(id)
+            } else {
+                ContentUnavailableView("Credential not found", systemImage: "questionmark.circle")
+            }
         }
     }
 
@@ -102,6 +118,7 @@ private struct DetailViewPreviewHarness: View {
         )
             .environment(editorState)
             .environment(CredentialsModel(service: PreviewIdentityCenterService()))
+            .environment(DatabaseModel.preview(container: metadataContainer))
             .environment(imdsModel)
             .environment(IMDSProxyController())
             .environment(AppRuntimeCoordinator.preview())
