@@ -3,20 +3,26 @@ import IAMIdentityCenter
 import Network
 import Observation
 
-nonisolated struct ProxyEndpointStatus: Sendable {
-    enum State: String, Sendable {
+public nonisolated struct ProxyEndpointStatus: Sendable, Equatable {
+    public enum State: String, Sendable {
         case stopped = "Stopped", starting = "Starting", checkingUpstream = "Checking upstream"
         case listening = "Listening", failed = "Failed"
     }
-    var state: State = .stopped
-    var activeConnections = 0
-    var issue: String?
+    public var state: State = .stopped
+    public var activeConnections = 0
+    public var issue: String?
+
+    public init(state: State = .stopped, activeConnections: Int = 0, issue: String? = nil) {
+        self.state = state
+        self.activeConnections = activeConnections
+        self.issue = issue
+    }
 }
 
 @MainActor
 @Observable
-final class ProxyCoordinator {
-    private(set) var statuses: [UUID: ProxyEndpointStatus] = [:]
+public final class ProxyCoordinator {
+    public private(set) var statuses: [UUID: ProxyEndpointStatus] = [:]
     private let credentials: any DatabaseRoleCredentialProviding
     private let upstream: any PostgreSQLUpstreamConnecting
     private let mysql: (any MySQLUpstreamConnecting)?
@@ -24,6 +30,16 @@ final class ProxyCoordinator {
     private let upstreamCheckTimeout: Duration
     @ObservationIgnored private var endpoints: [UUID: Endpoint] = [:]
     private var shuttingDown = false
+
+    /// A coordinator with Quorra's PostgreSQL and MySQL connectors. `passwordLogin` resolves a
+    /// password connection's credential ID to its upstream login.
+    public convenience init(credentials: any DatabaseRoleCredentialProviding, diagnostics: DiagnosticLog,
+                            passwordLogin: @escaping @Sendable (UUID) async throws -> DatabaseLogin) {
+        self.init(credentials: credentials,
+                  upstream: PostgreSQLConnector(service: credentials, diagnostics: diagnostics, passwordLogin: passwordLogin),
+                  mysql: MySQLConnector(service: credentials, diagnostics: diagnostics, passwordLogin: passwordLogin),
+                  diagnostics: diagnostics)
+    }
 
     init(credentials: any DatabaseRoleCredentialProviding, upstream: any PostgreSQLUpstreamConnecting,
          mysql: (any MySQLUpstreamConnecting)? = nil, diagnostics: DiagnosticLog = .disabled,
@@ -35,9 +51,9 @@ final class ProxyCoordinator {
         self.upstreamCheckTimeout = upstreamCheckTimeout
     }
 
-    func isActive(_ id: UUID) -> Bool { endpoints[id] != nil }
+    public func isActive(_ id: UUID) -> Bool { endpoints[id] != nil }
 
-    func start(_ configuration: DatabaseConnectionSummary, binding: DatabaseRoleBinding? = nil, password: String?) async throws {
+    public func start(_ configuration: DatabaseConnectionSummary, binding: DatabaseRoleBinding? = nil, password: String?) async throws {
         guard !shuttingDown else { throw ProxyError.stopped }
         guard endpoints[configuration.id] == nil else { return }
         try configuration.validate(binding: binding)
@@ -133,7 +149,7 @@ final class ProxyCoordinator {
         }
     }
 
-    func stop(_ id: UUID) async {
+    public func stop(_ id: UUID) async {
         guard let endpoint = endpoints.removeValue(forKey: id) else { return }
         diagnostics.record(.endpointStopped, connectionID: id, count: endpoint.clients.count)
         endpoint.startup?.cancel()
@@ -146,7 +162,7 @@ final class ProxyCoordinator {
         statuses[id] = .init()
     }
 
-    func test(_ configuration: DatabaseConnectionSummary, binding: DatabaseRoleBinding? = nil) async throws {
+    public func test(_ configuration: DatabaseConnectionSummary, binding: DatabaseRoleBinding? = nil) async throws {
         guard !shuttingDown else { throw ProxyError.stopped }
         diagnostics.record(.connectionTestStarted, connectionID: configuration.id)
         try configuration.validate(binding: binding)
@@ -188,7 +204,7 @@ final class ProxyCoordinator {
         }
     }
 
-    func shutdown() async {
+    public func shutdown() async {
         shuttingDown = true
         for id in Array(endpoints.keys) { await stop(id) }
     }
@@ -370,7 +386,7 @@ final class ProxyCoordinator {
         return .localListenerUnavailable
     }
 
-    nonisolated static func message(_ error: any Error) -> String {
+    public nonisolated static func message(_ error: any Error) -> String {
         if error is ProxyError || error is IAMIdentityCenterError || error is ConfigurationError {
             return error.localizedDescription
         }

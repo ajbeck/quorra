@@ -2,7 +2,7 @@ import Foundation
 import IAMIdentityCenter
 import OSLog
 
-nonisolated enum DiagnosticEvent: String, Codable, Sendable {
+public nonisolated enum DiagnosticEvent: String, Codable, Sendable {
     case endpointStarting, endpointCheckingUpstream, endpointUpstreamVerified, endpointListening, endpointStopped, endpointFailed
     case clientAccepted, clientRejected, clientAuthenticated, clientClosed, clientFailed, handshakeTimedOut
     case upstreamConnecting, upstreamAuthenticated, upstreamFailed, cancellationForwarded, cancellationFailed
@@ -10,11 +10,11 @@ nonisolated enum DiagnosticEvent: String, Codable, Sendable {
     case connectionTestStarted, connectionTestSucceeded, connectionTestFailed
     case eventsDropped
 
-    var category: String {
+    public var category: String {
         self == .eventsDropped ? "diagnostics" : "proxy"
     }
 
-    var level: String {
+    public var level: String {
         switch self {
         case .endpointFailed, .clientFailed, .upstreamFailed, .cancellationFailed,
              .connectionTestFailed, .tlsVerificationFailed: "error"
@@ -26,9 +26,9 @@ nonisolated enum DiagnosticEvent: String, Codable, Sendable {
 
 /// Only known error families are recorded. Never serialize arbitrary errors,
 /// localized descriptions, HTTP responses, connection strings, or SQL.
-nonisolated struct DiagnosticFailure: Codable, Sendable {
-    let code: String
-    let status: Int32?
+public nonisolated struct DiagnosticFailure: Codable, Sendable {
+    public let code: String
+    public let status: Int32?
 
     init(_ error: any Error) {
         status = (error as? DatabaseCertificateFailure)?.status
@@ -43,25 +43,25 @@ nonisolated struct DiagnosticFailure: Codable, Sendable {
     }
 }
 
-nonisolated struct DiagnosticEntry: Codable, Identifiable, Sendable {
-    let schemaVersion: Int
-    let id: UUID
-    let timestamp: Date
-    let runID: UUID
-    let event: DiagnosticEvent
-    let category: String
-    let level: String
-    let connectionID: UUID?
-    let clientID: UUID?
-    let count: Int?
-    let failure: DiagnosticFailure?
+public nonisolated struct DiagnosticEntry: Codable, Identifiable, Sendable {
+    public let schemaVersion: Int
+    public let id: UUID
+    public let timestamp: Date
+    public let runID: UUID
+    public let event: DiagnosticEvent
+    public let category: String
+    public let level: String
+    public let connectionID: UUID?
+    public let clientID: UUID?
+    public let count: Int?
+    public let failure: DiagnosticFailure?
 }
 
 /// Immutable entry values cross threads. Admission counters are lock-protected;
 /// file state belongs exclusively to queue. Disk I/O never runs on the UI actor.
-nonisolated final class DiagnosticLog: @unchecked Sendable {
+public nonisolated final class DiagnosticLog: @unchecked Sendable {
     static let subsystem = "dev.ajbeck.quorra"
-    static let disabled = DiagnosticLog(directory: nil, mirrorsToSystemLog: false)
+    public static let disabled = DiagnosticLog(directory: nil, mirrorsToSystemLog: false)
 
     let directory: URL?
     let runID = UUID()
@@ -76,9 +76,17 @@ nonisolated final class DiagnosticLog: @unchecked Sendable {
     // Accessed only on queue.
     private var fileFailure = false
     private let encoder: JSONEncoder
+    private let sink: (@Sendable (DiagnosticEntry) -> Void)?
+
+    /// Events go to unified logging and to `sink`, which receives each entry in order on the
+    /// log's own queue. Quorra writes no diagnostic file; tests pass a directory.
+    public convenience init(sink: @escaping @Sendable (DiagnosticEntry) -> Void) {
+        self.init(directory: nil, sink: sink)
+    }
 
     init(directory: URL?, maximumFileBytes: Int = 2 * 1024 * 1024, maximumFiles: Int = 5,
-         maximumPending: Int = 1024, mirrorsToSystemLog: Bool = true) {
+         maximumPending: Int = 1024, mirrorsToSystemLog: Bool = true, sink: (@Sendable (DiagnosticEntry) -> Void)? = nil) {
+        self.sink = sink
         self.directory = directory
         self.maximumFileBytes = max(1024, maximumFileBytes)
         self.maximumFiles = max(1, maximumFiles)
@@ -92,7 +100,7 @@ nonisolated final class DiagnosticLog: @unchecked Sendable {
     /// A closed, typed payload prevents callers from accidentally logging secrets.
     func record(_ event: DiagnosticEvent, connectionID: UUID? = nil, clientID: UUID? = nil, count: Int? = nil,
                 error: (any Error)? = nil) {
-        guard directory != nil || mirrorsToSystemLog else { return }
+        guard directory != nil || mirrorsToSystemLog || sink != nil else { return }
         let entry = entry(event, connectionID: connectionID, clientID: clientID, count: count, error: error)
         admission.lock()
         guard pending < maximumPending else { dropped += 1; admission.unlock(); return }
@@ -163,6 +171,7 @@ nonisolated final class DiagnosticLog: @unchecked Sendable {
     }
 
     private func write(_ entry: DiagnosticEntry) {
+        sink?(entry)
         guard let data = try? encoder.encode(entry) else { return }
         if mirrorsToSystemLog, let message = String(data: data, encoding: .utf8) {
             let logger = Logger(subsystem: Self.subsystem, category: entry.category)

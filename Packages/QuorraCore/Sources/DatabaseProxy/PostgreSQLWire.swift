@@ -2,14 +2,14 @@ import Foundation
 import IAMIdentityCenter
 import Network
 
-nonisolated enum ProxyError: Error, LocalizedError, Equatable {
+public nonisolated enum ProxyError: Error, LocalizedError, Equatable {
     case malformedMessage, unsupportedProtocol, localAuthentication, databaseMismatch
     case upstreamTLS, upstreamAuthentication, upstreamUnavailable, disconnected, timedOut, portInUse, stopped
     case upstreamPasswordAuthentication, unsupportedAuthentication
     case malformedMySQLMessage, unsupportedMySQLProtocol, mysqlAuthenticationRequiresTLS
     case localListenerUnavailable
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .malformedMessage: "An invalid PostgreSQL message was received."
         case .unsupportedProtocol: "This endpoint supports PostgreSQL protocol 3 and regular database sessions."

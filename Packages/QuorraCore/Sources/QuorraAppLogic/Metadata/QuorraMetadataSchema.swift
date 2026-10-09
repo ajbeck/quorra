@@ -9,7 +9,8 @@ public enum QuorraMetadataSchema {
         IMDSEndpointDefinition.self,
         IMDSEndpointLogEntry.self,
         DatabaseConnectionDefinition.self,
-        DatabaseCredentialDefinition.self
+        DatabaseCredentialDefinition.self,
+        DatabaseConnectionLogEntry.self
         ]
     }
 
