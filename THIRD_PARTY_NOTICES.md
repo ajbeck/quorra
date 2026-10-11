@@ -34,6 +34,18 @@ available under the Apache License, Version 2.0; a copy is included in
 | swift-service-lifecycle | 2.11.0 | https://github.com/swift-server/swift-service-lifecycle |
 | swift-system | 1.6.4 | https://github.com/apple/swift-system |
 
+## Bundled OpenVPN core
+
+The packet tunnel links a static OpenVPN core built from the sources below. Their licence texts, the OpenVPN and AWS modification source archives and Quorra's patches ship as resources of the `QuorraOpenVPN` package, which the packet tunnel links; in this repository they are under `Packages/QuorraOpenVPN/Sources/QuorraOpenVPN/Resources`. This component is not the AWS VPN Client and is not a FIPS-validated product.
+
+| Component | Version | Licence | Source |
+| --- | --- | --- | --- |
+| OpenVPN 3 | 3.11.7 | MPL-2.0 | https://github.com/OpenVPN/openvpn3 |
+| AWS modifications to OpenVPN 3 | 3.11.5-aws-1 | MPL-2.0 | https://amazon-source-code-downloads.s3.amazonaws.com/aws/clientvpn/openvpn3-3.11.5-aws-1.tar.gz |
+| AWS-LC | 5.11.0 | Apache-2.0, ISC and others (see `AWS-LC.txt`) | https://github.com/aws/aws-lc |
+| Asio | 1.38.2 | BSL-1.0 | https://github.com/chriskohlhoff/asio |
+| LZ4 library | 1.10.0 | BSD-2-Clause | https://github.com/lz4/lz4 |
+
 ## Upstream Notices
 
 The following notices are reproduced verbatim from the corresponding resolved

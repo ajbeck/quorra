@@ -1,0 +1,4 @@
+module QuorraOpenVPNCore {
+    header "QuorraOpenVPNCore.h"
+    export *
+}

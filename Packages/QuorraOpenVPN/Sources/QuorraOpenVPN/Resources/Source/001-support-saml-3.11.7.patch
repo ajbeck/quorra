@@ -1,0 +1,226 @@
+# Quorra: AWS's 001-support-saml.patch from openvpn3-3.11.5-aws-1, rebased onto OpenVPN 3.11.7.
+# Only the trailing context of the APP_MSG_MAX hunk in openvpn/ssl/proto.hpp differs from AWS's copy.
+# =============================================================================
+# SAML Support Patch for OpenVPN 3
+# =============================================================================
+#
+# This patch adds SAML authentication support to OpenVPN 3 by extending
+# buffer handling and protocol message sizes to accommodate larger SAML tokens.
+#
+# Modifications made by: Amazon Web Services
+# Purpose: Enable SAML-based authentication with larger token support
+# Date: 2025-11-25
+#
+# Key changes:
+# 1. Extended APP_MSG_MAX from 64KB to 128KB for SAML tokens
+# 2. Changed auth string length prefix from 2 bytes to 4 bytes
+# 3. Added advance_string32() for 32-bit length prefixes
+# 4. Updated read/write functions for 32-bit length handling
+# =============================================================================
+
+diff --git a/openvpn/buffer/bufcomplete.hpp b/openvpn/buffer/bufcomplete.hpp
+index 12345678..87654321 100644
+--- a/openvpn/buffer/bufcomplete.hpp
++++ b/openvpn/buffer/bufcomplete.hpp
+@@ -49,6 +49,23 @@
+         return advance(size_t(h) << 8 | size_t(l));
+     }
+ 
++#ifdef UNIT_TEST
++    // assumes embedded big-endian uint32_t length in the stream
++    bool advance_string32()
++    {
++        std::uint8_t b0, b1, b2, b3;
++        if (!get(b0))
++            return false;
++        if (!get(b1))
++            return false;
++        if (!get(b2))
++            return false;
++        if (!get(b3))
++            return false;
++        return advance(size_t(b0) << 24 | size_t(b1) << 16 | size_t(b2) << 8 | size_t(b3));
++    }
++#endif
++
+     bool advance_to_null()
+     {
+         std::uint8_t c;
+
+diff --git a/openvpn/ssl/proto.hpp b/openvpn/ssl/proto.hpp
+index abcdef12..34567890 100644
+--- a/openvpn/ssl/proto.hpp
++++ b/openvpn/ssl/proto.hpp
+@@ -211,7 +211,7 @@
+ #else
+   protected:
+ #endif
+-    static constexpr size_t APP_MSG_MAX = 65536;
++    static constexpr size_t APP_MSG_MAX = 1 << 17; // 128KB
+ 
+     // size of the leading opcode/key-id byte of a packet
+     static constexpr size_t OPCODE_SIZE = 1;
+@@ -1509,12 +1509,12 @@
+     }
+ 
+     // used for reading/writing authentication strings (username, password, etc.) from buffer using the
+-    //  2 byte prefix for length
+-    static void write_uint16_length(const size_t size, Buffer &buf)
+-    {
+-        if (size > 0xFFFF)
++    //  4 byte prefix for length
++    static void write_uint32_length(const size_t size, Buffer &buf)
++    {
++        if (size > 0xFFFFFFFF)
+             throw proto_error("auth_string_overflow");
+-        const std::uint16_t net_size = htons(static_cast<std::uint16_t>(size));
++        const uint32_t net_size = htonl(static_cast<uint32_t>(size));
+         buf.write((const unsigned char *)&net_size, sizeof(net_size));
+     }
+ 
+@@ -1525,10 +1525,24 @@
+             std::uint16_t net_size;
+             buf.read((unsigned char *)&net_size, sizeof(net_size));
+             return ntohs(net_size);
++        }
++        else
++            return 0;
++    }
++
++#ifdef UNIT_TEST
++    static uint32_t read_uint32_length(Buffer &buf)
++    {
++        if (buf.size())
++        {
++            uint32_t net_size;
++            buf.read((unsigned char *)&net_size, sizeof(net_size));
++            return ntohl(net_size);
+         }
+         else
+             return 0;
+     }
++#endif
+ 
+     template <typename S>
+     static void write_auth_string(const S &str, Buffer &buf)
+@@ -1536,18 +1550,22 @@
+         const size_t len = str.length();
+         if (len)
+         {
+-            write_uint16_length(len + 1, buf);
++            write_uint32_length(len + 1, buf);
+             buf.write((const unsigned char *)str.c_str(), len);
+             buf.null_terminate();
+         }
+         else
+-            write_uint16_length(0, buf);
++            write_uint32_length(0, buf);
+     }
+ 
+     template <typename S>
+     static S read_auth_string(Buffer &buf)
+     {
++#ifdef UNIT_TEST
++        const size_t len = read_uint32_length(buf);
++#else
+         const size_t len = read_uint16_length(buf);
++#endif
+         if (len)
+         {
+             const char *data = (const char *)buf.read_alloc(len);
+@@ -1567,7 +1585,7 @@
+ 
+     static void write_empty_string(Buffer &buf)
+     {
+-        write_uint16_length(0, buf);
++        write_uint32_length(0, buf);
+     }
+ 
+     template <typename S>
+@@ -2884,15 +2902,36 @@
+                 const std::string peer_info = proto.config->peer_info_string(proto.proto_callback->supports_epoch_data());
+                 write_auth_string(peer_info, *buf);
+             }
++
++            // Write key length in the first 4 octets of the buffer.
++            const uint32_t length = buf->size();
++            std::memcpy(buf->data(), &length, sizeof(length));
++
+             app_send_validate(std::move(buf));
+             dirty = true;
+         }
+ 
+         void recv_auth(BufferPtr buf)
+         {
++#ifdef UNIT_TEST
++            if (buf->size() < sizeof(uint32_t))
++                throw proto_error("auth buffer too small for key length");
++
++            uint32_t key_length;
++            buf->read((unsigned char *)&key_length, sizeof(key_length));
++
++            if (buf->size() < 1)
++                throw proto_error("auth buffer too small for auth_prefix remainder");
++
++            unsigned char auth_suffix;
++            buf->read(&auth_suffix, 1);
++            if (auth_suffix != 2)
++                throw proto_error("bad_auth_prefix");
++#else
+             const unsigned char *buf_pre = buf->read_alloc(sizeof(proto_context_private::auth_prefix));
+             if (std::memcmp(buf_pre, proto_context_private::auth_prefix, sizeof(proto_context_private::auth_prefix)))
+                 throw proto_error("bad_auth_prefix");
++#endif
+             tlsprf->peer_read(*buf);
+             const std::string options = read_auth_string<std::string>(*buf);
+             if (proto.is_server())
+@@ -2904,24 +2943,44 @@
+             }
+         }
+ 
+-        // return true if complete recv_auth message is contained in buffer
+         bool recv_auth_complete(BufferComplete &bc) const
+         {
++#ifdef UNIT_TEST
++            if (!bc.advance(sizeof(uint32_t)))
++                return false;
++            if (!bc.advance(1))
++                return false;
++#else
+             if (!bc.advance(sizeof(proto_context_private::auth_prefix)))
+                 return false;
++#endif
+             if (!tlsprf->peer_read_complete(bc))
+                 return false;
+-            if (!bc.advance_string()) // options
++#ifdef UNIT_TEST
++            if (!bc.advance_string32())
+                 return false;
+             if (proto.is_server())
+             {
+-                if (!bc.advance_string()) // username
++                if (!bc.advance_string32())
+                     return false;
+-                if (!bc.advance_string()) // password
++                if (!bc.advance_string32())
+                     return false;
+-                if (!bc.advance_string()) // peer_info
++                if (!bc.advance_string32())
+                     return false;
+             }
++#else
++            if (!bc.advance_string())
++                return false;
++            if (proto.is_server())
++            {
++                if (!bc.advance_string())
++                    return false;
++                if (!bc.advance_string())
++                    return false;
++                if (!bc.advance_string())
++                    return false;
++            }
++#endif
+             return true;
+         }
+ 

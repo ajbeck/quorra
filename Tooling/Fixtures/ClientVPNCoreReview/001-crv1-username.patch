@@ -1,0 +1,20 @@
+--- a/openvpn/auth/cr.hpp
++++ b/openvpn/auth/cr.hpp
+@@ -100,7 +100,16 @@
+         // save username
+         try
+         {
+-            username = base64->decode(sl[3]);
++            // Quorra: AWS can wrap this field in Python byte-string syntax.
++            // Only strip a matching b'...' or b"..." envelope; decode normally.
++            std::string encoded_username = sl[3];
++            if (encoded_username.size() >= 3 && encoded_username[0] == 'b'
++                && (encoded_username[1] == '\'' || encoded_username[1] == '"')
++                && encoded_username.back() == encoded_username[1])
++            {
++                encoded_username = encoded_username.substr(2, encoded_username.size() - 3);
++            }
++            username = base64->decode(encoded_username);
+         }
+         catch (const Base64::base64_decode_error &)
+         {

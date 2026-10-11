@@ -35,6 +35,13 @@
     },
     {
       "target" : {
+        "containerPath" : "container:Packages\/QuorraOpenVPN",
+        "identifier" : "QuorraOpenVPNTests",
+        "name" : "QuorraOpenVPNTests"
+      }
+    },
+    {
+      "target" : {
         "containerPath" : "container:Packages\/QuorraCore",
         "identifier" : "QuorraAppLogicTests",
         "name" : "QuorraAppLogicTests"

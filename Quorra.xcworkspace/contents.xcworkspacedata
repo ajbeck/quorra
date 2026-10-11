@@ -8,6 +8,9 @@
       location = "group:Packages/QuorraCore">
    </FileRef>
    <FileRef
+      location = "group:Packages/QuorraOpenVPN">
+   </FileRef>
+   <FileRef
       location = "group:quorra.xctestplan">
    </FileRef>
 </Workspace>
