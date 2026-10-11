@@ -271,7 +271,7 @@ public actor IdentityCenterService: IdentityCenterServicing {
         verificationHandler: @escaping @Sendable (DeviceVerification) async -> Void
     ) async throws -> StoredSSOToken? {
         let pkce = try OAuthPKCE.generate()
-        let listener = await LoopbackOAuthListener(expectedState: pkce.state)
+        let listener = await LoopbackOAuthListener(expectedState: pkce.state, sessionName: sessionName)
 
         let redirectURI: URL
         do {

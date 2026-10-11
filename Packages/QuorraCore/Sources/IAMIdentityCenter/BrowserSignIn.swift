@@ -134,6 +134,7 @@ final class LoopbackOAuthListener {
     nonisolated static let defaultLifetime: Duration = .seconds(600)
 
     private let expectedState: String
+    private let sessionName: String
     private let lifetime: Duration
     private var listener: NWListener?
     private var ready: CheckedContinuation<URL, any Error>?
@@ -144,8 +145,10 @@ final class LoopbackOAuthListener {
     private var connectionTimeouts: [UUID: Task<Void, Never>] = [:]
     private var port: UInt16 = 0
 
-    init(expectedState: String, lifetime: Duration = LoopbackOAuthListener.defaultLifetime) {
+    /// `sessionName` is only shown on the page the browser lands on.
+    init(expectedState: String, sessionName: String, lifetime: Duration = LoopbackOAuthListener.defaultLifetime) {
         self.expectedState = expectedState
+        self.sessionName = sessionName
         self.lifetime = lifetime
     }
 
@@ -248,21 +251,18 @@ final class LoopbackOAuthListener {
     private func handle(_ id: UUID, header: Data) {
         do {
             let code = try OAuthCallbackRequest.code(from: header, port: port, expectedState: expectedState)
-            respond(id, success: true, result: .success(code))
+            respond(id, page: .received(sessionName: sessionName), result: .success(code))
         } catch BrowserSignInError.accessDenied {
-            respond(id, success: false, result: .failure(BrowserSignInError.accessDenied))
+            respond(id, page: .declined(sessionName: sessionName), result: .failure(BrowserSignInError.accessDenied))
         } catch {
             // Unrelated requests and a wrong state must not cancel a valid sign-in.
-            respond(id, success: false, result: nil)
+            respond(id, page: .notAccepted, result: nil)
         }
     }
 
-    private func respond(_ id: UUID, success: Bool, result: Result<String, any Error>?) {
-        let body = success
-            ? "Sign-in received. You can close this tab and return to Quorra."
-            : "This sign-in response could not be accepted. Return to Quorra."
-        let status = success ? "200 OK" : "400 Bad Request"
-        let response = "HTTP/1.1 \(status)\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: \(body.utf8.count)\r\nCache-Control: no-store\r\nReferrer-Policy: no-referrer\r\nContent-Security-Policy: default-src 'none'\r\nConnection: close\r\n\r\n\(body)"
+    private func respond(_ id: UUID, page: SignInCallbackPage, result: Result<String, any Error>?) {
+        let body = page.html
+        let response = "HTTP/1.1 \(page.statusLine)\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: \(body.utf8.count)\r\nCache-Control: no-store\r\nReferrer-Policy: no-referrer\r\nContent-Security-Policy: \(SignInCallbackPage.contentSecurityPolicy)\r\nConnection: close\r\n\r\n\(body)"
         connections[id]?.send(content: Data(response.utf8), completion: .contentProcessed { [weak self] _ in
             Task { @MainActor in
                 self?.close(id)

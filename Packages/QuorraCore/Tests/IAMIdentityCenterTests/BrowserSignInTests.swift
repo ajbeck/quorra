@@ -173,24 +173,58 @@ struct BrowserSignInTests {
     @MainActor
     @Test("The listener ignores an invalid state and accepts a valid code")
     func listenerIgnoresInvalidStateAndAcceptsValidCode() async throws {
-        let listener = LoopbackOAuthListener(expectedState: "synthetic-state")
+        let listener = LoopbackOAuthListener(expectedState: "synthetic-state", sessionName: "work")
         defer { listener.cancel() }
         let url = try await listener.start()
         #expect(url.host == "127.0.0.1")
         let session = URLSession(configuration: .ephemeral)
         defer { session.invalidateAndCancel() }
-        let (_, bad) = try await session.data(from: URL(string: url.absoluteString + "?state=wrong&code=wrong")!)
+        let (badBody, bad) = try await session.data(from: URL(string: url.absoluteString + "?state=wrong&code=wrong")!)
         #expect((bad as? HTTPURLResponse)?.statusCode == 400)
+        #expect(String(decoding: badBody, as: UTF8.self) == SignInCallbackPage.notAccepted.html)
         let (body, good) = try await session.data(from: URL(string: url.absoluteString + "?state=synthetic-state&code=synthetic-code")!)
-        #expect((good as? HTTPURLResponse)?.statusCode == 200)
-        #expect(!String(decoding: body, as: UTF8.self).contains("synthetic-code"))
+        let response = try #require(good as? HTTPURLResponse)
+        #expect(response.statusCode == 200)
+        #expect(response.value(forHTTPHeaderField: "Content-Type") == "text/html; charset=utf-8")
+        #expect(response.value(forHTTPHeaderField: "Content-Security-Policy") == SignInCallbackPage.contentSecurityPolicy)
+        let page = String(decoding: body, as: UTF8.self)
+        #expect(page == SignInCallbackPage.received(sessionName: "work").html)
+        #expect(!page.contains("synthetic-code"))
         #expect(try await listener.authorizationCode() == "synthetic-code")
+    }
+
+    // MARK: - Callback page
+
+    @Test("The received page names the session and tells the user to close the tab")
+    func receivedPageNamesSessionAndNextStep() {
+        let page = SignInCallbackPage.received(sessionName: "work").html
+        #expect(page.contains("<span class=\"session mono\">work</span>"))
+        #expect(page.contains("Close this tab"))
+    }
+
+    @Test("The session name is escaped in the page")
+    func sessionNameIsEscaped() {
+        let page = SignInCallbackPage.declined(sessionName: "<b>\"x\"&'y'</b>").html
+        #expect(page.contains("&lt;b&gt;&quot;x&quot;&amp;&#39;y&#39;&lt;/b&gt;"))
+        #expect(!page.contains("<b>"))
+    }
+
+    @Test("The security policy allows only the page's own stylesheet, by hash")
+    func policyAllowsOnlyThePageStylesheet() throws {
+        let page = SignInCallbackPage.notAccepted.html
+        let start = try #require(page.range(of: "<style>"))
+        let end = try #require(page.range(of: "</style>"))
+        let style = String(page[start.upperBound..<end.lowerBound])
+        let hash = Data(SHA256.hash(data: Data(style.utf8))).base64EncodedString()
+        #expect(SignInCallbackPage.contentSecurityPolicy.hasPrefix("default-src 'none'; style-src 'sha256-\(hash)';"))
+        #expect(!page.contains("<script"))
+        #expect(!page.contains("style=\""))
     }
 
     @MainActor
     @Test("A cancelled listener does not hang waiting for the browser")
     func cancelledListenerDoesNotHang() async throws {
-        let listener = LoopbackOAuthListener(expectedState: "state")
+        let listener = LoopbackOAuthListener(expectedState: "state", sessionName: "work")
         _ = try await listener.start()
         listener.cancel()
         await #expect(throws: CancellationError.self) { try await listener.authorizationCode() }
