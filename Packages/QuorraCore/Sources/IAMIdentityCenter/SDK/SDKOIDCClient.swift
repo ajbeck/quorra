@@ -146,16 +146,9 @@ public actor SDKOIDCClient: OIDCRequesting {
         do {
             output = try await client.createToken(input: input)
         } catch {
-            // Re-map terminal OAuth codes to refresh-specific cases (D14), matching the
-            // hand-rolled OIDCClient: the actor's refresh-failure path only treats
-            // .refreshTokenRejected / .refreshClientInvalid as terminal (clears the refresh
-            // token / forces re-registration). Without this remap a rejected refresh would
-            // be mishandled as transient and the dead refresh token would never be cleared.
-            switch mapped(error) {
-            case .invalidGrant:  throw IAMIdentityCenterError.refreshTokenRejected
-            case .invalidClient: throw IAMIdentityCenterError.refreshClientInvalid
-            case let other:      throw other
-            }
+            // Without this remap a rejected or expired refresh would be mishandled as
+            // transient and the dead refresh token would never be cleared.
+            throw SDKErrorMapping.mapRefresh(mapped(error))
         }
 
         // D18 / RFC 6749 §10.4: use the new refresh token when AWS rotates it; otherwise keep

@@ -23,6 +23,16 @@ import AWSSSOOIDC
         }
     }
 
+    @Test func refreshFailuresThatEndTheSessionAreTerminal() {
+        // During a refresh the only token is the refresh token, so an expired token means the
+        // Identity Center session has ended and the user has to sign in again.
+        #expect(SDKErrorMapping.mapRefresh(.invalidGrant) == .refreshTokenRejected)
+        #expect(SDKErrorMapping.mapRefresh(.expiredDeviceCode) == .refreshTokenRejected)
+        #expect(SDKErrorMapping.mapRefresh(.invalidClient) == .refreshClientInvalid)
+        #expect(SDKErrorMapping.mapRefresh(.slowDown) == .slowDown)
+        #expect(SDKErrorMapping.mapRefresh(.awsError(code: "server_error", description: "boom")) == .awsError(code: "server_error", description: "boom"))
+    }
+
     @Test func unknownOIDCErrorsPreserveDiagnostics() {
         #expect(
             SDKErrorMapping.mapOIDC(typeName: "FutureSDKException", message: "msg")

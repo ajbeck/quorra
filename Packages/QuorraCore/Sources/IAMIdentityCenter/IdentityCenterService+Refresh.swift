@@ -223,6 +223,7 @@ extension IdentityCenterService {
         }
         // T_expire is left running in both cases so .expired fires at the original deadline
 
+        refreshLogger.error("Refresh failed for session '\(sessionName, privacy: .public)' (terminal: \(isTerminal, privacy: .public)): \(String(describing: error), privacy: .public)")
         eventContinuation.yield(.refreshFailed(sessionName: sessionName))
     }
 

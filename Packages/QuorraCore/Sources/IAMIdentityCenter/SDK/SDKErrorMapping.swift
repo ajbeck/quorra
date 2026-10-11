@@ -44,6 +44,22 @@ enum SDKErrorMapping {
         }
     }
 
+    /// Re-maps a refresh-grant failure to the refresh-specific terminal cases (D14).
+    ///
+    /// The refresh-failure path treats only `.refreshTokenRejected` and `.refreshClientInvalid` as
+    /// terminal: it clears the refresh token so the session asks the user to sign in. During a
+    /// refresh the only token sent is the refresh token, so `ExpiredTokenException` ("the token
+    /// issued by the service is expired",
+    /// https://docs.aws.amazon.com/singlesignon/latest/OIDCAPIReference/API_CreateToken.html)
+    /// means the Identity Center session has ended, as does `InvalidGrantException`.
+    static func mapRefresh(_ error: IAMIdentityCenterError) -> IAMIdentityCenterError {
+        switch error {
+        case .invalidGrant, .expiredDeviceCode: return .refreshTokenRejected
+        case .invalidClient: return .refreshClientInvalid
+        default: return error
+        }
+    }
+
     /// Pulls a `(typeName, message)` discriminator out of an SDK exception.
     ///
     /// Uses the SDK's `ServiceError` protocol when available. Misclassification is benign:

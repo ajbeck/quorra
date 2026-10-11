@@ -160,6 +160,37 @@ struct ProfileStatusTests {
         await service.mintTimers[key]?.cancel()
     }
 
+    @Test("Expired session + expired cached row → status starts no mint or refresh")
+    func noMintWhileSessionTokenExpired() async throws {
+        let keychain = InMemoryKeychainStore()
+        try await seedToken(keychain: keychain, refreshToken: "rt", expiresIn: -60)
+        _ = try await seedRoleCreds(keychain: keychain, expiresIn: -60)
+        // A stored client lets a refresh reach the stub, so a stray refresh is counted.
+        try await keychain.writeRecord(
+            StoredOIDCClient(
+                clientId: "cid",
+                clientSecret: "cs",
+                issuedAt: Date(),
+                secretExpiresAt: Date().addingTimeInterval(90 * 24 * 60 * 60),
+                region: "us-east-1",
+                scopes: ["sso:account:access"]
+            ),
+            service: IdentityCenterService.ServiceConstants.oidcClientService,
+            account: "us-east-1"
+        )
+        let stub = StubOIDCRequesting()
+        let service = IdentityCenterService(keychain: keychain, oidcClientProvider: makeStubOIDCProvider(stub))
+
+        _ = await service.status(forProfile: "s", accountId: "123456789012", roleName: "stub-role")
+        try await Task.sleep(for: .milliseconds(200))
+
+        // Status checks re-run on every refresh event; a mint started here would refresh the
+        // session, emit events, re-run status and start another mint.
+        let key = "s:123456789012:stub-role"
+        #expect(await service.mintTimers[key] == nil)
+        #expect(await stub.refreshCallCount == 0, "A status check must not refresh an expired session")
+    }
+
     @Test("D28: no cached row → status does NOT schedule T_mint")
     func noScheduleWithoutCachedRow() async throws {
         let keychain = InMemoryKeychainStore()
