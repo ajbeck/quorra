@@ -397,9 +397,14 @@ jobs:
 
           codesign -d --entitlements - --xml "$EXPORTED_APP_PATH" > "$app_entitlements_path" 2>/dev/null
           app_network_entitlement="$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.networking.networkextension:0' "$app_entitlements_path")"
+          app_packet_tunnel_entitlement="$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.networking.networkextension:1' "$app_entitlements_path")"
           app_system_extension_install="$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.system-extension.install' "$app_entitlements_path")"
           if [[ "$app_network_entitlement" != 'app-proxy-provider-systemextension' ]]; then
             echo "::error::The Quorra app is missing its Developer ID Network Extension entitlement."
+            exit 1
+          fi
+          if [[ "$app_packet_tunnel_entitlement" != 'packet-tunnel-provider-systemextension' ]]; then
+            echo "::error::The Quorra app is missing its Developer ID packet tunnel entitlement."
             exit 1
           fi
           if [[ "$app_system_extension_install" != 'true' ]]; then
@@ -464,8 +469,13 @@ jobs:
             echo "::error::The IMDS system extension is missing the App Group that prefixes its NEMachServiceName."
             exit 1
           fi
+          system_extension_packet_tunnel_entitlement="$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.networking.networkextension:1' "$system_extension_entitlements_path")"
           if [[ "$system_extension_network_entitlement" != 'app-proxy-provider-systemextension' ]]; then
             echo "::error::The IMDS system extension is missing its Developer ID Network Extension entitlement."
+            exit 1
+          fi
+          if [[ "$system_extension_packet_tunnel_entitlement" != 'packet-tunnel-provider-systemextension' ]]; then
+            echo "::error::The system extension is missing its Developer ID packet tunnel entitlement."
             exit 1
           fi
 
