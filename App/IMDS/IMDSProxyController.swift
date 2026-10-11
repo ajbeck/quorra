@@ -41,23 +41,28 @@ final class IMDSProxyController {
         }
     }
 
-    nonisolated static let providerBundleIdentifier = "dev.ajbeck.quorra.imds-proxy"
+    nonisolated static let providerBundleIdentifier = SystemExtensionController.bundleIdentifier
     nonisolated static let localizedDescription = "Quorra IMDSv2"
 
     private(set) var connectionStatus: ConnectionStatus = .notInstalled
-    private(set) var systemExtensionStatus: IMDSSystemExtensionStatus = .notRequested
     private(set) var isChangingInstallation = false
     private(set) var errorMessage: String?
 
     @ObservationIgnored private var manager: NETransparentProxyManager?
     @ObservationIgnored private var statusObserver: NSObjectProtocol?
-    @ObservationIgnored private lazy var systemExtensionController = IMDSSystemExtensionController(
-        bundleIdentifier: Self.providerBundleIdentifier
-    ) { [weak self] status in
-        self?.systemExtensionStatus = status
+    @ObservationIgnored private let systemExtensionController: SystemExtensionController
+
+    var systemExtensionStatus: SystemExtensionStatus {
+        systemExtensionController.status
     }
 
-    init() {
+    /// For previews; the app passes the one shared controller.
+    convenience init() {
+        self.init(systemExtension: SystemExtensionController())
+    }
+
+    init(systemExtension: SystemExtensionController) {
+        systemExtensionController = systemExtension
         statusObserver = NotificationCenter.default.addObserver(
             forName: .NEVPNStatusDidChange,
             object: nil,
@@ -218,7 +223,9 @@ final class IMDSProxyController {
                     guard let configuration = manager.protocolConfiguration as? NETunnelProviderProtocol else {
                         return false
                     }
+                    // The VPN shares the provider bundle, so match the IMDS address too.
                     return configuration.providerBundleIdentifier == Self.providerBundleIdentifier
+                        && configuration.serverAddress == DefaultIMDSEndpoint.bindAddress
                 }
                 continuation.resume(returning: matchingManager)
             }

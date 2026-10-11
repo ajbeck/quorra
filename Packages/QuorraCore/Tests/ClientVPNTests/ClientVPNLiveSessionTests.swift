@@ -2,6 +2,7 @@ import Foundation
 import Synchronization
 import Testing
 @testable import ClientVPN
+import QuorraTestSupport
 
 @Suite("Client VPN live session", .timeLimit(.minutes(1)))
 struct ClientVPNLiveSessionTests {

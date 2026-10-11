@@ -42,9 +42,11 @@ let package = Package(
                 .copy("Resources"),
             ]
         ),
+        .target(name: "LoopbackCallback"),
         .target(
             name: "IAMIdentityCenter",
             dependencies: [
+                "LoopbackCallback",
                 .product(name: "AWSSSOOIDC", package: "aws-sdk-swift"),
             ]
         ),
@@ -68,11 +70,15 @@ let package = Package(
         .target(name: "ClientVPN"),
         .testTarget(
             name: "ClientVPNTests",
-            dependencies: ["ClientVPN"]
+            dependencies: ["ClientVPN", "QuorraTestSupport"]
+        ),
+        .target(
+            name: "QuorraTestSupport",
+            path: "Tests/QuorraTestSupport"
         ),
         .target(
             name: "QuorraAppLogic",
-            dependencies: ["AWSConfigINI", "DatabaseProxy", "IAMIdentityCenter", "QuorraIPC", "QuorraProfiles"]
+            dependencies: ["AWSConfigINI", "ClientVPN", "DatabaseProxy", "IAMIdentityCenter", "LoopbackCallback", "QuorraIPC", "QuorraProfiles"]
         ),
         .target(
             name: "QuorraProfiles",
@@ -106,7 +112,7 @@ let package = Package(
         ),
         .testTarget(
             name: "QuorraAppLogicTests",
-            dependencies: ["QuorraAppLogic", "AWSConfigINI", "DatabaseProxy", "IAMIdentityCenter"]
+            dependencies: ["QuorraAppLogic", "AWSConfigINI", "ClientVPN", "DatabaseProxy", "IAMIdentityCenter", "LoopbackCallback", "QuorraTestSupport"]
         ),
         .testTarget(
             name: "IAMIdentityCenterTests",

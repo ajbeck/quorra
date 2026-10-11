@@ -2,7 +2,7 @@ import ServiceManagement
 import SwiftUI
 
 struct IMDSSystemExtensionGuidance: View {
-    let status: IMDSSystemExtensionStatus
+    let status: SystemExtensionStatus
 
     var body: some View {
         switch status {

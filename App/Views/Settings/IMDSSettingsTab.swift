@@ -73,7 +73,7 @@ struct IMDSSettingsTab: View {
 }
 
 private struct IMDSIntegrationStatusPath: View {
-    let extensionStatus: IMDSSystemExtensionStatus
+    let extensionStatus: SystemExtensionStatus
     let routingStatus: IMDSProxyController.ConnectionStatus
 
     var body: some View {

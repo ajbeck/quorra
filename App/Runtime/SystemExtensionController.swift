@@ -1,7 +1,8 @@
 import Foundation
+import Observation
 @preconcurrency import SystemExtensions
 
-enum IMDSSystemExtensionStatus: Equatable {
+enum SystemExtensionStatus: Equatable {
     case notRequested
     case activating
     case awaitingApproval
@@ -27,7 +28,7 @@ enum IMDSSystemExtensionStatus: Equatable {
     }
 }
 
-enum IMDSSystemExtensionError: LocalizedError {
+enum SystemExtensionError: LocalizedError {
     case activationAlreadyInProgress
     case activationFailed(String)
     case restartRequired
@@ -35,48 +36,43 @@ enum IMDSSystemExtensionError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .activationAlreadyInProgress:
-            return "The system metadata endpoint extension is already being activated."
+            return "Quorra’s system extension is already being activated."
         case .activationFailed(let message):
             return message
         case .restartRequired:
-            return "Restart this Mac to finish activating the system metadata endpoint extension."
+            return "Restart this Mac to finish activating Quorra’s system extension."
         }
     }
 }
 
+/// Activates Quorra's one system extension, which hosts both the IMDS proxy and the Client VPN
+/// tunnel. The app keeps a single instance so the two features never submit competing requests.
 @MainActor
-final class IMDSSystemExtensionController: NSObject, OSSystemExtensionRequestDelegate {
-    typealias StatusHandler = @MainActor (IMDSSystemExtensionStatus) -> Void
+@Observable
+final class SystemExtensionController: NSObject, OSSystemExtensionRequestDelegate {
+    nonisolated static let bundleIdentifier = "dev.ajbeck.quorra.imds-proxy"
 
-    private let bundleIdentifier: String
-    private let statusHandler: StatusHandler
-    private var activeRequest: OSSystemExtensionRequest?
-    private var activationContinuation: CheckedContinuation<OSSystemExtensionRequest.Result, Error>?
-    private var status: IMDSSystemExtensionStatus = .notRequested
-
-    init(bundleIdentifier: String, statusHandler: @escaping StatusHandler) {
-        self.bundleIdentifier = bundleIdentifier
-        self.statusHandler = statusHandler
-        super.init()
-    }
+    private(set) var status: SystemExtensionStatus = .notRequested
+    @ObservationIgnored private var activeRequest: OSSystemExtensionRequest?
+    @ObservationIgnored private var activationContinuation: CheckedContinuation<OSSystemExtensionRequest.Result, Error>?
 
     func activate() async throws {
         switch status {
         case .activated:
             return
         case .restartRequired:
-            throw IMDSSystemExtensionError.restartRequired
+            throw SystemExtensionError.restartRequired
         case .notRequested, .activating, .awaitingApproval, .failed:
             break
         }
 
         guard activationContinuation == nil else {
-            throw IMDSSystemExtensionError.activationAlreadyInProgress
+            throw SystemExtensionError.activationAlreadyInProgress
         }
 
-        updateStatus(.activating)
+        status = .activating
         let request = OSSystemExtensionRequest.activationRequest(
-            forExtensionWithIdentifier: bundleIdentifier,
+            forExtensionWithIdentifier: Self.bundleIdentifier,
             queue: .main
         )
         request.delegate = self
@@ -92,22 +88,22 @@ final class IMDSSystemExtensionController: NSObject, OSSystemExtensionRequestDel
 
             switch result {
             case .completed:
-                updateStatus(.activated)
+                status = .activated
             case .willCompleteAfterReboot:
-                updateStatus(.restartRequired)
-                throw IMDSSystemExtensionError.restartRequired
+                status = .restartRequired
+                throw SystemExtensionError.restartRequired
             @unknown default:
-                updateStatus(.restartRequired)
-                throw IMDSSystemExtensionError.restartRequired
+                status = .restartRequired
+                throw SystemExtensionError.restartRequired
             }
         } catch {
             activeRequest = nil
-            if case IMDSSystemExtensionError.restartRequired = error {
+            if case SystemExtensionError.restartRequired = error {
                 throw error
             }
             let message = Self.actionableMessage(for: error)
-            updateStatus(.failed(message))
-            throw IMDSSystemExtensionError.activationFailed(message)
+            status = .failed(message)
+            throw SystemExtensionError.activationFailed(message)
         }
     }
 
@@ -124,7 +120,7 @@ final class IMDSSystemExtensionController: NSObject, OSSystemExtensionRequestDel
     }
 
     func requestNeedsUserApproval(_ request: OSSystemExtensionRequest) {
-        updateStatus(.awaitingApproval)
+        status = .awaitingApproval
     }
 
     func request(
@@ -148,11 +144,6 @@ final class IMDSSystemExtensionController: NSObject, OSSystemExtensionRequestDel
         continuation?.resume(with: result)
     }
 
-    private func updateStatus(_ status: IMDSSystemExtensionStatus) {
-        self.status = status
-        statusHandler(status)
-    }
-
     private static func actionableMessage(for error: Error) -> String {
         let nsError = error as NSError
         guard nsError.domain == OSSystemExtensionErrorDomain,
@@ -162,7 +153,7 @@ final class IMDSSystemExtensionController: NSObject, OSSystemExtensionRequestDel
 
         switch code {
         case .unsupportedParentBundleLocation:
-            return "Move Quorra to Applications, reopen it, and enable the default EC2 metadata URL again."
+            return "Move Quorra to Applications, reopen it, and try again."
         case .missingEntitlement, .codeSignatureInvalid, .validationFailed:
             return "This Quorra build is not signed correctly for its system extension."
         case .forbiddenBySystemPolicy, .authorizationRequired:

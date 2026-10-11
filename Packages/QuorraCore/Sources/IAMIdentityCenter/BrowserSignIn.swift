@@ -1,6 +1,6 @@
 import CryptoKit
 import Foundation
-import Network
+import LoopbackCallback
 import Security
 
 /// OAuth 2.0 grant type identifiers used with IAM Identity Center OIDC.
@@ -127,174 +127,46 @@ enum OAuthCallbackRequest {
     }
 }
 
-/// One-use HTTP callback server for a browser sign-in. It binds only to IPv4 loopback, has a
-/// ten-minute lifetime, caps request size and concurrency, and never logs or echoes callback data.
+/// The browser sign-in's loopback callback: a `GET /oauth/callback` on a port the system chooses,
+/// open for ten minutes.
 @MainActor
 final class LoopbackOAuthListener {
     nonisolated static let defaultLifetime: Duration = .seconds(600)
 
-    private let expectedState: String
-    private let sessionName: String
-    private let lifetime: Duration
-    private var listener: NWListener?
-    private var ready: CheckedContinuation<URL, any Error>?
-    private var codeContinuation: CheckedContinuation<String, any Error>?
-    private var outcome: Result<String, any Error>?
-    private var timeout: Task<Void, Never>?
-    private var connections: [UUID: NWConnection] = [:]
-    private var connectionTimeouts: [UUID: Task<Void, Never>] = [:]
-    private var port: UInt16 = 0
+    private let listener: LoopbackCallbackListener<String>
 
     /// `sessionName` is only shown on the page the browser lands on.
     init(expectedState: String, sessionName: String, lifetime: Duration = LoopbackOAuthListener.defaultLifetime) {
-        self.expectedState = expectedState
-        self.sessionName = sessionName
-        self.lifetime = lifetime
+        listener = LoopbackCallbackListener(
+            limits: .init(header: 8192, body: 0),
+            lifetime: lifetime,
+            unavailable: BrowserSignInError.callbackUnavailable,
+            timedOut: BrowserSignInError.timedOut,
+            rejectedPage: SignInCallbackPage.notAccepted.page
+        ) { request, port in
+            do {
+                let code = try OAuthCallbackRequest.code(from: request.head, port: port, expectedState: expectedState)
+                return .init(page: SignInCallbackPage.received(sessionName: sessionName).page, outcome: .success(code))
+            } catch BrowserSignInError.accessDenied {
+                return .init(page: SignInCallbackPage.declined(sessionName: sessionName).page, outcome: .failure(BrowserSignInError.accessDenied))
+            } catch {
+                // Unrelated requests and a wrong state must not cancel a valid sign-in.
+                return .init(page: SignInCallbackPage.notAccepted.page, outcome: nil)
+            }
+        }
     }
 
     /// Starts listening and returns the redirect URI, including the port the system chose.
     func start() async throws -> URL {
-        try Task.checkCancellation()
-        let parameters = NWParameters.tcp
-        parameters.requiredLocalEndpoint = .hostPort(host: .ipv4(.loopback), port: .any)
-        let listener: NWListener
-        do { listener = try NWListener(using: parameters) }
-        catch { throw BrowserSignInError.callbackUnavailable }
-        self.listener = listener
-        listener.stateUpdateHandler = { [weak self] state in
-            Task { @MainActor in
-                guard let self, self.outcome == nil else { return }
-                switch state {
-                case .ready:
-                    guard let port = self.listener?.port?.rawValue else {
-                        self.finish(.failure(BrowserSignInError.callbackUnavailable))
-                        return
-                    }
-                    self.port = port
-                    self.ready?.resume(returning: URL(string: "http://127.0.0.1:\(port)/oauth/callback")!)
-                    self.ready = nil
-                case .failed:
-                    self.finish(.failure(BrowserSignInError.callbackUnavailable))
-                default:
-                    break
-                }
-            }
-        }
-        listener.newConnectionHandler = { [weak self] connection in
-            Task { @MainActor in self?.accept(connection) }
-        }
-        let lifetime = lifetime
-        timeout = Task { [weak self] in
-            do { try await Task.sleep(for: lifetime) } catch { return }
-            self?.finish(.failure(BrowserSignInError.timedOut))
-        }
-        return try await withTaskCancellationHandler {
-            try await withCheckedThrowingContinuation {
-                ready = $0
-                if Task.isCancelled { cancel() } else { listener.start(queue: .main) }
-            }
-        } onCancel: {
-            Task { @MainActor in self.cancel() }
-        }
+        URL(string: "http://127.0.0.1:\(try await listener.start())/oauth/callback")!
     }
 
     /// Waits for the browser to deliver the authorization code.
     func authorizationCode() async throws -> String {
-        try await withTaskCancellationHandler {
-            if let outcome { return try outcome.get() }
-            return try await withCheckedThrowingContinuation {
-                codeContinuation = $0
-                if Task.isCancelled { cancel() }
-            }
-        } onCancel: {
-            Task { @MainActor in self.cancel() }
-        }
+        try await listener.value()
     }
 
     func cancel() {
-        finish(.failure(CancellationError()))
-    }
-
-    private func accept(_ connection: NWConnection) {
-        guard outcome == nil, connections.count < 8 else {
-            connection.cancel()
-            return
-        }
-        let id = UUID()
-        connections[id] = connection
-        connectionTimeouts[id] = Task { [weak self] in
-            do { try await Task.sleep(for: .seconds(5)) } catch { return }
-            self?.close(id)
-        }
-        connection.start(queue: .main)
-        receive(id, accumulated: Data())
-    }
-
-    private func receive(_ id: UUID, accumulated: Data) {
-        guard let connection = connections[id] else { return }
-        connection.receive(minimumIncompleteLength: 1, maximumLength: 8192 - accumulated.count) { [weak self] data, _, complete, error in
-            Task { @MainActor in
-                guard let self, self.connections[id] != nil else { return }
-                var buffer = accumulated
-                if let data { buffer.append(data) }
-                if let end = buffer.range(of: Data("\r\n\r\n".utf8)) {
-                    self.handle(id, header: buffer.subdata(in: 0..<end.upperBound))
-                } else if error != nil || complete || buffer.count >= 8192 {
-                    self.close(id)
-                } else {
-                    self.receive(id, accumulated: buffer)
-                }
-            }
-        }
-    }
-
-    private func handle(_ id: UUID, header: Data) {
-        do {
-            let code = try OAuthCallbackRequest.code(from: header, port: port, expectedState: expectedState)
-            respond(id, page: .received(sessionName: sessionName), result: .success(code))
-        } catch BrowserSignInError.accessDenied {
-            respond(id, page: .declined(sessionName: sessionName), result: .failure(BrowserSignInError.accessDenied))
-        } catch {
-            // Unrelated requests and a wrong state must not cancel a valid sign-in.
-            respond(id, page: .notAccepted, result: nil)
-        }
-    }
-
-    private func respond(_ id: UUID, page: SignInCallbackPage, result: Result<String, any Error>?) {
-        let body = page.html
-        let response = "HTTP/1.1 \(page.statusLine)\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: \(body.utf8.count)\r\nCache-Control: no-store\r\nReferrer-Policy: no-referrer\r\nContent-Security-Policy: \(SignInCallbackPage.contentSecurityPolicy)\r\nConnection: close\r\n\r\n\(body)"
-        connections[id]?.send(content: Data(response.utf8), completion: .contentProcessed { [weak self] _ in
-            Task { @MainActor in
-                self?.close(id)
-                if let result { self?.finish(result) }
-            }
-        })
-    }
-
-    private func close(_ id: UUID) {
-        connectionTimeouts.removeValue(forKey: id)?.cancel()
-        connections.removeValue(forKey: id)?.cancel()
-    }
-
-    private func finish(_ result: Result<String, any Error>) {
-        guard outcome == nil else { return }
-        outcome = result
-        timeout?.cancel()
-        listener?.cancel()
-        listener = nil
-        for id in Array(connections.keys) {
-            close(id)
-        }
-        if let ready {
-            self.ready = nil
-            switch result {
-            case .failure(let error):
-                ready.resume(throwing: error)
-            case .success:
-                ready.resume(throwing: BrowserSignInError.invalidCallback)
-            }
-        }
-        codeContinuation?.resume(with: result)
-        codeContinuation = nil
+        listener.cancel()
     }
 }
