@@ -10,7 +10,7 @@ import Observation
 @MainActor
 @Observable
 public final class ClientVPNController {
-    public enum State: Equatable, Sendable {
+    public enum State: Hashable, Sendable {
         case disconnected, connecting, signingIn, connected, disconnecting
         case failed(ClientVPNLiveFailure)
     }

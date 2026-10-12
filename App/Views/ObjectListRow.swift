@@ -71,6 +71,24 @@ struct ObjectListRow: View {
             }
             .padding(.vertical, 3)
 
+        case .clientVPN(let vpn):
+            HStack(spacing: 8) {
+                Image(systemName: vpn.status.systemImage)
+                    .foregroundStyle(vpn.status.tint)
+                    .frame(width: 18)
+                    .accessibilityLabel(vpn.status.title)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(vpn.name)
+                        .lineLimit(1)
+                    Text(vpn.status.title)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 8)
+            }
+            .padding(.vertical, 3)
+
         case .databaseConnection(let connection):
             HStack(spacing: 8) {
                 Image(systemName: connection.state.systemImage)

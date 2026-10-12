@@ -12,6 +12,8 @@ struct quorraApp: App {
                 .environment(appDelegate.editorState)
                 .environment(appDelegate.credentialsModel)
                 .environment(appDelegate.databaseModel)
+                .environment(appDelegate.clientVPNController)
+                .environment(\.clientVPNSecrets, appDelegate.clientVPNSecrets)
                 .environment(appDelegate.imdsModel)
                 .environment(appDelegate.imdsProxyController)
                 .environment(appDelegate.notificationCoordinator)

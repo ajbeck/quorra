@@ -62,6 +62,14 @@ struct ClientVPNProfileTests {
         #expect(throws: error) { try ClientVPNProfile(text: text) }
     }
 
+    @Test func loadsAFile() async throws {
+        let url = FileManager.default.temporaryDirectory.appending(path: "\(UUID().uuidString).ovpn")
+        try Data(exported.utf8).write(to: url)
+        defer { try? FileManager.default.removeItem(at: url) }
+        #expect(try await ClientVPNProfile.load(from: url).text == exported)
+        await #expect(throws: ClientVPNProfileError.notText) { try await ClientVPNProfile.load(from: FileManager.default.temporaryDirectory) }
+    }
+
     @Test func refusesFilesThatAreNotProfiles() {
         let oversized = Data(repeating: 0x61, count: ClientVPNLimits.profileBytes + 1)
         #expect(throws: ClientVPNProfileError.tooLarge) { try ClientVPNProfile(data: oversized) }

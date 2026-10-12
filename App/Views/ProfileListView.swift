@@ -11,10 +11,13 @@ struct ObjectListView: View {
     @Environment(IMDSModel.self) private var imdsModel
     @Environment(CredentialsModel.self) private var credentialsModel
     @Environment(DatabaseModel.self) private var databaseModel
+    @Environment(ClientVPNController.self) private var vpnController
+    @Environment(\.clientVPNSecrets) private var vpnSecrets
     @Environment(\.modelContext) private var modelContext
     @Query private var sessionDefinitions: [SessionDefinition]
     @Query private var profileDefinitions: [ProfileDefinition]
     @Query private var endpointDefinitions: [IMDSEndpointDefinition]
+    @Query private var vpnProfiles: [ClientVPNProfileDefinition]
     @Query private var databaseConnections: [DatabaseConnectionDefinition]
     @Query private var databaseCredentials: [DatabaseCredentialDefinition]
 
@@ -22,6 +25,8 @@ struct ObjectListView: View {
     @State private var pendingDeletion: ObjectListItem?
     @State private var deletionError: String?
     @State private var isImportingConnection = false
+    @State private var isImportingVPN = false
+    @State private var importError: String?
     @FocusState private var isListFocused: Bool
 
     var body: some View {
@@ -74,6 +79,10 @@ struct ObjectListView: View {
                     try insertAndSave(endpoint)
                     select(.imdsEndpoints, .imds(endpointID: endpoint.stableIDString))
                 }
+            case .clientVPN(let imported):
+                ClientVPNEditorSheet(mode: .add(imported.profile, fileName: imported.fileName)) { vpn in
+                    select(.clientVPN, .clientVPN(id: vpn.stableIDString))
+                }
             case .databaseConnection(let imported):
                 DatabaseConnectionEditorSheet(existing: nil, imported: imported) { connection in
                     select(.databaseConnections, .databaseConnection(id: connection.stableIDString))
@@ -117,6 +126,28 @@ struct ObjectListView: View {
         } message: {
             Text(deletionError ?? "")
         }
+        .alert(
+            "Couldn't import the VPN profile",
+            isPresented: Binding(
+                get: { importError != nil },
+                set: { if !$0 { importError = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(importError ?? "")
+        }
+    }
+
+    private func importVPN(_ result: Result<URL, any Error>) {
+        Task {
+            do {
+                let url = try result.get()
+                presentedSheet = .clientVPN(ImportedClientVPN(profile: try await ClientVPNProfile.load(from: url), fileName: url.lastPathComponent))
+            } catch {
+                importError = error.localizedDescription
+            }
+        }
     }
 
     private func importConnection(_ result: Result<URL, any Error>) {
@@ -150,7 +181,16 @@ struct ObjectListView: View {
         .padding(.bottom, 8)
     }
 
-    @ViewBuilder private var listContent: some View {
+    /// The list, with the VPN profile importer here rather than beside the connection importer:
+    /// SwiftUI presents only one `fileImporter` per view.
+    private var listContent: some View {
+        listRows
+            .fileImporter(isPresented: $isImportingVPN, allowedContentTypes: [.openVPNProfile]) { result in
+                importVPN(result)
+            }
+    }
+
+    @ViewBuilder private var listRows: some View {
         if visibleItems.isEmpty {
             emptyState
         } else {
@@ -176,6 +216,14 @@ struct ObjectListView: View {
                         if !filteredIMDSItems.isEmpty {
                             Section("IMDS Endpoints") {
                                 ForEach(filteredIMDSItems, id: \.detailSelection) { item in
+                                    ObjectListRow(item: item)
+                                        .tag(item.detailSelection)
+                                }
+                            }
+                        }
+                        if !filteredVPNItems.isEmpty {
+                            Section("Client VPN") {
+                                ForEach(filteredVPNItems, id: \.detailSelection) { item in
                                     ObjectListRow(item: item)
                                         .tag(item.detailSelection)
                                 }
@@ -314,6 +362,14 @@ struct ObjectListView: View {
         Divider()
 
         Button {
+            isImportingVPN = true
+        } label: {
+            Label("Import Client VPN Profile…", systemImage: "network.badge.shield.half.filled")
+        }
+
+        Divider()
+
+        Button {
             presentedSheet = .databaseConnection(nil)
         } label: {
             Label("New Database Connection", systemImage: "cylinder.split.1x2")
@@ -340,7 +396,7 @@ struct ObjectListView: View {
             .profile
         case .imdsEndpoints:
             .imdsEndpoint
-        case .databaseConnections:
+        case .clientVPN, .databaseConnections:
             nil
         case .databaseCredentials:
             .databaseCredential
@@ -355,7 +411,7 @@ struct ObjectListView: View {
             sessionDefinitions.isEmpty
         case .imdsEndpoint:
             eligibleProfiles.isEmpty
-        case .databaseConnection, .databaseCredential:
+        case .clientVPN, .databaseConnection, .databaseCredential:
             false
         }
     }
@@ -368,6 +424,8 @@ struct ObjectListView: View {
             return sessionDefinitions.isEmpty ? "Add a session before adding profiles." : "New Profile"
         case .imdsEndpoint:
             return eligibleProfiles.isEmpty ? "Add a profile before adding IMDS endpoints." : "New IMDS Endpoint"
+        case .clientVPN:
+            return "Import Client VPN Profile"
         case .databaseConnection:
             return "New Database Connection"
         case .databaseCredential:
@@ -438,6 +496,17 @@ struct ObjectListView: View {
             .map { .imds($0) }
     }
 
+    private var vpnItems: [ObjectListItem] {
+        vpnProfiles
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+            .map {
+                .clientVPN(ClientVPNListItem(
+                    id: $0.stableIDString, name: $0.name, endpoint: $0.endpoint, status: vpnController.status(for: $0.stableID),
+                    usedBy: $0.connections.map(\.name).sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+                ))
+            }
+    }
+
     private var connectionItems: [ObjectListItem] {
         databaseConnections
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
@@ -456,6 +525,10 @@ struct ObjectListView: View {
                 .databaseCredential(DatabaseCredentialListItem(id: $0.stableIDString, name: $0.name, username: $0.username,
                                                                connectionCount: $0.connections.count))
             }
+    }
+
+    private var filteredVPNItems: [ObjectListItem] {
+        filtered(vpnItems)
     }
 
     private var filteredConnectionItems: [ObjectListItem] {
@@ -481,7 +554,7 @@ struct ObjectListView: View {
     /// Search spans every source, so a match is found whichever source is selected.
     private var sourceItems: [ObjectListItem] {
         if isSearching {
-            return sessionItems + profileItems + imdsItems + connectionItems + credentialItems
+            return sessionItems + profileItems + imdsItems + vpnItems + connectionItems + credentialItems
         }
         switch sourceSelection {
         case .sessions:
@@ -490,6 +563,8 @@ struct ObjectListView: View {
             return profileItems
         case .imdsEndpoints:
             return imdsItems
+        case .clientVPN:
+            return vpnItems
         case .databaseConnections:
             return connectionItems
         case .databaseCredentials:
@@ -499,7 +574,7 @@ struct ObjectListView: View {
 
     private var visibleItems: [ObjectListItem] {
         if isSearching {
-            return filteredSessionItems + filteredProfileItems + filteredIMDSItems + filteredConnectionItems + filteredCredentialItems
+            return filteredSessionItems + filteredProfileItems + filteredIMDSItems + filteredVPNItems + filteredConnectionItems + filteredCredentialItems
         }
         switch sourceSelection {
         case .sessions:
@@ -508,6 +583,8 @@ struct ObjectListView: View {
             return filteredProfileItems
         case .imdsEndpoints:
             return filteredIMDSItems
+        case .clientVPN:
+            return filteredVPNItems
         case .databaseConnections:
             return filteredConnectionItems
         case .databaseCredentials:
@@ -548,6 +625,8 @@ struct ObjectListView: View {
             return true
         case .imds(let endpoint):
             return !endpoint.isDefault
+        case .clientVPN(let vpn):
+            return vpn.usedBy.isEmpty
         case .databaseCredential(let credential):
             return credential.connectionCount == 0
         }
@@ -564,6 +643,10 @@ struct ObjectListView: View {
             return endpoint.isDefault
                 ? "The Default IMDS Endpoint is always available."
                 : "Remove selected IMDS endpoint"
+        case .clientVPN(let vpn):
+            return vpn.usedBy.isEmpty
+                ? "Delete selected VPN profile"
+                : ClientVPNProfileError.inUse(vpn.usedBy).localizedDescription
         case .databaseConnection:
             return "Delete selected database connection"
         case .databaseCredential(let credential):
@@ -582,6 +665,8 @@ struct ObjectListView: View {
             return "Delete profile?"
         case .imds:
             return "Remove IMDS endpoint?"
+        case .clientVPN:
+            return "Delete VPN profile?"
         case .databaseConnection:
             return "Delete database connection?"
         case .databaseCredential:
@@ -597,6 +682,8 @@ struct ObjectListView: View {
             return "Delete \(profile.name)"
         case .imds(let endpoint):
             return "Remove \(endpoint.title)"
+        case .clientVPN(let vpn):
+            return "Delete \(vpn.name)"
         case .databaseConnection(let connection):
             return "Delete \(connection.name)"
         case .databaseCredential(let credential):
@@ -613,6 +700,9 @@ struct ObjectListView: View {
             return "This deletes \(profile.name) from Quorra. Any IMDS endpoint serving it is stopped and left without a profile."
         case .imds(let endpoint):
             return "This removes the \(endpoint.title) IMDS endpoint and its activity log from Quorra."
+        case .clientVPN(let vpn):
+            let disconnect = vpn.status.isActive ? "This disconnects \(vpn.name), then deletes" : "This deletes \(vpn.name) and"
+            return "\(disconnect) its profile from Quorra and the Keychain. Your .ovpn file isn't changed."
         case .databaseConnection(let connection):
             return "This stops \(connection.name) and deletes it, its local password and its log from Quorra."
         case .databaseCredential(let credential):
@@ -658,6 +748,10 @@ struct ObjectListView: View {
                 try IMDSEndpointLogStore.deleteAll(endpointID: definition.stableID, in: modelContext)
                 modelContext.delete(definition)
                 try modelContext.save()
+            case .clientVPN(let vpn):
+                guard let definition = vpnProfiles.first(where: { $0.stableIDString == vpn.id }) else { return }
+                deleteVPN(definition, item: item)
+                return
             case .databaseConnection(let connection):
                 guard let definition = databaseConnections.first(where: { $0.stableIDString == connection.id }) else { return }
                 deleteConnection(definition, item: item)
@@ -678,6 +772,20 @@ struct ObjectListView: View {
     private func deselect(_ item: ObjectListItem) {
         if detailSelection == item.detailSelection {
             detailSelection = nil
+        }
+    }
+
+    private func deleteVPN(_ profile: ClientVPNProfileDefinition, item: ObjectListItem) {
+        Task {
+            do {
+                let id = profile.stableID
+                if vpnController.status(for: id).isActive { await vpnController.disconnect() }
+                try await ClientVPNProfileStore.delete(profile, secrets: vpnSecrets, in: modelContext)
+                vpnController.forgetSignIn(for: id)
+                deselect(item)
+            } catch {
+                deletionError = error.localizedDescription
+            }
         }
     }
 
@@ -716,6 +824,7 @@ private enum CreationSheet: Identifiable {
     case session
     case profile
     case imdsEndpoint
+    case clientVPN(ImportedClientVPN)
     case databaseConnection(ImportedConnection?)
     case databaseCredential
 
@@ -724,10 +833,17 @@ private enum CreationSheet: Identifiable {
         case .session: return "session"
         case .profile: return "profile"
         case .imdsEndpoint: return "imdsEndpoint"
+        case .clientVPN: return "clientVPN"
         case .databaseConnection: return "databaseConnection"
         case .databaseCredential: return "databaseCredential"
         }
     }
+}
+
+/// A profile read from the `.ovpn` file the user picked, waiting for the Add sheet.
+private struct ImportedClientVPN {
+    let profile: ClientVPNProfile
+    let fileName: String
 }
 
 private extension SourceSelection {
@@ -737,7 +853,7 @@ private extension SourceSelection {
             return "cloud"
         case .profiles:
             return "key"
-        case .imdsEndpoints, .databaseConnections, .databaseCredentials:
+        case .imdsEndpoints, .clientVPN, .databaseConnections, .databaseCredentials:
             return systemImage
         }
     }
@@ -750,6 +866,8 @@ private extension SourceSelection {
             return "Sign in to a session, then add a profile for one of its accounts."
         case .imdsEndpoints:
             return "Add an IMDS endpoint to see it here."
+        case .clientVPN:
+            return "Import the .ovpn file your AWS Client VPN administrator gave you, or the one from the self-service portal."
         case .databaseConnections:
             return "Add a database connection, or import a Quorra or Duck Blind connection file."
         case .databaseCredentials:
@@ -819,6 +937,8 @@ private struct ObjectListPreviewHarness: View {
         .environment(imdsModel)
         .environment(CredentialsModel(service: PreviewIdentityCenterService()))
         .environment(DatabaseModel.preview(container: metadataContainer))
+        .environment(ClientVPNController.preview())
+        .environment(\.clientVPNSecrets, .preview)
         .modelContainer(metadataContainer)
         .frame(width: 860, height: 560)
     }

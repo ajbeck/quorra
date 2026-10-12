@@ -42,6 +42,21 @@ public struct ClientVPNProfile: Equatable, Sendable {
     public let usesBrowserSignIn: Bool
     private let endpointRange: Range<String.Index>
 
+    /// Reads a profile the user picked, off the main actor, refusing anything but a small regular file.
+    public static func load(from url: URL) async throws -> ClientVPNProfile {
+        try await Task.detached(priority: .userInitiated) {
+            guard url.isFileURL else { throw ClientVPNProfileError.notText }
+            let access = url.startAccessingSecurityScopedResource()
+            defer { if access { url.stopAccessingSecurityScopedResource() } }
+            let values = try url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
+            guard values.isRegularFile == true else { throw ClientVPNProfileError.notText }
+            guard (values.fileSize ?? 0) <= ClientVPNLimits.profileBytes else { throw ClientVPNProfileError.tooLarge }
+            let file = try FileHandle(forReadingFrom: url)
+            defer { try? file.close() }
+            return try ClientVPNProfile(data: try file.read(upToCount: ClientVPNLimits.profileBytes + 1) ?? Data())
+        }.value
+    }
+
     /// Checks the size and encoding of a file before parsing it.
     public init(data: Data) throws {
         guard data.count <= ClientVPNLimits.profileBytes else { throw ClientVPNProfileError.tooLarge }

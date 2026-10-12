@@ -18,6 +18,8 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
     let authenticationBrowser: AuthenticationBrowser
     let credentialsModel: CredentialsModel
     let databaseModel: DatabaseModel
+    let clientVPNController: ClientVPNController
+    let clientVPNSecrets: ClientVPNProfileSecrets
     let runtimeCoordinator: AppRuntimeCoordinator
     let exportCoordinator: IdentityExportCoordinator
     let ipcController: AppIPCController
@@ -50,6 +52,15 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
         ) { [credentialsModel] session, account, role, region in
             try await credentialsModel.liveCredentials(forSession: session, accountId: account, roleName: role, region: region)
         }
+        // The VPN's SAML sign-in opens the browser the way Identity Center's does.
+        clientVPNController = ClientVPNController(
+            transport: ClientVPNSystemTransport(systemExtension: systemExtensionController),
+            signIn: ClientVPNBrowserSignIn(open: { [authenticationBrowser] url in
+                authenticationBrowser.open(url)
+                return authenticationBrowser.failedURL == nil
+            })
+        )
+        clientVPNSecrets = ClientVPNProfileSecrets(keychain: keychain)
 
         self.metadataContainer = metadataContainer
         self.appModel = appModel

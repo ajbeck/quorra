@@ -7,6 +7,7 @@ struct SourceSidebarView: View {
     @Query private var sessionDefinitions: [SessionDefinition]
     @Query private var profileDefinitions: [ProfileDefinition]
     @Query private var endpointDefinitions: [IMDSEndpointDefinition]
+    @Query private var vpnProfiles: [ClientVPNProfileDefinition]
     @Query private var databaseConnections: [DatabaseConnectionDefinition]
     @Query private var databaseCredentials: [DatabaseCredentialDefinition]
     @FocusState private var isFocused: Bool
@@ -23,6 +24,11 @@ struct SourceSidebarView: View {
                 SourceSidebarRow(title: MetadataObjectKind.imdsEndpoint.title, systemImage: MetadataObjectKind.imdsEndpoint.systemImage)
                     .badge(endpointDefinitions.count)
                     .tag(SourceSelection.imdsEndpoints)
+            }
+            Section("VPN") {
+                SourceSidebarRow(title: SourceSelection.clientVPN.title, systemImage: SourceSelection.clientVPN.systemImage)
+                    .badge(vpnProfiles.count)
+                    .tag(SourceSelection.clientVPN)
             }
             Section("Databases") {
                 SourceSidebarRow(title: SourceSelection.databaseConnections.title, systemImage: SourceSelection.databaseConnections.systemImage)
