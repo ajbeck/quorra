@@ -77,7 +77,8 @@ nonisolated enum ConfigurationError: Error, Equatable, LocalizedError {
     case missingConnection
     case unsupportedConfiguration
     case connectionActive
-    case credentialInUse
+    /// The names of the connections using the credential.
+    case credentialInUse([String])
     case sessionInUse
     case localPortInUse(Int)
     case configurationChanged
@@ -95,7 +96,8 @@ nonisolated enum ConfigurationError: Error, Equatable, LocalizedError {
         case .missingConnection: "This connection no longer exists. Reload the connection list."
         case .unsupportedConfiguration: "This connection contains settings that this version of Quorra cannot use."
         case .connectionActive: "Stop this local endpoint before editing or deleting its configuration."
-        case .credentialInUse: "This credential is used by a connection. Reassign or remove that connection first."
+        case .credentialInUse(let names):
+            "\(ListFormatter.localizedString(byJoining: names)) \(names.count == 1 ? "uses" : "use") this credential. Choose another credential for \(names.count == 1 ? "it" : "them"), then delete it."
         case .sessionInUse: "This session is used by an AWS access profile. Remove its profiles first."
         case .localPortInUse(let port): "Local port \(port) is already assigned to another connection."
         case .configurationChanged: "This connection’s profile changed while it was starting. Start it again."
