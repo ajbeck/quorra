@@ -88,6 +88,10 @@ struct MainView: View {
                 sourceSelection = .profiles
             case .imds:
                 sourceSelection = .imdsEndpoints
+            case .databaseConnection:
+                sourceSelection = .databaseConnections
+            case .databaseCredential:
+                sourceSelection = .databaseCredentials
             }
             selection = request
         }
@@ -99,14 +103,16 @@ struct MainView: View {
 
 #Preview("Main – empty folder") {
     let folderURL = URL(filePath: "/nonexistent/aws-folder")
+    let metadataContainer = try! QuorraMetadataSchema.makeContainer(inMemory: true)
     MainView(folderURL: folderURL)
         .environment(AppModel(folderURL: folderURL))
         .environment(EditorState())
         .environment(CredentialsModel(service: PreviewIdentityCenterService()))
+        .environment(DatabaseModel.preview(container: metadataContainer))
         .environment(IMDSModel())
         .environment(DefaultIMDSNotificationCoordinator())
         .environment(\.authenticationBrowser, AuthenticationBrowser())
-        .modelContainer(try! QuorraMetadataSchema.makeContainer(inMemory: true))
+        .modelContainer(metadataContainer)
 }
 
 #Preview("Main – with sample data") {
@@ -190,6 +196,7 @@ private struct MainViewSampleDataHarness: View {
             .environment(appModel)
             .environment(editorState)
             .environment(credentialsModel)
+            .environment(DatabaseModel.preview(container: metadataContainer))
             .environment(imdsModel)
             .environment(DefaultIMDSNotificationCoordinator())
             .environment(\.authenticationBrowser, AuthenticationBrowser())

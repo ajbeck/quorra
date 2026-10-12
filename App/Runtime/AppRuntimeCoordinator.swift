@@ -71,6 +71,9 @@ final class AppRuntimeCoordinator {
         if imdsModel.endpointsByEndpointID.values.contains(where: \.isFailed) {
             return "an IMDS endpoint failed"
         }
+        if databaseModel?.hasFailure == true {
+            return "a database connection failed"
+        }
         return nil
     }
 
@@ -95,6 +98,7 @@ final class AppRuntimeCoordinator {
     @ObservationIgnored private let notificationCoordinator: DefaultIMDSNotificationCoordinator
     @ObservationIgnored private let authenticationBrowser: AuthenticationBrowser
     @ObservationIgnored private let modelContext: ModelContext
+    @ObservationIgnored private let databaseModel: DatabaseModel?
     @ObservationIgnored private let identityImportStorage: IdentityImportStorage
 
     @ObservationIgnored private var hasStarted = false
@@ -118,6 +122,7 @@ final class AppRuntimeCoordinator {
         notificationCoordinator: DefaultIMDSNotificationCoordinator,
         authenticationBrowser: AuthenticationBrowser,
         modelContext: ModelContext,
+        databaseModel: DatabaseModel? = nil,
         identityImportStorage: IdentityImportStorage = .default
     ) {
         self.appModel = appModel
@@ -127,6 +132,7 @@ final class AppRuntimeCoordinator {
         self.notificationCoordinator = notificationCoordinator
         self.authenticationBrowser = authenticationBrowser
         self.modelContext = modelContext
+        self.databaseModel = databaseModel
         self.identityImportStorage = identityImportStorage
     }
 

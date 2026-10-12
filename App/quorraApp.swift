@@ -11,6 +11,7 @@ struct quorraApp: App {
                 .environment(appDelegate.appModel)
                 .environment(appDelegate.editorState)
                 .environment(appDelegate.credentialsModel)
+                .environment(appDelegate.databaseModel)
                 .environment(appDelegate.imdsModel)
                 .environment(appDelegate.imdsProxyController)
                 .environment(appDelegate.notificationCoordinator)
@@ -44,6 +45,7 @@ struct quorraApp: App {
                 runtimeCoordinator: appDelegate.runtimeCoordinator,
                 imdsModel: appDelegate.imdsModel,
                 credentialsModel: appDelegate.credentialsModel,
+                databaseModel: appDelegate.databaseModel,
                 notificationCoordinator: appDelegate.notificationCoordinator
             )
             .modelContainer(appDelegate.metadataContainer)

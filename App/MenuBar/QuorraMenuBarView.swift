@@ -1,4 +1,5 @@
 import AppKit
+import DatabaseProxy
 import IAMIdentityCenter
 import QuorraAppLogic
 import SwiftData
@@ -17,11 +18,13 @@ struct QuorraMenuBarView: View {
     @Environment(\.openSettings) private var openSettings
     @Query(sort: \IMDSEndpointDefinition.name) private var endpoints: [IMDSEndpointDefinition]
     @Query(sort: \SessionDefinition.name) private var sessions: [SessionDefinition]
+    @Query(sort: \DatabaseConnectionDefinition.name) private var databases: [DatabaseConnectionDefinition]
     let appUpdater: AppUpdater
     let presentationController: AppPresentationController
     let runtimeCoordinator: AppRuntimeCoordinator
     let imdsModel: IMDSModel
     let credentialsModel: CredentialsModel
+    let databaseModel: DatabaseModel
     let notificationCoordinator: DefaultIMDSNotificationCoordinator
 
     var body: some View {
@@ -84,6 +87,23 @@ struct QuorraMenuBarView: View {
             }
         }
 
+        if !databases.isEmpty {
+            Section("Databases") {
+                ForEach(topLevelDatabases, id: \.stableIDString) { connection in
+                    databaseMenu(connection)
+                }
+
+                if !otherDatabases.isEmpty {
+                    Menu("Other Databases") {
+                        ForEach(otherDatabases, id: \.stableIDString) { connection in
+                            databaseMenu(connection)
+                        }
+                    }
+                    .badge(otherDatabases.count)
+                }
+            }
+        }
+
         Divider()
 
         Button("Open Quorra…") {
@@ -128,6 +148,23 @@ struct QuorraMenuBarView: View {
             credentialsModel: credentialsModel,
             showInQuorra: showInQuorra
         )
+    }
+
+    private func databaseMenu(_ connection: DatabaseConnectionDefinition) -> some View {
+        DatabaseMenu(connection: connection, databaseModel: databaseModel, showInQuorra: showInQuorra)
+    }
+
+    /// Favourite and running databases are top-level; the rest go under Other Databases.
+    private var topLevelDatabases: [DatabaseConnectionDefinition] {
+        databases.filter(isTopLevel)
+    }
+
+    private var otherDatabases: [DatabaseConnectionDefinition] {
+        databases.filter { !isTopLevel($0) }
+    }
+
+    private func isTopLevel(_ connection: DatabaseConnectionDefinition) -> Bool {
+        connection.isFavorite || databaseModel.status(for: connection.stableID).state.isRunning
     }
 
     /// The default endpoint always leads; other endpoints are top-level while they run,

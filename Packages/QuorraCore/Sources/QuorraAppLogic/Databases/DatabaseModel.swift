@@ -14,7 +14,7 @@ public final class DatabaseModel {
     /// The connection a Start or Test is working on, so views can disable repeated clicks.
     public private(set) var workingConnectionIDs: Set<UUID> = []
     @ObservationIgnored private var proxy: ProxyCoordinator!
-    @ObservationIgnored private let secrets: DatabaseSecrets
+    @ObservationIgnored public let secrets: DatabaseSecrets
     @ObservationIgnored private let context: ModelContext
     @ObservationIgnored private var pendingLog: [DatabaseConnectionLogEntry] = []
     @ObservationIgnored private var flushTask: Task<Void, Never>?

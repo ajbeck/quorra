@@ -1,3 +1,4 @@
+import DatabaseProxy
 import Foundation
 import QuorraAppLogic
 
@@ -6,6 +7,8 @@ enum ObjectListItem: Identifiable, Hashable {
     case session(SessionListItem)
     case profile(ProfileListItem)
     case imds(IMDSEndpointListItem)
+    case databaseConnection(DatabaseConnectionListItem)
+    case databaseCredential(DatabaseCredentialListItem)
 
     var id: String {
         switch self {
@@ -15,6 +18,10 @@ enum ObjectListItem: Identifiable, Hashable {
             return "profile:\(profile.name)"
         case .imds(let endpoint):
             return "imds:\(endpoint.id)"
+        case .databaseConnection(let connection):
+            return "database:\(connection.id)"
+        case .databaseCredential(let credential):
+            return "credential:\(credential.id)"
         }
     }
 
@@ -26,6 +33,10 @@ enum ObjectListItem: Identifiable, Hashable {
             return .profile(name: profile.name)
         case .imds(let endpoint):
             return .imds(endpointID: endpoint.endpointID)
+        case .databaseConnection(let connection):
+            return .databaseConnection(id: connection.id)
+        case .databaseCredential(let credential):
+            return .databaseCredential(id: credential.id)
         }
     }
 
@@ -37,6 +48,10 @@ enum ObjectListItem: Identifiable, Hashable {
             return "profile \(profile.name) \(profile.sessionName ?? "") \(profile.accountID) \(profile.roleName)"
         case .imds(let endpoint):
             return "imds endpoint \(endpoint.title) \(endpoint.profileName) \(endpoint.subtitle) \(endpoint.state.searchText)"
+        case .databaseConnection(let connection):
+            return "database connection \(connection.name) \(connection.subtitle) \(connection.localPort) \(connection.state.rawValue)"
+        case .databaseCredential(let credential):
+            return "database credential \(credential.name) \(credential.username)"
         }
     }
 }
@@ -53,6 +68,26 @@ struct ProfileListItem: Hashable {
     let sessionName: String?
     let accountID: String
     let roleName: String
+}
+
+struct DatabaseConnectionListItem: Identifiable, Hashable {
+    let id: String
+    let name: String
+    let engine: DatabaseEngine
+    let authentication: CredentialKind
+    let localPort: Int
+    let state: ProxyEndpointStatus.State
+
+    var subtitle: String {
+        "\(engine.displayName) · \(authentication == .awsIAM ? "AWS IAM" : "Password")"
+    }
+}
+
+struct DatabaseCredentialListItem: Identifiable, Hashable {
+    let id: String
+    let name: String
+    let username: String
+    let connectionCount: Int
 }
 
 struct IMDSEndpointListItem: Identifiable, Hashable {

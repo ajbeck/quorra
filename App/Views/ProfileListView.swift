@@ -1,6 +1,8 @@
 import SwiftUI
+import DatabaseProxy
 import QuorraAppLogic
 import SwiftData
+import UniformTypeIdentifiers
 
 struct ObjectListView: View {
     @Binding var sourceSelection: SourceSelection
@@ -8,14 +10,18 @@ struct ObjectListView: View {
     @Binding var searchText: String
     @Environment(IMDSModel.self) private var imdsModel
     @Environment(CredentialsModel.self) private var credentialsModel
+    @Environment(DatabaseModel.self) private var databaseModel
     @Environment(\.modelContext) private var modelContext
     @Query private var sessionDefinitions: [SessionDefinition]
     @Query private var profileDefinitions: [ProfileDefinition]
     @Query private var endpointDefinitions: [IMDSEndpointDefinition]
+    @Query private var databaseConnections: [DatabaseConnectionDefinition]
+    @Query private var databaseCredentials: [DatabaseCredentialDefinition]
 
     @State private var presentedSheet: CreationSheet?
     @State private var pendingDeletion: ObjectListItem?
     @State private var deletionError: String?
+    @State private var isImportingConnection = false
     @FocusState private var isListFocused: Bool
 
     var body: some View {
@@ -68,7 +74,18 @@ struct ObjectListView: View {
                     try insertAndSave(endpoint)
                     select(.imdsEndpoints, .imds(endpointID: endpoint.stableIDString))
                 }
+            case .databaseConnection(let imported):
+                DatabaseConnectionEditorSheet(existing: nil, imported: imported) { connection in
+                    select(.databaseConnections, .databaseConnection(id: connection.stableIDString))
+                }
+            case .databaseCredential:
+                DatabaseCredentialEditorSheet(existing: nil) { credential in
+                    select(.databaseCredentials, .databaseCredential(id: credential.stableIDString))
+                }
             }
+        }
+        .fileImporter(isPresented: $isImportingConnection, allowedContentTypes: [.json]) { result in
+            importConnection(result)
         }
         .confirmationDialog(
             deletionTitle,
@@ -99,6 +116,20 @@ struct ObjectListView: View {
             Button("OK", role: .cancel) { }
         } message: {
             Text(deletionError ?? "")
+        }
+    }
+
+    private func importConnection(_ result: Result<URL, any Error>) {
+        Task {
+            do {
+                let file = try await ConnectionImport.load(from: try result.get())
+                let imported = try DatabaseStore.importDraft(file, in: modelContext)
+                presentedSheet = .databaseConnection(ImportedConnection(draft: imported.draft, profile: imported.profile,
+                                                                       credential: imported.credential, hint: file.credentialHint))
+            } catch is CancellationError {
+            } catch {
+                deletionError = ConnectionImportError.message(error)
+            }
         }
     }
 
@@ -145,6 +176,22 @@ struct ObjectListView: View {
                         if !filteredIMDSItems.isEmpty {
                             Section("IMDS Endpoints") {
                                 ForEach(filteredIMDSItems, id: \.detailSelection) { item in
+                                    ObjectListRow(item: item)
+                                        .tag(item.detailSelection)
+                                }
+                            }
+                        }
+                        if !filteredConnectionItems.isEmpty {
+                            Section("Database Connections") {
+                                ForEach(filteredConnectionItems, id: \.detailSelection) { item in
+                                    ObjectListRow(item: item)
+                                        .tag(item.detailSelection)
+                                }
+                            }
+                        }
+                        if !filteredCredentialItems.isEmpty {
+                            Section("Database Credentials") {
+                                ForEach(filteredCredentialItems, id: \.detailSelection) { item in
                                     ObjectListRow(item: item)
                                         .tag(item.detailSelection)
                                 }
@@ -213,7 +260,7 @@ struct ObjectListView: View {
                     .menuIndicator(.hidden)
                     .frame(width: 26, height: 26)
                     .contentShape(.rect)
-                    .help("Add session, profile, or IMDS endpoint")
+                    .help("Add an item")
                 }
 
                 Rectangle()
@@ -263,6 +310,26 @@ struct ObjectListView: View {
             Label("New IMDS Endpoint", systemImage: "antenna.radiowaves.left.and.right")
         }
         .disabled(isCreationDisabled(.imdsEndpoint))
+
+        Divider()
+
+        Button {
+            presentedSheet = .databaseConnection(nil)
+        } label: {
+            Label("New Database Connection", systemImage: "cylinder.split.1x2")
+        }
+
+        Button {
+            isImportingConnection = true
+        } label: {
+            Label("Import Database Connection…", systemImage: "square.and.arrow.down")
+        }
+
+        Button {
+            presentedSheet = .databaseCredential
+        } label: {
+            Label("New Database Credential", systemImage: "person.badge.key")
+        }
     }
 
     private var defaultCreationSheet: CreationSheet? {
@@ -273,6 +340,10 @@ struct ObjectListView: View {
             .profile
         case .imdsEndpoints:
             .imdsEndpoint
+        case .databaseConnections:
+            nil
+        case .databaseCredentials:
+            .databaseCredential
         }
     }
 
@@ -284,6 +355,8 @@ struct ObjectListView: View {
             sessionDefinitions.isEmpty
         case .imdsEndpoint:
             eligibleProfiles.isEmpty
+        case .databaseConnection, .databaseCredential:
+            false
         }
     }
 
@@ -295,6 +368,10 @@ struct ObjectListView: View {
             return sessionDefinitions.isEmpty ? "Add a session before adding profiles." : "New Profile"
         case .imdsEndpoint:
             return eligibleProfiles.isEmpty ? "Add a profile before adding IMDS endpoints." : "New IMDS Endpoint"
+        case .databaseConnection:
+            return "New Database Connection"
+        case .databaseCredential:
+            return "New Database Credential"
         }
     }
 
@@ -361,6 +438,34 @@ struct ObjectListView: View {
             .map { .imds($0) }
     }
 
+    private var connectionItems: [ObjectListItem] {
+        databaseConnections
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+            .map {
+                .databaseConnection(DatabaseConnectionListItem(
+                    id: $0.stableIDString, name: $0.name, engine: $0.engine, authentication: $0.authentication,
+                    localPort: $0.localPort, state: databaseModel.status(for: $0.stableID).state
+                ))
+            }
+    }
+
+    private var credentialItems: [ObjectListItem] {
+        databaseCredentials
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+            .map {
+                .databaseCredential(DatabaseCredentialListItem(id: $0.stableIDString, name: $0.name, username: $0.username,
+                                                               connectionCount: $0.connections.count))
+            }
+    }
+
+    private var filteredConnectionItems: [ObjectListItem] {
+        filtered(connectionItems)
+    }
+
+    private var filteredCredentialItems: [ObjectListItem] {
+        filtered(credentialItems)
+    }
+
     private var filteredSessionItems: [ObjectListItem] {
         filtered(sessionItems)
     }
@@ -376,7 +481,7 @@ struct ObjectListView: View {
     /// Search spans every source, so a match is found whichever source is selected.
     private var sourceItems: [ObjectListItem] {
         if isSearching {
-            return sessionItems + profileItems + imdsItems
+            return sessionItems + profileItems + imdsItems + connectionItems + credentialItems
         }
         switch sourceSelection {
         case .sessions:
@@ -385,12 +490,16 @@ struct ObjectListView: View {
             return profileItems
         case .imdsEndpoints:
             return imdsItems
+        case .databaseConnections:
+            return connectionItems
+        case .databaseCredentials:
+            return credentialItems
         }
     }
 
     private var visibleItems: [ObjectListItem] {
         if isSearching {
-            return filteredSessionItems + filteredProfileItems + filteredIMDSItems
+            return filteredSessionItems + filteredProfileItems + filteredIMDSItems + filteredConnectionItems + filteredCredentialItems
         }
         switch sourceSelection {
         case .sessions:
@@ -399,6 +508,10 @@ struct ObjectListView: View {
             return filteredProfileItems
         case .imdsEndpoints:
             return filteredIMDSItems
+        case .databaseConnections:
+            return filteredConnectionItems
+        case .databaseCredentials:
+            return filteredCredentialItems
         }
     }
 
@@ -431,10 +544,12 @@ struct ObjectListView: View {
     private var canDeleteSelectedItem: Bool {
         guard let selectedItem else { return false }
         switch selectedItem {
-        case .session, .profile:
+        case .session, .profile, .databaseConnection:
             return true
         case .imds(let endpoint):
             return !endpoint.isDefault
+        case .databaseCredential(let credential):
+            return credential.connectionCount == 0
         }
     }
 
@@ -449,6 +564,12 @@ struct ObjectListView: View {
             return endpoint.isDefault
                 ? "The Default IMDS Endpoint is always available."
                 : "Remove selected IMDS endpoint"
+        case .databaseConnection:
+            return "Delete selected database connection"
+        case .databaseCredential(let credential):
+            return credential.connectionCount == 0
+                ? "Delete selected database credential"
+                : "Move its connections to another credential before deleting it."
         }
     }
 
@@ -461,6 +582,10 @@ struct ObjectListView: View {
             return "Delete profile?"
         case .imds:
             return "Remove IMDS endpoint?"
+        case .databaseConnection:
+            return "Delete database connection?"
+        case .databaseCredential:
+            return "Delete database credential?"
         }
     }
 
@@ -472,6 +597,10 @@ struct ObjectListView: View {
             return "Delete \(profile.name)"
         case .imds(let endpoint):
             return "Remove \(endpoint.title)"
+        case .databaseConnection(let connection):
+            return "Delete \(connection.name)"
+        case .databaseCredential(let credential):
+            return "Delete \(credential.name)"
         }
     }
 
@@ -484,6 +613,10 @@ struct ObjectListView: View {
             return "This deletes \(profile.name) from Quorra. Any IMDS endpoint serving it is stopped and left without a profile."
         case .imds(let endpoint):
             return "This removes the \(endpoint.title) IMDS endpoint and its activity log from Quorra."
+        case .databaseConnection(let connection):
+            return "This stops \(connection.name) and deletes it, its local password and its log from Quorra."
+        case .databaseCredential(let credential):
+            return "This deletes \(credential.name) and its password from Quorra and the Keychain."
         }
     }
 
@@ -525,13 +658,50 @@ struct ObjectListView: View {
                 try IMDSEndpointLogStore.deleteAll(endpointID: definition.stableID, in: modelContext)
                 modelContext.delete(definition)
                 try modelContext.save()
+            case .databaseConnection(let connection):
+                guard let definition = databaseConnections.first(where: { $0.stableIDString == connection.id }) else { return }
+                deleteConnection(definition, item: item)
+                return
+            case .databaseCredential(let credential):
+                guard let definition = databaseCredentials.first(where: { $0.stableIDString == credential.id }) else { return }
+                deleteCredential(definition, item: item)
+                return
             }
-            if detailSelection == item.detailSelection {
-                detailSelection = nil
-            }
+            deselect(item)
         } catch {
             modelContext.rollback()
             deletionError = error.localizedDescription
+        }
+    }
+
+    /// Clears the detail after a delete succeeds; a refused delete leaves it showing where the item is used.
+    private func deselect(_ item: ObjectListItem) {
+        if detailSelection == item.detailSelection {
+            detailSelection = nil
+        }
+    }
+
+    private func deleteConnection(_ connection: DatabaseConnectionDefinition, item: ObjectListItem) {
+        Task {
+            do {
+                await databaseModel.stop(connection.stableID)
+                try DatabaseConnectionLogStore.deleteAll(connectionID: connection.stableID, in: modelContext)
+                try await DatabaseStore.deleteConnection(connection, secrets: databaseModel.secrets, in: modelContext)
+                deselect(item)
+            } catch {
+                deletionError = error.localizedDescription
+            }
+        }
+    }
+
+    private func deleteCredential(_ credential: DatabaseCredentialDefinition, item: ObjectListItem) {
+        Task {
+            do {
+                try await DatabaseStore.deleteCredential(credential, secrets: databaseModel.secrets, in: modelContext)
+                deselect(item)
+            } catch {
+                deletionError = error.localizedDescription
+            }
         }
     }
 
@@ -546,12 +716,16 @@ private enum CreationSheet: Identifiable {
     case session
     case profile
     case imdsEndpoint
+    case databaseConnection(ImportedConnection?)
+    case databaseCredential
 
     var id: String {
         switch self {
         case .session: return "session"
         case .profile: return "profile"
         case .imdsEndpoint: return "imdsEndpoint"
+        case .databaseConnection: return "databaseConnection"
+        case .databaseCredential: return "databaseCredential"
         }
     }
 }
@@ -563,8 +737,8 @@ private extension SourceSelection {
             return "cloud"
         case .profiles:
             return "key"
-        case .imdsEndpoints:
-            return "antenna.radiowaves.left.and.right"
+        case .imdsEndpoints, .databaseConnections, .databaseCredentials:
+            return systemImage
         }
     }
 
@@ -576,6 +750,10 @@ private extension SourceSelection {
             return "Sign in to a session, then add a profile for one of its accounts."
         case .imdsEndpoints:
             return "Add an IMDS endpoint to see it here."
+        case .databaseConnections:
+            return "Add a database connection, or import a Quorra or Duck Blind connection file."
+        case .databaseCredentials:
+            return "Add a saved database username and password to share between connections."
         }
     }
 }
@@ -640,6 +818,7 @@ private struct ObjectListPreviewHarness: View {
         }
         .environment(imdsModel)
         .environment(CredentialsModel(service: PreviewIdentityCenterService()))
+        .environment(DatabaseModel.preview(container: metadataContainer))
         .modelContainer(metadataContainer)
         .frame(width: 860, height: 560)
     }

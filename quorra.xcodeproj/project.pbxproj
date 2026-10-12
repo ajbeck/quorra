@@ -12,6 +12,7 @@
 		1B9A00012FD0000000000001 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 1B9A00032FD0000000000003 /* Sparkle */; };
 		1BA1B1C12FB0000000000001 /* AWSConfigINI in Frameworks */ = {isa = PBXBuildFile; productRef = 1BA1B1C22FB0000000000002 /* AWSConfigINI */; };
 		1BA1B1C42FC0000000000004 /* QuorraAppLogic in Frameworks */ = {isa = PBXBuildFile; productRef = 1BA1B1C52FC0000000000005 /* QuorraAppLogic */; };
+		1BD8B0012FE0000000000001 /* DatabaseProxy in Frameworks */ = {isa = PBXBuildFile; productRef = 1BD8B0022FE0000000000002 /* DatabaseProxy */; };
 		213712AC305585AA0036671E /* NetworkExtension.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 213712AB305585AA0036671E /* NetworkExtension.framework */; };
 		213712B4305585AB0036671E /* dev.ajbeck.quorra.imds-proxy.systemextension in Embed System Extensions */ = {isa = PBXBuildFile; fileRef = 213712AA305585AA0036671E /* dev.ajbeck.quorra.imds-proxy.systemextension */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		218FE06E304DC905008239F8 /* QuorraCLIKit in Frameworks */ = {isa = PBXBuildFile; productRef = 218FE06D304DC905008239F8 /* QuorraCLIKit */; };
@@ -124,6 +125,7 @@
 				1BA1B1C42FC0000000000004 /* QuorraAppLogic in Frameworks */,
 				1BA1B1C12FB0000000000001 /* AWSConfigINI in Frameworks */,
 				1B84B1E82FB38D8C00D138C8 /* IAMIdentityCenter in Frameworks */,
+				1BD8B0012FE0000000000001 /* DatabaseProxy in Frameworks */,
 				1B9A00012FD0000000000001 /* Sparkle in Frameworks */,
 			);
 		};
@@ -207,6 +209,7 @@
 			packageProductDependencies = (
 				1BA1B1C22FB0000000000002 /* AWSConfigINI */,
 				1B84B1E72FB38D8C00D138C8 /* IAMIdentityCenter */,
+				1BD8B0022FE0000000000002 /* DatabaseProxy */,
 				1BA1B1C52FC0000000000005 /* QuorraAppLogic */,
 				1B9A00032FD0000000000003 /* Sparkle */,
 			);
@@ -909,6 +912,10 @@
 		1BA1B1C52FC0000000000005 /* QuorraAppLogic */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = QuorraAppLogic;
+		};
+		1BD8B0022FE0000000000002 /* DatabaseProxy */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = DatabaseProxy;
 		};
 		218FE06D304DC905008239F8 /* QuorraCLIKit */ = {
 			isa = XCSwiftPackageProductDependency;
