@@ -104,10 +104,11 @@ final class ClientVPNSystemTransport: ClientVPNTransport {
     }
 
     private func installConfiguration() async throws -> NETunnelProviderManager {
-        // The IMDS proxy's NETransparentProxyManager shares the provider bundle and is a subclass.
+        // The IMDS proxy's configuration shares the provider bundle, so the server address tells them apart.
         let existing = try await NETunnelProviderManager.loadAllFromPreferences().first { manager in
-            !(manager is NETransparentProxyManager)
-                && (manager.protocolConfiguration as? NETunnelProviderProtocol)?.providerBundleIdentifier == SystemExtensionController.bundleIdentifier
+            guard let configuration = manager.protocolConfiguration as? NETunnelProviderProtocol else { return false }
+            return configuration.providerBundleIdentifier == SystemExtensionController.bundleIdentifier
+                && configuration.serverAddress == Self.configurationName
         }
         if let existing, isCurrent(existing) {
             manager = existing
