@@ -1,0 +1,1 @@
+Synthetic TLS server identity used only by the test target. This test-only private key has no access to any real service. PKCS#12 password: duckblind-test-only. Tests import the identity into process memory only and never into Keychain. Client trust uses the synthetic root at a fixed September 2026 verification date. Never include these fixtures in the app target.
