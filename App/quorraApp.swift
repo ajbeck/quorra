@@ -43,8 +43,10 @@ struct quorraApp: App {
                 presentationController: appDelegate.presentationController,
                 runtimeCoordinator: appDelegate.runtimeCoordinator,
                 imdsModel: appDelegate.imdsModel,
+                credentialsModel: appDelegate.credentialsModel,
                 notificationCoordinator: appDelegate.notificationCoordinator
             )
+            .modelContainer(appDelegate.metadataContainer)
         } label: {
             QuorraMenuBarLabel(runtimeCoordinator: appDelegate.runtimeCoordinator)
         }

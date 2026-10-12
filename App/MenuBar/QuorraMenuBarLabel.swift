@@ -1,12 +1,18 @@
 import SwiftUI
 
-/// The menu bar icon. It stays the Quorra glyph in every state; the menu's header line and its
-/// Sign In item carry the sign-in state, and the accessibility label reports it.
+/// The menu bar icon: the Quorra glyph, with a badge while something needs the user, such as a
+/// sign-in or a failed endpoint. Both images are template images so macOS tints them for the
+/// menu bar's appearance; the accessibility label names the reason.
 struct QuorraMenuBarLabel: View {
     let runtimeCoordinator: AppRuntimeCoordinator
 
     var body: some View {
-        Image("QuorraMenuBarIcon")
-            .accessibilityLabel(runtimeCoordinator.defaultEndpointSignInSessionName != nil ? "Quorra, sign-in needed" : "Quorra")
+        if let reason = runtimeCoordinator.attentionReason {
+            Image("QuorraMenuBarIconAttention")
+                .accessibilityLabel("Quorra, \(reason)")
+        } else {
+            Image("QuorraMenuBarIcon")
+                .accessibilityLabel("Quorra")
+        }
     }
 }
