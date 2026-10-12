@@ -45,10 +45,11 @@ final class IdentityExportCoordinator {
         }
     }
 
-    /// Writes the store to the config file when export is on and the folder is available. Saves that
+    /// Writes the store to the config file when export is on. Saves that
     /// arrive while an export is running are folded into one follow-up export.
     func exportIfEnabled() async {
-        guard appModel.mode == .managed, case .ready(let folderURL) = appModel.phase else { return }
+        guard appModel.mode == .managed else { return }
+        let folderURL = appModel.folderURL
         exportRequested = true
         guard !isExporting else { return }
         isExporting = true
@@ -81,7 +82,8 @@ final class IdentityExportCoordinator {
     /// Reads the AWS folder again and adds or updates its sessions and profiles in the store.
     /// Nothing is deleted; deleting stays a Quorra action.
     func reimport() async {
-        guard case .ready(let folderURL) = appModel.phase, !isImporting else { return }
+        guard !isImporting else { return }
+        let folderURL = appModel.folderURL
         isImporting = true
         defer { isImporting = false }
         do {
@@ -121,7 +123,7 @@ final class IdentityExportCoordinator {
 extension IdentityExportCoordinator {
     static func preview(failure: String? = nil, importMessage: String? = nil) -> IdentityExportCoordinator {
         let coordinator = IdentityExportCoordinator(
-            appModel: AppModel(initialPhase: .setup),
+            appModel: AppModel(folderURL: URL(filePath: "/Users/example/.aws")),
             modelContext: PreviewIdentityFixtures.makeContainer().mainContext,
             storage: IdentityExportStorage(defaults: UserDefaults(suiteName: "dev.ajbeck.quorra.preview.export")!)
         )

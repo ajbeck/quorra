@@ -8,20 +8,7 @@ struct RootView: View {
     @Environment(AppPresentationController.self) private var presentationController
 
     var body: some View {
-        Group {
-            switch appModel.phase {
-            case .restoring:
-                ProgressView()
-                    .controlSize(.small)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            case .setup:
-                SetupView()
-            case .ready(let url):
-                MainView(folderURL: url)
-            case .error(let err):
-                ErrorView(error: err)
-            }
-        }
+        MainView(folderURL: appModel.folderURL)
         .handlesExternalEvents(
             preferring: [AppNavigationRoute.externalEventMatchPrefix],
             allowing: [AppNavigationRoute.externalEventMatchPrefix]
@@ -47,26 +34,9 @@ extension ProcessInfo {
 
 #if DEBUG
 
-#Preview("Root – setup") {
+#Preview("Root") {
     RootView()
-        .environment(AppModel(initialPhase: .setup))
-        .environment(AppRuntimeCoordinator.preview())
-        .environment(DefaultIMDSNotificationCoordinator())
-        .environment(AppPresentationController())
-}
-
-#Preview("Root – ready") {
-    let url = URL(filePath: "/Users/example/.aws")
-    RootView()
-        .environment(AppModel(initialPhase: .ready(url)))
-        .environment(AppRuntimeCoordinator.preview())
-        .environment(DefaultIMDSNotificationCoordinator())
-        .environment(AppPresentationController())
-}
-
-#Preview("Root – error") {
-    RootView()
-        .environment(AppModel(initialPhase: .error(.folderMissing)))
+        .environment(AppModel(folderURL: URL(filePath: "/Users/example/.aws")))
         .environment(AppRuntimeCoordinator.preview())
         .environment(DefaultIMDSNotificationCoordinator())
         .environment(AppPresentationController())

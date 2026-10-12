@@ -93,7 +93,7 @@ struct MainView: View {
 #Preview("Main – empty folder") {
     let folderURL = URL(filePath: "/nonexistent/aws-folder")
     MainView(folderURL: folderURL)
-        .environment(AppModel(initialPhase: .ready(folderURL)))
+        .environment(AppModel(folderURL: folderURL))
         .environment(EditorState())
         .environment(CredentialsModel(service: PreviewIdentityCenterService()))
         .environment(IMDSModel())
@@ -166,7 +166,7 @@ private struct MainViewSampleDataHarness: View {
         let metadataContainer = PreviewIdentityFixtures.makeContainer(seedsEndpoint: true)
         imds.setState(.active(port: 9678), forEndpointID: PreviewIdentityFixtures.endpointID.uuidString)
 
-        _appModel = State(initialValue: AppModel(initialPhase: .ready(folderURL)))
+        _appModel = State(initialValue: AppModel(folderURL: folderURL))
         _editorState = State(initialValue: EditorState())
         _credentialsModel = State(initialValue: creds)
         _imdsModel = State(initialValue: imds)

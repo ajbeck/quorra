@@ -135,7 +135,6 @@ final class AppRuntimeCoordinator {
             }
         }
 
-        await appModel.resolveStoredBookmark()
         await requestReconciliation(force: true)
     }
 
@@ -320,7 +319,7 @@ final class AppRuntimeCoordinator {
 
     private func installObservation() {
         withObservationTracking {
-            _ = appModel.phase
+            _ = appModel.folderURL
             _ = credentialsModel.profileStatus
             _ = credentialsModel.status
             _ = credentialsModel.refreshFailure
@@ -369,15 +368,7 @@ final class AppRuntimeCoordinator {
     private func reconcileObservedState(force: Bool) async {
         handleSignInPresentationChange()
 
-        guard case .ready(let folderURL) = appModel.phase else {
-            loadedFolderURL = nil
-            previousEligibleProfileNames = []
-            previousProfileStatus = [:]
-            previousSessionStatus = [:]
-            previousRefreshFailure = []
-            return
-        }
-
+        let folderURL = appModel.folderURL
         let folderChanged = loadedFolderURL != folderURL
         if folderChanged {
             loadedFolderURL = folderURL
@@ -548,7 +539,7 @@ final class AppRuntimeCoordinator {
 extension AppRuntimeCoordinator {
     static func preview() -> AppRuntimeCoordinator {
         let container = try! QuorraMetadataSchema.makeContainer(inMemory: true)
-        let appModel = AppModel(initialPhase: .setup)
+        let appModel = AppModel(folderURL: URL(filePath: "/Users/example/.aws"))
         let credentialsModel = CredentialsModel(service: PreviewIdentityCenterService())
         let imdsModel = IMDSModel()
         let notificationCoordinator = DefaultIMDSNotificationCoordinator()

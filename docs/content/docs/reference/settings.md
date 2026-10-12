@@ -5,7 +5,7 @@ weight: 10
 ---
 ## General
 
-**AWS configuration** shows the folder Quorra has access to, with **Choose Folder…** to point it somewhere else and **Re-import from AWS Folder** to read it again.
+**AWS configuration** shows the AWS folder Quorra reads, normally `~/.aws`, with **Choose Folder…** to point it somewhere else and **Re-import from AWS Folder** to read it again.
 
 **Export** holds the **Export to AWS folder** switch. With it on, Quorra writes the sessions and profiles it manages back to `config` whenever its store changes. Failures show here with a **Retry**.
 
