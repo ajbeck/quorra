@@ -658,38 +658,47 @@ struct ObjectListView: View {
                 try IMDSEndpointLogStore.deleteAll(endpointID: definition.stableID, in: modelContext)
                 modelContext.delete(definition)
                 try modelContext.save()
-            case .databaseConnection(let item):
-                guard let definition = databaseConnections.first(where: { $0.stableIDString == item.id }) else { return }
-                deleteConnection(definition)
-            case .databaseCredential(let item):
-                guard let definition = databaseCredentials.first(where: { $0.stableIDString == item.id }) else { return }
-                deleteCredential(definition)
+            case .databaseConnection(let connection):
+                guard let definition = databaseConnections.first(where: { $0.stableIDString == connection.id }) else { return }
+                deleteConnection(definition, item: item)
+                return
+            case .databaseCredential(let credential):
+                guard let definition = databaseCredentials.first(where: { $0.stableIDString == credential.id }) else { return }
+                deleteCredential(definition, item: item)
+                return
             }
-            if detailSelection == item.detailSelection {
-                detailSelection = nil
-            }
+            deselect(item)
         } catch {
             modelContext.rollback()
             deletionError = error.localizedDescription
         }
     }
 
-    private func deleteConnection(_ connection: DatabaseConnectionDefinition) {
+    /// Clears the detail after a delete succeeds; a refused delete leaves it showing where the item is used.
+    private func deselect(_ item: ObjectListItem) {
+        if detailSelection == item.detailSelection {
+            detailSelection = nil
+        }
+    }
+
+    private func deleteConnection(_ connection: DatabaseConnectionDefinition, item: ObjectListItem) {
         Task {
             do {
                 await databaseModel.stop(connection.stableID)
                 try DatabaseConnectionLogStore.deleteAll(connectionID: connection.stableID, in: modelContext)
                 try await DatabaseStore.deleteConnection(connection, secrets: databaseModel.secrets, in: modelContext)
+                deselect(item)
             } catch {
                 deletionError = error.localizedDescription
             }
         }
     }
 
-    private func deleteCredential(_ credential: DatabaseCredentialDefinition) {
+    private func deleteCredential(_ credential: DatabaseCredentialDefinition, item: ObjectListItem) {
         Task {
             do {
                 try await DatabaseStore.deleteCredential(credential, secrets: databaseModel.secrets, in: modelContext)
+                deselect(item)
             } catch {
                 deletionError = error.localizedDescription
             }
