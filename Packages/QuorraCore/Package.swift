@@ -66,7 +66,7 @@ let package = Package(
         ),
         .target(
             name: "QuorraAppLogic",
-            dependencies: ["AWSConfigINI", "IAMIdentityCenter", "QuorraIPC", "QuorraProfiles"]
+            dependencies: ["AWSConfigINI", "DatabaseProxy", "IAMIdentityCenter", "QuorraIPC", "QuorraProfiles"]
         ),
         .target(
             name: "QuorraProfiles",
@@ -100,7 +100,7 @@ let package = Package(
         ),
         .testTarget(
             name: "QuorraAppLogicTests",
-            dependencies: ["QuorraAppLogic", "AWSConfigINI", "IAMIdentityCenter"]
+            dependencies: ["QuorraAppLogic", "AWSConfigINI", "DatabaseProxy", "IAMIdentityCenter"]
         ),
         .testTarget(
             name: "IAMIdentityCenterTests",
