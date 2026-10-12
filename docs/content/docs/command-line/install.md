@@ -7,10 +7,10 @@ Quorra ships a command-line tool inside the app bundle. Rather than asking you t
 
 ## Set it up
 
-Go to **Settings → Background → Command-line tool** and choose **Set Up…**. Pick a folder that is already on your `PATH`, and Quorra links the command there.
+Go to **Settings → Background → Command-line tool** and choose **Install**. Quorra links the command into `~/.local/bin`, creating the folder if needed. To use another folder, choose **Choose Folder…** instead.
 
 {{< callout kind="note" >}}
-Quorra does not edit your shell configuration. The folder you choose must already be on your `PATH`.
+Quorra does not edit your shell configuration. `~/.local/bin`, or the folder you choose, must be on your `PATH`.
 {{< /callout >}}
 
 Check it:
@@ -38,4 +38,3 @@ $ quorra start
 | Not installed                                          | No command has been linked yet                                                                      |
 | The command link needs repair                          | The link is there but no longer resolves — **Repair** relinks it                                  |
 | Another item already uses this command path            | Something else is called `quorra` in that folder. Quorra will not replace it; choose another folder |
-| Quorra no longer has access to the installation folder | macOS revoked the folder permission — choose the folder again                                     |
