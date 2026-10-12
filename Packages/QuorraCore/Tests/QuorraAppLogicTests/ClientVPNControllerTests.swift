@@ -47,6 +47,10 @@ struct ClientVPNControllerTests {
         #expect(tunnel.stops == 1 && controller.tunnel == nil)
         // The session token outlives a drop, so Connect can skip the browser.
         #expect(controller.savedSignIn(for: work) != nil)
+
+        // Disconnecting a dropped tunnel clears the failure without stopping it again.
+        await controller.disconnect()
+        #expect(controller.state == .disconnected && tunnel.stops == 1)
     }
 
     @Test func disconnectingStopsTheTunnel() async {

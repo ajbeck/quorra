@@ -79,7 +79,8 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
             notificationCoordinator: notificationCoordinator,
             authenticationBrowser: authenticationBrowser,
             modelContext: metadataContainer.mainContext,
-            databaseModel: databaseModel
+            databaseModel: databaseModel,
+            clientVPNController: clientVPNController
         )
         self.runtimeCoordinator = runtimeCoordinator
         self.exportCoordinator = IdentityExportCoordinator(appModel: appModel, modelContext: metadataContainer.mainContext)

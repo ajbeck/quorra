@@ -74,6 +74,9 @@ final class AppRuntimeCoordinator {
         if databaseModel?.hasFailure == true {
             return "a database connection failed"
         }
+        if let clientVPNController, case .failed = clientVPNController.state {
+            return clientVPNController.connectedDate == nil ? "a VPN couldn't connect" : "a VPN dropped"
+        }
         return nil
     }
 
@@ -99,6 +102,7 @@ final class AppRuntimeCoordinator {
     @ObservationIgnored private let authenticationBrowser: AuthenticationBrowser
     @ObservationIgnored private let modelContext: ModelContext
     @ObservationIgnored private let databaseModel: DatabaseModel?
+    @ObservationIgnored private let clientVPNController: ClientVPNController?
     @ObservationIgnored private let identityImportStorage: IdentityImportStorage
 
     @ObservationIgnored private var hasStarted = false
@@ -123,6 +127,7 @@ final class AppRuntimeCoordinator {
         authenticationBrowser: AuthenticationBrowser,
         modelContext: ModelContext,
         databaseModel: DatabaseModel? = nil,
+        clientVPNController: ClientVPNController? = nil,
         identityImportStorage: IdentityImportStorage = .default
     ) {
         self.appModel = appModel
@@ -133,6 +138,7 @@ final class AppRuntimeCoordinator {
         self.authenticationBrowser = authenticationBrowser
         self.modelContext = modelContext
         self.databaseModel = databaseModel
+        self.clientVPNController = clientVPNController
         self.identityImportStorage = identityImportStorage
     }
 

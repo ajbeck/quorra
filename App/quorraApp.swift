@@ -48,6 +48,8 @@ struct quorraApp: App {
                 imdsModel: appDelegate.imdsModel,
                 credentialsModel: appDelegate.credentialsModel,
                 databaseModel: appDelegate.databaseModel,
+                clientVPNController: appDelegate.clientVPNController,
+                clientVPNSecrets: appDelegate.clientVPNSecrets,
                 notificationCoordinator: appDelegate.notificationCoordinator
             )
             .modelContainer(appDelegate.metadataContainer)

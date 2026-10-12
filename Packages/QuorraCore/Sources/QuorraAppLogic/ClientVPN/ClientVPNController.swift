@@ -73,7 +73,12 @@ public final class ClientVPNController {
         }
     }
 
+    /// Stops the tunnel, or clears a failure the tunnel already stopped with.
     public func disconnect() async {
+        if case .failed = state {
+            state = .disconnected
+            return
+        }
         guard isActive else { return }
         run = nil
         task?.cancel()

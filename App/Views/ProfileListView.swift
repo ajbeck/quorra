@@ -779,7 +779,8 @@ struct ObjectListView: View {
         Task {
             do {
                 let id = profile.stableID
-                if vpnController.status(for: id).isActive { await vpnController.disconnect() }
+                // Also clears a failure, so the menu bar badge doesn't outlive the profile.
+                if vpnController.profileID == id { await vpnController.disconnect() }
                 try await ClientVPNProfileStore.delete(profile, secrets: vpnSecrets, in: modelContext)
                 vpnController.forgetSignIn(for: id)
                 deselect(item)
