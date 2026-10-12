@@ -1,0 +1,58 @@
+--- a/openvpn/openssl/ssl/sslctx.hpp
++++ b/openvpn/openssl/ssl/sslctx.hpp
+@@ -84,6 +84,9 @@
+ #define SSL_CIPHER_description SSL_CIPHER_description_wrapper
+ #endif
+ #include <openvpn/openssl/util/error.hpp>
++#ifdef OPENSSL_IS_AWSLC
++#include <openvpn/openssl/pki/quorra_cert_policy.hpp>
++#endif
+ #if ENABLE_EXTERNAL_PKI
+ #if OPENSSL_VERSION_NUMBER >= 0x30000000L
+ #include <openvpn/openssl/pki/xkey.hpp>
+@@ -1946,6 +1949,16 @@
+         // get current certificate
+         X509 *current_cert = X509_STORE_CTX_get_current_cert(ctx);
+ 
++#ifdef OPENSSL_IS_AWSLC
++        // Never substitute a compatibility no-op for certificate-strength checks.
++        if (!preverify_ok || !QuorraCertificatePolicy::accepts(current_cert))
++        {
++            if (preverify_ok)
++                X509_STORE_CTX_set_error(ctx, X509_V_ERR_CERT_REJECTED);
++            return 0;
++        }
++#endif
++
+         // log subject
+         const std::string subject = OpenSSLPKI::x509_get_subject(current_cert);
+         if (self->config->flags & SSLConst::LOG_VERIFY_STATUS)
+--- /dev/null
++++ b/openvpn/openssl/pki/quorra_cert_policy.hpp
+@@ -0,0 +1,26 @@
++// Quorra additions to OpenVPN. SPDX-License-Identifier: MPL-2.0
++// AWS-LC does not enforce OpenSSL security levels. Apply a minimum policy
++// to every certificate without overriding the TLS library's trust result.
++#pragma once
++#include <openssl/x509.h>
++#include <openssl/evp.h>
++
++namespace openvpn::QuorraCertificatePolicy {
++inline bool accepts(X509 *certificate)
++{
++    if (!certificate)
++        return false;
++    EVP_PKEY *key = X509_get0_pubkey(certificate);
++    if (!key)
++        return false;
++    const int kind = EVP_PKEY_id(key);
++    const int bits = EVP_PKEY_bits(key);
++    const bool strong_key = ((kind == EVP_PKEY_RSA || kind == EVP_PKEY_RSA_PSS) && bits >= 2048)
++                            || (kind == EVP_PKEY_EC && bits >= 256)
++                            || kind == EVP_PKEY_ED25519;
++    int security_bits = 0;
++    return strong_key
++           && X509_get_signature_info(certificate, nullptr, nullptr, &security_bits, nullptr) == 1
++           && security_bits >= 128;
++}
++}

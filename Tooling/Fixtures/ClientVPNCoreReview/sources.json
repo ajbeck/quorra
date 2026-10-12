@@ -1,0 +1,56 @@
+[
+  {
+    "url": "https://codeload.github.com/OpenVPN/openvpn3/tar.gz/c0ff8b2c6efaf22e9229a6b926e7556dec14556e",
+    "sha256": "da57c6b8fc08158430c6e44d0b9df1a7d4ea1572fe9dee7ec5dcee050acee5ed",
+    "id": "openvpn3",
+    "archive": "openvpn3.tar.gz",
+    "version": "3.11.7",
+    "directory": "openvpn3-c0ff8b2c6efaf22e9229a6b926e7556dec14556e",
+    "revision": "c0ff8b2c6efaf22e9229a6b926e7556dec14556e"
+  },
+  {
+    "url": "https://codeload.github.com/aws/aws-lc/tar.gz/fa9bc8d6f7cfb2cf849b247fb06bbbfc41ecc9d6",
+    "sha256": "7b1c746a69ae7b55ca0b46408593ee630de54909abbd15a18ebcfd110b931a32",
+    "id": "aws-lc",
+    "archive": "aws-lc.tar.gz",
+    "version": "5.11.0",
+    "directory": "aws-lc-fa9bc8d6f7cfb2cf849b247fb06bbbfc41ecc9d6",
+    "revision": "fa9bc8d6f7cfb2cf849b247fb06bbbfc41ecc9d6"
+  },
+  {
+    "url": "https://codeload.github.com/chriskohlhoff/asio/tar.gz/8806a6803cde7054c3049d3666d3ec36786568c5",
+    "sha256": "ca7f6c14f2bf91e61c7e81fb693f2f8fc86f93e85520d5fc7fd035d0f666bb35",
+    "id": "asio",
+    "archive": "asio.tar.gz",
+    "version": "1.38.2",
+    "directory": "asio-8806a6803cde7054c3049d3666d3ec36786568c5",
+    "revision": "8806a6803cde7054c3049d3666d3ec36786568c5"
+  },
+  {
+    "url": "https://codeload.github.com/lz4/lz4/tar.gz/ebb370ca83af193212df4dcbadcc5d87bc0de2f0",
+    "sha256": "eb1a93e934d4fd29df6e2061ba0bf447568561764d758f4a5662c0e29370ffa9",
+    "id": "lz4",
+    "archive": "lz4.tar.gz",
+    "version": "1.10.0",
+    "directory": "lz4-ebb370ca83af193212df4dcbadcc5d87bc0de2f0",
+    "revision": "ebb370ca83af193212df4dcbadcc5d87bc0de2f0"
+  },
+  {
+    "id": "aws-patches",
+    "version": "3.11.5-aws-1",
+    "revision": null,
+    "archive": "openvpn3-3.11.5-aws-1.tar.gz",
+    "directory": "openvpn3-3.11.5-aws-1",
+    "url": "https://amazon-source-code-downloads.s3.amazonaws.com/aws/clientvpn/openvpn3-3.11.5-aws-1.tar.gz",
+    "sha256": "f6518b63508de6ab63ff66f7fcaf1f4271373073f3cd477173e5dcbef39da3ab"
+  },
+  {
+    "id": "cmake",
+    "version": "4.4.4",
+    "revision": null,
+    "archive": "cmake-4.4.4-macos-universal.tar.gz",
+    "directory": "cmake-4.4.4-macos-universal",
+    "url": "https://github.com/Kitware/CMake/releases/download/v4.4.4/cmake-4.4.4-macos-universal.tar.gz",
+    "sha256": "4b7b73704b1db9b374e5c9ab8e17ac6148b817b6396ee75cd94a852cbac9d305"
+  }
+]
