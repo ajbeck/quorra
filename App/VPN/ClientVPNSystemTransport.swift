@@ -26,6 +26,8 @@ final class ClientVPNSystemTransport: ClientVPNTransport {
         }
     }
 
+    var connectedDate: Date? { manager?.connection.connectedDate }
+
     func statusChanges() -> AsyncStream<ClientVPNTunnelStatus> {
         AsyncStream { continuation in
             let observer = NotificationCenter.default.addObserver(forName: .NEVPNStatusDidChange, object: nil, queue: .main) { [weak self] _ in
