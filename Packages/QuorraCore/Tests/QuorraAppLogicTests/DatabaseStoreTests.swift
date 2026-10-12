@@ -91,9 +91,10 @@ struct DatabaseStoreTests {
         let rotated = try await DatabaseStore.login(for: connection, secrets: secrets)
         #expect(rotated.username == "second_user" && rotated.password == "new-password")
         #expect(try await secrets.localPassword(forConnection: connection.stableID) == localPassword)
-        await #expect(throws: ConfigurationError.credentialInUse) {
+        let refusal = await #expect(throws: ConfigurationError.credentialInUse(["Password database"])) {
             try await DatabaseStore.deleteCredential(credential, secrets: secrets, in: context)
         }
+        #expect(refusal?.localizedDescription == "Password database uses this credential. Choose another credential for it, then delete it.")
 
         draft.tlsMode = .disabled
         try DatabaseStore.saveConnection(connection, draft: draft, profile: nil, credential: credential, in: context)

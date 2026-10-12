@@ -95,9 +95,12 @@ public enum DatabaseStore {
         return credential
     }
 
-    /// Deletes a credential and its password. A credential still used by a connection is kept.
+    /// Deletes a credential and its password. A credential still used by a connection is kept,
+    /// and the error names those connections.
     public static func deleteCredential(_ credential: DatabaseCredentialDefinition, secrets: DatabaseSecrets, in context: ModelContext) async throws {
-        guard credential.connections.isEmpty else { throw ConfigurationError.credentialInUse }
+        guard credential.connections.isEmpty else {
+            throw ConfigurationError.credentialInUse(credential.connections.map(\.name).sorted { $0.localizedStandardCompare($1) == .orderedAscending })
+        }
         let id = credential.stableID
         context.delete(credential)
         try context.save()
