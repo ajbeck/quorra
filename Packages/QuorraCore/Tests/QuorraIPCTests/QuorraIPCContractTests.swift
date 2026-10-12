@@ -198,27 +198,8 @@ struct QuorraIPCContractTests {
         #expect(QuorraIPCClientError.appNotRunning.localizedDescription == "Quorra is not running.")
     }
 
-    @Test func fallbackLocatorRequiresAnExistingMacOSGroupContainer() throws {
-        let fixture = try SocketFixture()
-        defer { fixture.cleanUp() }
-        let groupContainer = fixture.directoryURL
-            .appendingPathComponent("Library/Group Containers", isDirectory: true)
-            .appendingPathComponent(QuorraIPCProtocol.appGroupIdentifier, isDirectory: true)
-
-        #expect(QuorraIPCEndpoint.fallbackContainerURL(
-            fileManager: .default,
-            homeDirectory: fixture.directoryURL
-        ) == nil)
-
-        try FileManager.default.createDirectory(
-            at: groupContainer,
-            withIntermediateDirectories: true
-        )
-
-        #expect(QuorraIPCEndpoint.fallbackContainerURL(
-            fileManager: .default,
-            homeDirectory: fixture.directoryURL
-        ) == groupContainer)
+    @Test func sharedEndpointLivesBesideQuorrasDataStore() {
+        #expect(QuorraIPCEndpoint.shared().socketURL == URL.applicationSupportDirectory.appending(path: "Quorra/ipc-v1.sock").standardizedFileURL)
     }
 }
 

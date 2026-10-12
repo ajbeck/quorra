@@ -249,6 +249,8 @@ and nonsandboxed macOS apps. The directly invoked helper can return nil from
 macOS group-container path when that system-created directory already exists.
 The signed Terminal-equivalent runtime test passed through the protected socket.
 
+**Update (6 October 2026):** With the app outside App Sandbox (D019), the socket moved to `~/Library/Application Support/Quorra/ipc-v1.sock`, beside the data store, and the group-container lookup and its fallback were removed. Mode `0600` and the `getpeereid` check still limit it to the user's own processes; the App Group's container protection no longer adds a team check on top.
+
 ### D012 — Explicit CLI app lifecycle
 
 **Decision:** Commands that require Quorra's runtime never launch the app as a

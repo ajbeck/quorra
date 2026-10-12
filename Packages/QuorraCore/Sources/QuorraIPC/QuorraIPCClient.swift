@@ -11,7 +11,7 @@ public final class QuorraIPCClient: @unchecked Sendable {
     }
 
     public func send(_ request: QuorraIPCRequest) throws -> QuorraIPCResponse {
-        let resolvedEndpoint = try endpoint ?? .shared()
+        let resolvedEndpoint = endpoint ?? .shared()
         let descriptor = try QuorraIPCTransport.makeSocket()
         defer { Darwin.close(descriptor) }
 
@@ -40,8 +40,6 @@ public final class QuorraIPCClient: @unchecked Sendable {
                 }
                 throw QuorraIPCClientError.connectionFailed(error.errorCode ?? EIO)
             }
-        } catch is QuorraIPCEndpointError {
-            throw QuorraIPCClientError.sharedContainerUnavailable
         } catch {
             throw QuorraIPCClientError.invalidResponse
         }
@@ -55,7 +53,6 @@ public enum QuorraIPCClientError: LocalizedError, Equatable {
     case invalidResponse
     case requestTimedOut
     case mismatchedResponse
-    case sharedContainerUnavailable
 
     public var errorDescription: String? {
         switch self {
@@ -71,8 +68,6 @@ public enum QuorraIPCClientError: LocalizedError, Equatable {
             return "Quorra did not respond to the command in time."
         case .mismatchedResponse:
             return "Quorra returned a response for a different command."
-        case .sharedContainerUnavailable:
-            return "Quorra’s shared command-line container is unavailable. Reinstall Quorra and its command-line tool."
         }
     }
 }

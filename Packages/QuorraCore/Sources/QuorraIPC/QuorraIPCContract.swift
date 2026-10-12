@@ -7,7 +7,6 @@ public enum QuorraIPCProtocol {
     public static let teamIdentifier = "9GEBAJV9R4"
     public static let appIdentifier = "dev.ajbeck.quorra"
     public static let cliIdentifier = "dev.ajbeck.quorra.cli"
-    public static let appGroupIdentifier = "9GEBAJV9R4.quorra"
 }
 
 public enum QuorraIPCOperation: String, Codable, CaseIterable, Sendable {
