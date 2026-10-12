@@ -79,7 +79,7 @@ struct IMDSStopCommand: ParsableCommand {
 struct IMDSSwitchProfileCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "switch-profile",
-        abstract: "Change the profile served by the Default IMDS Endpoint."
+        abstract: "Change the profile an IMDS endpoint serves, even while it runs."
     )
 
     @Argument(help: "Profile name to serve.")
