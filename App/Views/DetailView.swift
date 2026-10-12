@@ -81,7 +81,7 @@ struct DetailView: View {
 
 private struct DetailViewPreviewHarness: View {
     @State private var selection: DetailSelection?
-    @State private var sourceSelection: SourceSelection = .all
+    @State private var sourceSelection: SourceSelection = .profiles
     @State private var searchText = ""
     @State private var editorState = EditorState()
     @State private var imdsModel = IMDSModel()

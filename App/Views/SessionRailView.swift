@@ -11,13 +11,7 @@ struct SourceSidebarView: View {
 
     var body: some View {
         List(selection: $selection) {
-            Section {
-                SourceSidebarRow(title: "All", systemImage: "square.grid.2x2")
-                    .badge(allObjectCount)
-                    .tag(SourceSelection.all)
-            }
-
-            Section {
+            Section("AWS") {
                 SourceSidebarRow(title: MetadataObjectKind.session.title, systemImage: MetadataObjectKind.session.systemImage)
                     .badge(sessionDefinitions.count)
                     .tag(SourceSelection.sessions)
@@ -50,10 +44,6 @@ struct SourceSidebarView: View {
             break
         }
     }
-
-    private var allObjectCount: Int {
-        sessionDefinitions.count + profileDefinitions.count + endpointDefinitions.count
-    }
 }
 
 private struct SourceSidebarRow: View {
@@ -81,7 +71,7 @@ private struct SourceSidebarRow: View {
 }
 
 private struct SourceSidebarPreviewHarness: View {
-    @State private var selection: SourceSelection = .all
+    @State private var selection: SourceSelection = .profiles
     private let metadataContainer = PreviewIdentityFixtures.makeContainer(seedsEndpoint: true)
 
     var body: some View {
