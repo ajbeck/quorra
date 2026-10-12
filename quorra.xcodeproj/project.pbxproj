@@ -15,6 +15,8 @@
 		1BD8B0012FE0000000000001 /* DatabaseProxy in Frameworks */ = {isa = PBXBuildFile; productRef = 1BD8B0022FE0000000000002 /* DatabaseProxy */; };
 		213712AC305585AA0036671E /* NetworkExtension.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 213712AB305585AA0036671E /* NetworkExtension.framework */; };
 		213712B4305585AB0036671E /* dev.ajbeck.quorra.imds-proxy.systemextension in Embed System Extensions */ = {isa = PBXBuildFile; fileRef = 213712AA305585AA0036671E /* dev.ajbeck.quorra.imds-proxy.systemextension */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		216BDCD6307C141900EA3A3A /* ClientVPN in Frameworks */ = {isa = PBXBuildFile; productRef = 216BDCD5307C141900EA3A3A /* ClientVPN */; };
+		216BDCD8307C142600EA3A3A /* QuorraOpenVPN in Frameworks */ = {isa = PBXBuildFile; productRef = 216BDCD7307C142600EA3A3A /* QuorraOpenVPN */; };
 		218FE06E304DC905008239F8 /* QuorraCLIKit in Frameworks */ = {isa = PBXBuildFile; productRef = 218FE06D304DC905008239F8 /* QuorraCLIKit */; };
 		218FE071304DC92F008239F8 /* QuorraCLI.app in CopyFiles */ = {isa = PBXBuildFile; fileRef = 21E8E026304DC82400467434 /* QuorraCLI.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		22A100013060000000000001 /* QuorraLoginItem.app in Embed Login Item */ = {isa = PBXBuildFile; fileRef = 22A100043060000000000004 /* QuorraLoginItem.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -132,6 +134,8 @@
 		213712A7305585AA0036671E /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+				216BDCD6307C141900EA3A3A /* ClientVPN in Frameworks */,
+				216BDCD8307C142600EA3A3A /* QuorraOpenVPN in Frameworks */,
 				213712AC305585AA0036671E /* NetworkExtension.framework in Frameworks */,
 			);
 		};
@@ -231,6 +235,10 @@
 				213712AD305585AA0036671E /* QuorraIMDSNetworkExtension */,
 			);
 			name = QuorraIMDSNetworkExtension;
+			packageProductDependencies = (
+				216BDCD5307C141900EA3A3A /* ClientVPN */,
+				216BDCD7307C142600EA3A3A /* QuorraOpenVPN */,
+			);
 			productName = QuorraIMDSNetworkExtension;
 			productReference = 213712AA305585AA0036671E /* dev.ajbeck.quorra.imds-proxy.systemextension */;
 			productType = "com.apple.product-type.system-extension";
@@ -541,6 +549,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = dev.ajbeck.quorra;
 				PRODUCT_NAME = Quorra;
 				QUORRA_NETWORK_EXTENSION_ENTITLEMENT = "app-proxy-provider";
+				QUORRA_PACKET_TUNNEL_ENTITLEMENT = "packet-tunnel-provider";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -577,6 +586,7 @@
 				PRODUCT_NAME = Quorra;
 				PROVISIONING_PROFILE_SPECIFIER = "$(QUORRA_PROVISIONING_PROFILE_SPECIFIER)";
 				QUORRA_NETWORK_EXTENSION_ENTITLEMENT = "app-proxy-provider-systemextension";
+				QUORRA_PACKET_TUNNEL_ENTITLEMENT = "packet-tunnel-provider-systemextension";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -619,6 +629,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "dev.ajbeck.quorra.imds-proxy";
 				PRODUCT_NAME = "$(PRODUCT_BUNDLE_IDENTIFIER)";
 				QUORRA_NETWORK_EXTENSION_ENTITLEMENT = "app-proxy-provider";
+				QUORRA_PACKET_TUNNEL_ENTITLEMENT = "packet-tunnel-provider";
 				REGISTER_APP_GROUPS = YES;
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -663,6 +674,7 @@
 				PRODUCT_NAME = "$(PRODUCT_BUNDLE_IDENTIFIER)";
 				PROVISIONING_PROFILE_SPECIFIER = "$(QUORRA_SYSTEM_EXTENSION_PROVISIONING_PROFILE_SPECIFIER)";
 				QUORRA_NETWORK_EXTENSION_ENTITLEMENT = "app-proxy-provider-systemextension";
+				QUORRA_PACKET_TUNNEL_ENTITLEMENT = "packet-tunnel-provider-systemextension";
 				REGISTER_APP_GROUPS = YES;
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -916,6 +928,15 @@
 		1BD8B0022FE0000000000002 /* DatabaseProxy */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = DatabaseProxy;
+		};
+		216BDCD5307C141900EA3A3A /* ClientVPN */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1BA1B1C32FB0000000000003 /* XCLocalSwiftPackageReference "Packages/QuorraCore" */;
+			productName = ClientVPN;
+		};
+		216BDCD7307C142600EA3A3A /* QuorraOpenVPN */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = QuorraOpenVPN;
 		};
 		218FE06D304DC905008239F8 /* QuorraCLIKit */ = {
 			isa = XCSwiftPackageProductDependency;

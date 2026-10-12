@@ -11,6 +11,7 @@ let package = Package(
         .library(name: "AWSConfigINI", targets: ["AWSConfigINI"]),
         .library(name: "IAMIdentityCenter", targets: ["IAMIdentityCenter"]),
         .library(name: "DatabaseProxy", targets: ["DatabaseProxy"]),
+        .library(name: "ClientVPN", targets: ["ClientVPN"]),
         .library(name: "QuorraProfiles", targets: ["QuorraProfiles"]),
         .library(name: "QuorraIPC", targets: ["QuorraIPC"]),
         .library(name: "QuorraAppLogic", targets: ["QuorraAppLogic"]),
@@ -63,6 +64,11 @@ let package = Package(
             resources: [
                 .process("Fixtures"),
             ]
+        ),
+        .target(name: "ClientVPN"),
+        .testTarget(
+            name: "ClientVPNTests",
+            dependencies: ["ClientVPN"]
         ),
         .target(
             name: "QuorraAppLogic",
