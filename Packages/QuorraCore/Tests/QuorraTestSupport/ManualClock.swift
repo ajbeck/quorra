@@ -1,12 +1,12 @@
 import Synchronization
 
 /// A clock that moves only when a test advances it.
-final class ManualClock: Clock {
-    struct Instant: InstantProtocol {
-        let offset: Duration
-        func advanced(by duration: Duration) -> Instant { Instant(offset: offset + duration) }
-        func duration(to other: Instant) -> Duration { other.offset - offset }
-        static func < (lhs: Instant, rhs: Instant) -> Bool { lhs.offset < rhs.offset }
+package final class ManualClock: Clock {
+    package struct Instant: InstantProtocol {
+        package let offset: Duration
+        package func advanced(by duration: Duration) -> Instant { Instant(offset: offset + duration) }
+        package func duration(to other: Instant) -> Duration { other.offset - offset }
+        package static func < (lhs: Instant, rhs: Instant) -> Bool { lhs.offset < rhs.offset }
     }
 
     private struct Sleeper {
@@ -29,10 +29,12 @@ final class ManualClock: Clock {
 
     private let state = Mutex(State())
 
-    var now: Instant { state.withLock { $0.now } }
-    var minimumResolution: Duration { .zero }
+    package init() {}
 
-    func sleep(until deadline: Instant, tolerance: Duration?) async throws {
+    package var now: Instant { state.withLock { $0.now } }
+    package var minimumResolution: Duration { .zero }
+
+    package func sleep(until deadline: Instant, tolerance: Duration?) async throws {
         let id = state.withLock { state in
             defer { state.nextID += 1 }
             return state.nextID
@@ -63,7 +65,7 @@ final class ManualClock: Clock {
     }
 
     /// Returns once something is sleeping, so a following `advance` can't race the sleep's start.
-    func sleeperArrived() async {
+    package func sleeperArrived() async {
         await withCheckedContinuation { continuation in
             let ready = state.withLock { state in
                 if !state.sleepers.isEmpty { return true }
@@ -74,7 +76,7 @@ final class ManualClock: Clock {
         }
     }
 
-    func advance(by duration: Duration) {
+    package func advance(by duration: Duration) {
         let due = state.withLock { state in
             state.now = state.now.advanced(by: duration)
             let now = state.now

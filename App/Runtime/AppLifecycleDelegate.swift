@@ -7,6 +7,7 @@ import SwiftData
 final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
     let presentationController: AppPresentationController
     let launchAtLoginController: LaunchAtLoginController
+    let systemExtensionController: SystemExtensionController
     let imdsProxyController: IMDSProxyController
     let metadataContainer: ModelContainer
     let appModel: AppModel
@@ -26,7 +27,9 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
         let presentationController = AppPresentationController()
         self.presentationController = presentationController
         launchAtLoginController = LaunchAtLoginController()
-        imdsProxyController = IMDSProxyController()
+        let systemExtensionController = SystemExtensionController()
+        self.systemExtensionController = systemExtensionController
+        imdsProxyController = IMDSProxyController(systemExtension: systemExtensionController)
         let metadataContainer = try! QuorraMetadataSchema.makeContainer()
         let appModel = AppModel()
         let appUpdater = AppUpdater()
