@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.2.0](https://github.com/ajbeck/quorra/compare/v1.1.0...v1.2.0) (2026-10-12)
+
+
+### Features
+
+* **cli:** install the quorra command with one click ([#94](https://github.com/ajbeck/quorra/issues/94)) ([388748e](https://github.com/ajbeck/quorra/commit/388748e82c44d5d0f34cc53a0cd9bf26a0258e34))
+* **databases:** manage and run database connections from the window and menu bar ([#103](https://github.com/ajbeck/quorra/issues/103)) ([967bccc](https://github.com/ajbeck/quorra/commit/967bccc95cf3aa3cdc0522e1ce4da188959c3985))
+* **databases:** port Duck Blind's database proxy core ([#100](https://github.com/ajbeck/quorra/issues/100)) ([52c09b3](https://github.com/ajbeck/quorra/commit/52c09b32422fc69e1c17e71b2a1864be84ad693d))
+* **databases:** run database connections and log their events ([#102](https://github.com/ajbeck/quorra/issues/102)) ([5cf650d](https://github.com/ajbeck/quorra/commit/5cf650d044fc8ee3257e668b3b36c7dd8100b417))
+* **databases:** save database connections and credentials ([#101](https://github.com/ajbeck/quorra/issues/101)) ([e0975a0](https://github.com/ajbeck/quorra/commit/e0975a0dff27fa5de822e4aa2d67cfc6ef2780fe))
+* **identity-center:** sign in through the browser with PKCE ([#99](https://github.com/ajbeck/quorra/issues/99)) ([bc6f055](https://github.com/ajbeck/quorra/commit/bc6f055ffcaaef8615f93e2f90aaa1a728910dd0))
+* **imds:** switch the served profile of any running endpoint ([#96](https://github.com/ajbeck/quorra/issues/96)) ([c2cd135](https://github.com/ajbeck/quorra/commit/c2cd13543e70725b5e0d90a3fc3983635419f66b))
+* **menubar:** list every endpoint and session with its own submenu ([#98](https://github.com/ajbeck/quorra/issues/98)) ([65a7e89](https://github.com/ajbeck/quorra/commit/65a7e894f119c1b832b8d02e56bcdc47649c2040))
+* read ~/.aws without a setup screen ([#93](https://github.com/ajbeck/quorra/issues/93)) ([7d2b5d5](https://github.com/ajbeck/quorra/commit/7d2b5d5ff7c0dbbacae486446de869500b7c80d6))
+* run Quorra outside App Sandbox ([#89](https://github.com/ajbeck/quorra/issues/89)) ([7afc79c](https://github.com/ajbeck/quorra/commit/7afc79c4a8e47adc7966b313a6143e0ca80f9477))
+* **ui:** group the sidebar under AWS and drop the All source ([#97](https://github.com/ajbeck/quorra/issues/97)) ([0110799](https://github.com/ajbeck/quorra/commit/0110799982ce27eb5906b0dd5823cf1db56f6039))
+* **vpn:** add the packet tunnel provider for AWS Client VPN ([#105](https://github.com/ajbeck/quorra/issues/105)) ([04f5ed1](https://github.com/ajbeck/quorra/commit/04f5ed1e0b57b98ee2da0597ea4d3eaaf67bb9e4))
+* **vpn:** bundle the OpenVPN 3.11.7 core with its build tooling ([#104](https://github.com/ajbeck/quorra/issues/104)) ([b32786b](https://github.com/ajbeck/quorra/commit/b32786b143957e2ded3f92c0504e4af04c2e5a08))
+* **vpn:** connect Client VPN profiles from the app ([#106](https://github.com/ajbeck/quorra/issues/106)) ([f1ca321](https://github.com/ajbeck/quorra/commit/f1ca32131e43eafe2ba9e8487c3540ab0472a5c5))
+* **vpn:** save Client VPN profiles and connect them for databases ([#107](https://github.com/ajbeck/quorra/issues/107)) ([0fbf277](https://github.com/ajbeck/quorra/commit/0fbf2771633bfa1264ad2b035062d29d79896b7b))
+
 ## [1.1.0](https://github.com/ajbeck/quorra/compare/v1.0.0...v1.1.0) (2026-09-16)
 
 
