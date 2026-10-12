@@ -18,6 +18,8 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
     let authenticationBrowser: AuthenticationBrowser
     let credentialsModel: CredentialsModel
     let databaseModel: DatabaseModel
+    let clientVPNController: ClientVPNController
+    let clientVPNSecrets: ClientVPNProfileSecrets
     let runtimeCoordinator: AppRuntimeCoordinator
     let exportCoordinator: IdentityExportCoordinator
     let ipcController: AppIPCController
@@ -44,9 +46,24 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
                 oidcClientProvider: SDKOIDCClientProvider()
             )
         )
+        // The VPN's SAML sign-in opens the browser the way Identity Center's does.
+        let clientVPNController = ClientVPNController(
+            transport: ClientVPNSystemTransport(systemExtension: systemExtensionController),
+            signIn: ClientVPNBrowserSignIn(open: { [authenticationBrowser] url in
+                authenticationBrowser.open(url)
+                return authenticationBrowser.failedURL == nil
+            })
+        )
+        let clientVPNSecrets = ClientVPNProfileSecrets(keychain: keychain)
+        self.clientVPNController = clientVPNController
+        self.clientVPNSecrets = clientVPNSecrets
+        // A database that names a VPN connects it before Start and Test (M012).
         let databaseModel = DatabaseModel(
             context: metadataContainer.mainContext,
-            secrets: DatabaseSecrets(keychain: keychain)
+            secrets: DatabaseSecrets(keychain: keychain),
+            prepareNetwork: { [context = metadataContainer.mainContext] connection in
+                try await clientVPNController.prepareNetwork(for: connection, secrets: clientVPNSecrets, in: context)
+            }
         ) { [credentialsModel] session, account, role, region in
             try await credentialsModel.liveCredentials(forSession: session, accountId: account, roleName: role, region: region)
         }
@@ -68,7 +85,8 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
             notificationCoordinator: notificationCoordinator,
             authenticationBrowser: authenticationBrowser,
             modelContext: metadataContainer.mainContext,
-            databaseModel: databaseModel
+            databaseModel: databaseModel,
+            clientVPNController: clientVPNController
         )
         self.runtimeCoordinator = runtimeCoordinator
         self.exportCoordinator = IdentityExportCoordinator(appModel: appModel, modelContext: metadataContainer.mainContext)

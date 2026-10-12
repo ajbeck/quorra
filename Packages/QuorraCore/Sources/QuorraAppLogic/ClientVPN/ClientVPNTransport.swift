@@ -10,6 +10,8 @@ public enum ClientVPNTunnelStatus: Equatable, Sendable {
 @MainActor
 public protocol ClientVPNTransport: AnyObject, Sendable {
     var status: ClientVPNTunnelStatus { get }
+    /// When the system last reported the tunnel connected.
+    var connectedDate: Date? { get }
     /// The tunnel's status each time the system reports a change, until the caller stops listening.
     func statusChanges() -> AsyncStream<ClientVPNTunnelStatus>
     /// Prepares the extension and configuration, then starts the tunnel for `run`.

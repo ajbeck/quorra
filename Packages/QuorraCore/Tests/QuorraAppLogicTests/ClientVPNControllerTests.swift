@@ -1,7 +1,9 @@
 import ClientVPN
+import DatabaseProxy
 import Foundation
 import Observation
 import QuorraTestSupport
+import SwiftData
 import Testing
 @testable import QuorraAppLogic
 
@@ -10,14 +12,16 @@ import Testing
 struct ClientVPNControllerTests {
     private let challenge = ClientVPNBrowserChallenge(id: UUID(), url: URL(string: "https://signin.example.invalid/saml")!)
     private let token = ClientVPNLiveToken(username: Data("user".utf8), token: Data("token".utf8))
+    private let settings = ClientVPNTunnelSettings(addresses: ["10.0.12.4/27"], routes: ["10.0.0.0/16"], dnsServers: ["10.0.0.2"])
+    private let work = UUID()
 
     /// A tunnel that asks for the browser on connect and runs once the assertion arrives.
     private func browserTunnel() -> FakeTunnel {
         let tunnel = FakeTunnel()
-        tunnel.onRequest = { [unowned tunnel, challenge, token] request in
+        tunnel.onRequest = { [unowned tunnel, challenge, token, settings] request in
             switch request {
             case .connect: tunnel.phase = .authenticating; tunnel.challenge = challenge
-            case .authenticate: tunnel.phase = .running; tunnel.challenge = nil; tunnel.token = token
+            case .authenticate: tunnel.phase = .running; tunnel.challenge = nil; tunnel.token = token; tunnel.settings = settings
             case .status, .stop: break
             }
             return nil
@@ -27,28 +31,37 @@ struct ClientVPNControllerTests {
 
     @Test func connectsThroughTheBrowserAndReportsATunnelDrop() async throws {
         let tunnel = browserTunnel()
+        let connected = Date(timeIntervalSince1970: 1_000)
+        tunnel.connectedDate = connected
         let signIn = FakeSignIn(assertion: Data("assertion".utf8))
         let controller = ClientVPNController(transport: tunnel, signIn: signIn, clock: ManualClock())
-        controller.connect(profileName: "work", profile: "client")
+        controller.connect(profileID: work, profileName: "work", profile: "client")
         await reach(controller, .connected)
         let run = try #require(tunnel.started.first)
         #expect(signIn.answered == [challenge.id] && signIn.profileNames == ["work"])
         #expect(tunnel.requests.contains(.authenticate(run: run, challenge: challenge.id, assertion: Data("assertion".utf8))))
-        #expect(controller.hasSessionToken(for: "client") && !controller.hasSessionToken(for: "other"))
+        #expect(controller.profileID == work && controller.tunnel == settings && controller.connectedDate == connected)
+        #expect(controller.savedSignIn(for: work) != nil && controller.savedSignIn(for: UUID()) == nil)
 
         tunnel.failure = .transport
         tunnel.status = .disconnected
         await reach(controller, .failed(.transport))
-        #expect(tunnel.stops == 1)
+        #expect(tunnel.stops == 1 && controller.tunnel == nil)
+        // The session token outlives a drop, so Connect can skip the browser.
+        #expect(controller.savedSignIn(for: work) != nil)
+
+        // Disconnecting a dropped tunnel clears the failure without stopping it again.
+        await controller.disconnect()
+        #expect(controller.state == .disconnected && tunnel.stops == 1)
     }
 
     @Test func disconnectingStopsTheTunnel() async {
         let tunnel = browserTunnel()
         let controller = ClientVPNController(transport: tunnel, signIn: FakeSignIn(assertion: Data([1])), clock: ManualClock())
-        controller.connect(profileName: "work", profile: "client")
+        controller.connect(profileID: work, profileName: "work", profile: "client")
         await reach(controller, .connected)
         await controller.disconnect()
-        #expect(controller.state == .disconnected && tunnel.stops == 1)
+        #expect(controller.state == .disconnected && tunnel.stops == 1 && controller.tunnel == nil)
     }
 
     @Test func retriesTheProfileUntilTheProviderIsReady() async {
@@ -65,7 +78,7 @@ struct ClientVPNControllerTests {
             return nil
         }
         let controller = ClientVPNController(transport: tunnel, signIn: FakeSignIn(assertion: Data([1])), clock: clock)
-        controller.connect(profileName: "work", profile: "client")
+        controller.connect(profileID: work, profileName: "work", profile: "client")
         for _ in 0..<2 {
             await clock.sleeperArrived()
             clock.advance(by: .milliseconds(250))
@@ -80,7 +93,7 @@ struct ClientVPNControllerTests {
             if case .connect = request { .rejected(.invalidProfile) } else { nil }
         }
         let controller = ClientVPNController(transport: tunnel, signIn: FakeSignIn(assertion: Data([1])), clock: ManualClock())
-        controller.connect(profileName: "work", profile: "client")
+        controller.connect(profileID: work, profileName: "work", profile: "client")
         await reach(controller, .failed(.invalidProfile))
         #expect(tunnel.requests.count == 1 && tunnel.stops == 1)
     }
@@ -89,7 +102,7 @@ struct ClientVPNControllerTests {
         let tunnel = browserTunnel()
         let signIn = FakeSignIn(assertion: nil)
         let controller = ClientVPNController(transport: tunnel, signIn: signIn, clock: ManualClock())
-        controller.connect(profileName: "work", profile: "client")
+        controller.connect(profileID: work, profileName: "work", profile: "client")
         await reach(controller, .signingIn)
         tunnel.failure = .timedOut
         tunnel.status = .disconnected
@@ -97,27 +110,138 @@ struct ClientVPNControllerTests {
         #expect(signIn.wasCancelled)
     }
 
-    @Test func aRefusedSessionTokenIsForgotten() async throws {
+    @Test func reconnectingReusesTheSessionToken() async throws {
+        let tunnel = browserTunnel()
+        let signIn = FakeSignIn(assertion: Data([1]))
+        let controller = ClientVPNController(transport: tunnel, signIn: signIn, clock: ManualClock())
+        controller.connect(profileID: work, profileName: "work", profile: "client")
+        await reach(controller, .connected)
+        await controller.disconnect()
+
+        // A token the server accepts connects without the browser.
+        tunnel.onRequest = { [unowned tunnel] request in
+            if case .connect = request { tunnel.phase = .running }
+            return nil
+        }
+        controller.connect(profileID: work, profileName: "work", profile: "client")
+        await reach(controller, .connected)
+        let run = try #require(tunnel.started.last)
+        #expect(tunnel.requests.contains(.connect(run: run, profile: "client", token: token)))
+        #expect(signIn.answered.count == 1)
+    }
+
+    @Test func aRefusedSessionTokenFallsBackToTheBrowser() async throws {
+        let tunnel = browserTunnel()
+        let signIn = FakeSignIn(assertion: Data([1]))
+        let controller = ClientVPNController(transport: tunnel, signIn: signIn, clock: ManualClock())
+        controller.connect(profileID: work, profileName: "work", profile: "client")
+        await reach(controller, .connected)
+        let firstSignIn = try #require(controller.savedSignIn(for: work))
+        await controller.disconnect()
+
+        tunnel.phase = .awaitingProfile
+        controller.connect(profileID: work, profileName: "work", profile: "client")
+        await reach(controller, .connected)
+        let run = try #require(tunnel.started.last)
+        #expect(tunnel.requests.contains(.connect(run: run, profile: "client", token: token)))
+        #expect(signIn.answered.count == 2)
+        #expect(try #require(controller.savedSignIn(for: work)) >= firstSignIn)
+    }
+
+    @Test(arguments: [(true, "client"), (false, "client with a new endpoint")])
+    func someConnectsSkipTheSessionToken(signInAgain: Bool, profile: String) async throws {
         let tunnel = browserTunnel()
         let controller = ClientVPNController(transport: tunnel, signIn: FakeSignIn(assertion: Data([1])), clock: ManualClock())
-        controller.connect(profileName: "work", profile: "client")
+        controller.connect(profileID: work, profileName: "work", profile: "client")
         await reach(controller, .connected)
         await controller.disconnect()
 
         tunnel.phase = .awaitingProfile
-        tunnel.token = nil
-        controller.connect(profileName: "work", profile: "client", usingSessionToken: true)
-        await reach(controller, .failed(.authentication))
+        controller.connect(profileID: work, profileName: "work", profile: profile, signInAgain: signInAgain)
+        await reach(controller, .connected)
         let run = try #require(tunnel.started.last)
-        #expect(tunnel.requests.contains(.connect(run: run, profile: "client", token: token)))
-        #expect(!controller.hasSessionToken(for: "client"))
+        #expect(tunnel.requests.contains(.connect(run: run, profile: profile, token: nil)))
     }
 
-    @Test func reconnectingWithoutATokenFailsBeforeStarting() {
-        let tunnel = FakeTunnel()
+    @Test func forgettingTheSignInDropsTheToken() async {
+        let tunnel = browserTunnel()
         let controller = ClientVPNController(transport: tunnel, signIn: FakeSignIn(assertion: Data([1])), clock: ManualClock())
-        controller.connect(profileName: "work", profile: "client", usingSessionToken: true)
-        #expect(controller.state == .failed(.authentication) && tunnel.started.isEmpty)
+        controller.connect(profileID: work, profileName: "work", profile: "client")
+        await reach(controller, .connected)
+        controller.forgetSignIn(for: UUID())
+        #expect(controller.savedSignIn(for: work) != nil)
+        controller.forgetSignIn(for: work)
+        #expect(controller.savedSignIn(for: work) == nil)
+    }
+
+    @Test func connectingAndWaitingReturnsOnceTheTunnelIsUp() async throws {
+        let tunnel = browserTunnel()
+        let controller = ClientVPNController(transport: tunnel, signIn: FakeSignIn(assertion: Data([1])), clock: ManualClock())
+        try await controller.connectAndWait(profileID: work, profileName: "work", profile: "client")
+        #expect(controller.state == .connected && tunnel.started.count == 1)
+
+        // Already connected: returns without starting the tunnel again.
+        try await controller.connectAndWait(profileID: work, profileName: "work", profile: "client")
+        #expect(tunnel.started.count == 1)
+
+        // Another profile can't take the tunnel.
+        await #expect(throws: ClientVPNLiveFailure.busy) {
+            try await controller.connectAndWait(profileID: UUID(), profileName: "staging", profile: "client")
+        }
+    }
+
+    @Test func connectingAndWaitingJoinsAConnectInProgress() async throws {
+        let tunnel = browserTunnel()
+        let controller = ClientVPNController(transport: tunnel, signIn: FakeSignIn(assertion: Data([1])), clock: ManualClock())
+        controller.connect(profileID: work, profileName: "work", profile: "client")
+        try await controller.connectAndWait(profileID: work, profileName: "work", profile: "client")
+        #expect(controller.state == .connected && tunnel.started.count == 1)
+    }
+
+    @Test func connectingAndWaitingThrowsTheFailure() async {
+        let tunnel = FakeTunnel()
+        tunnel.onRequest = { request in
+            if case .connect = request { .rejected(.invalidProfile) } else { nil }
+        }
+        let controller = ClientVPNController(transport: tunnel, signIn: FakeSignIn(assertion: Data([1])), clock: ManualClock())
+        await #expect(throws: ClientVPNLiveFailure.invalidProfile) {
+            try await controller.connectAndWait(profileID: work, profileName: "work", profile: "client")
+        }
+    }
+
+    @Test func connectingAndWaitingStopsWhenCancelled() async {
+        let tunnel = browserTunnel()
+        let controller = ClientVPNController(transport: tunnel, signIn: FakeSignIn(assertion: nil), clock: ManualClock())
+        let waiting = Task { try await controller.connectAndWait(profileID: work, profileName: "work", profile: "client") }
+        await reach(controller, .signingIn)
+        await controller.disconnect()
+        await #expect(throws: ClientVPNLiveFailure.cancelled) { try await waiting.value }
+    }
+
+    @Test func aDatabaseConnectsItsVPNFirstAndNeverReplacesAnother() async throws {
+        let context = ModelContext(try QuorraMetadataSchema.makeContainer(inMemory: true))
+        let secrets = ClientVPNProfileSecrets(keychain: InMemoryKeychainStore())
+        let profile = try ClientVPNProfile(text: "client\nremote vpn.example.com 443\n")
+        let workVPN = try await ClientVPNProfileStore.add(profile, fileName: "work.ovpn", name: "Work VPN", endpoint: "vpn.example.com", secrets: secrets, in: context)
+        let stagingVPN = try await ClientVPNProfileStore.add(profile, fileName: "staging.ovpn", name: "Staging VPN", endpoint: "vpn.example.com", secrets: secrets, in: context)
+        let draft = DatabaseConnectionDraft(name: "Orders", host: "db.example.com", localPort: 15432, database: "app", trust: .system, authentication: .databasePassword)
+        let connection = DatabaseConnectionDefinition(draft: draft, profile: nil, credential: nil)
+        context.insert(connection)
+        let controller = ClientVPNController(transport: browserTunnel(), signIn: FakeSignIn(assertion: Data([1])), clock: ManualClock())
+
+        // No VPN: nothing to do.
+        try await controller.prepareNetwork(for: connection, secrets: secrets, in: context)
+        #expect(controller.state == .disconnected)
+
+        connection.clientVPN = workVPN
+        try await controller.prepareNetwork(for: connection, secrets: secrets, in: context)
+        #expect(controller.profileID == workVPN.stableID && controller.state == .connected)
+
+        connection.clientVPN = stagingVPN
+        await #expect(throws: ClientVPNProfileError.otherVPNConnected("Work VPN", needed: "Staging VPN")) {
+            try await controller.prepareNetwork(for: connection, secrets: secrets, in: context)
+        }
+        #expect(controller.profileID == workVPN.stableID && controller.state == .connected)
     }
 
     private func reach(_ controller: ClientVPNController, _ expected: ClientVPNController.State) async {
@@ -133,9 +257,11 @@ private final class FakeTunnel: ClientVPNTransport {
     var status = ClientVPNTunnelStatus.disconnected {
         didSet { for watcher in watchers { watcher.yield(status) } }
     }
+    var connectedDate: Date?
     var phase = ClientVPNLivePhase.awaitingProfile
     var challenge: ClientVPNBrowserChallenge?
     var token: ClientVPNLiveToken?
+    var settings: ClientVPNTunnelSettings?
     var failure: ClientVPNLiveFailure?
     var onRequest: (ClientVPNLiveRequest) -> ClientVPNLiveResponse? = { _ in nil }
     private(set) var started: [UUID] = []
@@ -157,7 +283,7 @@ private final class FakeTunnel: ClientVPNTransport {
     func send(_ request: ClientVPNLiveRequest) async throws -> ClientVPNLiveResponse {
         requests.append(request)
         if let reply = onRequest(request) { return reply }
-        return .snapshot(ClientVPNLiveSnapshot(run: request.run, phase: phase, challenge: challenge, token: token, failure: failure))
+        return .snapshot(ClientVPNLiveSnapshot(run: request.run, phase: phase, challenge: challenge, token: token, failure: failure, tunnel: phase == .running ? settings : nil))
     }
 
     func stop() async {

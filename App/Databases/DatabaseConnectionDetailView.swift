@@ -150,6 +150,10 @@ struct DatabaseConnectionDetailView: View {
             DetailField("TLS") {
                 Text(draft.tlsMode == .verified ? "Verified · \(draft.trust.title)" : "Off")
             }
+            DetailDivider()
+            DetailField("Network") {
+                Text(connection.clientVPN.map { "Through \($0.name)" } ?? "Direct, without a VPN")
+            }
         }
     }
 
@@ -165,11 +169,13 @@ struct DatabaseConnectionDetailView: View {
     }
 
     private func run(start: Bool) {
-        actionMessage = nil
+        // Start and Test connect the database's VPN first, which can wait on a browser sign-in.
+        actionMessage = connection.clientVPN.map { "Connecting \($0.name)…" }
         Task {
             do {
                 if start {
                     try await databaseModel.start(connection)
+                    actionMessage = nil
                 } else {
                     try await databaseModel.test(connection)
                     actionMessage = draft.tlsMode == .verified
@@ -177,6 +183,8 @@ struct DatabaseConnectionDetailView: View {
                         : "Database sign-in succeeded. Upstream TLS is off."
                 }
             } catch is CancellationError {
+            } catch let error as ClientVPNProfileError {
+                actionMessage = error.localizedDescription
             } catch {
                 actionMessage = ProxyCoordinator.message(error)
             }

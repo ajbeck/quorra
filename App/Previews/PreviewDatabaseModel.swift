@@ -13,7 +13,7 @@ extension DatabaseModel {
     }
 }
 
-private struct PreviewKeychain: KeychainStore {
+struct PreviewKeychain: KeychainStore {
     func read(service: String, account: String) async throws -> Data {
         throw IAMIdentityCenterError.keychainItemMissing(service: service, account: account)
     }

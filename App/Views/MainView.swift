@@ -88,6 +88,8 @@ struct MainView: View {
                 sourceSelection = .profiles
             case .imds:
                 sourceSelection = .imdsEndpoints
+            case .clientVPN:
+                sourceSelection = .clientVPN
             case .databaseConnection:
                 sourceSelection = .databaseConnections
             case .databaseCredential:
@@ -109,6 +111,8 @@ struct MainView: View {
         .environment(EditorState())
         .environment(CredentialsModel(service: PreviewIdentityCenterService()))
         .environment(DatabaseModel.preview(container: metadataContainer))
+        .environment(ClientVPNController.preview())
+        .environment(\.clientVPNSecrets, .preview)
         .environment(IMDSModel())
         .environment(DefaultIMDSNotificationCoordinator())
         .environment(\.authenticationBrowser, AuthenticationBrowser())
@@ -197,6 +201,8 @@ private struct MainViewSampleDataHarness: View {
             .environment(editorState)
             .environment(credentialsModel)
             .environment(DatabaseModel.preview(container: metadataContainer))
+            .environment(ClientVPNController.preview())
+            .environment(\.clientVPNSecrets, .preview)
             .environment(imdsModel)
             .environment(DefaultIMDSNotificationCoordinator())
             .environment(\.authenticationBrowser, AuthenticationBrowser())

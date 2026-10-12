@@ -33,7 +33,7 @@ struct DatabaseModelTests {
         context.insert(profile)
         let draft = DatabaseConnectionDraft(name: "Orders", host: "127.0.0.1", upstreamPort: upstreamPort, localPort: try unusedPort(),
                                             database: "orders", username: "app_user", region: "eu-west-2")
-        return try DatabaseStore.saveConnection(nil, draft: draft, profile: profile, credential: nil, in: context)
+        return try DatabaseStore.saveConnection(nil, draft: draft, profile: profile, credential: nil, clientVPN: nil, in: context)
     }
 
     @Test func unreachableUpstreamFailsStartAndIsLogged() async throws {
@@ -56,13 +56,28 @@ struct DatabaseModelTests {
         #expect(try context.fetchCount(FetchDescriptor<DatabaseConnectionLogEntry>()) == 0)
     }
 
+    @Test func aNetworkThatCannotBeReadiedStopsStartAndTestBeforeTheUpstream() async throws {
+        struct Refused: Error, Equatable {}
+        var prepared: [String] = []
+        let model = DatabaseModel(context: context, secrets: secrets, prepareNetwork: { connection in
+            prepared.append(connection.name)
+            throw Refused()
+        }) { _, _, _, _ in throw Refused() }
+        let connection = try iamConnection(upstreamPort: try unusedPort())
+        await #expect(throws: Refused()) { try await model.start(connection) }
+        await #expect(throws: Refused()) { try await model.test(connection) }
+        #expect(prepared == ["Orders", "Orders"])
+        #expect(model.status(for: connection.stableID).state == .stopped)
+        #expect(model.workingConnectionIDs.isEmpty)
+    }
+
     @Test func passwordConnectionWithoutAStoredPasswordFailsTest() async throws {
         let model = makeModel()
         let credential = DatabaseCredentialDefinition(name: "Login", username: "user")
         context.insert(credential)
         let draft = DatabaseConnectionDraft(name: "Local", host: "127.0.0.1", upstreamPort: try unusedPort(), localPort: try unusedPort(),
                                             database: "app", trust: .system, authentication: .databasePassword, tlsMode: .disabled)
-        let connection = try DatabaseStore.saveConnection(nil, draft: draft, profile: nil, credential: credential, in: context)
+        let connection = try DatabaseStore.saveConnection(nil, draft: draft, profile: nil, credential: credential, clientVPN: nil, in: context)
         await #expect(throws: ConfigurationError.missingCredential) { try await model.test(connection) }
         #expect(model.workingConnectionIDs.isEmpty)
     }

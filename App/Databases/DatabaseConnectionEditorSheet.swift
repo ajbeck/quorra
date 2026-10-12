@@ -22,9 +22,11 @@ struct DatabaseConnectionEditorSheet: View {
     @Query private var profiles: [ProfileDefinition]
     @Query private var credentials: [DatabaseCredentialDefinition]
     @Query private var connections: [DatabaseConnectionDefinition]
+    @Query(sort: \ClientVPNProfileDefinition.name) private var vpns: [ClientVPNProfileDefinition]
     @State private var draft: DatabaseConnectionDraft
     @State private var profileID: String?
     @State private var credentialID: String?
+    @State private var clientVPNID: String?
     @State private var hint: String?
     @State private var validationMessage: String?
     @State private var isAddingCredential = false
@@ -36,6 +38,7 @@ struct DatabaseConnectionEditorSheet: View {
         _draft = State(initialValue: draft)
         _profileID = State(initialValue: (existing?.profile ?? imported?.profile)?.stableIDString)
         _credentialID = State(initialValue: (existing?.credential ?? imported?.credential)?.stableIDString)
+        _clientVPNID = State(initialValue: existing?.clientVPN?.stableIDString)
         _hint = State(initialValue: imported?.hint)
     }
 
@@ -84,6 +87,21 @@ struct DatabaseConnectionEditorSheet: View {
                         Picker("Verify TLS with", selection: $draft.trust) {
                             ForEach(DatabaseTLSOptions.TrustSource.allCases) { Text($0.title).tag($0) }
                         }
+                    }
+                }
+
+                Section {
+                    Picker("VPN", selection: $clientVPNID) {
+                        Text("None").tag(String?.none)
+                        ForEach(vpns, id: \.stableIDString) { Text($0.name).tag(Optional($0.stableIDString)) }
+                    }
+                } header: {
+                    Text("Network")
+                } footer: {
+                    if let vpn = vpns.first(where: { $0.stableIDString == clientVPNID }) {
+                        Text("Start connects \(vpn.name) first if it's off.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
 
@@ -176,8 +194,9 @@ struct DatabaseConnectionEditorSheet: View {
     private func save() {
         let profile = profiles.first { $0.stableIDString == profileID }
         let credential = credentials.first { $0.stableIDString == credentialID }
+        let clientVPN = vpns.first { $0.stableIDString == clientVPNID }
         do {
-            let saved = try DatabaseStore.saveConnection(existing, draft: draft, profile: profile, credential: credential, in: modelContext)
+            let saved = try DatabaseStore.saveConnection(existing, draft: draft, profile: profile, credential: credential, clientVPN: clientVPN, in: modelContext)
             onSave(saved)
             dismiss()
         } catch {

@@ -8,6 +8,7 @@ struct DetailView: View {
     @Binding var searchText: String
     @Query private var sessionDefinitions: [SessionDefinition]
     @Query private var profileDefinitions: [ProfileDefinition]
+    @Query private var vpnProfiles: [ClientVPNProfileDefinition]
     @Query private var databaseConnections: [DatabaseConnectionDefinition]
     @Query private var databaseCredentials: [DatabaseCredentialDefinition]
 
@@ -54,6 +55,13 @@ struct DetailView: View {
                 sourceSelection: $sourceSelection,
                 searchText: $searchText
             )
+        case .clientVPN(let id):
+            if let profile = vpnProfiles.first(where: { $0.stableIDString == id }) {
+                ClientVPNDetailView(profile: profile, detailSelection: $selection)
+                    .id(id)
+            } else {
+                ContentUnavailableView("VPN not found", systemImage: "questionmark.circle")
+            }
         case .databaseConnection(let id):
             if let connection = databaseConnections.first(where: { $0.stableIDString == id }) {
                 DatabaseConnectionDetailView(connection: connection)
@@ -119,6 +127,8 @@ private struct DetailViewPreviewHarness: View {
             .environment(editorState)
             .environment(CredentialsModel(service: PreviewIdentityCenterService()))
             .environment(DatabaseModel.preview(container: metadataContainer))
+            .environment(ClientVPNController.preview())
+            .environment(\.clientVPNSecrets, .preview)
             .environment(imdsModel)
             .environment(IMDSProxyController())
             .environment(AppRuntimeCoordinator.preview())

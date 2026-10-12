@@ -10,15 +10,20 @@ import Observation
 @MainActor
 @Observable
 public final class ClientVPNController {
-    public enum State: Equatable, Sendable {
+    public enum State: Hashable, Sendable {
         case disconnected, connecting, signingIn, connected, disconnecting
         case failed(ClientVPNLiveFailure)
     }
 
     public private(set) var state = State.disconnected
+    /// The saved profile the state describes: the one connected, or the last one tried.
+    public private(set) var profileID: UUID?
     public private(set) var packets = ClientVPNPacketCounts()
-    /// The last session token, held in memory only and only for the profile text it came from.
-    private var token: (profile: String, value: ClientVPNLiveToken)?
+    /// The tunnel's addresses, routes and DNS servers while connected.
+    public private(set) var tunnel: ClientVPNTunnelSettings?
+    public private(set) var connectedDate: Date?
+    /// The last session token, held in memory only, for the saved profile and profile text it came from.
+    private var token: (profileID: UUID, profile: String, signedIn: Date, value: ClientVPNLiveToken)?
 
     @ObservationIgnored private let transport: any ClientVPNTransport
     @ObservationIgnored private let signIn: any ClientVPNSignIn
@@ -39,51 +44,83 @@ public final class ClientVPNController {
         }
     }
 
-    /// Whether `profile` can reconnect with the last session token instead of the browser.
-    public func hasSessionToken(for profile: String) -> Bool {
-        token?.profile == profile
+    /// When the browser sign-in behind a saved session token for `profileID` happened, if one is held.
+    public func savedSignIn(for profileID: UUID) -> Date? {
+        token?.profileID == profileID ? token?.signedIn : nil
     }
 
+    /// Drops the session token, for example when the profile's endpoint or file changes.
+    public func forgetSignIn(for profileID: UUID) {
+        if token?.profileID == profileID { token = nil }
+    }
+
+    /// Connects `profile`, the `.ovpn` text of the saved profile `profileID`. A session token from this
+    /// profile's text is reused unless `signInAgain`; if the server refuses it, the browser sign-in runs.
     /// `profileName` is only shown on the browser's sign-in page.
-    public func connect(profileName: String, profile: String, usingSessionToken: Bool = false) {
+    public func connect(profileID: UUID, profileName: String, profile: String, signInAgain: Bool = false) {
         guard !isActive else { return }
-        let cached = usingSessionToken && token?.profile == profile ? token?.value : nil
-        guard !usingSessionToken || cached != nil else {
-            state = .failed(.authentication)
-            return
-        }
+        if signInAgain { forgetSignIn(for: profileID) }
+        let cached = token?.profileID == profileID && token?.profile == profile ? token?.value : nil
         let run = UUID()
         self.run = run
+        self.profileID = profileID
         state = .connecting
         packets = ClientVPNPacketCounts()
+        tunnel = nil
+        connectedDate = nil
         task = Task {
-            await drive(run: run, profileName: profileName, profile: profile, token: cached)
+            await drive(run: run, profileID: profileID, profileName: profileName, profile: profile, token: cached)
         }
     }
 
+    /// Connects `profileID` unless it is already connected or connecting, and returns once the tunnel
+    /// is up. Throws the failure if it stops instead, `.cancelled` if it is disconnected first, and
+    /// `.busy` if another profile holds the tunnel.
+    public func connectAndWait(profileID: UUID, profileName: String, profile: String) async throws {
+        if isActive, self.profileID != profileID { throw ClientVPNLiveFailure.busy }
+        if !isActive { connect(profileID: profileID, profileName: profileName, profile: profile) }
+        for await state in Observations({ (self.profileID, self.state) }) {
+            guard state.0 == profileID else { throw ClientVPNLiveFailure.cancelled }
+            switch state.1 {
+            case .connected: return
+            case .failed(let failure): throw failure
+            case .disconnected: throw ClientVPNLiveFailure.cancelled
+            case .connecting, .signingIn, .disconnecting: continue
+            }
+        }
+        throw CancellationError()
+    }
+
+    /// Stops the tunnel, or clears a failure the tunnel already stopped with.
     public func disconnect() async {
+        if case .failed = state {
+            state = .disconnected
+            return
+        }
         guard isActive else { return }
         run = nil
         task?.cancel()
         task = nil
         state = .disconnecting
         await transport.stop()
+        tunnel = nil
         state = .disconnected
     }
 
-    private func drive(run: UUID, profileName: String, profile: String, token: ClientVPNLiveToken?) async {
+    private func drive(run: UUID, profileID: UUID, profileName: String, profile: String, token: ClientVPNLiveToken?) async {
         do {
             try await transport.start(run: run)
             try await sendProfile(run: run, profile: profile, token: token)
-            try await follow(run: run, profileName: profileName, profile: profile, usingToken: token != nil)
+            try await follow(run: run, profileID: profileID, profileName: profileName, profile: profile)
         } catch {
             guard self.run == run else { return }
             let failure = error as? ClientVPNLiveFailure ?? .transport
-            // A token that didn't connect is spent.
-            if token != nil { self.token = nil }
+            // A token that didn't connect is spent; one that connected stays for reconnecting after a drop.
+            if let token, state != .connected, self.token?.value == token { self.token = nil }
             await transport.stop()
             guard self.run == run else { return }
             self.run = nil
+            tunnel = nil
             state = failure == .cancelled ? .disconnected : .failed(failure)
         }
     }
@@ -104,32 +141,40 @@ public final class ClientVPNController {
         }
     }
 
-    private func follow(run: UUID, profileName: String, profile: String, usingToken: Bool) async throws {
+    private func follow(run: UUID, profileID: UUID, profileName: String, profile: String) async throws {
         var answered = Set<UUID>()
-        var tokenPolls = 0
+        var settlingPolls = 0
         while true {
             let snapshot = try await self.snapshot(.status(run: run))
             guard self.run == run else { throw CancellationError() }
             packets = snapshot.packets
-            if let value = snapshot.token { token = (profile, value) }
+            tunnel = snapshot.tunnel
+            if let value = snapshot.token, token?.value != value {
+                // A token renewed on a token run keeps the time of the browser sign-in behind it.
+                let renewed = token?.profileID == profileID && token?.profile == profile
+                token = (profileID, profile, renewed ? token?.signedIn ?? Date() : Date(), value)
+            }
             switch snapshot.phase {
             case .awaitingProfile, .connecting:
                 state = .connecting
             case .authenticating:
-                // A token run that asks for the browser means the token was refused.
-                guard !usingToken, let challenge = snapshot.challenge, answered.insert(challenge.id).inserted else {
+                guard let challenge = snapshot.challenge, answered.insert(challenge.id).inserted else {
                     throw ClientVPNLiveFailure.authentication
                 }
+                // A token run that asks for the browser means the server refused the token.
+                if token?.profileID == profileID { token = nil }
                 state = .signingIn
                 let assertion = try await signInWhileTunnelRuns(challenge, profileName: profileName)
                 _ = try await self.snapshot(.authenticate(run: run, challenge: challenge.id, assertion: assertion))
                 state = .connecting
                 continue
             case .running:
+                if state != .connected { connectedDate = transport.connectedDate ?? Date() }
                 state = .connected
-                // The core issues its token just after connecting; look a few more times so it isn't missed.
-                if snapshot.token == nil, tokenPolls < 10 {
-                    tokenPolls += 1
+                // The core issues its token and applies its settings just after connecting; look a few
+                // more times so neither is missed, then wait for the system to report the tunnel down.
+                if snapshot.token == nil || snapshot.tunnel == nil, settlingPolls < 10 {
+                    settlingPolls += 1
                 } else {
                     try await tunnelStopped()
                 }

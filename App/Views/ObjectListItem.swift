@@ -7,6 +7,7 @@ enum ObjectListItem: Identifiable, Hashable {
     case session(SessionListItem)
     case profile(ProfileListItem)
     case imds(IMDSEndpointListItem)
+    case clientVPN(ClientVPNListItem)
     case databaseConnection(DatabaseConnectionListItem)
     case databaseCredential(DatabaseCredentialListItem)
 
@@ -18,6 +19,8 @@ enum ObjectListItem: Identifiable, Hashable {
             return "profile:\(profile.name)"
         case .imds(let endpoint):
             return "imds:\(endpoint.id)"
+        case .clientVPN(let vpn):
+            return "vpn:\(vpn.id)"
         case .databaseConnection(let connection):
             return "database:\(connection.id)"
         case .databaseCredential(let credential):
@@ -33,6 +36,8 @@ enum ObjectListItem: Identifiable, Hashable {
             return .profile(name: profile.name)
         case .imds(let endpoint):
             return .imds(endpointID: endpoint.endpointID)
+        case .clientVPN(let vpn):
+            return .clientVPN(id: vpn.id)
         case .databaseConnection(let connection):
             return .databaseConnection(id: connection.id)
         case .databaseCredential(let credential):
@@ -48,6 +53,8 @@ enum ObjectListItem: Identifiable, Hashable {
             return "profile \(profile.name) \(profile.sessionName ?? "") \(profile.accountID) \(profile.roleName)"
         case .imds(let endpoint):
             return "imds endpoint \(endpoint.title) \(endpoint.profileName) \(endpoint.subtitle) \(endpoint.state.searchText)"
+        case .clientVPN(let vpn):
+            return "client vpn \(vpn.name) \(vpn.endpoint) \(vpn.status.title)"
         case .databaseConnection(let connection):
             return "database connection \(connection.name) \(connection.subtitle) \(connection.localPort) \(connection.state.rawValue)"
         case .databaseCredential(let credential):
@@ -68,6 +75,15 @@ struct ProfileListItem: Hashable {
     let sessionName: String?
     let accountID: String
     let roleName: String
+}
+
+struct ClientVPNListItem: Identifiable, Hashable {
+    let id: String
+    let name: String
+    let endpoint: String
+    let status: ClientVPNStatus
+    /// The databases that name this VPN, which keep it from being deleted.
+    let usedBy: [String]
 }
 
 struct DatabaseConnectionListItem: Identifiable, Hashable {

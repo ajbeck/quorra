@@ -1,4 +1,5 @@
 import AppKit
+import ClientVPN
 import DatabaseProxy
 import IAMIdentityCenter
 import QuorraAppLogic
@@ -18,6 +19,7 @@ struct QuorraMenuBarView: View {
     @Environment(\.openSettings) private var openSettings
     @Query(sort: \IMDSEndpointDefinition.name) private var endpoints: [IMDSEndpointDefinition]
     @Query(sort: \SessionDefinition.name) private var sessions: [SessionDefinition]
+    @Query(sort: \ClientVPNProfileDefinition.name) private var vpns: [ClientVPNProfileDefinition]
     @Query(sort: \DatabaseConnectionDefinition.name) private var databases: [DatabaseConnectionDefinition]
     let appUpdater: AppUpdater
     let presentationController: AppPresentationController
@@ -25,6 +27,8 @@ struct QuorraMenuBarView: View {
     let imdsModel: IMDSModel
     let credentialsModel: CredentialsModel
     let databaseModel: DatabaseModel
+    let clientVPNController: ClientVPNController
+    let clientVPNSecrets: ClientVPNProfileSecrets
     let notificationCoordinator: DefaultIMDSNotificationCoordinator
 
     var body: some View {
@@ -84,6 +88,23 @@ struct QuorraMenuBarView: View {
                     }
                 }
                 .badge(otherSessions.count)
+            }
+        }
+
+        if !vpns.isEmpty {
+            Section("VPN") {
+                ForEach(topLevelVPNs, id: \.stableIDString) { profile in
+                    vpnMenu(profile)
+                }
+
+                if !otherVPNs.isEmpty {
+                    Menu("Other VPNs") {
+                        ForEach(otherVPNs, id: \.stableIDString) { profile in
+                            vpnMenu(profile)
+                        }
+                    }
+                    .badge(otherVPNs.count)
+                }
             }
         }
 
@@ -150,8 +171,44 @@ struct QuorraMenuBarView: View {
         )
     }
 
+    private func vpnMenu(_ profile: ClientVPNProfileDefinition) -> some View {
+        ClientVPNMenu(
+            profile: profile,
+            controller: clientVPNController,
+            secrets: clientVPNSecrets,
+            otherName: connectedVPNName(otherThan: profile),
+            showInQuorra: showInQuorra
+        )
+    }
+
+    /// Favourite VPNs and any that are connecting, connected or failed are top-level; the rest go
+    /// under Other VPNs.
+    private var topLevelVPNs: [ClientVPNProfileDefinition] {
+        vpns.filter(isTopLevel)
+    }
+
+    private var otherVPNs: [ClientVPNProfileDefinition] {
+        vpns.filter { !isTopLevel($0) }
+    }
+
+    private func isTopLevel(_ profile: ClientVPNProfileDefinition) -> Bool {
+        let status = clientVPNController.status(for: profile.stableID)
+        return profile.isFavorite || status.isActive || status.failure != nil
+    }
+
+    /// The VPN holding the one tunnel macOS runs, when it isn't `profile`.
+    private func connectedVPNName(otherThan profile: ClientVPNProfileDefinition) -> String? {
+        guard clientVPNController.status(for: profile.stableID) == .blocked else { return nil }
+        return vpns.first { $0.stableID == clientVPNController.profileID }?.name ?? "Another VPN"
+    }
+
     private func databaseMenu(_ connection: DatabaseConnectionDefinition) -> some View {
-        DatabaseMenu(connection: connection, databaseModel: databaseModel, showInQuorra: showInQuorra)
+        DatabaseMenu(
+            connection: connection,
+            databaseModel: databaseModel,
+            blockingVPNName: connection.clientVPN.flatMap(connectedVPNName(otherThan:)),
+            showInQuorra: showInQuorra
+        )
     }
 
     /// Favourite and running databases are top-level; the rest go under Other Databases.
