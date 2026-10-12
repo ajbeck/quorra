@@ -1,7 +1,9 @@
 import ClientVPN
+import DatabaseProxy
 import Foundation
 import Observation
 import QuorraTestSupport
+import SwiftData
 import Testing
 @testable import QuorraAppLogic
 
@@ -170,6 +172,76 @@ struct ClientVPNControllerTests {
         #expect(controller.savedSignIn(for: work) != nil)
         controller.forgetSignIn(for: work)
         #expect(controller.savedSignIn(for: work) == nil)
+    }
+
+    @Test func connectingAndWaitingReturnsOnceTheTunnelIsUp() async throws {
+        let tunnel = browserTunnel()
+        let controller = ClientVPNController(transport: tunnel, signIn: FakeSignIn(assertion: Data([1])), clock: ManualClock())
+        try await controller.connectAndWait(profileID: work, profileName: "work", profile: "client")
+        #expect(controller.state == .connected && tunnel.started.count == 1)
+
+        // Already connected: returns without starting the tunnel again.
+        try await controller.connectAndWait(profileID: work, profileName: "work", profile: "client")
+        #expect(tunnel.started.count == 1)
+
+        // Another profile can't take the tunnel.
+        await #expect(throws: ClientVPNLiveFailure.busy) {
+            try await controller.connectAndWait(profileID: UUID(), profileName: "staging", profile: "client")
+        }
+    }
+
+    @Test func connectingAndWaitingJoinsAConnectInProgress() async throws {
+        let tunnel = browserTunnel()
+        let controller = ClientVPNController(transport: tunnel, signIn: FakeSignIn(assertion: Data([1])), clock: ManualClock())
+        controller.connect(profileID: work, profileName: "work", profile: "client")
+        try await controller.connectAndWait(profileID: work, profileName: "work", profile: "client")
+        #expect(controller.state == .connected && tunnel.started.count == 1)
+    }
+
+    @Test func connectingAndWaitingThrowsTheFailure() async {
+        let tunnel = FakeTunnel()
+        tunnel.onRequest = { request in
+            if case .connect = request { .rejected(.invalidProfile) } else { nil }
+        }
+        let controller = ClientVPNController(transport: tunnel, signIn: FakeSignIn(assertion: Data([1])), clock: ManualClock())
+        await #expect(throws: ClientVPNLiveFailure.invalidProfile) {
+            try await controller.connectAndWait(profileID: work, profileName: "work", profile: "client")
+        }
+    }
+
+    @Test func connectingAndWaitingStopsWhenCancelled() async {
+        let tunnel = browserTunnel()
+        let controller = ClientVPNController(transport: tunnel, signIn: FakeSignIn(assertion: nil), clock: ManualClock())
+        let waiting = Task { try await controller.connectAndWait(profileID: work, profileName: "work", profile: "client") }
+        await reach(controller, .signingIn)
+        await controller.disconnect()
+        await #expect(throws: ClientVPNLiveFailure.cancelled) { try await waiting.value }
+    }
+
+    @Test func aDatabaseConnectsItsVPNFirstAndNeverReplacesAnother() async throws {
+        let context = ModelContext(try QuorraMetadataSchema.makeContainer(inMemory: true))
+        let secrets = ClientVPNProfileSecrets(keychain: InMemoryKeychainStore())
+        let profile = try ClientVPNProfile(text: "client\nremote vpn.example.com 443\n")
+        let workVPN = try await ClientVPNProfileStore.add(profile, fileName: "work.ovpn", name: "Work VPN", endpoint: "vpn.example.com", secrets: secrets, in: context)
+        let stagingVPN = try await ClientVPNProfileStore.add(profile, fileName: "staging.ovpn", name: "Staging VPN", endpoint: "vpn.example.com", secrets: secrets, in: context)
+        let draft = DatabaseConnectionDraft(name: "Orders", host: "db.example.com", localPort: 15432, database: "app", trust: .system, authentication: .databasePassword)
+        let connection = DatabaseConnectionDefinition(draft: draft, profile: nil, credential: nil)
+        context.insert(connection)
+        let controller = ClientVPNController(transport: browserTunnel(), signIn: FakeSignIn(assertion: Data([1])), clock: ManualClock())
+
+        // No VPN: nothing to do.
+        try await controller.prepareNetwork(for: connection, secrets: secrets, in: context)
+        #expect(controller.state == .disconnected)
+
+        connection.clientVPN = workVPN
+        try await controller.prepareNetwork(for: connection, secrets: secrets, in: context)
+        #expect(controller.profileID == workVPN.stableID && controller.state == .connected)
+
+        connection.clientVPN = stagingVPN
+        await #expect(throws: ClientVPNProfileError.otherVPNConnected("Work VPN", needed: "Staging VPN")) {
+            try await controller.prepareNetwork(for: connection, secrets: secrets, in: context)
+        }
+        #expect(controller.profileID == workVPN.stableID && controller.state == .connected)
     }
 
     private func reach(_ controller: ClientVPNController, _ expected: ClientVPNController.State) async {

@@ -1,3 +1,4 @@
+import ClientVPN
 import Foundation
 import IAMIdentityCenter
 import SwiftData
@@ -108,5 +109,23 @@ public enum ClientVPNProfileStore {
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { throw ClientVPNProfileError.missingName }
         return name
+    }
+}
+
+extension ClientVPNController {
+    /// Connects the VPN `connection` names, and returns once it is up; `DatabaseModel` runs this before
+    /// Start and Test. A different connected VPN is never switched off.
+    public func prepareNetwork(for connection: DatabaseConnectionDefinition, secrets: ClientVPNProfileSecrets, in context: ModelContext) async throws {
+        guard let vpn = connection.clientVPN else { return }
+        if isActive, let profileID, profileID != vpn.stableID {
+            let other = try? ClientVPNProfileStore.profile(id: profileID, in: context)
+            throw ClientVPNProfileError.otherVPNConnected(other?.name ?? "Another VPN", needed: vpn.name)
+        }
+        let text = try await ClientVPNProfileStore.connectionText(for: vpn, secrets: secrets)
+        do {
+            try await connectAndWait(profileID: vpn.stableID, profileName: vpn.name, profile: text)
+        } catch let failure as ClientVPNLiveFailure {
+            throw ClientVPNProfileError.couldNotConnect(vpn.name, reason: failure.localizedDescription)
+        }
     }
 }

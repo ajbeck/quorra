@@ -56,6 +56,21 @@ struct DatabaseModelTests {
         #expect(try context.fetchCount(FetchDescriptor<DatabaseConnectionLogEntry>()) == 0)
     }
 
+    @Test func aNetworkThatCannotBeReadiedStopsStartAndTestBeforeTheUpstream() async throws {
+        struct Refused: Error, Equatable {}
+        var prepared: [String] = []
+        let model = DatabaseModel(context: context, secrets: secrets, prepareNetwork: { connection in
+            prepared.append(connection.name)
+            throw Refused()
+        }) { _, _, _, _ in throw Refused() }
+        let connection = try iamConnection(upstreamPort: try unusedPort())
+        await #expect(throws: Refused()) { try await model.start(connection) }
+        await #expect(throws: Refused()) { try await model.test(connection) }
+        #expect(prepared == ["Orders", "Orders"])
+        #expect(model.status(for: connection.stableID).state == .stopped)
+        #expect(model.workingConnectionIDs.isEmpty)
+    }
+
     @Test func passwordConnectionWithoutAStoredPasswordFailsTest() async throws {
         let model = makeModel()
         let credential = DatabaseCredentialDefinition(name: "Login", username: "user")

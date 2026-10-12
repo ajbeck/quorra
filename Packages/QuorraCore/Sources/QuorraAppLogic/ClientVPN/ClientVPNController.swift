@@ -73,6 +73,24 @@ public final class ClientVPNController {
         }
     }
 
+    /// Connects `profileID` unless it is already connected or connecting, and returns once the tunnel
+    /// is up. Throws the failure if it stops instead, `.cancelled` if it is disconnected first, and
+    /// `.busy` if another profile holds the tunnel.
+    public func connectAndWait(profileID: UUID, profileName: String, profile: String) async throws {
+        if isActive, self.profileID != profileID { throw ClientVPNLiveFailure.busy }
+        if !isActive { connect(profileID: profileID, profileName: profileName, profile: profile) }
+        for await state in Observations({ (self.profileID, self.state) }) {
+            guard state.0 == profileID else { throw ClientVPNLiveFailure.cancelled }
+            switch state.1 {
+            case .connected: return
+            case .failed(let failure): throw failure
+            case .disconnected: throw ClientVPNLiveFailure.cancelled
+            case .connecting, .signingIn, .disconnecting: continue
+            }
+        }
+        throw CancellationError()
+    }
+
     /// Stops the tunnel, or clears a failure the tunnel already stopped with.
     public func disconnect() async {
         if case .failed = state {

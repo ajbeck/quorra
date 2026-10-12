@@ -203,7 +203,12 @@ struct QuorraMenuBarView: View {
     }
 
     private func databaseMenu(_ connection: DatabaseConnectionDefinition) -> some View {
-        DatabaseMenu(connection: connection, databaseModel: databaseModel, showInQuorra: showInQuorra)
+        DatabaseMenu(
+            connection: connection,
+            databaseModel: databaseModel,
+            blockingVPNName: connection.clientVPN.flatMap(connectedVPNName(otherThan:)),
+            showInQuorra: showInQuorra
+        )
     }
 
     /// Favourite and running databases are top-level; the rest go under Other Databases.

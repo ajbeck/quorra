@@ -8,6 +8,8 @@ import SwiftUI
 struct DatabaseMenu: View {
     let connection: DatabaseConnectionDefinition
     let databaseModel: DatabaseModel
+    /// The connected VPN that keeps this connection's own VPN from connecting.
+    let blockingVPNName: String?
     let showInQuorra: (DetailSelection) -> Void
 
     var body: some View {
@@ -28,7 +30,7 @@ struct DatabaseMenu: View {
                         }
                     }
                 }
-                .disabled(databaseModel.workingConnectionIDs.contains(connection.stableID))
+                .disabled(databaseModel.workingConnectionIDs.contains(connection.stableID) || blockingVPNName != nil)
             }
 
             Divider()
@@ -75,6 +77,9 @@ struct DatabaseMenu: View {
         case .starting, .checkingUpstream:
             return "Starting…"
         case .stopped:
+            if let blockingVPNName {
+                return "Off · Disconnect \(blockingVPNName) first"
+            }
             return "Off"
         }
     }

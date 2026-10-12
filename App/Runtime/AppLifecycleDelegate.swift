@@ -46,21 +46,27 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
                 oidcClientProvider: SDKOIDCClientProvider()
             )
         )
-        let databaseModel = DatabaseModel(
-            context: metadataContainer.mainContext,
-            secrets: DatabaseSecrets(keychain: keychain)
-        ) { [credentialsModel] session, account, role, region in
-            try await credentialsModel.liveCredentials(forSession: session, accountId: account, roleName: role, region: region)
-        }
         // The VPN's SAML sign-in opens the browser the way Identity Center's does.
-        clientVPNController = ClientVPNController(
+        let clientVPNController = ClientVPNController(
             transport: ClientVPNSystemTransport(systemExtension: systemExtensionController),
             signIn: ClientVPNBrowserSignIn(open: { [authenticationBrowser] url in
                 authenticationBrowser.open(url)
                 return authenticationBrowser.failedURL == nil
             })
         )
-        clientVPNSecrets = ClientVPNProfileSecrets(keychain: keychain)
+        let clientVPNSecrets = ClientVPNProfileSecrets(keychain: keychain)
+        self.clientVPNController = clientVPNController
+        self.clientVPNSecrets = clientVPNSecrets
+        // A database that names a VPN connects it before Start and Test (M012).
+        let databaseModel = DatabaseModel(
+            context: metadataContainer.mainContext,
+            secrets: DatabaseSecrets(keychain: keychain),
+            prepareNetwork: { [context = metadataContainer.mainContext] connection in
+                try await clientVPNController.prepareNetwork(for: connection, secrets: clientVPNSecrets, in: context)
+            }
+        ) { [credentialsModel] session, account, role, region in
+            try await credentialsModel.liveCredentials(forSession: session, accountId: account, roleName: role, region: region)
+        }
 
         self.metadataContainer = metadataContainer
         self.appModel = appModel

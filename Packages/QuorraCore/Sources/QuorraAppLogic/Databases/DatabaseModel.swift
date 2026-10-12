@@ -10,18 +10,22 @@ import SwiftData
 @Observable
 public final class DatabaseModel {
     public typealias RoleCredentialFetch = @Sendable (_ session: String, _ account: String, _ role: String, _ region: String) async throws -> IAMIdentityCenter.RoleCredentials
+    /// Readies the network a connection's upstream needs, such as its Client VPN, before Start or Test.
+    public typealias NetworkPreparation = @MainActor (DatabaseConnectionDefinition) async throws -> Void
 
     /// The connection a Start or Test is working on, so views can disable repeated clicks.
     public private(set) var workingConnectionIDs: Set<UUID> = []
     @ObservationIgnored private var proxy: ProxyCoordinator!
     @ObservationIgnored public let secrets: DatabaseSecrets
     @ObservationIgnored private let context: ModelContext
+    @ObservationIgnored private let prepareNetwork: NetworkPreparation?
     @ObservationIgnored private var pendingLog: [DatabaseConnectionLogEntry] = []
     @ObservationIgnored private var flushTask: Task<Void, Never>?
 
-    public init(context: ModelContext, secrets: DatabaseSecrets, roleCredentials: @escaping RoleCredentialFetch) {
+    public init(context: ModelContext, secrets: DatabaseSecrets, prepareNetwork: NetworkPreparation? = nil, roleCredentials: @escaping RoleCredentialFetch) {
         self.context = context
         self.secrets = secrets
+        self.prepareNetwork = prepareNetwork
         let diagnostics = DiagnosticLog { [weak self] entry in
             guard let connectionID = entry.connectionID else { return }
             Task { @MainActor in self?.record(entry, connectionID: connectionID) }
@@ -47,13 +51,15 @@ public final class DatabaseModel {
         proxy.statuses.values.contains { $0.state == .failed }
     }
 
-    /// Checks the upstream, then listens on the connection's local port. Failures are shown in
-    /// the connection's status, and thrown so the caller can show them too.
+    /// Readies the network, checks the upstream, then listens on the connection's local port.
+    /// Upstream failures are shown in the connection's status; every failure is thrown so the
+    /// caller can show it too.
     public func start(_ connection: DatabaseConnectionDefinition) async throws {
         let id = connection.stableID
         guard !workingConnectionIDs.contains(id) else { return }
         workingConnectionIDs.insert(id)
         defer { workingConnectionIDs.remove(id) }
+        try await prepareNetwork?(connection)
         let summary = DatabaseStore.summary(for: connection)
         let password = summary.draft.localAuthentication == .generatedPassword
             ? try await secrets.localPassword(forConnection: id) : nil
@@ -66,6 +72,7 @@ public final class DatabaseModel {
         guard !workingConnectionIDs.contains(id) else { return }
         workingConnectionIDs.insert(id)
         defer { workingConnectionIDs.remove(id) }
+        try await prepareNetwork?(connection)
         try await proxy.test(DatabaseStore.summary(for: connection), binding: Self.binding(for: connection))
     }
 

@@ -6,6 +6,10 @@ public enum ClientVPNProfileError: Error, Equatable, LocalizedError {
     case missingName, missingFromKeychain
     /// The names of the databases using the VPN.
     case inUse([String])
+    /// A database's VPN can't connect because another VPN holds the one tunnel macOS runs.
+    case otherVPNConnected(String, needed: String)
+    /// A database's VPN stopped before it connected.
+    case couldNotConnect(String, reason: String)
 
     public var errorDescription: String? {
         switch self {
@@ -13,6 +17,10 @@ public enum ClientVPNProfileError: Error, Equatable, LocalizedError {
         case .missingFromKeychain: "Quorra couldn't find this VPN's profile in the Keychain. Replace it with the .ovpn file exported from AWS Client VPN."
         case .inUse(let names):
             "\(ListFormatter.localizedString(byJoining: names)) \(names.count == 1 ? "uses" : "use") this VPN. Choose another VPN for \(names.count == 1 ? "it" : "them"), then delete it."
+        case .otherVPNConnected(let other, let needed):
+            "\(other) is connected. Disconnect it to reach this database through \(needed)."
+        case .couldNotConnect(let name, let reason):
+            "Couldn't connect \(name). \(reason)"
         case .tooLarge: "This file is larger than 64 KB. Choose the .ovpn file exported from AWS Client VPN."
         case .notText: "This file isn't a text VPN profile. Choose the .ovpn file exported from AWS Client VPN."
         case .missingRemote: "This profile has no remote line naming the VPN server."
