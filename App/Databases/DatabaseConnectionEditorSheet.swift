@@ -177,7 +177,7 @@ struct DatabaseConnectionEditorSheet: View {
         let profile = profiles.first { $0.stableIDString == profileID }
         let credential = credentials.first { $0.stableIDString == credentialID }
         do {
-            let saved = try DatabaseStore.saveConnection(existing, draft: draft, profile: profile, credential: credential, in: modelContext)
+            let saved = try DatabaseStore.saveConnection(existing, draft: draft, profile: profile, credential: credential, clientVPN: existing?.clientVPN, in: modelContext)
             onSave(saved)
             dismiss()
         } catch {

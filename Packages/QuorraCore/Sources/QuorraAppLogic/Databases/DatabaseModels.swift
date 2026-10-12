@@ -24,6 +24,8 @@ public final class DatabaseConnectionDefinition {
     public var isFavorite: Bool
     public var profile: ProfileDefinition?
     public var credential: DatabaseCredentialDefinition?
+    /// The Client VPN that Start connects first; nil reaches the database directly.
+    public var clientVPN: ClientVPNProfileDefinition?
     public var createdAt: Date
     public var updatedAt: Date
 

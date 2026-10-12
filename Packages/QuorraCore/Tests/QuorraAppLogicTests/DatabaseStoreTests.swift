@@ -36,7 +36,7 @@ struct DatabaseStoreTests {
 
     @Test func iamConnectionTakesItsBindingFromTheProfile() throws {
         let profile = profile()
-        let connection = try DatabaseStore.saveConnection(nil, draft: iamDraft(), profile: profile, credential: nil, in: context)
+        let connection = try DatabaseStore.saveConnection(nil, draft: iamDraft(), profile: profile, credential: nil, clientVPN: nil, in: context)
         let draft = connection.draft
         #expect(draft.sessionName == "Work")
         #expect(draft.accountID == "123456789012" && draft.roleName == "Developer")
@@ -49,28 +49,28 @@ struct DatabaseStoreTests {
 
     @Test func iamConnectionNeedsAProfileWithASession() throws {
         #expect(throws: ConfigurationError.missingSession) {
-            try DatabaseStore.saveConnection(nil, draft: iamDraft(), profile: nil, credential: nil, in: context)
+            try DatabaseStore.saveConnection(nil, draft: iamDraft(), profile: nil, credential: nil, clientVPN: nil, in: context)
         }
         let unlinked = profile(named: "unlinked", session: nil)
         #expect(throws: ConfigurationError.missingSession) {
-            try DatabaseStore.saveConnection(nil, draft: iamDraft(), profile: unlinked, credential: nil, in: context)
+            try DatabaseStore.saveConnection(nil, draft: iamDraft(), profile: unlinked, credential: nil, clientVPN: nil, in: context)
         }
         var disabled = iamDraft()
         disabled.tlsMode = .disabled
         #expect(throws: ConfigurationError.iamRequiresTLS) {
-            try DatabaseStore.saveConnection(nil, draft: disabled, profile: profile(), credential: nil, in: context)
+            try DatabaseStore.saveConnection(nil, draft: disabled, profile: profile(), credential: nil, clientVPN: nil, in: context)
         }
     }
 
     @Test func localPortsAreUniqueButAnEditKeepsItsOwn() throws {
         let profile = profile()
-        let first = try DatabaseStore.saveConnection(nil, draft: iamDraft(), profile: profile, credential: nil, in: context)
+        let first = try DatabaseStore.saveConnection(nil, draft: iamDraft(), profile: profile, credential: nil, clientVPN: nil, in: context)
         #expect(throws: ConfigurationError.localPortInUse(15432)) {
-            try DatabaseStore.saveConnection(nil, draft: iamDraft(), profile: profile, credential: nil, in: context)
+            try DatabaseStore.saveConnection(nil, draft: iamDraft(), profile: profile, credential: nil, clientVPN: nil, in: context)
         }
         var renamed = iamDraft()
         renamed.name = "Orders (read only)"
-        try DatabaseStore.saveConnection(first, draft: renamed, profile: profile, credential: nil, in: context)
+        try DatabaseStore.saveConnection(first, draft: renamed, profile: profile, credential: nil, clientVPN: nil, in: context)
         #expect(try DatabaseStore.connections(in: context).map(\.name) == ["Orders (read only)"])
     }
 
@@ -79,7 +79,7 @@ struct DatabaseStoreTests {
         let credential = try await DatabaseStore.saveCredential(nil, name: "Development", username: "first_user",
                                                                 password: "old-password", secrets: secrets, in: context)
         var draft = passwordDraft()
-        let connection = try DatabaseStore.saveConnection(nil, draft: draft, profile: profile(), credential: credential, in: context)
+        let connection = try DatabaseStore.saveConnection(nil, draft: draft, profile: profile(), credential: credential, clientVPN: nil, in: context)
         #expect(connection.profile == nil)
         #expect(connection.draft.tlsMode == .verified)
         #expect(connection.draft.passwordCredentialID == credential.stableID)
@@ -97,7 +97,7 @@ struct DatabaseStoreTests {
         #expect(refusal?.localizedDescription == "Password database uses this credential. Choose another credential for it, then delete it.")
 
         draft.tlsMode = .disabled
-        try DatabaseStore.saveConnection(connection, draft: draft, profile: nil, credential: credential, in: context)
+        try DatabaseStore.saveConnection(connection, draft: draft, profile: nil, credential: credential, clientVPN: nil, in: context)
         let reopened = try #require(try DatabaseStore.connection(id: connection.stableID, in: ModelContext(container)))
         #expect(reopened.draft.tlsMode == .disabled)
         #expect(reopened.draft.username == "second_user")
@@ -105,7 +105,7 @@ struct DatabaseStoreTests {
 
     @Test func passwordConnectionNeedsACredentialAndANewCredentialNeedsAPassword() async throws {
         #expect(throws: ConfigurationError.missingCredential) {
-            try DatabaseStore.saveConnection(nil, draft: passwordDraft(), profile: nil, credential: nil, in: context)
+            try DatabaseStore.saveConnection(nil, draft: passwordDraft(), profile: nil, credential: nil, clientVPN: nil, in: context)
         }
         await #expect(throws: ConfigurationError.required("Password")) {
             _ = try await DatabaseStore.saveCredential(nil, name: "Login", username: "user", password: nil, secrets: secrets, in: context)
@@ -116,7 +116,7 @@ struct DatabaseStoreTests {
     @Test func deletingRemovesTheKeychainItems() async throws {
         let credential = try await DatabaseStore.saveCredential(nil, name: "Login", username: "user", password: "secret",
                                                                 secrets: secrets, in: context)
-        let connection = try DatabaseStore.saveConnection(nil, draft: passwordDraft(), profile: nil, credential: credential, in: context)
+        let connection = try DatabaseStore.saveConnection(nil, draft: passwordDraft(), profile: nil, credential: credential, clientVPN: nil, in: context)
         _ = try await secrets.localPassword(forConnection: connection.stableID)
         try await DatabaseStore.deleteConnection(connection, secrets: secrets, in: context)
         #expect(await keychain.enumerateAccounts(service: DatabaseSecrets.localPasswordService).isEmpty)
@@ -140,7 +140,7 @@ struct DatabaseStoreTests {
         let imported = try DatabaseStore.importDraft(passwordFile, in: context)
         #expect(imported.credential === credential)
         #expect(imported.draft.localPort == DatabaseEngine.mysql.suggestedLocalPort)
-        let saved = try DatabaseStore.saveConnection(nil, draft: imported.draft, profile: nil, credential: imported.credential, in: context)
+        let saved = try DatabaseStore.saveConnection(nil, draft: imported.draft, profile: nil, credential: imported.credential, clientVPN: nil, in: context)
         #expect(try DatabaseStore.importDraft(passwordFile, in: context).draft.localPort == saved.localPort + 1)
     }
 }

@@ -3,9 +3,16 @@ import Foundation
 
 public enum ClientVPNProfileError: Error, Equatable, LocalizedError {
     case tooLarge, notText, missingRemote, multipleRemotes, invalidRemote, invalidEndpoint
+    case missingName, missingFromKeychain
+    /// The names of the databases using the VPN.
+    case inUse([String])
 
     public var errorDescription: String? {
         switch self {
+        case .missingName: "Name is required."
+        case .missingFromKeychain: "Quorra couldn't find this VPN's profile in the Keychain. Replace it with the .ovpn file exported from AWS Client VPN."
+        case .inUse(let names):
+            "\(ListFormatter.localizedString(byJoining: names)) \(names.count == 1 ? "uses" : "use") this VPN. Choose another VPN for \(names.count == 1 ? "it" : "them"), then delete it."
         case .tooLarge: "This file is larger than 64 KB. Choose the .ovpn file exported from AWS Client VPN."
         case .notText: "This file isn't a text VPN profile. Choose the .ovpn file exported from AWS Client VPN."
         case .missingRemote: "This profile has no remote line naming the VPN server."

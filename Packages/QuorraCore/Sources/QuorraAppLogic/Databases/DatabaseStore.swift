@@ -31,6 +31,7 @@ public enum DatabaseStore {
         draft: DatabaseConnectionDraft,
         profile: ProfileDefinition?,
         credential: DatabaseCredentialDefinition?,
+        clientVPN: ClientVPNProfileDefinition?,
         in context: ModelContext
     ) throws -> DatabaseConnectionDefinition {
         var checked = draft
@@ -49,10 +50,12 @@ public enum DatabaseStore {
         }
         if let existing {
             existing.apply(checked, profile: profile, credential: credential)
+            existing.clientVPN = clientVPN
             try context.save()
             return existing
         }
         let connection = DatabaseConnectionDefinition(draft: checked, profile: profile, credential: credential)
+        connection.clientVPN = clientVPN
         context.insert(connection)
         try context.save()
         return connection

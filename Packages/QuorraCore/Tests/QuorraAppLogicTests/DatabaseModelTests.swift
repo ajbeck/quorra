@@ -33,7 +33,7 @@ struct DatabaseModelTests {
         context.insert(profile)
         let draft = DatabaseConnectionDraft(name: "Orders", host: "127.0.0.1", upstreamPort: upstreamPort, localPort: try unusedPort(),
                                             database: "orders", username: "app_user", region: "eu-west-2")
-        return try DatabaseStore.saveConnection(nil, draft: draft, profile: profile, credential: nil, in: context)
+        return try DatabaseStore.saveConnection(nil, draft: draft, profile: profile, credential: nil, clientVPN: nil, in: context)
     }
 
     @Test func unreachableUpstreamFailsStartAndIsLogged() async throws {
@@ -62,7 +62,7 @@ struct DatabaseModelTests {
         context.insert(credential)
         let draft = DatabaseConnectionDraft(name: "Local", host: "127.0.0.1", upstreamPort: try unusedPort(), localPort: try unusedPort(),
                                             database: "app", trust: .system, authentication: .databasePassword, tlsMode: .disabled)
-        let connection = try DatabaseStore.saveConnection(nil, draft: draft, profile: nil, credential: credential, in: context)
+        let connection = try DatabaseStore.saveConnection(nil, draft: draft, profile: nil, credential: credential, clientVPN: nil, in: context)
         await #expect(throws: ConfigurationError.missingCredential) { try await model.test(connection) }
         #expect(model.workingConnectionIDs.isEmpty)
     }
