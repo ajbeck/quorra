@@ -8,7 +8,8 @@ import IAMIdentityCenter
 /// and removes it on completion or cancellation.
 public struct SignInProgress: Sendable, Hashable {
     public let sessionName: String
-    public let userCode: String
+    /// The device code to confirm in the browser; nil for a browser (PKCE) sign-in.
+    public let userCode: String?
     public let verificationUri: URL
     public let verificationUriComplete: URL
     public let expiresAt: Date

@@ -30,6 +30,7 @@ import Foundation
             startUrl: URL(string: "https://asteroidcomputing.awsapps.com/start")!,
             region: "us-east-2",
             scopes: ["sso:account:access"],
+            useDeviceCode: true,
             verificationHandler: { _ in }
         )
 

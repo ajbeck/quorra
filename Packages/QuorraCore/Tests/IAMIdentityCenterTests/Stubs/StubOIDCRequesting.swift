@@ -16,9 +16,9 @@ import Foundation
 /// ```
 actor StubOIDCRequesting: OIDCRequesting {
 
-    /// Builds a stub whose default `registerClient` result carries `registerRegion`.
+    /// Builds a stub whose default `registerSessionClient` result carries `registerRegion`.
     ///
-    /// In production `SDKOIDCClient.registerClient` embeds the client's region into the
+    /// In production `SDKOIDCClient.registerSessionClient` embeds the client's region into the
     /// returned `StoredOIDCClient`, and the actor's `pollForToken` keys its provider lookup
     /// off `client.region`. So a region-faithful stub (built with the region it's vended for)
     /// keeps every provider lookup on the same region — matching real behavior.
@@ -33,6 +33,7 @@ actor StubOIDCRequesting: OIDCRequesting {
         .success(("stub-device-code", makeDefaultDeviceVerification()))
     var nextCreateTokenResult: Result<StoredSSOToken, Error> = .success(makeDefaultSSOToken())
     var nextRefreshResult: Result<StoredSSOToken, Error> = .success(makeDefaultSSOToken())
+    var nextExchangeResult: Result<StoredSSOToken, Error> = .success(makeDefaultSSOToken())
 
     /// Optional async block for `startDeviceAuthorization`. When set, overrides
     /// `nextStartDeviceAuthorizationResult`. Useful for tests that need to vary behavior across
@@ -53,6 +54,8 @@ actor StubOIDCRequesting: OIDCRequesting {
     private(set) var startDeviceAuthorizationCallCount = 0
     private(set) var createTokenCallCount = 0
     private(set) var refreshCallCount = 0
+    private(set) var exchangeCallCount = 0
+    private(set) var lastExchangeCodeVerifier: String?
 
     // MARK: - Configuration helpers
 
@@ -87,15 +90,36 @@ actor StubOIDCRequesting: OIDCRequesting {
         refreshBlock = nil
     }
 
+    func setNextExchangeResult(_ result: Result<StoredSSOToken, Error>) {
+        nextExchangeResult = result
+    }
+
     func setNextRefreshBlock(_ block: @escaping @Sendable () async throws -> StoredSSOToken) {
         refreshBlock = block
     }
 
     // MARK: - OIDCRequesting
 
-    func registerClient(clientName: String, scopes: [String]) async throws -> StoredOIDCClient {
+    func registerSessionClient(
+        clientName: String,
+        scopes: [String],
+        issuerUrl: URL,
+        redirectUri: String
+    ) async throws -> StoredOIDCClient {
         registerCallCount += 1
         return try nextRegisterResult.get()
+    }
+
+    func exchangeAuthorizationCode(
+        client: StoredOIDCClient,
+        code: String,
+        codeVerifier: String,
+        redirectUri: String,
+        sessionName: String
+    ) async throws -> StoredSSOToken {
+        exchangeCallCount += 1
+        lastExchangeCodeVerifier = codeVerifier
+        return try nextExchangeResult.get()
     }
 
     func startDeviceAuthorization(
@@ -144,7 +168,8 @@ private func makeDefaultStoredClient(region: String = "us-east-1") -> StoredOIDC
         issuedAt: Date(),
         secretExpiresAt: Date().addingTimeInterval(90 * 24 * 60 * 60),
         region: region,
-        scopes: ["sso:account:access"]
+        scopes: ["sso:account:access"],
+        grantTypes: OAuthGrant.sessionClientGrants
     )
 }
 

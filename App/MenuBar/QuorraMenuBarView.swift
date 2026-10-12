@@ -47,8 +47,10 @@ struct QuorraMenuBarView: View {
                     Label("Open sign-in for \(progress.sessionName)", systemImage: "safari")
                 }
 
-                Text("Code \(progress.userCode) · expires \(progress.expiresAt.formatted(date: .omitted, time: .shortened))")
-                    .disabled(true)
+                if let userCode = progress.userCode {
+                    Text("Code \(userCode) · expires \(progress.expiresAt.formatted(date: .omitted, time: .shortened))")
+                        .disabled(true)
+                }
             }
 
             Divider()

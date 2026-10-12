@@ -111,6 +111,7 @@ struct ExpirationTimerTests {
             startUrl: URL(string: "https://example.awsapps.com/start")!,
             region: "us-east-1",
             scopes: ["sso:account:access"],
+            useDeviceCode: true,
             verificationHandler: { _ in }
         )
 

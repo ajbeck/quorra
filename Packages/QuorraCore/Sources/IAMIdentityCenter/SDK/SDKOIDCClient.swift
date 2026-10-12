@@ -26,13 +26,19 @@ public actor SDKOIDCClient: OIDCRequesting {
         return SDKErrorMapping.mapOIDC(typeName: typeName, message: message)
     }
 
-    public func registerClient(
+    public func registerSessionClient(
         clientName: String,
-        scopes: [String]
+        scopes: [String],
+        issuerUrl: URL,
+        redirectUri: String
     ) async throws -> StoredOIDCClient {
+        let grantTypes = OAuthGrant.sessionClientGrants
         let input = RegisterClientInput(
             clientName: clientName,
             clientType: "public",
+            grantTypes: grantTypes,
+            issuerUrl: issuerUrl.absoluteString,
+            redirectUris: [redirectUri],
             scopes: scopes.isEmpty ? nil : scopes
         )
         let output: RegisterClientOutput
@@ -49,8 +55,32 @@ public actor SDKOIDCClient: OIDCRequesting {
             issuedAt: Date(timeIntervalSince1970: TimeInterval(output.clientIdIssuedAt)),
             secretExpiresAt: Date(timeIntervalSince1970: TimeInterval(output.clientSecretExpiresAt)),
             region: region,
-            scopes: scopes
+            scopes: scopes,
+            grantTypes: grantTypes,
+            issuerUrl: issuerUrl.absoluteString
         )
+    }
+
+    public func exchangeAuthorizationCode(
+        client storedClient: StoredOIDCClient,
+        code: String,
+        codeVerifier: String,
+        redirectUri: String,
+        sessionName: String
+    ) async throws -> StoredSSOToken {
+        let input = CreateTokenInput(
+            clientId: storedClient.clientId,
+            clientSecret: storedClient.clientSecret,
+            code: code,
+            codeVerifier: codeVerifier,
+            grantType: OAuthGrant.authorizationCode,
+            redirectUri: redirectUri
+        )
+        let output: CreateTokenOutput
+        do { output = try await client.createToken(input: input) }
+        catch { throw mapped(error) }
+
+        return try makeToken(from: output, fallbackRefreshToken: nil, sessionName: sessionName)
     }
 
     public func startDeviceAuthorization(
@@ -92,7 +122,7 @@ public actor SDKOIDCClient: OIDCRequesting {
             clientId: storedClient.clientId,
             clientSecret: storedClient.clientSecret,
             deviceCode: deviceCode,
-            grantType: "urn:ietf:params:oauth:grant-type:device_code"
+            grantType: OAuthGrant.deviceCode
         )
         let output: CreateTokenOutput
         do { output = try await client.createToken(input: input) }
@@ -109,23 +139,16 @@ public actor SDKOIDCClient: OIDCRequesting {
         let input = CreateTokenInput(
             clientId: storedClient.clientId,
             clientSecret: storedClient.clientSecret,
-            grantType: "refresh_token",
+            grantType: OAuthGrant.refreshToken,
             refreshToken: refreshToken
         )
         let output: CreateTokenOutput
         do {
             output = try await client.createToken(input: input)
         } catch {
-            // Re-map terminal OAuth codes to refresh-specific cases (D14), matching the
-            // hand-rolled OIDCClient: the actor's refresh-failure path only treats
-            // .refreshTokenRejected / .refreshClientInvalid as terminal (clears the refresh
-            // token / forces re-registration). Without this remap a rejected refresh would
-            // be mishandled as transient and the dead refresh token would never be cleared.
-            switch mapped(error) {
-            case .invalidGrant:  throw IAMIdentityCenterError.refreshTokenRejected
-            case .invalidClient: throw IAMIdentityCenterError.refreshClientInvalid
-            case let other:      throw other
-            }
+            // Without this remap a rejected or expired refresh would be mishandled as
+            // transient and the dead refresh token would never be cleared.
+            throw SDKErrorMapping.mapRefresh(mapped(error))
         }
 
         // D18 / RFC 6749 §10.4: use the new refresh token when AWS rotates it; otherwise keep

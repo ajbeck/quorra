@@ -24,7 +24,7 @@ final class AuthenticationBrowser {
 
 struct AuthenticationBrowserActions: View {
     let verificationURL: URL
-    let userCode: String
+    let userCode: String?
 
     @Environment(\.authenticationBrowser) private var authenticationBrowser
     @State private var copiedItem: CopiedItem?
@@ -37,7 +37,7 @@ struct AuthenticationBrowserActions: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Quorra is waiting for AWS until this code expires. If you closed the browser tab, reopen it here or copy the link.")
+            Text(userCode == nil ? "Quorra is waiting for the browser sign-in to finish. If you closed the browser tab, reopen it here or copy the link." : "Quorra is waiting for AWS until this code expires. If you closed the browser tab, reopen it here or copy the link.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -46,8 +46,10 @@ struct AuthenticationBrowserActions: View {
                     authenticationBrowser.open(verificationURL)
                 }
 
-                Button(copiedItem == .code ? "Copied code" : "Copy code") {
-                    copy(userCode, item: .code)
+                if let userCode {
+                    Button(copiedItem == .code ? "Copied code" : "Copy code") {
+                        copy(userCode, item: .code)
+                    }
                 }
 
                 Button(copiedItem == .link ? "Copied link" : "Copy link") {

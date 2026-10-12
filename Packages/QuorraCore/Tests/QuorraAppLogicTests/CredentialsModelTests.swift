@@ -528,6 +528,7 @@ actor StubIdentityCenterService: IdentityCenterServicing {
         region: String,
         scopes: [String],
         clientName: String,
+        useDeviceCode: Bool,
         verificationHandler: @escaping @concurrent @Sendable (DeviceVerification) async -> Void
     ) async throws -> StoredSSOToken {
         signInCallCount += 1

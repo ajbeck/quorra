@@ -23,13 +23,19 @@ public struct StoredSSOToken: Sendable, Hashable, Codable {
     /// SSO session name (from `~/.aws/config` `[sso-session NAME]`).
     public let sessionName: String
 
+    /// Keychain account of the OIDC client that minted this token. A refresh token only works
+    /// with that client. `nil` for tokens from before per-session clients, which used the
+    /// region's shared client.
+    public let clientAccount: String?
+
     public init(
         accessToken: String,
         expiresAt: Date,
         refreshToken: String?,
         issuedAt: Date,
         region: String,
-        sessionName: String
+        sessionName: String,
+        clientAccount: String? = nil
     ) {
         self.accessToken = accessToken
         self.expiresAt = expiresAt
@@ -37,6 +43,20 @@ public struct StoredSSOToken: Sendable, Hashable, Codable {
         self.issuedAt = issuedAt
         self.region = region
         self.sessionName = sessionName
+        self.clientAccount = clientAccount
+    }
+
+    /// The same token, recording the OIDC client that minted it.
+    public func boundToClient(_ clientAccount: String?) -> StoredSSOToken {
+        StoredSSOToken(
+            accessToken: accessToken,
+            expiresAt: expiresAt,
+            refreshToken: refreshToken,
+            issuedAt: issuedAt,
+            region: region,
+            sessionName: sessionName,
+            clientAccount: clientAccount
+        )
     }
 }
 

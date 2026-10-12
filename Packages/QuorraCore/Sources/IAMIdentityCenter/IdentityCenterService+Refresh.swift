@@ -126,7 +126,7 @@ extension IdentityCenterService {
         }
 
         // Get the OIDC client (needed for clientId/clientSecret)
-        let client = try await ensureRefreshClient(region: oldToken.region)
+        let client = try await ensureRefreshClient(account: oldToken.clientAccount ?? oldToken.region)
 
         eventContinuation.yield(.refreshing(sessionName: sessionName))
 
@@ -137,7 +137,7 @@ extension IdentityCenterService {
                 client: client,
                 refreshToken: refreshToken,
                 sessionName: sessionName
-            )
+            ).boundToClient(oldToken.clientAccount)
         } catch {
             try await handleRefreshFailure(
                 error: error,
@@ -212,7 +212,8 @@ extension IdentityCenterService {
                 refreshToken: nil,
                 issuedAt: oldToken.issuedAt,
                 region: oldToken.region,
-                sessionName: oldToken.sessionName
+                sessionName: oldToken.sessionName,
+                clientAccount: oldToken.clientAccount
             )
             try await keychain.writeRecord(
                 updatedToken,
@@ -222,18 +223,20 @@ extension IdentityCenterService {
         }
         // T_expire is left running in both cases so .expired fires at the original deadline
 
+        refreshLogger.error("Refresh failed for session '\(sessionName, privacy: .public)' (terminal: \(isTerminal, privacy: .public)): \(String(describing: error), privacy: .public)")
         eventContinuation.yield(.refreshFailed(sessionName: sessionName))
     }
 
     // MARK: - Client helpers
 
-    /// Reads (or re-registers) the OIDC client for the given region.
-    private func ensureRefreshClient(region: String) async throws -> StoredOIDCClient {
+    /// Reads the OIDC client that minted the token: the session's client, or the region's
+    /// shared client for tokens from before per-session clients.
+    private func ensureRefreshClient(account: String) async throws -> StoredOIDCClient {
         let service = ServiceConstants.oidcClientService
         if let cached = try? await keychain.readRecord(
             StoredOIDCClient.self,
             service: service,
-            account: region
+            account: account
         ) {
             return cached
         }

@@ -84,7 +84,9 @@ extension IdentityCenterService {
         // already running for this tuple, schedule the proactive timer so the credential is
         // pre-warmed before it enters the skew window. Mirrors A1's computeStatus scheduling
         // both timers opportunistically on app restart. Uses the row's own region/expiresAt.
-        if let cached, mintTimers[key] == nil, inFlightMint[key] == nil {
+        // Only while the bearer is valid: with an expired session token a mint would refresh the
+        // session, whose events re-run this status check and start another mint.
+        if case .signedIn = sessionStatus, let cached, mintTimers[key] == nil, inFlightMint[key] == nil {
             scheduleMint(
                 forSession: sessionName,
                 accountId: accountId,

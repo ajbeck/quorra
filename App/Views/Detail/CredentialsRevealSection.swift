@@ -225,8 +225,8 @@ struct CredentialsRevealSection: View {
         case .checking:
             return "\(sessionName) · \(accountId) · \(roleName)"
         case .signingIn:
-            if let progress = signInProgress {
-                return "code \(progress.userCode) · expires \(progress.expiresAt.formatted(date: .omitted, time: .shortened))"
+            if let progress = signInProgress, let userCode = progress.userCode {
+                return "code \(userCode) · expires \(progress.expiresAt.formatted(date: .omitted, time: .shortened))"
             }
             return "\(sessionName) sign-in in progress"
         case .notSignedIn(let session):
@@ -340,10 +340,12 @@ struct CredentialsRevealSection: View {
     @ViewBuilder private var signingInDetails: some View {
         if let progress = signInProgress {
             HStack(spacing: 14) {
-                LabeledContent("User code") {
-                    Text(progress.userCode)
-                        .font(.body.monospaced().weight(.semibold))
-                        .textSelection(.enabled)
+                if let userCode = progress.userCode {
+                    LabeledContent("User code") {
+                        Text(userCode)
+                            .font(.body.monospaced().weight(.semibold))
+                            .textSelection(.enabled)
+                    }
                 }
 
                 AuthenticationBrowserActions(

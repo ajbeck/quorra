@@ -18,6 +18,7 @@ struct PreviewIdentityCenterService: IdentityCenterServicing {
         region: String,
         scopes: [String],
         clientName: String,
+        useDeviceCode: Bool,
         verificationHandler: @escaping @concurrent @Sendable (DeviceVerification) async -> Void
     ) async throws -> StoredSSOToken {
         fatalError("PreviewIdentityCenterService.signIn should not be called in previews — seed model state directly")
