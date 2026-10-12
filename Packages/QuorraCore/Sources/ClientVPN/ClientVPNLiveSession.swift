@@ -23,6 +23,8 @@ public protocol ClientVPNLiveEngine: AnyObject, Sendable {
     func start(profile: String, credentials: ClientVPNEngineCredentials?)
     func stop()
     func packetCounts() -> ClientVPNPacketCounts
+    /// The network settings this attempt last applied, if any.
+    func tunnelSettings() -> ClientVPNTunnelSettings?
 }
 
 public struct ClientVPNLiveTimeouts: Sendable {
@@ -257,7 +259,8 @@ public actor ClientVPNLiveSession {
             challenge: challenge.map { ClientVPNBrowserChallenge(id: $0.id, url: $0.url) },
             token: token,
             failure: failure,
-            packets: engine?.packetCounts() ?? finalPackets
+            packets: engine?.packetCounts() ?? finalPackets,
+            tunnel: phase == .running ? engine?.tunnelSettings() : nil
         )
     }
 

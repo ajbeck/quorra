@@ -23,10 +23,52 @@ struct ClientVPNWireTests {
         .snapshot(.init(run: run, phase: .authenticating, challenge: .init(id: UUID(), url: URL(string: "https://signin.example.invalid/saml?RelayState=a%20b")!), packets: .init(sent: 1, received: 2))),
         .snapshot(.init(run: run, phase: .running, token: token, packets: .init(sent: .max, received: 0))),
         .snapshot(.init(run: run, phase: .failed, failure: .timedOut)),
+        .snapshot(.init(run: run, phase: .running, tunnel: .init(addresses: ["10.0.12.4/27", "fd00::4/64"], routes: ["0.0.0.0/0"], dnsServers: []))),
         .rejected(.staleRequest),
     ])
     func responsesRoundTrip(response: ClientVPNLiveResponse) throws {
         #expect(try ClientVPNWire.decodeResponse(ClientVPNWire.encode(response)) == response)
+    }
+
+    @Test func tunnelSettingsKeepTheFirstEntriesAndCountTheOtherRoutes() {
+        let routes = (0..<40).map { "10.\($0).0.0/16" }
+        let tunnel = ClientVPNTunnelSettings(addresses: ["", "10.0.12.4/27"], routes: routes + [String(repeating: "1", count: 65)], dnsServers: ["10.0.0.2"])
+        #expect(tunnel.addresses == ["10.0.12.4/27"])
+        #expect(tunnel.routes == Array(routes.prefix(32)) && tunnel.omittedRoutes == 8)
+        #expect(tunnel.dnsServers == ["10.0.0.2"])
+    }
+
+    @Test(arguments: [
+        ("255.255.0.0", "10.0.0.0/16"),
+        ("255.255.255.255", "10.0.0.0/32"),
+        ("0.0.0.0", "10.0.0.0/0"),
+        ("255.255.255.224", "10.0.0.0/27"),
+    ])
+    func cidrFromSubnetMask(mask: String, expected: String) {
+        #expect(ClientVPNTunnelSettings.cidr(address: "10.0.0.0", subnetMask: mask) == expected)
+    }
+
+    @Test(arguments: ["255.0.255.0", "255.255.0", "255.255.0.0.0", "256.0.0.0", ""])
+    func cidrRefusesOtherMasks(mask: String) {
+        #expect(ClientVPNTunnelSettings.cidr(address: "10.0.0.0", subnetMask: mask) == nil)
+    }
+
+    @Test func fullestStatusFitsInOneMessage() throws {
+        let entry = String(repeating: "f", count: ClientVPNLimits.tunnelEntryBytes)
+        let full = Array(repeating: entry, count: ClientVPNLimits.tunnelEntries)
+        let token = ClientVPNLiveToken(username: Data(count: ClientVPNLimits.tokenUsernameBytes), token: Data(count: ClientVPNLimits.credentialBytes - ClientVPNLimits.tokenUsernameBytes))
+        let response = ClientVPNLiveResponse.snapshot(.init(run: Self.run, phase: .running, token: token, tunnel: .init(addresses: full, routes: full + [entry], dnsServers: full)))
+        #expect(try ClientVPNWire.decodeResponse(ClientVPNWire.encode(response)) == response)
+    }
+
+    @Test(arguments: [
+        ClientVPNTunnelSettings(addresses: Array(repeating: "10.0.0.1/32", count: ClientVPNLimits.tunnelEntries + 1), routes: [], omittedRoutes: 0, dnsServers: []),
+        ClientVPNTunnelSettings(addresses: [], routes: [String(repeating: "1", count: ClientVPNLimits.tunnelEntryBytes + 1)], omittedRoutes: 0, dnsServers: []),
+        ClientVPNTunnelSettings(addresses: [], routes: [], omittedRoutes: 0, dnsServers: [""]),
+    ])
+    func decodingRefusesOutOfBoundsTunnelSettings(tunnel: ClientVPNTunnelSettings) throws {
+        let bytes = try ClientVPNWire.encode(ClientVPNLiveResponse.snapshot(.init(run: Self.run, phase: .running, tunnel: tunnel)))
+        #expect(throws: ClientVPNWireError.malformed) { try ClientVPNWire.decodeResponse(bytes) }
     }
 
     @Test func largestAssertionFitsInOneMessage() throws {

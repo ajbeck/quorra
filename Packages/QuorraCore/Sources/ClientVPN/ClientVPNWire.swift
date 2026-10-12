@@ -91,6 +91,15 @@ public enum ClientVPNWire {
                 writer.byte(0)
             }
             writer.token(snapshot.token)
+            if let tunnel = snapshot.tunnel {
+                writer.byte(1)
+                writer.entries(tunnel.addresses)
+                writer.entries(tunnel.routes)
+                writer.uint32(UInt32(clamping: tunnel.omittedRoutes))
+                writer.entries(tunnel.dnsServers)
+            } else {
+                writer.byte(0)
+            }
         case .rejected(let failure):
             writer = Writer(.rejected)
             writer.byte(UInt8(failure.rawValue))
@@ -119,7 +128,20 @@ public enum ClientVPNWire {
             default:
                 throw ClientVPNWireError.malformed
             }
-            response = .snapshot(.init(run: run, phase: phase, challenge: challenge, token: try reader.token(), failure: failure, packets: packets))
+            let token = try reader.token()
+            let tunnel: ClientVPNTunnelSettings?
+            switch try reader.byte() {
+            case 0:
+                tunnel = nil
+            case 1:
+                let addresses = try reader.entries()
+                let routes = try reader.entries()
+                let omittedRoutes = Int(try reader.uint32())
+                tunnel = .init(addresses: addresses, routes: routes, omittedRoutes: omittedRoutes, dnsServers: try reader.entries())
+            default:
+                throw ClientVPNWireError.malformed
+            }
+            response = .snapshot(.init(run: run, phase: phase, challenge: challenge, token: token, failure: failure, packets: packets, tunnel: tunnel))
         case .rejected:
             response = .rejected(try failure(try reader.byte()))
         case .connect, .authenticate, .status, .stop:
@@ -146,13 +168,20 @@ extension ClientVPNWire {
         }
 
         mutating func byte(_ value: UInt8) { data.append(value) }
+        mutating func uint32(_ value: UInt32) { withUnsafeBytes(of: value.bigEndian) { data.append(contentsOf: $0) } }
         mutating func uint64(_ value: UInt64) { withUnsafeBytes(of: value.bigEndian) { data.append(contentsOf: $0) } }
         mutating func uuid(_ id: UUID) { withUnsafeBytes(of: id.uuid) { data.append(contentsOf: $0) } }
 
         mutating func field(_ bytes: Data) {
             // An oversized field clamps here and then fails the size check in `finish`.
-            withUnsafeBytes(of: UInt32(clamping: bytes.count).bigEndian) { data.append(contentsOf: $0) }
+            uint32(UInt32(clamping: bytes.count))
             data.append(bytes)
+        }
+
+        /// A count, then each entry as a field.
+        mutating func entries(_ entries: [String]) {
+            uint32(UInt32(clamping: entries.count))
+            for entry in entries { field(Data(entry.utf8)) }
         }
 
         /// A token as two fields, both empty when there's none.
@@ -189,13 +218,24 @@ extension ClientVPNWire {
         }
 
         mutating func byte() throws -> UInt8 { try take(1).first ?? 0 }
+        mutating func uint32() throws -> UInt32 { try take(4).reduce(0) { $0 << 8 | UInt32($1) } }
         mutating func uint64() throws -> UInt64 { try take(8).reduce(0) { $0 << 8 | UInt64($1) } }
         mutating func uuid() throws -> UUID { Array(try take(16)).withUnsafeBytes { UUID(uuid: $0.loadUnaligned(as: uuid_t.self)) } }
 
         mutating func field(max: Int) throws -> Data {
-            let length = Int(try take(4).reduce(0) { $0 << 8 | UInt32($1) })
+            let length = Int(try uint32())
             guard length <= max else { throw ClientVPNWireError.malformed }
             return Data(try take(length))
+        }
+
+        mutating func entries() throws -> [String] {
+            let count = Int(try uint32())
+            guard count <= ClientVPNLimits.tunnelEntries else { throw ClientVPNWireError.malformed }
+            return try (0..<count).map { _ in
+                let entry = try string(max: ClientVPNLimits.tunnelEntryBytes)
+                guard !entry.isEmpty else { throw ClientVPNWireError.malformed }
+                return entry
+            }
         }
 
         mutating func string(max: Int) throws -> String {

@@ -8,6 +8,11 @@ public enum ClientVPNLimits {
     public static let credentialBytes = 120 * 1_024
     public static let tokenUsernameBytes = 4_096
     public static let challengeCookieBytes = 8_192
+    /// Entries in each list of the tunnel's settings. Sized so the fullest settings and the largest
+    /// token still fit in one message.
+    public static let tunnelEntries = 32
+    /// One address, route or DNS server in CIDR or plain text; an IPv6 CIDR is at most 43 bytes.
+    public static let tunnelEntryBytes = 64
     /// One message between the app and the packet tunnel, header included.
     public static let messageBytes = 128 * 1_024
 }
@@ -93,6 +98,48 @@ public struct ClientVPNPacketCounts: Equatable, Sendable {
     }
 }
 
+/// The network settings the tunnel applied, as text for display.
+public struct ClientVPNTunnelSettings: Equatable, Sendable {
+    /// Addresses assigned to this Mac, in CIDR form.
+    public let addresses: [String]
+    /// Destinations sent through the tunnel, in CIDR form. `0.0.0.0/0` or `::/0` sends all traffic.
+    public let routes: [String]
+    /// Routes past the first `ClientVPNLimits.tunnelEntries`, counted but not sent to the app.
+    public let omittedRoutes: Int
+    public let dnsServers: [String]
+
+    /// Keeps the first `ClientVPNLimits.tunnelEntries` of each list, skipping entries too long to be an address.
+    public init(addresses: [String], routes: [String], dnsServers: [String]) {
+        let routes = routes.filter(Self.fits)
+        self.addresses = Array(addresses.filter(Self.fits).prefix(ClientVPNLimits.tunnelEntries))
+        self.routes = Array(routes.prefix(ClientVPNLimits.tunnelEntries))
+        omittedRoutes = routes.count - self.routes.count
+        self.dnsServers = Array(dnsServers.filter(Self.fits).prefix(ClientVPNLimits.tunnelEntries))
+    }
+
+    /// The decoded form, which the wire format has already bounded.
+    init(addresses: [String], routes: [String], omittedRoutes: Int, dnsServers: [String]) {
+        self.addresses = addresses
+        self.routes = routes
+        self.omittedRoutes = omittedRoutes
+        self.dnsServers = dnsServers
+    }
+
+    static func fits(_ entry: String) -> Bool {
+        !entry.isEmpty && entry.utf8.count <= ClientVPNLimits.tunnelEntryBytes
+    }
+
+    /// `address/prefix` for an IPv4 address and subnet mask, or nil when the mask isn't contiguous.
+    public static func cidr(address: String, subnetMask: String) -> String? {
+        let octets = subnetMask.split(separator: ".", omittingEmptySubsequences: false).compactMap { UInt8($0) }
+        guard octets.count == 4 else { return nil }
+        let mask = octets.reduce(UInt32(0)) { $0 << 8 | UInt32($1) }
+        let prefix = mask.nonzeroBitCount
+        guard mask == (prefix == 0 ? 0 : UInt32.max << (32 - prefix)) else { return nil }
+        return "\(address)/\(prefix)"
+    }
+}
+
 public struct ClientVPNLiveSnapshot: Equatable, Sendable, CustomStringConvertible, CustomDebugStringConvertible {
     public let run: UUID
     public let phase: ClientVPNLivePhase
@@ -100,16 +147,19 @@ public struct ClientVPNLiveSnapshot: Equatable, Sendable, CustomStringConvertibl
     public let token: ClientVPNLiveToken?
     public let failure: ClientVPNLiveFailure?
     public let packets: ClientVPNPacketCounts
+    /// Present only while the tunnel is running.
+    public let tunnel: ClientVPNTunnelSettings?
     public var description: String { "VPN status: \(phase)" }
     public var debugDescription: String { description }
 
-    public init(run: UUID, phase: ClientVPNLivePhase, challenge: ClientVPNBrowserChallenge? = nil, token: ClientVPNLiveToken? = nil, failure: ClientVPNLiveFailure? = nil, packets: ClientVPNPacketCounts = .init()) {
+    public init(run: UUID, phase: ClientVPNLivePhase, challenge: ClientVPNBrowserChallenge? = nil, token: ClientVPNLiveToken? = nil, failure: ClientVPNLiveFailure? = nil, packets: ClientVPNPacketCounts = .init(), tunnel: ClientVPNTunnelSettings? = nil) {
         self.run = run
         self.phase = phase
         self.challenge = challenge
         self.token = token
         self.failure = failure
         self.packets = packets
+        self.tunnel = tunnel
     }
 }
 

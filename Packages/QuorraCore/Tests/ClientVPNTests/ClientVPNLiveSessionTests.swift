@@ -73,19 +73,22 @@ struct ClientVPNLiveSessionTests {
         let engine = try harness.engines.latest()
         guard case .token(let supplied) = engine.credentials else { Issue.record("The attempt had no cached token"); return }
         #expect(supplied == token)
+        let tunnel = ClientVPNTunnelSettings(addresses: ["10.0.12.4/27"], routes: ["10.0.0.0/16"], dnsServers: ["10.0.0.2"])
+        engine.apply(tunnel)
+        #expect(try await harness.snapshot().tunnel == nil)
 
         engine.send(.connected)
         engine.send(.token(token))
         try await startup.value
         await harness.reach(.tokenIssued)
         let running = try await harness.snapshot()
-        #expect(running.token == token && running.packets == ClientVPNPacketCounts(sent: 4, received: 3))
+        #expect(running.token == token && running.packets == ClientVPNPacketCounts(sent: 4, received: 3) && running.tunnel == tunnel)
         #expect(await harness.session.handle(.status(run: UUID())) == .rejected(.staleRequest))
 
         engine.send(.stopped(.transport))
         await harness.reach(.phase(.failed))
         let failed = try await harness.snapshot()
-        #expect(failed.token == nil && failed.failure == .transport && failed.packets == ClientVPNPacketCounts(sent: 4, received: 3))
+        #expect(failed.token == nil && failed.failure == .transport && failed.packets == ClientVPNPacketCounts(sent: 4, received: 3) && failed.tunnel == nil)
         #expect(harness.engines.cancellations == [.transport])
     }
 
@@ -266,6 +269,7 @@ private final class FakeEngine: ClientVPNLiveEngine {
     private struct State {
         var credentials: ClientVPNEngineCredentials?
         var stops = 0
+        var tunnel: ClientVPNTunnelSettings?
     }
 
     private let events: @Sendable (ClientVPNEngineEvent) -> Void
@@ -281,5 +285,7 @@ private final class FakeEngine: ClientVPNLiveEngine {
     func start(profile: String, credentials: ClientVPNEngineCredentials?) { state.withLock { $0.credentials = credentials } }
     func stop() { state.withLock { $0.stops += 1 } }
     func packetCounts() -> ClientVPNPacketCounts { ClientVPNPacketCounts(sent: 4, received: 3) }
+    func tunnelSettings() -> ClientVPNTunnelSettings? { state.withLock { $0.tunnel } }
+    func apply(_ tunnel: ClientVPNTunnelSettings) { state.withLock { $0.tunnel = tunnel } }
     func send(_ event: ClientVPNEngineEvent) { events(event) }
 }

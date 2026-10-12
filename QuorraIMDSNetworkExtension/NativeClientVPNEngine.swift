@@ -48,6 +48,23 @@ final class NativeClientVPNEngine: ClientVPNLiveEngine {
 
     func stop() { connection.stop() }
     func packetCounts() -> ClientVPNPacketCounts { io.counts.withLock { $0 } }
+    func tunnelSettings() -> ClientVPNTunnelSettings? { io.tunnel.withLock { $0 } }
+}
+
+private extension ClientVPNTunnelSettings {
+    init(_ settings: NEPacketTunnelNetworkSettings) {
+        var addresses: [String] = []
+        var routes: [String] = []
+        if let ipv4 = settings.ipv4Settings {
+            addresses += zip(ipv4.addresses, ipv4.subnetMasks).compactMap { Self.cidr(address: $0, subnetMask: $1) }
+            routes += (ipv4.includedRoutes ?? []).compactMap { Self.cidr(address: $0.destinationAddress, subnetMask: $0.destinationSubnetMask) }
+        }
+        if let ipv6 = settings.ipv6Settings {
+            addresses += zip(ipv6.addresses, ipv6.networkPrefixLengths).map { "\($0)/\($1)" }
+            routes += (ipv6.includedRoutes ?? []).map { "\($0.destinationAddress)/\($0.destinationNetworkPrefixLength)" }
+        }
+        self.init(addresses: addresses, routes: routes, dnsServers: settings.dnsSettings?.servers ?? [])
+    }
 }
 
 private extension ClientVPNLiveFailure {
@@ -66,9 +83,10 @@ private extension ClientVPNLiveFailure {
     }
 }
 
-/// The provider's packet flow, counting packets each way for the app's status display.
+/// The provider's packet flow, counting packets each way and keeping the applied settings for the app's status display.
 private final class CountingPacketIO: VPNPacketIO {
     let counts = Mutex(ClientVPNPacketCounts())
+    let tunnel = Mutex<ClientVPNTunnelSettings?>(nil)
     private let io: VPNPacketTunnelIO
 
     init(provider: NEPacketTunnelProvider) {
@@ -77,9 +95,11 @@ private final class CountingPacketIO: VPNPacketIO {
 
     func apply(_ settings: NEPacketTunnelNetworkSettings?, completion: @escaping @Sendable (Bool) -> Void) {
         let installing = settings != nil
+        let display = settings.map(ClientVPNTunnelSettings.init)
         logger.notice("Network settings requested (installing: \(installing))")
-        io.apply(settings) { success in
+        io.apply(settings) { [self] success in
             logger.notice("Network settings applied (installing: \(installing), success: \(success))")
+            if success { tunnel.withLock { $0 = display } }
             completion(success)
         }
     }
