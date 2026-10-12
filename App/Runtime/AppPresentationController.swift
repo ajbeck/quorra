@@ -13,7 +13,7 @@ final class AppPresentationController {
     @ObservationIgnored private var terminationRequested = false
 
     init(defaults: UserDefaults? = nil) {
-        let resolvedDefaults = defaults ?? AppPresentationPreferences.sharedDefaults()
+        let resolvedDefaults = defaults ?? .standard
         self.defaults = resolvedDefaults
         runsInMenuBarOnly = resolvedDefaults.bool(forKey: AppPresentationPreferences.menuBarOnlyKey)
     }

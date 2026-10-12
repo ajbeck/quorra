@@ -2,7 +2,8 @@ import AppKit
 import Foundation
 
 private enum LoginItemConfiguration {
-    static let appGroupIdentifier = "9GEBAJV9R4.quorra"
+    /// The main app's preferences domain; the helper is not sandboxed, so it can read it.
+    static let appIdentifier = "dev.ajbeck.quorra"
     static let menuBarOnlyKey = "dev.ajbeck.quorra.menu-bar-only"
 }
 
@@ -16,7 +17,7 @@ guard mainAppURL.pathExtension == "app" else {
 }
 
 let menuBarOnly = UserDefaults(
-    suiteName: LoginItemConfiguration.appGroupIdentifier
+    suiteName: LoginItemConfiguration.appIdentifier
 )?.bool(forKey: LoginItemConfiguration.menuBarOnlyKey) ?? false
 let configuration = NSWorkspace.OpenConfiguration()
 configuration.activates = !menuBarOnly

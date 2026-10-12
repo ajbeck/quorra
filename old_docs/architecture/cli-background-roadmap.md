@@ -201,6 +201,8 @@ and presents its main window. `SMAppService.Status.notFound` is treated as an
 unseen service that can still be registered, rather than as a missing build
 artifact.
 
+**Update (6 October 2026):** The login item is no longer sandboxed and no longer shares an App Group with the app (D019). It reads “Run in the menu bar only” from the main app's own preferences domain, `dev.ajbeck.quorra`, which now holds the preference; the first unsandboxed launch imports the value the App Group's defaults held.
+
 **Update (16 September 2026):** ⌘Q from a Quorra window no longer quits the app while it runs in the menu bar only. `applicationShouldTerminate` (https://developer.apple.com/documentation/appkit/nsapplicationdelegate/applicationshouldterminate(_:)) closes the app's windows and cancels the quit when the quit came from a window in that mode, so the menu bar item stays. The menu bar's Quit item, the setup screen's Cancel, and the CLI's terminate request quit fully through an explicit path, and any quit that arrives as an Apple event (logout, shutdown, the Dock, AppleScript, Sparkle's relaunch during an update) proceeds untouched, detected through `NSAppleEventManager.currentAppleEvent`. With "Keep Quorra in Dock" on, ⌘Q quits like a regular app, as the HIG describes Quit. AJ asked for this after 1.0 because ⌘Q was taking the menu bar item down with the window.
 
 ### D009 — Notification navigation from background state
@@ -346,6 +348,8 @@ a provisioning profile. `REGISTER_APP_GROUPS=NO` reflects that unprovisioned
 form. The main app still requires its profile for the restricted Keychain access
 group. Xcode 27 evaluates both application targets as Developer ID/manual for
 Release without applying that identity to package targets.
+
+**Update (6 October 2026):** The CLI helper and login item carry no entitlements now that they no longer share the App Group (D019), and the release workflow no longer checks for one. The main app keeps the group to read 1.1's data, and the system extension keeps it because Network Extension requires its `NEMachServiceName` to be prefixed with one of the extension's App Groups; sysextd rejects the extension at activation without it. The helper app wrapper remains; it still gives the CLI its own signing identifier.
 
 ### D019 — The app runs outside App Sandbox
 
