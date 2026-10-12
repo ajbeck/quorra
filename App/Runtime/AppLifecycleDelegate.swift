@@ -21,6 +21,7 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
     let ipcController: AppIPCController
 
     override init() {
+        SandboxContainer.importPreferences()
         let presentationController = AppPresentationController()
         self.presentationController = presentationController
         launchAtLoginController = LaunchAtLoginController()

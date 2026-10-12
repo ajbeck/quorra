@@ -5,7 +5,7 @@ weight: 10
 ---
 The default endpoint answers at `http://169.254.169.254`, the address the AWS SDKs already try. Turn it on, pick a profile, and the normal IMDSv2 provider chain finds credentials with nothing else configured.
 
-A narrowly scoped macOS Network Extension forwards only outbound TCP for `169.254.169.254:80` to Quorra's private `127.0.0.1:7114` backend. It relays opaque bytes and never interprets, stores or logs credentials. The app itself stays sandboxed.
+A narrowly scoped macOS Network Extension forwards only outbound TCP for `169.254.169.254:80` to Quorra's private `127.0.0.1:7114` backend. It relays opaque bytes and never interprets, stores or logs credentials. The extension runs in the macOS sandbox, and nothing runs as root.
 
 ## Before you start
 

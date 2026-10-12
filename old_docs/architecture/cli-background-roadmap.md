@@ -345,6 +345,14 @@ form. The main app still requires its profile for the restricted Keychain access
 group. Xcode 27 evaluates both application targets as Developer ID/manual for
 Release without applying that identity to package targets.
 
+### D019 — The app runs outside App Sandbox
+
+**Decision:** The main app no longer adopts App Sandbox. It keeps hardened runtime, Developer ID signing and notarization. The IMDS system extension stays sandboxed, nothing runs as root, and the Keychain access group is unchanged so stored tokens carry over. The SwiftData store moves to an explicit `~/Library/Application Support/Quorra/Quorra.store`. The first unsandboxed launch copies the store from the App Group container, where SwiftData kept it from 0.5 through 1.1 (falling back to the sandbox container for older installs), and imports preferences from the sandbox container and the App Group, leaving the originals for an older Quorra. The main app keeps the App Group entitlement only so it can read that legacy data without a group-container prompt; remove it once no supported upgrade path starts from 1.1 or earlier. A folder bookmarked by the sandboxed app is used directly when its security scope no longer applies.
+
+**Evidence:** Apple requires App Sandbox only for Mac App Store distribution (https://developer.apple.com/documentation/security/app-sandbox); TN3134 and the `com.apple.developer.system-extension.install` entitlement place no sandbox requirement on a Developer ID host. On 6 October 2026 an unsandboxed signed Debug build, run from `/Applications`, replaced the installed system extension, configured the transparent proxy, and served an IMDSv2 token and role credentials through `169.254.169.254` using Keychain items written by the sandboxed 1.1.0. SwiftData's unnamed store is `default.store` directly in Application Support; on AJ's Mac that file already belonged to another app, so an unsandboxed Quorra must never use the default name. A live run against AJ's 1.1.0 data showed the current store in `~/Library/Group Containers/9GEBAJV9R4.quorra/Library/Application Support/default.store`; the sandbox container's `default.store` was a stale copy from before the App Group, without any sessions or profiles.
+
+**Why:** The sandbox was the root of the App Group, the helper-app wrapper around the CLI, the security-scoped bookmark flows for `~/.aws` and the CLI install folder, and Sparkle's sandbox mode. Removing it lets later changes drop each of those. AJ chose this trade-off after the October 2026 architecture review; the cost is the loss of sandbox containment for a process that holds AWS credentials.
+
 ## Open Decisions
 
 - None for the current implementation scope.

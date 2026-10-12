@@ -13,7 +13,7 @@ Quorra asks macOS for two approvals and one folder. Nothing else.
 | Network Extension | Forwards outbound TCP for the metadata address to Quorra's local backend       | `169.254.169.254:80` only                |
 | macOS Keychain    | Stores Identity Center tokens and temporary role credentials                   | Never in Quorra's own files              |
 | Local endpoints   | Serve a chosen profile to tools                                                | Bound to `127.0.0.1`, never your network |
-| The app itself    | —                                                                            | Sandboxed for the whole of its life      |
+| The app itself    | Runs as you, notarized and hardened; no root process or privileged helper     | Your user account                        |
 
 ## Credentials
 

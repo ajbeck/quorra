@@ -32,9 +32,8 @@ public enum QuorraMetadataSchema {
             configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
         } else {
             let url = storeURL()
-            if let legacyURL = FileManager.default
-                .containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)?
-                .appending(path: groupStorePath) {
+            // Never adopt default.store from the real Application Support: it belongs to some other app.
+            for legacyURL in SandboxContainer.storeURLs() {
                 try copyStore(from: legacyURL, to: url)
             }
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -50,10 +49,18 @@ public enum QuorraMetadataSchema {
               !fileManager.fileExists(atPath: destination.path) else { return }
 
         try fileManager.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
-        for suffix in sqliteFileSuffixes {
-            let sourceFile = URL(filePath: source.path + suffix)
-            guard fileManager.fileExists(atPath: sourceFile.path) else { continue }
-            try fileManager.copyItem(at: sourceFile, to: URL(filePath: destination.path + suffix))
+        do {
+            for suffix in sqliteFileSuffixes {
+                let sourceFile = URL(filePath: source.path + suffix)
+                guard fileManager.fileExists(atPath: sourceFile.path) else { continue }
+                try fileManager.copyItem(at: sourceFile, to: URL(filePath: destination.path + suffix))
+            }
+        } catch {
+            // A partial copy would be opened as the real store and never retried.
+            for suffix in sqliteFileSuffixes {
+                try? fileManager.removeItem(at: URL(filePath: destination.path + suffix))
+            }
+            throw error
         }
     }
 }

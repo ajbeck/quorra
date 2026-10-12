@@ -13,6 +13,8 @@ IMDS transparent proxy is packaged as a Network Extension system extension in
 `quorra.app/Contents/Library/SystemExtensions`, not as a Mac App Store
 `.appex`. The containing app remains sandboxed.
 
+**Update (6 October 2026):** The containing app no longer adopts App Sandbox; the system extension stays sandboxed. See D019 in `cli-background-roadmap.md`. macOS activates the extension only from an app in `/Applications`, so a Debug build run from DerivedData reports "Move Quorra to Applications"; copy the build to `/Applications` to test activation. The transparent-proxy configuration remembers the signature of the app that saved it, so after switching between an Apple Development and a Developer ID build the proxy fails with "Signature check failed … Failed to launch dev.ajbeck.quorra"; stopping and starting the Default endpoint, then restarting Quorra, recreates it. A normal update keeps the same Developer ID signature.
+
 The release artifact, Sparkle update feed, embedded CLI, and system extension
 are one product. Mac App Store and TestFlight distribution are out of scope for
 this implementation because Apple uses a different Network Extension packaging
@@ -333,7 +335,7 @@ while the transparent-proxy design is validated.
 - Backend unavailability closes only the affected flow and never changes host
   routes or interface configuration.
 - Secrets remain redacted from logs in both processes.
-- The app and system extension remain sandboxed and require no root process.
+- The system extension remains sandboxed, and neither process requires root. The app left App Sandbox in October 2026 (D019 in `cli-background-roadmap.md`).
 - The system extension is activated only from the matching Team ID host app.
 - A missing user backend or ambiguous ownership fails closed.
 
